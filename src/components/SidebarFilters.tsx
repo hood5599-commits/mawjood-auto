@@ -1,20 +1,32 @@
 import React, { useState } from 'react';
-import { t } from '../utils/translations';
 import { getPartCategory } from '../utils/categoryHelper';
 
+// أعدنا كتابة جميع الخصائص القديمة هنا حتى يقرأها ملف App.tsx بنجاح دون أي تعارض
 interface SidebarProps {
   lang: 'ar' | 'en';
   carData: any;
   years: string[];
   translateMake: any;
   categories: string[];
+  expandedCategories: string[];
+  toggleCategory: (category: string) => void;
   inventory: any[];
+  searchTerm: string;
   setSearchTerm: (term: string) => void;
+  filterMake: string;
+  setFilterMake: (make: string) => void;
+  filterModel: string;
+  setFilterModel: (model: string) => void;
+  filterYear: string;
+  setFilterYear: (year: string) => void;
+  filterEngine: string;
+  setFilterEngine: (engine: string) => void;
 }
 
-export const SidebarFilters: React.FC<SidebarProps> = ({
-  lang, carData, years, translateMake, categories, inventory, setSearchTerm
-}) => {
+export const SidebarFilters: React.FC<SidebarProps> = (props) => {
+  // نستخرج فقط المتغيرات التي تحتاجها شجرة RockAuto لكي نتجنب أخطاء المتغيرات غير المستخدمة
+  const { lang, carData, years, translateMake, categories, inventory, setSearchTerm } = props;
+
   // حالة لتخزين الفروع المفتوحة في الشجرة
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
 
@@ -114,7 +126,7 @@ export const SidebarFilters: React.FC<SidebarProps> = ({
                                           const categoryKey = `cat_${make}_${model}_${year}_${category}`;
                                           const isCategoryOpen = expandedNodes[categoryKey];
 
-                                          // تصفية المخزون بدقة متناهية بناءً على فرع الشجرة الحالي فقط
+                                          // تصفية المخزون بدقة متناهية بناءً على فرع الشجرة المفتوح حالياً فقط
                                           const filteredParts = inventory.filter(part => 
                                             part.make === make && 
                                             part.model === model && 
@@ -196,7 +208,6 @@ export const SidebarFilters: React.FC<SidebarProps> = ({
   );
 };
 
-// تنسيق مشترك وموحد لعناصر الشجرة لجعلها تبدو كبرنامج احترافي
 const nodeStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
