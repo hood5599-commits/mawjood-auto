@@ -1,6 +1,6 @@
 import React from 'react';
-import { t } from '/src/utils/translations.ts';
-import { getPartCategory } from '/src/utils/categoryHelper.ts';
+import { t } from '../utils/translations';
+import { getPartCategory } from '../utils/categoryHelper';
 
 interface SidebarProps {
   lang: 'ar' | 'en';
