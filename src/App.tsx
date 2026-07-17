@@ -312,6 +312,7 @@ export default function App() {
     setVisibleCount(PAGE_SIZE);
   }, [searchTerm, filterMake, filterModel, filterYear, filterEngine, sortBy]);
 
+  // دالة جلب البيانات من Supabase مع جلب كافة الأعمدة بما فيها الـ model الجديد
   const fetchParts = async () => {
     setLoading(true);
     try {
@@ -329,12 +330,17 @@ export default function App() {
     }
   };
 
+  // تمت إضافة حماية (Safe checks) للتأكد من عدم انهيار الفلترة في حال كانت القطعة قديمة ولا تحتوي على بعض البيانات
   const filteredParts = inventory.filter(item => {
-    const matchesSearchText = !searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase()) || item.make.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearchText = !searchTerm || 
+      (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || 
+      (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
+      
     const matchesMake = !filterMake || item.make === filterMake;
-    const matchesModel = !filterModel || item.model === filterModel;
-    const matchesYear = !filterYear || item.year === filterYear;
-    const matchesEngine = !filterEngine || item.engine === filterEngine;
+    const matchesModel = !filterModel || (item.model && item.model === filterModel);
+    const matchesYear = !filterYear || (item.year && String(item.year) === String(filterYear));
+    const matchesEngine = !filterEngine || (item.engine && item.engine === filterEngine);
+    
     return matchesSearchText && matchesMake && matchesModel && matchesYear && matchesEngine;
   });
 
