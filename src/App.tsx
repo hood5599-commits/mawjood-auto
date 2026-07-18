@@ -23,6 +23,28 @@ const TRANSLATE_MAKE: Record<string, string> = {
   "رينو": "Renault", "سوزوكي": "Suzuki", "بورش": "Porsche", "كرايسلر": "Chrysler"
 };
 
+const TRANSLATE_MODEL: Record<string, string> = {
+  "كامري": "Camry", "كورولا": "Corolla", "يارس": "Yaris", "هيلوكس": "Hilux", "لاندكروزر": "Land Cruiser", "برادو": "Prado", "أفالون": "Avalon", "راف فور": "RAV4", "فورشنر": "Fortuner", "شاص": "LC70 (Shas)",
+  "إلنترا": "Elantra", "سوناتا": "Sonata", "أكسنت": "Accent", "توسان": "Tucson", "سانتافي": "Santa Fe", "أزيرا": "Azera", "كريتا": "Creta", "كونا": "Kona",
+  "باترول": "Patrol", "ألتيما": "Altima", "صني": "Sunny", "ماكسيما": "Maxima", "إكس تريل": "X-Trail", "نافارا": "Navara", "باثفايندر": "Pathfinder", "سنترا": "Sentra",
+  "تورس": "Taurus", "إكسبلورر": "Explorer", "إف-150": "F-150", "إكسبديشن": "Expedition", "موستنج": "Mustang", "إيدج": "Edge", "رينجر": "Ranger",
+  "تاهو": "Tahoe", "سوبربان": "Suburban", "سيلفرادو": "Silverado", "ماليبو": "Malibu", "كابتيفا": "Captiva", "ترافيرس": "Traverse", "كابرس": "Caprice",
+  "سيراتو": "Cerato", "أوبتيما / K5": "Optima", "ريو": "Rio", "سبورتج": "Sportage", "سورينتو": "Sorento", "كادينزا / K8": "Cadenza", "بيغاس": "Pegas",
+  "أكورد": "Accord", "سيفيك": "Civic", "سي آر في": "CR-V", "سيتي": "City", "بايلوت": "Pilot", "أوديسي": "Odyssey",
+  "باجيرو": "Pajero", "لانسر": "Lancer", "أتراج": "Attrage", "إكليبس كروس": "Eclipse Cross", "L200": "L200",
+  "مازدا 6": "Mazda 6", "مازدا 3": "Mazda 3", "CX-9": "CX-9", "CX-5": "CX-5",
+  "يوكن": "Yukon", "سييرا": "Sierra", "أكاديا": "Acadia", "تيرين": "Terrain",
+  "الفئة الثالثة": "3 Series", "الفئة الخامسة": "5 Series", "الفئة السابعة": "7 Series",
+  "جولف": "Golf", "باسات": "Passat", "تيغوان": "Tiguan", "طوارق": "Touareg",
+  "رانجلر": "Wrangler", "جراند شيروكي": "Grand Cherokee", "شيروكي": "Cherokee",
+  "تشارجر": "Charger", "تشالنجر": "Challenger", "دورانجو": "Durango",
+  "رينج روفر": "Range Rover", "ديفندر": "Defender", "ديسكفري": "Discovery",
+  "فورستر": "Forester", "أوت باك": "Outback", "إمبريزا": "Impreza",
+  "داستر": "Duster", "ميجان": "Megane", "كوليوس": "Koleos",
+  "سويفت": "Swift", "جيمني": "Jimny", "فيتارا": "Vitara",
+  "كايين": "Cayenne", "ماكان": "Macan", "911": "911"
+};
+
 const CAR_DATA: Record<string, { models: string[], engines: string[] }> = {
   "تويوتا": {
     models: ["كامري", "كورولا", "يارس", "هيلوكس", "لاندكروزر", "برادو", "أفالون", "راف فور", "فورشنر", "شاص"],
@@ -436,22 +458,22 @@ export default function App() {
 
   const handleBuyClick = (item: any) => {
     const text = lang === 'ar'
-      ? `مرحباً موجود أوتو قطر 👋\nأرغب في الاستفسار عن قطعة الغيار:\n\n🛠️ القطعة: *${item.name}*\n🚗 السيارة: *${item.make} - ${item.model || 'غير محدد'}*\n📅 الموديل: *${item.year}*\n💰 السعر: *${item.price} ر.ق*`
-      : `Hello Mawjood Auto Qatar 👋\nI want to inquire about the spare part:\n\n🛠️ Part: *${item.name}*\n🚗 Car: *${item.make} - ${item.model || 'N/A'}*\n📅 Year: *${item.year}*\n💰 Price: *${item.price} QAR*`;
+      ? `مرحباً موجود أوتو 👋\nأرغب في الاستفسار عن قطعة الغيار:\n\n🛠️ القطعة: *${item.name}*\n🚗 السيارة: *${item.make} - ${item.model || 'غير محدد'}*\n📅 الموديل: *${item.year}*\n💰 السعر: *${item.price} ر.ق*`
+      : `Hello Mawjood Auto 👋\nI want to inquire about the spare part:\n\n🛠️ Part: *${item.name}*\n🚗 Car: *${item.make} - ${item.model || 'N/A'}*\n📅 Year: *${item.year}*\n💰 Price: *${item.price} QAR*`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleGeneralContact = () => {
     const text = lang === 'ar'
-      ? `مرحباً موجود أوتو قطر 👋\nأبحث عن قطعة غيار ولم أجدها في المتجر، هل يمكنكم المساعدة؟`
-      : `Hello Mawjood Auto Qatar 👋\nI'm looking for a part I couldn't find in the shop — can you help?`;
+      ? `مرحباً موجود أوتو 👋\nأبحث عن قطعة غيار ولم أجدها في المتجر، هل يمكنكم المساعدة؟`
+      : `Hello Mawjood Auto 👋\nI'm looking for a part I couldn't find in the shop — can you help?`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleShare = async (item: any) => {
     const shareText = lang === 'ar'
-      ? `🚗 *موجود أوتو قطر 🇶🇦*\n\n🛠️ القطعة: *${item.name}*\n🚘 السيارة: *${item.make} - ${item.model || 'عام'}*\n📅 الموديل: *${item.year}*\n💰 السعر: *${item.price} ر.ق*`
-      : `🚗 *Mawjood Auto Qatar 🇶🇦*\n\n🛠️ Part: *${item.name}*\n🚘 Car: *${item.make} - ${item.model || 'General'}*\n📅 Year: *${item.year}*\n💰 Price: *${item.price} QAR*`;
+      ? `🚗 *موجود أوتو*\n\n🛠️ القطعة: *${item.name}*\n🚘 السيارة: *${item.make} - ${item.model || 'عام'}*\n📅 الموديل: *${item.year}*\n💰 السعر: *${item.price} ر.ق*`
+      : `🚗 *Mawjood Auto*\n\n🛠️ Part: *${item.name}*\n🚘 Car: *${item.make} - ${item.model || 'General'}*\n📅 Year: *${item.year}*\n💰 Price: *${item.price} QAR*`;
 
     if (navigator.share) {
       try { await navigator.share({ title: `Mawjood Auto`, text: shareText, url: window.location.href }); } catch (err) {}
@@ -470,9 +492,9 @@ export default function App() {
   const activeChips: { key: string; label: string; onRemove: () => void }[] = [];
   if (searchTerm) activeChips.push({ key: 'search', label: `"${searchTerm}"`, onRemove: () => setSearchTerm('') });
   if (filterMake) activeChips.push({ key: 'make', label: lang === 'ar' ? filterMake : (TRANSLATE_MAKE[filterMake] || filterMake), onRemove: () => { setFilterMake(''); setFilterModel(''); } });
-  if (filterModel) activeChips.push({ key: 'model', label: filterModel, onRemove: () => setFilterModel('') });
+  if (filterModel) activeChips.push({ key: 'model', label: lang === 'ar' ? filterModel : (TRANSLATE_MODEL[filterModel] || filterModel), onRemove: () => setFilterModel('') });
   if (filterYear) activeChips.push({ key: 'year', label: filterYear, onRemove: () => setFilterYear('') });
-  if (filterEngine) activeChips.push({ key: 'engine', label: filterEngine, onRemove: () => setFilterEngine('') });
+  if (filterEngine) activeChips.push({ key: 'engine', label: lang === 'ar' ? filterEngine : filterEngine.replace('سلندر', 'Cyl').replace('لتر', 'L').replace('توربو', 'Turbo').replace('هايبرد (الهجين)', 'Hybrid'), onRemove: () => setFilterEngine('') });
 
   return (
     <>
@@ -560,7 +582,9 @@ export default function App() {
 
               <div className="mw-sidebar-col">
                 <SidebarFilters
-                  lang={lang} carData={CAR_DATA} years={YEARS} translateMake={TRANSLATE_MAKE} categories={PARTS_CATEGORIES} expandedCategories={expandedCategories} toggleCategory={toggleCategory} inventory={inventory}
+                  lang={lang} carData={CAR_DATA} years={YEARS} translateMake={TRANSLATE_MAKE} 
+                  translateModel={TRANSLATE_MODEL} 
+                  categories={PARTS_CATEGORIES} expandedCategories={expandedCategories} toggleCategory={toggleCategory} inventory={inventory}
                   searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterMake={filterMake} setFilterMake={setFilterMake} filterModel={filterModel} setFilterModel={setFilterModel} filterYear={filterYear} setFilterYear={setFilterYear} filterEngine={filterEngine} setFilterEngine={setFilterEngine}
                 />
               </div>
