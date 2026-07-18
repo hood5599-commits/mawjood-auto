@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { getPartCategory } from '../utils/categoryHelper';
 
-// أعدنا كتابة جميع الخصائص القديمة هنا حتى يقرأها ملف App.tsx بنجاح دون أي تعارض
+// الواجهة البرمجية لتفادي أخطاء TypeScript
 interface SidebarProps {
   lang: 'ar' | 'en';
   carData: any;
@@ -23,14 +23,66 @@ interface SidebarProps {
   setFilterEngine: (engine: string) => void;
 }
 
+// 1. قاموس ترجمة أقسام قطع الغيار إلى العربية
+const CATEGORY_TRANSLATION: Record<string, string> = {
+  "Belt Drive": "السيور والبكرات",
+  "Body & Lamp Assembly": "الهيكل والإضاءة",
+  "Brake & Wheel Hub": "الفرامل ومحاور العجلات",
+  "Cooling System": "نظام التبريد (الراديتر)",
+  "Drivetrain": "نظام الدفع",
+  "Electrical": "الكهرباء",
+  "Electrical-Bulb & Socket": "اللمبات والقواعد",
+  "Electrical-Connector": "الوصلات الكهربائية",
+  "Electrical-Switch & Relay": "المفاتيح والمرحلات",
+  "Engine": "المحرك (الماكينة)",
+  "Exhaust & Emission": "نظام العادم (الشكمان)",
+  "Fuel & Air": "نظام الوقود والهواء",
+  "Heat & Air Conditioning": "التكييف والتدفئة",
+  "Ignition": "نظام الإشعال (البواجي)",
+  "Interior": "المقصورة الداخلية (الديكور)",
+  "Steering": "نظام التوجيه (الدريكسيون)",
+  "Suspension": "نظام التعليق (المساعدين)",
+  "Transmission-Automatic": "ناقل الحركة (الجيربكس)",
+  "Wheel": "العجلات (الجنوط)",
+  "Wiper & Washer": "المساحات وبخاخات المياه"
+};
+
+// 2. روابط الشعارات الحقيقية لشركات السيارات
+const MAKE_LOGOS: Record<string, string> = {
+  "تويوتا": "https://logo.clearbit.com/toyota.com",
+  "هيونداي": "https://logo.clearbit.com/hyundai.com",
+  "نيسان": "https://logo.clearbit.com/nissan-global.com",
+  "فورد": "https://logo.clearbit.com/ford.com",
+  "شفروليه": "https://logo.clearbit.com/chevrolet.com",
+  "كيا": "https://logo.clearbit.com/kia.com",
+  "هوندا": "https://logo.clearbit.com/honda.com",
+  "لكزس": "https://logo.clearbit.com/lexus.com",
+  "ميتسوبيشي": "https://logo.clearbit.com/mitsubishicars.com",
+  "مازدا": "https://logo.clearbit.com/mazda.com",
+  "جي إم سي": "https://logo.clearbit.com/gmc.com",
+  "بي إم دبليو": "https://logo.clearbit.com/bmw.com",
+  "مرسيدس": "https://logo.clearbit.com/mercedes-benz.com",
+  "فولكس فاجن": "https://logo.clearbit.com/vw.com",
+  "أودي": "https://logo.clearbit.com/audi.com",
+  "جيب": "https://logo.clearbit.com/jeep.com",
+  "دودج": "https://logo.clearbit.com/dodge.com",
+  "رام": "https://logo.clearbit.com/ramtrucks.com",
+  "لاند روفر": "https://logo.clearbit.com/landrover.com",
+  "إنفينيتي": "https://logo.clearbit.com/infinitiusa.com",
+  "سوبارو": "https://logo.clearbit.com/subaru.com",
+  "رينو": "https://logo.clearbit.com/renault.com",
+  "سوزوكي": "https://logo.clearbit.com/globalsuzuki.com",
+  "بورش": "https://logo.clearbit.com/porsche.com",
+  "كرايسلر": "https://logo.clearbit.com/chrysler.com"
+};
+
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
-  // نستخرج فقط المتغيرات التي تحتاجها شجرة RockAuto لكي نتجنب أخطاء المتغيرات غير المستخدمة
   const { lang, carData, years, translateMake, categories, inventory, setSearchTerm } = props;
 
-  // حالة لتخزين الفروع المفتوحة في الشجرة
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
+  // حالة برمجية ذكية لمراقبة الصور التي تفشل في التحميل
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
-  // دالة لفتح وإغلاق الفروع
   const toggleNode = (nodeKey: string) => {
     setExpandedNodes(prev => ({
       ...prev,
@@ -51,7 +103,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         direction: isRtl ? 'rtl' : 'ltr'
       }}>
         
-        {/* عنوان شجرة البحث */}
+        {/* 3. تعديل العنوان ليكون "كتالوج قطع الغيار" فقط */}
         <h3 style={{ 
           margin: '0 0 20px 0', 
           color: '#1a365d', 
@@ -63,10 +115,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           alignItems: 'center',
           gap: '8px'
         }}>
-          📋 {lang === 'ar' ? 'كتالوج قطع الغيار (RockAuto)' : 'Parts Catalog (RockAuto)'}
+          📋 {lang === 'ar' ? 'كتالوج قطع الغيار' : 'Parts Catalog'}
         </h3>
 
-        {/* بداية الشجرة المتداخلة */}
         <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
           
           {/* المستوى 1: الشركات (Makes) */}
@@ -81,7 +132,20 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   onClick={() => toggleNode(makeKey)}
                   style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold' }}
                 >
-                  <span>🚗 {makeName}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {/* نظام عرض الشعار مع حماية عند فشل التحميل */}
+                    {!imgErrors[make] ? (
+                      <img 
+                        src={MAKE_LOGOS[make] || ''} 
+                        alt={make} 
+                        style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                        onError={() => setImgErrors(prev => ({...prev, [make]: true}))}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '16px' }}>🚗</span>
+                    )}
+                    <span>{makeName}</span>
+                  </div>
                   <span style={{ fontSize: '10px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                 </div>
 
@@ -119,14 +183,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                       <span style={{ fontSize: '9px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                     </div>
 
-                                    {/* المستوى 4: أقسام قطع الغيار (Categories) */}
+                                    {/* المستوى 4: أقسام قطع الغيار المترجمة */}
                                     {isYearOpen && (
                                       <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                                         {categories.map(category => {
                                           const categoryKey = `cat_${make}_${model}_${year}_${category}`;
                                           const isCategoryOpen = expandedNodes[categoryKey];
 
-                                          // تصفية المخزون بدقة متناهية بناءً على فرع الشجرة المفتوح حالياً فقط
+                                          // تطبيق الترجمة على القسم
+                                          const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
+
                                           const filteredParts = inventory.filter(part => 
                                             part.make === make && 
                                             part.model === model && 
@@ -140,11 +206,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 onClick={() => toggleNode(categoryKey)}
                                                 style={{ ...nodeStyle, fontSize: '12px', color: '#2d3748', padding: '4px 6px' }}
                                               >
-                                                <span>⚙️ {category} <span style={{ fontSize: '10px', color: '#a0aec0' }}>({filteredParts.length})</span></span>
+                                                <span>⚙️ {translatedCategory} <span style={{ fontSize: '10px', color: '#a0aec0' }}>({filteredParts.length})</span></span>
                                                 <span style={{ fontSize: '8px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
 
-                                              {/* المستوى 5 والأخير: القطع الفعلية داخل شجرة البحث فقط! */}
+                                              {/* المستوى 5: القطع الفعلية */}
                                               {isCategoryOpen && (
                                                 <div style={{ 
                                                   padding: '6px 12px', 
