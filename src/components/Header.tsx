@@ -1,5 +1,6 @@
 import React from 'react';
 import { t } from '../utils/translations.ts';
+import { Logo } from './Logo'; // تم استدعاء الشعار هنا
 
 interface HeaderProps {
   lang: 'ar' | 'en';
@@ -13,8 +14,10 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ lang, setLang, view, setView, session, onLogout }) => {
   return (
     <header style={{ backgroundColor: '#1a365d', color: 'white', padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', flexWrap: 'wrap', gap: '15px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => setView('shop')}>
-        <span style={{ fontSize: '28px' }}>🚗</span>
+      
+      {/* تم تغيير الإيموجي ووضع الشعار الجديد هنا */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => setView('shop')}>
+        <Logo />
         <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>{t[lang].title}</h1>
       </div>
       
