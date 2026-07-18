@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { getPartCategory } from '../utils/categoryHelper';
 
-// الواجهة البرمجية لتفادي أخطاء TypeScript
 interface SidebarProps {
   lang: 'ar' | 'en';
   carData: any;
   years: string[];
-  translateMake: any;
+  translateMake: Record<string, string>;
+  translateModel: Record<string, string>; // أضفنا استقبال قاموس الموديلات هنا
   categories: string[];
   expandedCategories: string[];
   toggleCategory: (category: string) => void;
@@ -23,7 +23,7 @@ interface SidebarProps {
   setFilterEngine: (engine: string) => void;
 }
 
-// 1. قاموس ترجمة أقسام قطع الغيار إلى العربية
+// 1. القاموس العربي للأقسام
 const CATEGORY_TRANSLATION: Record<string, string> = {
   "Belt Drive": "السيور والبكرات",
   "Body & Lamp Assembly": "الهيكل والإضاءة",
@@ -47,40 +47,23 @@ const CATEGORY_TRANSLATION: Record<string, string> = {
   "Wiper & Washer": "المساحات وبخاخات المياه"
 };
 
-// 2. روابط الشعارات الحقيقية لشركات السيارات
-const MAKE_LOGOS: Record<string, string> = {
-  "تويوتا": "https://logo.clearbit.com/toyota.com",
-  "هيونداي": "https://logo.clearbit.com/hyundai.com",
-  "نيسان": "https://logo.clearbit.com/nissan-global.com",
-  "فورد": "https://logo.clearbit.com/ford.com",
-  "شفروليه": "https://logo.clearbit.com/chevrolet.com",
-  "كيا": "https://logo.clearbit.com/kia.com",
-  "هوندا": "https://logo.clearbit.com/honda.com",
-  "لكزس": "https://logo.clearbit.com/lexus.com",
-  "ميتسوبيشي": "https://logo.clearbit.com/mitsubishicars.com",
-  "مازدا": "https://logo.clearbit.com/mazda.com",
-  "جي إم سي": "https://logo.clearbit.com/gmc.com",
-  "بي إم دبليو": "https://logo.clearbit.com/bmw.com",
-  "مرسيدس": "https://logo.clearbit.com/mercedes-benz.com",
-  "فولكس فاجن": "https://logo.clearbit.com/vw.com",
-  "أودي": "https://logo.clearbit.com/audi.com",
-  "جيب": "https://logo.clearbit.com/jeep.com",
-  "دودج": "https://logo.clearbit.com/dodge.com",
-  "رام": "https://logo.clearbit.com/ramtrucks.com",
-  "لاند روفر": "https://logo.clearbit.com/landrover.com",
-  "إنفينيتي": "https://logo.clearbit.com/infinitiusa.com",
-  "سوبارو": "https://logo.clearbit.com/subaru.com",
-  "رينو": "https://logo.clearbit.com/renault.com",
-  "سوزوكي": "https://logo.clearbit.com/globalsuzuki.com",
-  "بورش": "https://logo.clearbit.com/porsche.com",
-  "كرايسلر": "https://logo.clearbit.com/chrysler.com"
+// 2. الروابط الموثوقة للشعارات (خدمة جوجل الرسمية)
+const MAKE_DOMAINS: Record<string, string> = {
+  "تويوتا": "toyota.com", "هيونداي": "hyundai.com", "نيسان": "nissan-global.com",
+  "فورد": "ford.com", "شفروليه": "chevrolet.com", "كيا": "kia.com",
+  "هوندا": "honda.com", "لكزس": "lexus.com", "ميتسوبيشي": "mitsubishicars.com",
+  "مازدا": "mazda.com", "جي إم سي": "gmc.com", "بي إم دبليو": "bmw.com",
+  "مرسيدس": "mercedes-benz.com", "فولكس فاجن": "vw.com", "أودي": "audi.com",
+  "جيب": "jeep.com", "دودج": "dodge.com", "رام": "ramtrucks.com",
+  "لاند روفر": "landrover.com", "إنفينيتي": "infinitiusa.com", "سوبارو": "subaru.com",
+  "رينو": "renault.com", "سوزوكي": "globalsuzuki.com", "بورش": "porsche.com",
+  "كرايسلر": "chrysler.com"
 };
 
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
-  const { lang, carData, years, translateMake, categories, inventory, setSearchTerm } = props;
+  const { lang, carData, years, translateMake, translateModel, categories, inventory, setSearchTerm } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
-  // حالة برمجية ذكية لمراقبة الصور التي تفشل في التحميل
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   const toggleNode = (nodeKey: string) => {
@@ -103,7 +86,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         direction: isRtl ? 'rtl' : 'ltr'
       }}>
         
-        {/* 3. تعديل العنوان ليكون "كتالوج قطع الغيار" فقط */}
+        {/* 3. تعديل العنوان */}
         <h3 style={{ 
           margin: '0 0 20px 0', 
           color: '#1a365d', 
@@ -120,7 +103,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
         <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
           
-          {/* المستوى 1: الشركات (Makes) */}
           {Object.keys(carData).map(make => {
             const makeKey = `make_${make}`;
             const isMakeOpen = expandedNodes[makeKey];
@@ -133,10 +115,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* نظام عرض الشعار مع حماية عند فشل التحميل */}
+                    {/* نظام سحب الشعار من جوجل */}
                     {!imgErrors[make] ? (
                       <img 
-                        src={MAKE_LOGOS[make] || ''} 
+                        src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`} 
                         alt={make} 
                         style={{ width: '22px', height: '22px', objectFit: 'contain' }}
                         onError={() => setImgErrors(prev => ({...prev, [make]: true}))}
@@ -149,12 +131,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   <span style={{ fontSize: '10px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                 </div>
 
-                {/* المستوى 2: الموديلات (Models) */}
                 {isMakeOpen && (
                   <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                     {carData[make]?.models.map((model: string) => {
                       const modelKey = `model_${make}_${model}`;
                       const isModelOpen = expandedNodes[modelKey];
+                      
+                      // تطبيق ترجمة الموديلات
+                      const modelName = isRtl ? model : (translateModel[model] || model);
 
                       return (
                         <li key={model} style={{ marginBottom: '4px' }}>
@@ -162,11 +146,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                             onClick={() => toggleNode(modelKey)}
                             style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '13px' }}
                           >
-                            <span>📂 {model}</span>
+                            <span>📂 {modelName}</span>
                             <span style={{ fontSize: '9px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                           </div>
 
-                          {/* المستوى 3: سنوات الصنع (Years) */}
                           {isModelOpen && (
                             <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                               {years.map(year => {
@@ -183,14 +166,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                       <span style={{ fontSize: '9px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                     </div>
 
-                                    {/* المستوى 4: أقسام قطع الغيار المترجمة */}
                                     {isYearOpen && (
                                       <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                                         {categories.map(category => {
                                           const categoryKey = `cat_${make}_${model}_${year}_${category}`;
                                           const isCategoryOpen = expandedNodes[categoryKey];
 
-                                          // تطبيق الترجمة على القسم
+                                          // تطبيق ترجمة الأقسام
                                           const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
 
                                           const filteredParts = inventory.filter(part => 
@@ -210,7 +192,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 <span style={{ fontSize: '8px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
 
-                                              {/* المستوى 5: القطع الفعلية */}
                                               {isCategoryOpen && (
                                                 <div style={{ 
                                                   padding: '6px 12px', 
@@ -225,7 +206,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 }}>
                                                   {filteredParts.length === 0 ? (
                                                     <span style={{ color: '#a0aec0', fontSize: '11px', fontStyle: 'italic' }}>
-                                                      {lang === 'ar' ? 'لا توجد قطع متوفرة لهذا الموديل' : 'No parts available'}
+                                                      {lang === 'ar' ? 'لا توجد قطع متوفرة' : 'No parts available'}
                                                     </span>
                                                   ) : (
                                                     filteredParts.map(part => (
