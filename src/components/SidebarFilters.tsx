@@ -75,7 +75,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   // حالة الذاكرة للكمية لكل قطعة
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
 
-  // 🔥 حالة القطعة المحددة لعرض نافذة التوافق (Fitment / Buyer's Guide)
+  // حالة القطعة المحددة لعرض نافذة التوافق (Fitment Modal)
   const [fitmentModalPart, setFitmentModalPart] = useState<any | null>(null);
 
   const getQty = (id: number) => partQuantities[id] || 1;
@@ -115,7 +115,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const isRtl = lang === 'ar';
 
-  // 🔥 البحث عن كل السيارات التي تتطابق مع نفس رقم القطعة
+  // جلب كل السيارات التي تتطابق مع نفس رقم القطعة
   const compatibleVehicles = fitmentModalPart
     ? inventory.filter(p => {
         const modalPN = (fitmentModalPart.part_number || fitmentModalPart.code || fitmentModalPart.sku || '').toString().trim().toLowerCase();
@@ -263,7 +263,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
 
-                                              {/* عرض القطع + زر التوافق للـ Part Number */}
+                                              {/* عرض القطع الشبكي */}
                                               {isCategoryOpen && (
                                                 <div style={{  
                                                   padding: '16px',  
@@ -305,7 +305,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                           <div style={{ flex: 1 }}>
                                                             <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
                                                             
-                                                            {/* 🔥 زر رقم القطعة القابل للنقر لعرض التوافق */}
+                                                            {/* زر رقم القطعة لعرض التوافق */}
                                                             <div 
                                                               onClick={(e) => {
                                                                 e.stopPropagation();
@@ -324,8 +324,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                 border: '1px solid #bee3f8',
                                                                 display: 'inline-flex',
                                                                 alignItems: 'center',
-                                                                gap: '4px',
-                                                                transition: 'background-color 0.2s'
+                                                                gap: '4px'
                                                               }}
                                                               title={lang === 'ar' ? 'اضغط لعرض كافة السيارات المتوافقة' : 'Click to view matching vehicles'}
                                                             >
@@ -338,7 +337,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                           </div>
                                                         </div>
 
-                                                        {/* أزرار التحكم بالكمية (+ و -) + أضف للسلة */}
+                                                        {/* أزرار الكمية + زر السلة */}
                                                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
                                                           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
                                                             <button 
@@ -412,7 +411,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         </ul>
       </div>
 
-      {/* 🔥 نافذة عرض السيارات المتوافقة (Fitment Popup Modal) */}
+      {/* نافذة عرض السيارات المتوافقة */}
       {fitmentModalPart && (
         <div 
           onClick={() => setFitmentModalPart(null)}
@@ -463,7 +462,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </button>
             </div>
 
-            {/* صورة وسعر القطعة داخل النافذة */}
+            {/* تفاصيل القطعة */}
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f7fafc', padding: '12px', borderRadius: '10px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
               <img 
                 src={fitmentModalPart.image_url || 'https://via.placeholder.com/60'} 
@@ -480,7 +479,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               {lang === 'ar' ? 'هذه القطعة تركب وتتوافق مع السيارات التالية:' : 'This part fits the following vehicles:'}
             </h4>
 
-            {/* قائمة السيارات المتوافقة */}
+            {/* قائمة السيارات */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {compatibleVehicles.length > 0 ? (
                 compatibleVehicles.map((v, idx) => (
@@ -492,7 +491,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                       borderRadius: '8px',
                       border: '1px solid #cbd5e0',
                       display: 'flex',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       fontSize: '13.5px'
                     }}
