@@ -151,46 +151,38 @@ export default function App() {
     }
   };
 
-  // نظام تصفية تسلسلي صارم (1+2+3+4+5): لا تظهر القطعة إلا بتطابق الفلاتر النشطة بالكامل
+  // نظام تصفية تسلسلي صارم: لا تظهر القطع إلا عند تحديد الموديل والسنة معاً (والمتطلبات الأخرى إذا وجدت)
   const filteredParts = inventory.filter(item => {
-    // شرط أساسي: لا تظهر أي قطعة ما لم يتم اختيار الموديل (filterModel) أو استخدام بحث نصي حر
-    if (!searchTerm && !filterModel) {
+    if (!searchTerm && (!filterModel || !filterYear)) {
       return false;
     }
 
-    // 1. بحث النص الحر (إن وجد)
     if (searchTerm) {
       const matchesSearch = (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || 
                             (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
       if (!matchesSearch) return false;
     }
 
-    // 2. مطابقة الماركة (إلزامية إذا تم اختيارها)
     if (filterMake && item.make !== filterMake) {
       return false;
     }
 
-    // 3. مطابقة الموديل (إلزامية، وبدونها لا تظهر القطع أساساً كما تم توضيحه في الشرط أعلاه)
     if (filterModel && item.model !== filterModel) {
       return false;
     }
 
-    // 4. مطابقة السنة (تُفعل تدريجياً إن تم اختيارها، وإن لم تطابق تُستبعد القطعة)
     if (filterYear && String(item.year) !== String(filterYear)) {
       return false;
     }
 
-    // 5. مطابقة المحرك (تُفعل تدريجياً إن تم اختيارها)
     if (filterEngine && item.engine !== filterEngine) {
       return false;
     }
 
-    // 6. مطابقة القسم (تُفعل تدريجياً إن تم اختيارها)
     if (filterCategory && getPartCategory(item.name) !== filterCategory) {
       return false;
     }
 
-    // إذا تجاوزت القطعة جميع الشروط المحددة بنجاح، يتم إظهارها
     return true;
   });
 
@@ -224,8 +216,8 @@ export default function App() {
 
   const activeChips: { key: string; label: string; onRemove: () => void }[] = [];
   if (searchTerm) activeChips.push({ key: 'search', label: `"${searchTerm}"`, onRemove: () => setSearchTerm('') });
-  if (filterMake) activeChips.push({ key: 'make', label: lang === 'ar' ? filterMake : (TRANSLATE_MAKE[filterMake] || filterMake), onRemove: () => { setFilterMake(''); setFilterModel(''); setFilterCategory(''); } });
-  if (filterModel) activeChips.push({ key: 'model', label: lang === 'ar' ? filterModel : (TRANSLATE_MODEL[filterModel] || filterModel), onRemove: () => { setFilterModel(''); setFilterCategory(''); } });
+  if (filterMake) activeChips.push({ key: 'make', label: lang === 'ar' ? filterMake : (TRANSLATE_MAKE[filterMake] || filterMake), onRemove: () => { setFilterMake(''); setFilterModel(''); setFilterYear(''); setFilterCategory(''); } });
+  if (filterModel) activeChips.push({ key: 'model', label: lang === 'ar' ? filterModel : (TRANSLATE_MODEL[filterModel] || filterModel), onRemove: () => { setFilterModel(''); setFilterYear(''); setFilterCategory(''); } });
   if (filterYear) activeChips.push({ key: 'year', label: filterYear, onRemove: () => { setFilterYear(''); setFilterCategory(''); } });
   if (filterCategory) activeChips.push({ key: 'cat', label: filterCategory, onRemove: () => setFilterCategory('') });
   if (filterEngine) activeChips.push({ key: 'engine', label: lang === 'ar' ? filterEngine : filterEngine.replace('سلندر', 'Cyl').replace('لتر', 'L').replace('توربو', 'Turbo').replace('هايبرد (الهجين)', 'Hybrid'), onRemove: () => setFilterEngine('') });
@@ -454,8 +446,8 @@ export default function App() {
                     <h3 style={styles.stateTitle}>{lang === 'ar' ? 'اختر الموديل أو تصفح الأقسام للبدء' : 'Select your model or browse categories to start'}</h3>
                     <p style={styles.stateBody}>
                       {lang === 'ar' 
-                        ? 'يرجى اختيار الماركة والموديل وتحديد خيارات البحث بالتسلسل لعرض قطع الغيار المتطابقة بدقة.' 
-                        : 'Please select a car make and model to view matching auto parts.'}
+                        ? 'يرجى اختيار الماركة والموديل وتحديد السنة لعرض قطع الغيار المتطابقة بدقة.' 
+                        : 'Please select a car make, model, and year to view matching auto parts.'}
                     </p>
                   </div>
                 ) : loading ? (
