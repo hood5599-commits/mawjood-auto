@@ -152,7 +152,7 @@ export default function App() {
   };
 
   const filteredParts = inventory.filter(item => {
-    // شرط إضافي: عدم إظهار القطع إلا إذا تم اختيار الموديل أو استخدام البحث النصي
+    // شرط صارم: منع ظهور القطع ما لم يتم اختيار الموديل (filterModel) أو استخدام بحث نصي
     if (!searchTerm && !filterModel) {
       return false;
     }
