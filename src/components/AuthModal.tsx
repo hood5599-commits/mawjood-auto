@@ -30,21 +30,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ lang, authUrl, apiKey, onS
     e.preventDefault();
     setAuthLoading(true);
 
+    // 🔒 نظام التحقق الأمني المباشر من جدول الكراجات
     if (isSignUp && isGarageSignUp) {
       try {
-        const checkUrl = `${authUrl.replace('/auth/v1', '/rest/v1')}/rpc/verify_garage_code`;
+        // الاتصال المباشر بجدول garage_activation_codes واستخدام ilike لتجاهل حالة الأحرف
+        const checkUrl = `${authUrl.replace('/auth/v1', '/rest/v1')}/garage_activation_codes?select=id&code=ilike.${encodeURIComponent(activationCode.trim())}&is_active=eq.true`;
         const codeRes = await fetch(checkUrl, {
-          method: 'POST',
+          method: 'GET',
           headers: { 
             'apikey': apiKey, 
+            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify({ input_code: activationCode.trim() })
+          }
         });
-        const isValid = await codeRes.json();
+        
+        const data = await codeRes.json();
+        
+        // إذا رجعت المصفوفة فارغة، يعني الرمز خطأ أو غير مفعل
+        const isValid = Array.isArray(data) && data.length > 0;
 
         if (!isValid) {
-          alert(t[lang].alertGarageCodeError);
+          alert(lang === 'ar' ? 'الرمز السري غير صحيح أو تم إيقافه 🚫' : 'Invalid or inactive activation code 🚫');
           setAuthLoading(false);
           return;
         }
@@ -86,7 +92,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ lang, authUrl, apiKey, onS
             email: data.user.email || undefined,
             phone: data.user.phone || undefined,
             role: userRole,
-            token: data.access_token
+            token: data.access_token,
+            user: data.user // حفظ بيانات المستخدم لاستخدام الـ ID في لوحة التحكم
           });
         }
       } else {
