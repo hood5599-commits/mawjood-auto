@@ -95,6 +95,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       const method = editingId ? 'PATCH' : 'POST';
       const url = editingId ? `${supabaseUrl}/parts?id=eq.${editingId}` : `${supabaseUrl}/parts`;
 
+      const payload = {
+        name: partName,
+        price: parseFloat(partPrice),
+        make: partMake,
+        model: partModel,
+        year: partYear,
+        engine: partEngine,
+        image_url: partImg || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
+        user_id: session.user.id // ربط القطعة بالكراج المضاف
+      };
+
+      console.log("جاري إرسال هذه البيانات إلى قاعدة البيانات:", payload);
+
       const response = await fetch(url, {
         method: method,
         headers: {
@@ -103,16 +116,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
-        body: JSON.stringify({
-          name: partName,
-          price: parseFloat(partPrice),
-          make: partMake,
-          model: partModel,
-          year: partYear,
-          engine: partEngine,
-          image_url: partImg || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-          user_id: session.user.id // ربط القطعة بالكراج المضاف
-        })
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -120,9 +124,15 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         resetForm();
         fetchMyParts(); // تحديث القائمة فوراً
         onSuccess(); // تحديث المتجر الرئيسي
+      } else {
+        // 🔥 هنا السحر: استخراج الخطأ الفعلي من Supabase وعرضه
+        const errorData = await response.json();
+        console.error("Supabase Error Details:", errorData);
+        alert(`خطأ من قاعدة البيانات ⚠️:\n${errorData.message || errorData.details || JSON.stringify(errorData)}`);
       }
     } catch (error) {
-      alert('Error saving part');
+      console.error("Network Error:", error);
+      alert('حدث خطأ في الاتصال بقاعدة البيانات!');
     }
   };
 
