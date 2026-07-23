@@ -7,6 +7,7 @@ import { GarageDashboard } from './components/GarageDashboard';
 import { SidebarFilters } from './components/SidebarFilters';
 import { PartCard } from './components/PartCard';
 import { CustomerProfile } from './components/CustomerProfile';
+import { getPartCategory } from './utils/categoryHelper';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -41,6 +42,7 @@ export default function App() {
   const [filterModel, setFilterModel] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterEngine, setFilterEngine] = useState('');
+  const [filterCategory, setFilterCategory] = useState(''); // 🔥 أضفنا حالة لتخزين القسم الفرعي المختار
 
   const [sortBy, setSortBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -49,7 +51,7 @@ export default function App() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const toastCounter = useRef(0);
 
-  const isFiltering = searchTerm !== '' || filterMake !== '' || filterModel !== '' || filterYear !== '' || filterEngine !== '';
+  const isFiltering = searchTerm !== '' || filterMake !== '' || filterModel !== '' || filterYear !== '' || filterEngine !== '' || filterCategory !== '';
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     toastCounter.current += 1;
@@ -79,7 +81,6 @@ export default function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // 🔥 مراقبة تغيرات الحساب (تسجيل الدخول أو الخروج) لتحميل سلة المشتريات الخاصة بالمستخدم تلقائياً
   useEffect(() => {
     if (session) {
       const userId = session.phone || session.email || session.user?.id;
@@ -100,7 +101,6 @@ export default function App() {
     }
   }, [session]);
 
-  // 🔥 حفظ سلة المشتريات أوتوماتيكياً في ذاكرة المستخدم الحالي كلما تغيرت
   useEffect(() => {
     if (session) {
       const userId = session.phone || session.email || session.user?.id;
@@ -112,7 +112,7 @@ export default function App() {
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchTerm, filterMake, filterModel, filterYear, filterEngine, sortBy]);
+  }, [searchTerm, filterMake, filterModel, filterYear, filterEngine, filterCategory, sortBy]);
 
   const fetchParts = async () => {
     setLoading(true);
@@ -131,13 +131,16 @@ export default function App() {
     }
   };
 
+  // 🔥 دمج فلترة القسم الفرعي (Category) مع الشروط الأساسية
   const filteredParts = inventory.filter(item => {
     const matchesSearchText = !searchTerm || (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesMake = !filterMake || item.make === filterMake;
     const matchesModel = !filterModel || (item.model && item.model === filterModel);
     const matchesYear = !filterYear || (item.year && String(item.year) === String(filterYear));
     const matchesEngine = !filterEngine || (item.engine && item.engine === filterEngine);
-    return matchesSearchText && matchesMake && matchesModel && matchesYear && matchesEngine;
+    const matchesCategory = !filterCategory || getPartCategory(item.name) === filterCategory;
+    
+    return matchesSearchText && matchesMake && matchesModel && matchesYear && matchesEngine && matchesCategory;
   });
 
   const sortedParts = [...filteredParts].sort((a, b) => {
@@ -149,7 +152,7 @@ export default function App() {
 
   const toggleTheme = () => { setTheme(prev => { const next = prev === 'light' ? 'dark' : 'light'; localStorage.setItem('mawjood_theme', next); return next; }); };
 
-  const clearAllFilters = () => { setSearchTerm(''); setFilterMake(''); setFilterModel(''); setFilterYear(''); setFilterEngine(''); };
+  const clearAllFilters = () => { setSearchTerm(''); setFilterMake(''); setFilterModel(''); setFilterYear(''); setFilterEngine(''); setFilterCategory(''); };
 
   const handleBuyClick = (item: any) => {
     setCartItems(prev => [...prev, item]);
@@ -170,9 +173,10 @@ export default function App() {
 
   const activeChips: { key: string; label: string; onRemove: () => void }[] = [];
   if (searchTerm) activeChips.push({ key: 'search', label: `"${searchTerm}"`, onRemove: () => setSearchTerm('') });
-  if (filterMake) activeChips.push({ key: 'make', label: lang === 'ar' ? filterMake : (TRANSLATE_MAKE[filterMake] || filterMake), onRemove: () => { setFilterMake(''); setFilterModel(''); } });
-  if (filterModel) activeChips.push({ key: 'model', label: lang === 'ar' ? filterModel : (TRANSLATE_MODEL[filterModel] || filterModel), onRemove: () => setFilterModel('') });
-  if (filterYear) activeChips.push({ key: 'year', label: filterYear, onRemove: () => setFilterYear('') });
+  if (filterMake) activeChips.push({ key: 'make', label: lang === 'ar' ? filterMake : (TRANSLATE_MAKE[filterMake] || filterMake), onRemove: () => { setFilterMake(''); setFilterModel(''); setFilterCategory(''); } });
+  if (filterModel) activeChips.push({ key: 'model', label: lang === 'ar' ? filterModel : (TRANSLATE_MODEL[filterModel] || filterModel), onRemove: () => { setFilterModel(''); setFilterCategory(''); } });
+  if (filterYear) activeChips.push({ key: 'year', label: filterYear, onRemove: () => { setFilterYear(''); setFilterCategory(''); } });
+  if (filterCategory) activeChips.push({ key: 'cat', label: filterCategory, onRemove: () => setFilterCategory('') });
   if (filterEngine) activeChips.push({ key: 'engine', label: lang === 'ar' ? filterEngine : filterEngine.replace('سلندر', 'Cyl').replace('لتر', 'L').replace('توربو', 'Turbo').replace('هايبرد (الهجين)', 'Hybrid'), onRemove: () => setFilterEngine('') });
 
   const handleCheckoutDatabase = async () => {
@@ -332,7 +336,30 @@ export default function App() {
           {view === 'shop' && (
             <div className="mw-shop-layout" style={{ marginTop: '4px' }}>
               <div className="mw-sidebar-col">
-                <SidebarFilters lang={lang} carData={CAR_DATA} years={YEARS} translateMake={TRANSLATE_MAKE} translateModel={TRANSLATE_MODEL} categories={PARTS_CATEGORIES} expandedCategories={expandedCategories} toggleCategory={toggleCategory} inventory={inventory} searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterMake={filterMake} setFilterMake={setFilterMake} filterModel={filterModel} setFilterModel={setFilterModel} filterYear={filterYear} setFilterYear={setFilterYear} filterEngine={filterEngine} setFilterEngine={setFilterEngine} />
+                {/* تمرير دالة تحديد الفئة إلى الـ Sidebar */}
+                <SidebarFilters 
+                  lang={lang} 
+                  carData={CAR_DATA} 
+                  years={YEARS} 
+                  translateMake={TRANSLATE_MAKE} 
+                  translateModel={TRANSLATE_MODEL} 
+                  categories={PARTS_CATEGORIES} 
+                  expandedCategories={expandedCategories} 
+                  toggleCategory={toggleCategory} 
+                  inventory={inventory} 
+                  searchTerm={searchTerm} 
+                  setSearchTerm={setSearchTerm} 
+                  filterMake={filterMake} 
+                  setFilterMake={setFilterMake} 
+                  filterModel={filterModel} 
+                  setFilterModel={setFilterModel} 
+                  filterYear={filterYear} 
+                  setFilterYear={setFilterYear} 
+                  filterEngine={filterEngine} 
+                  setFilterEngine={setFilterEngine} 
+                  filterCategory={filterCategory}
+                  setFilterCategory={setFilterCategory}
+                />
               </div>
 
               <div style={styles.contentCol}>
@@ -365,7 +392,7 @@ export default function App() {
                 {loading ? (
                   <div className="mw-parts-grid">{Array.from({ length: 8 }).map((_, i) => <div key={i} style={{ height: '220px', borderRadius: '14px', backgroundColor: 'var(--mw-surface)', border: '1px solid var(--mw-border)' }} />)}</div>
                 ) : !isFiltering ? (
-                  <div className="mw-state-card" style={{ ...styles.stateCard, ...styles.stateCardDashed }}><span style={styles.stateIcon}>🔍</span><h3 style={styles.stateTitle}>{lang === 'ar' ? 'ابدأ البحث' : 'Start Searching'}</h3></div>
+                  <div className="mw-state-card" style={{ ...styles.stateCard, ...styles.stateCardDashed }}><span style={styles.stateIcon}>🔍</span><h3 style={styles.stateTitle}>{lang === 'ar' ? 'ابدأ البحث في الشجرة الجانبية' : 'Start Browsing the Catalog Sidebar'}</h3></div>
                 ) : filteredParts.length === 0 ? (
                   <div className="mw-state-card" style={styles.stateCard}><span style={styles.stateIcon}>🚫</span><p style={{ ...styles.stateBody, marginTop: '16px', fontWeight: 700, color: 'var(--mw-ink)' }}>{t[lang].noPartsFound}</p></div>
                 ) : (
