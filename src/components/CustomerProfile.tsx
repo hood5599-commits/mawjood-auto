@@ -11,7 +11,6 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
   const [myOrders, setMyOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // استخراج معرّف العميل (رقم الهاتف أو الإيميل)
   const customerId = session?.phone || session?.email || session?.user?.email || null;
 
   useEffect(() => {
@@ -43,7 +42,6 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
       
-      {/* بطاقة معلومات العميل */}
       <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '20px' }}>
         <div style={{ fontSize: '50px', backgroundColor: '#edf2f7', borderRadius: '50%', width: '80px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           👤
@@ -54,7 +52,6 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
         </div>
       </div>
 
-      {/* سجل الطلبات */}
       <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
         <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #edf2f7', paddingBottom: '15px' }}>
           🛍️ {lang === 'ar' ? 'طلباتي السابقة' : 'My Orders'} <span style={{ fontSize: '14px', color: '#718096' }}>({myOrders.length})</span>
@@ -79,7 +76,6 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
                     <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20' }}>{order.price} QAR</span>
                   </div>
 
-                  {/* حالة الطلب */}
                   <div style={{ textAlign: lang === 'ar' ? 'left' : 'right' }}>
                     {order.status === 'pending' && <span style={{ backgroundColor: '#fefcbf', color: '#b7791f', padding: '6px 15px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', display: 'inline-block' }}>{lang === 'ar' ? 'قيد المراجعة من الكراج ⏳' : 'Pending ⏳'}</span>}
                     {order.status === 'confirmed' && <span style={{ backgroundColor: '#c6f6d5', color: '#2f855a', padding: '6px 15px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', display: 'inline-block' }}>{lang === 'ar' ? 'تم التأكيد (جاري التجهيز) ✅' : 'Confirmed ✅'}</span>}
@@ -87,7 +83,6 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
                   </div>
                 </div>
 
-                {/* ملاحظات الكراج (إن وجدت) */}
                 {order.notes && (
                   <div style={{ marginTop: '15px', backgroundColor: '#edf2f7', padding: '12px', borderRadius: '10px', borderRight: '4px solid #3182ce' }}>
                     <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#4a5568', display: 'block', marginBottom: '4px' }}>💬 {lang === 'ar' ? 'رسالة من الكراج:' : 'Message from Garage:'}</span>
