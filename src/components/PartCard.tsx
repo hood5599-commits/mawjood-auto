@@ -44,8 +44,8 @@ export const PartCard: React.FC<PartCardProps> = ({ lang, item, translateMake, o
         </div>
 
         <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
-          <button onClick={() => onBuy(item)} style={{ flex: 1, padding: '10px', backgroundColor: '#319795', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            {t[lang].whatsappOrder}
+          <button onClick={() => onBuy(item)} style={{ flex: 1, padding: '10px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
           </button>
           <button onClick={() => onShare(item)} style={{ padding: '10px 12px', backgroundColor: '#edf2f7', color: '#4a5568', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>
             {t[lang].share}
