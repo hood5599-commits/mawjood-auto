@@ -15,8 +15,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [activeTab, setActiveTab] = useState<'parts' | 'orders'>('parts');
 
   const [partName, setPartName] = useState('');
-  const [partNumber, setPartNumber] = useState(''); // 🔥 رقم القطعة
+  const [partNumber, setPartNumber] = useState('');
   const [partPrice, setPartPrice] = useState('');
+  const [partStock, setPartStock] = useState('5'); // 🔥 حقل الكمية المتوفرة
   const [partMake, setPartMake] = useState('');
   const [partModel, setPartModel] = useState('');
   const [partYear, setPartYear] = useState('');
@@ -77,8 +78,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       const url = editingId ? `${supabaseUrl}/parts?id=eq.${editingId}` : `${supabaseUrl}/parts`;
       const payload = { 
         name: partName, 
-        part_number: partNumber, // 🔥 حفظ رقم القطعة
+        part_number: partNumber,
         price: parseFloat(partPrice), 
+        stock: parseInt(partStock) || 1, // 🔥 إرسال الكمية المتوفرة
         make: partMake, 
         model: partModel, 
         year: partYear, 
@@ -103,6 +105,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartName(part.name); 
     setPartNumber(part.part_number || ''); 
     setPartPrice(part.price.toString()); 
+    setPartStock((part.stock ?? 5).toString());
     setPartMake(part.make); 
     setPartModel(part.model || ''); 
     setPartYear(part.year); 
@@ -112,7 +115,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const resetForm = () => { setPartName(''); setPartNumber(''); setPartPrice(''); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setEditingId(null); };
+  const resetForm = () => { setPartName(''); setPartNumber(''); setPartPrice(''); setPartStock('5'); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setEditingId(null); };
 
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
@@ -163,7 +166,16 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                 </div>
               </div>
 
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].priceLabel}</label><input type="number" placeholder={t[lang].pricePlaceholder} value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].priceLabel}</label>
+                  <input type="number" placeholder={t[lang].pricePlaceholder} value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>الكمية المتوفرة بالمخزون (Stock):</label>
+                  <input type="number" min="1" placeholder="مثال: 2" value={partStock} onChange={(e) => setPartStock(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
+                </div>
+              </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].makeLabel}</label><select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); setPartEngine(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectMake}</option>{Object.keys(carData).map(make => <option key={make} value={make}>{make}</option>)}</select></div>
@@ -191,7 +203,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               <div key={part.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '10px' }}>
                 <div>
                   <h4 style={{ margin: '0 0 5px 0' }}>{part.name} {part.part_number && <span style={{ fontSize: '12px', color: '#718096' }}>[PN: {part.part_number}]</span>}</h4>
-                  <span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{part.price} QAR</span>
+                  <span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{part.price} QAR</span> | <span style={{ fontSize: '12px', color: '#2f855a', fontWeight: 'bold' }}>المتوفر: {part.stock ?? 5}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button onClick={() => handleEdit(part)} style={{ padding: '8px 12px', backgroundColor: '#ebf8ff', color: '#3182ce', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>تعديل</button>
