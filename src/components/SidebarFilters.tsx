@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getPartCategory } from '../utils/categoryHelper';
+import { getPartCategory, matchesSmartSearch } from '../utils/categoryHelper';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
@@ -86,7 +86,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const getQty = (id: number) => partQuantities[id] || 1;
 
-  // 🔥 دالة زيادة وتنقيص الكمية المربوطة بالمخزون المتاح
   const changeQty = (part: any, delta: number) => {
     const maxStock = typeof part.stock !== 'undefined' && part.stock !== null ? Number(part.stock) : 5;
     const current = getQty(part.id);
@@ -116,15 +115,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const isRtl = lang === 'ar';
 
+  // 🔥 استخدام محرك البحث الموسع والدقيق الذكي (RockAuto Search Logic)
   const searchResults = activeSearchQuery 
-    ? inventory.filter(part => {
-        const query = activeSearchQuery.toLowerCase();
-        const nameMatch = part.name && part.name.toLowerCase().includes(query);
-        const pnMatch = (part.part_number || part.code || part.sku || '').toString().toLowerCase().includes(query);
-        const makeMatch = part.make && part.make.toLowerCase().includes(query);
-        const modelMatch = part.model && part.model.toLowerCase().includes(query);
-        return nameMatch || pnMatch || makeMatch || modelMatch;
-      })
+    ? inventory.filter(part => matchesSmartSearch(part, activeSearchQuery))
     : [];
 
   const compatibleVehicles = fitmentModalPart
@@ -149,7 +142,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           price: 0,
           customer_phone: custPhone,
           status: 'pending',
-          notes: custNotes || 'طلب قطعة غير متوفرة'
+          notes: custNotes || 'طلب قطعة غيار غير متوفرة'
         }])
       });
 
@@ -157,7 +150,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
-  // دالة تحكم بالكرت الفردي لمنع تكرار الكود
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -205,7 +197,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16.5px' }}>{part.price} QAR</span>
               
-              {/* 🔥 شارة توضح الكمية المتبقية للمشتري */}
               <span style={{ 
                 fontSize: '11px', 
                 fontWeight: 'bold', 
@@ -221,11 +212,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         </div>
 
-        {/* 🔥 أزرار التحكم بالكمية المحكومة برقم الـ Stock */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-            
-            {/* زر التنقيص (-) */}
             <button 
               onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }}
               disabled={qty <= 1 || isOutOfStock}
@@ -244,7 +232,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               {isOutOfStock ? 0 : qty}
             </span>
 
-            {/* زر الزيادة (+) يربط بالـ Stock المتاح */}
             <button 
               onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }}
               disabled={qty >= maxStock || isOutOfStock}
@@ -255,7 +242,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 fontWeight: 'bold', fontSize: '16px', 
                 cursor: (qty >= maxStock || isOutOfStock) ? 'not-allowed' : 'pointer' 
               }}
-              title={qty >= maxStock ? (lang === 'ar' ? 'تم الوصول للحد الأقصى المتوفر' : 'Maximum stock reached') : ''}
             >
               +
             </button>
@@ -306,12 +292,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         boxSizing: 'border-box'
       }}>
         
-        {/* شريط البحث */}
+        {/* شريط البحث المطور */}
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <input
               type="text"
-              placeholder={lang === 'ar' ? 'ادخل رقم القطعة (Part Number) أو اسمها هنا...' : 'Enter Part Number or Name here...'}
+              placeholder={lang === 'ar' ? 'ابحث برقم القطعة (PN)، الكود، أو المصطلح (مثل: دينمو، سلف، كمبيوتر، BCM)...' : 'Search Part Number, Code, or Term (e.g. Alternator, Starter, ECM, BCM)...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '100%', padding: '14px 18px', borderRadius: '12px', border: '2px solid #3182ce', outline: 'none', fontSize: '15px', boxSizing: 'border-box', backgroundColor: '#f8fafc', direction: isRtl ? 'rtl' : 'ltr' }}
@@ -325,13 +311,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </button>
         </form>
 
-        {/* حالة 1: الشاشة المخصصة لنتائج البحث */}
+        {/* نتائج البحث */}
         {activeSearchQuery ? (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '20px' }}>
               <div>
                 <h3 style={{ margin: 0, color: '#1a365d', fontSize: '18px', fontWeight: 'bold' }}>
-                  🔎 {lang === 'ar' ? `نتائج البحث عن: "${activeSearchQuery}"` : `Search results for: "${activeSearchQuery}"`}
+                  🔎 {lang === 'ar' ? `نتائج البحث الذكي عن: "${activeSearchQuery}"` : `Smart Search Results for: "${activeSearchQuery}"`}
                 </h3>
                 <span style={{ fontSize: '13px', color: '#718096', marginTop: '4px', display: 'block' }}>
                   {lang === 'ar' ? `تم العثور على (${searchResults.length}) قطعة متطابقة` : `Found (${searchResults.length}) matching parts`}
@@ -345,7 +331,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             {searchResults.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '50px 20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '2px dashed #e2e8f0' }}>
                 <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>🚫</span>
-                <h4 style={{ margin: '0 0 8px 0', color: '#2d3748', fontSize: '16px' }}>{lang === 'ar' ? `عفواً، لا توجد قطع متوفرة بهذا الرقم أو الاسم ("${activeSearchQuery}")` : `No parts found matching "${activeSearchQuery}"`}</h4>
+                <h4 style={{ margin: '0 0 8px 0', color: '#2d3748', fontSize: '16px' }}>{lang === 'ar' ? `عفواً، لا توجد قطع متوفرة لهذا البحث ("${activeSearchQuery}")` : `No parts found matching "${activeSearchQuery}"`}</h4>
                 <button onClick={() => { setReqSubmitted(false); setShowRequestModal(true); }} style={{ padding: '12px 24px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', marginTop: '15px' }}>
                   📩 {lang === 'ar' ? 'إرسال طلب قطعة داخل البرنامج' : 'Send In-App Request'}
                 </button>
@@ -357,7 +343,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             )}
           </div>
         ) : (
-          /* حالة 2: كتالوج الشجرة التفاعلي */
+          /* الشجرة */
           <>
             <h3 style={{ margin: '0 0 16px 0', color: '#1a365d', borderBottom: '2px solid #3182ce', paddingBottom: '10px', fontSize: '17px', fontWeight: 'bold' }}>
               📋 {lang === 'ar' ? 'تصفح حسب نوع السيارة' : 'Browse by Vehicle'}
