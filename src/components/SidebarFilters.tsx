@@ -21,8 +21,6 @@ interface SidebarProps {
   setFilterYear: (year: string) => void;
   filterCategory: string;
   setFilterCategory: (cat: string) => void;
-  
-  // الخصائص التي تم إضافتها لحل خطأ البناء (Build Error)
   filterEngine?: string;
   setFilterEngine?: (engine: string) => void;
   addToCart?: (item: any) => void;
@@ -70,8 +68,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     lang, carData, years, translateMake, translateModel, categories, inventory, 
     searchTerm, setSearchTerm, 
     filterMake, setFilterMake, filterModel, setFilterModel, filterYear, setFilterYear,
-    filterCategory, setFilterCategory,
-    filterEngine, setFilterEngine, addToCart 
+    filterCategory, setFilterCategory 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -211,7 +208,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                             getPartCategory(part.name) === category
                                           );
 
-                                          // إخفاء القسم بالكامل إذا لم يكن يحتوي على أي قطع
                                           if (filteredParts.length === 0) return null;
 
                                           return (
