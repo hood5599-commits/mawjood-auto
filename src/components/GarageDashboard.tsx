@@ -11,13 +11,34 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
-export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'parts' | 'orders'>('parts');
+// قائمة القطع الأساسية للسيارة الكاملة
+const STANDARD_CAR_PARTS = [
+  { name: 'محرك كامل (ماكينة)', code: 'ENG', price: 3500, stock: 1 },
+  { name: 'ناقل حركة (جيربكس)', code: 'TRN', price: 2200, stock: 1 },
+  { name: 'سلف (Starter)', code: 'STR', price: 350, stock: 1 },
+  { name: 'دينمو كهرباء (Alternator)', code: 'ALT', price: 400, stock: 1 },
+  { name: 'كمبروسر تكييف (AC Compressor)', code: 'CMP', price: 650, stock: 1 },
+  { name: 'راديتر ماء (Radiator)', code: 'RAD', price: 300, stock: 1 },
+  { name: 'شمعة إضاءة أمامية (يمين)', code: 'HL-R', price: 450, stock: 1 },
+  { name: 'شمعة إضاءة أمامية (يسار)', code: 'HL-L', price: 450, stock: 1 },
+  { name: 'إسطب خلفي (يمين)', code: 'TL-R', price: 250, stock: 1 },
+  { name: 'إسطب خلفي (يسار)', code: 'TL-L', price: 250, stock: 1 },
+  { name: 'مساعدات أمامية (طقم)', code: 'SHK-F', price: 500, stock: 1 },
+  { name: 'مساعدات خلفية (طقم)', code: 'SHK-R', price: 400, stock: 1 },
+  { name: 'مضخة وقود (طلمبة بنزين)', code: 'FP', price: 300, stock: 1 },
+  { name: 'باب أمامي (يمين)', code: 'DR-FR', price: 600, stock: 1 },
+  { name: 'باب أمامي (يسار)', code: 'DR-FL', price: 600, stock: 1 },
+  { name: 'كابوت / غطاء محرك (Hood)', code: 'HD', price: 700, stock: 1 },
+];
 
+export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
+  const [activeTab, setActiveTab] = useState<'parts' | 'orders' | 'bulk_car'>('parts');
+
+  // إضافة قطعة واحدة
   const [partName, setPartName] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [partPrice, setPartPrice] = useState('');
-  const [partStock, setPartStock] = useState('5'); // 🔥 حقل الكمية المتوفرة
+  const [partStock, setPartStock] = useState('5');
   const [partMake, setPartMake] = useState('');
   const [partModel, setPartModel] = useState('');
   const [partYear, setPartYear] = useState('');
@@ -25,12 +46,33 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [partImg, setPartImg] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   
+  // 🔥 إضافة سيارة كاملة (تشليح)
+  const [bulkMake, setBulkMake] = useState('');
+  const [bulkModel, setBulkModel] = useState('');
+  const [bulkYear, setBulkYear] = useState('');
+  const [bulkEngine, setBulkEngine] = useState('');
+  const [bulkImage, setBulkImage] = useState('');
+  const [selectedParts, setSelectedParts] = useState<Record<string, { enabled: boolean; price: number; stock: number }>>({});
+  const [isBulkPublishing, setIsBulkPublishing] = useState(false);
+
   const [myParts, setMyParts] = useState<any[]>([]);
   const [myOrders, setMyOrders] = useState<any[]>([]);
   const [orderNotes, setOrderNotes] = useState<Record<number, string>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || session?.code || 'garage_unknown';
+
+  useEffect(() => {
+    // تهيئة حالة القطع الافتراضية للسيارة الكاملة
+    const initialPartsState: Record<string, { enabled: boolean; price: number; stock: number }> = {};
+    STANDARD_CAR_PARTS.forEach(p => {
+      initialPartsState[p.code] = { enabled: true, price: p.price, stock: p.stock };
+    });
+    setSelectedParts(initialPartsState);
+
+    fetchMyParts();
+    fetchMyOrders();
+  }, [session]);
 
   const fetchMyParts = async () => {
     if (!userId || userId === 'garage_unknown') return;
@@ -48,12 +90,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) { console.error(error); }
   };
 
-  useEffect(() => {
-    fetchMyParts();
-    fetchMyOrders();
-  }, [session]);
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, setImgFn: (url: string) => void) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
@@ -64,13 +101,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       const uploadUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/part-images/${fileName}`;
       const response = await fetch(uploadUrl, { method: 'POST', headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': file.type }, body: file });
       if (response.ok) {
-        setPartImg(`${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/part-images/${fileName}`);
+        setImgFn(`${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/part-images/${fileName}`);
         alert(lang === 'ar' ? 'تم رفع الصورة بنجاح!' : 'Image uploaded!');
       }
     } catch (error) {} finally { setUploadingImage(false); }
   };
 
-  const handlePublish = async (e: React.FormEvent) => {
+  const handlePublishSingle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId || userId === 'garage_unknown') return alert('Please login again');
     try {
@@ -78,9 +115,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       const url = editingId ? `${supabaseUrl}/parts?id=eq.${editingId}` : `${supabaseUrl}/parts`;
       const payload = { 
         name: partName, 
-        part_number: partNumber,
+        part_number: partNumber || `OEM-${Date.now().toString().slice(-6)}`,
         price: parseFloat(partPrice), 
-        stock: parseInt(partStock) || 1, // 🔥 إرسال الكمية المتوفرة
+        stock: parseInt(partStock) || 1, 
         make: partMake, 
         model: partModel, 
         year: partYear, 
@@ -91,6 +128,71 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       const response = await fetch(url, { method, headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(payload) });
       if (response.ok) { alert(lang === 'ar' ? 'تم الحفظ!' : 'Saved!'); resetForm(); fetchMyParts(); onSuccess(); }
     } catch (error: any) { alert('Error saving'); }
+  };
+
+  // 🔥 إرسال جميع قطع السيارة دفعة واحدة تلقائياً إلى Supabase
+  const handlePublishBulkCar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkMake || !bulkModel || !bulkYear) {
+      return alert(lang === 'ar' ? 'يرجى اختيار الماركة والموديل والسنة أولاً' : 'Please select Make, Model, and Year');
+    }
+
+    setIsBulkPublishing(true);
+
+    try {
+      // بناء مصفوفة القطع الجاهزة للنشر
+      const payloadBatch = STANDARD_CAR_PARTS
+        .filter(p => selectedParts[p.code]?.enabled)
+        .map(p => {
+          const makeClean = bulkMake.trim().substring(0, 3).toUpperCase();
+          const modelClean = bulkModel.trim().substring(0, 3).toUpperCase();
+          // توليد رقم قطعة ذكي وتلقائي (Part Number) مثل: TOY-CAM-2015-ENG
+          const generatedPartNumber = `${makeClean}-${modelClean}-${bulkYear}-${p.code}`;
+
+          return {
+            name: p.name,
+            part_number: generatedPartNumber,
+            price: selectedParts[p.code]?.price || p.price,
+            stock: selectedParts[p.code]?.stock || 1,
+            make: bulkMake,
+            model: bulkModel,
+            year: bulkYear,
+            engine: bulkEngine || 'عام',
+            image_url: bulkImage || 'https://via.placeholder.com/400',
+            user_id: userId
+          };
+        });
+
+      if (payloadBatch.length === 0) {
+        setIsBulkPublishing(false);
+        return alert(lang === 'ar' ? 'يرجى تحديد قطعة واحدة على الأقل' : 'Please select at least one part');
+      }
+
+      const response = await fetch(`${supabaseUrl}/parts`, {
+        method: 'POST',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payloadBatch)
+      });
+
+      if (response.ok) {
+        alert(lang === 'ar' ? `تم نشر (${payloadBatch.length}) قطعة غيار للسيارة بنجاح! 🎉` : `Successfully added (${payloadBatch.length}) parts! 🎉`);
+        setBulkMake(''); setBulkModel(''); setBulkYear(''); setBulkEngine(''); setBulkImage('');
+        fetchMyParts();
+        onSuccess();
+        setActiveTab('parts');
+      } else {
+        alert(lang === 'ar' ? 'حدث خطأ في النشر الجماعي' : 'Bulk insert failed');
+      }
+    } catch (err) {
+      alert('Connection error');
+    } finally {
+      setIsBulkPublishing(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -112,6 +214,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartEngine(part.engine || ''); 
     setPartImg(part.image_url); 
     setEditingId(part.id);
+    setActiveTab('parts');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -133,27 +236,142 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '40px auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+    <div style={{ maxWidth: '850px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px' }}>
       
-      <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
-        <button onClick={() => setActiveTab('parts')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'parts' ? '#3182ce' : 'transparent', color: activeTab === 'parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' }}>
-          📦 {lang === 'ar' ? 'إدارة الإعلانات' : 'Manage Ads'}
+      {/* 🔘 أزرار التبديل بين الأقسام */}
+      <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+        <button onClick={() => setActiveTab('parts')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'parts' ? '#3182ce' : 'transparent', color: activeTab === 'parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
+          📦 {lang === 'ar' ? 'إضافة قطعة فردية' : 'Single Part'}
         </button>
-        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px', position: 'relative' }}>
-          📥 {lang === 'ar' ? 'الطلبات الواردة' : 'Incoming Orders'}
+        <button onClick={() => setActiveTab('bulk_car')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'bulk_car' ? '#38a169' : 'transparent', color: activeTab === 'bulk_car' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
+          🚗 {lang === 'ar' ? 'تفكيك وإضافة سيارة كاملة تلقائياً' : 'Dismantle Whole Car'}
+        </button>
+        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', position: 'relative' }}>
+          📥 {lang === 'ar' ? 'الطلبات الواردة' : 'Orders'}
           {myOrders.filter(o => o.status === 'pending').length > 0 && (
             <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 6px', borderRadius: '10px' }}>
-              {myOrders.filter(o => o.status === 'pending').length} جديد
+              {myOrders.filter(o => o.status === 'pending').length}
             </span>
           )}
         </button>
       </div>
 
+      {/* 🔥 حالة 1: إضافة سيارة كاملة تلقائياً (توليد القطع والبارت نمبر تلقائياً) */}
+      {activeTab === 'bulk_car' && (
+        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+          <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
+            <h2 style={{ color: '#2f855a', margin: '0 0 6px 0', fontSize: '20px' }}>
+              🚗 {lang === 'ar' ? 'إضافة جميع قطع سيارة تشليح تلقائياً' : 'Auto Dismantle & Bulk List Whole Car'}
+            </h2>
+            <p style={{ margin: 0, color: '#718096', fontSize: '13.5px' }}>
+              {lang === 'ar' ? 'حدد تفاصيل السيارة وسيقوم النظام بتوليد جميع القطع الرئيسية ورقم القطعة (Part Number) أوتوماتيكياً.' : 'Select car details and system will auto-generate all main parts and part numbers.'}
+            </p>
+          </div>
+
+          <form onSubmit={handlePublishBulkCar} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>{t[lang].makeLabel}</label>
+                <select value={bulkMake} onChange={(e) => { setBulkMake(e.target.value); setBulkModel(''); setBulkEngine(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
+                  <option value="">{t[lang].selectMake}</option>
+                  {Object.keys(carData).map(make => <option key={make} value={make}>{make}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>{t[lang].modelLabel}</label>
+                <select value={bulkModel} onChange={(e) => setBulkModel(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required disabled={!bulkMake}>
+                  <option value="">{t[lang].selectModel}</option>
+                  {bulkMake && carData[bulkMake]?.models.map((model: string) => <option key={model} value={model}>{model}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>{t[lang].yearLabel}</label>
+                <select value={bulkYear} onChange={(e) => setBulkYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
+                  <option value="">{t[lang].selectYear}</option>
+                  {years.map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>{t[lang].engineLabel}</label>
+                <select value={bulkEngine} onChange={(e) => setBulkEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} disabled={!bulkMake}>
+                  <option value="">{t[lang].selectEngine}</option>
+                  {bulkMake && carData[bulkMake]?.engines.map((engine: string) => <option key={engine} value={engine}>{engine}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>صورة السيارة (تُطبق على جميع القطع):</label>
+              <div style={{ border: '2px dashed #cbd5e0', padding: '15px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
+                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setBulkImage)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} />
+                <p style={{ margin: 0, color: '#4a5568', fontWeight: 'bold', fontSize: '13px' }}>{uploadingImage ? 'جاري الرفع...' : 'اضغط لاختيار صورة السيارة'}</p>
+              </div>
+              {bulkImage && <img src={bulkImage} alt="Bulk preview" style={{ height: '80px', marginTop: '10px', borderRadius: '8px', objectFit: 'cover' }} />}
+            </div>
+
+            {/* جدول اختيار القطع والأسعار والكميات */}
+            <div>
+              <h3 style={{ margin: '15px 0 10px 0', fontSize: '15px', color: '#1a365d' }}>📋 تحديد القطع المتوفرة بالسيارة وأسعارها:</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', border: '1px solid #e2e8f0', padding: '10px', borderRadius: '10px', backgroundColor: '#f7fafc' }}>
+                {STANDARD_CAR_PARTS.map(part => {
+                  const state = selectedParts[part.code] || { enabled: true, price: part.price, stock: 1 };
+                  const makeCode = bulkMake ? bulkMake.substring(0, 3).toUpperCase() : 'MAKE';
+                  const modelCode = bulkModel ? bulkModel.substring(0, 3).toUpperCase() : 'MOD';
+                  const yearCode = bulkYear || 'YYYY';
+                  const autoPN = `${makeCode}-${modelCode}-${yearCode}-${part.code}`;
+
+                  return (
+                    <div key={part.code} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', backgroundColor: state.enabled ? 'white' : '#edf2f7', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={state.enabled} 
+                        onChange={(e) => setSelectedParts({ ...selectedParts, [part.code]: { ...state, enabled: e.target.checked } })}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+                      />
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ fontSize: '13.5px', color: state.enabled ? '#2d3748' : '#a0aec0' }}>{part.name}</strong>
+                        <span style={{ fontSize: '11px', color: '#718096', display: 'block' }}>تلقائي Part #: {autoPN}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '12px', color: '#4a5568' }}>السعر:</span>
+                        <input 
+                          type="number" 
+                          value={state.price} 
+                          disabled={!state.enabled}
+                          onChange={(e) => setSelectedParts({ ...selectedParts, [part.code]: { ...state, price: Number(e.target.value) } })}
+                          style={{ width: '80px', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+                        />
+                        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>QAR</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={isBulkPublishing}
+              style={{ width: '100%', padding: '15px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', opacity: isBulkPublishing ? 0.7 : 1 }}
+            >
+              {isBulkPublishing ? (lang === 'ar' ? 'جاري رفع جميع القطع...' : 'Publishing...') : (lang === 'ar' ? '🚀 نشر جميع قطع السيارة بنقرة واحدة' : '🚀 Publish All Car Parts')}
+            </button>
+
+          </form>
+        </div>
+      )}
+
+      {/* حالة 2: إضافة قطعة فردية */}
       {activeTab === 'parts' && (
         <>
           <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-            <h2 style={{ color: '#1a365d', margin: '0 0 20px 0' }}>{editingId ? '✏️ تعديل إعلان' : '➕ إضافة قطعة جديدة'}</h2>
-            <form onSubmit={handlePublish} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <h2 style={{ color: '#1a365d', margin: '0 0 20px 0' }}>{editingId ? '✏️ تعديل إعلان' : '➕ إضافة قطعة مفردة'}</h2>
+            <form onSubmit={handlePublishSingle} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div>
@@ -172,7 +390,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   <input type="number" placeholder={t[lang].pricePlaceholder} value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>الكمية المتوفرة بالمخزون (Stock):</label>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>الكمية المتوفرة (Stock):</label>
                   <input type="number" min="1" placeholder="مثال: 2" value={partStock} onChange={(e) => setPartStock(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
                 </div>
               </div>
@@ -189,7 +407,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].uploadLabel}</label>
-                <div style={{ border: '2px dashed #cbd5e0', padding: '20px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f7fafc', cursor: 'pointer', position: 'relative' }}><input type="file" accept="image/*" onChange={handleImageUpload} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} /><p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : 'اضغط هنا لاختيار صورة'}</p></div>
+                <div style={{ border: '2px dashed #cbd5e0', padding: '20px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f7fafc', cursor: 'pointer', position: 'relative' }}><input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setPartImg)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} /><p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : 'اضغط هنا لاختيار صورة'}</p></div>
                 {partImg && <div style={{ marginTop: '15px', textAlign: 'center' }}><img src={partImg} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '10px' }} /></div>}
               </div>
               
@@ -215,6 +433,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </>
       )}
 
+      {/* حالة 3: الطلبات الواردة */}
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 الطلبات الواردة من العملاء</h3>
@@ -232,6 +451,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                         📦 رقم الطلب: #{order.id}
                       </span>
                       <h4 style={{ margin: '8px 0 5px 0', fontSize: '18px', color: '#2d3748' }}>{order.part_name}</h4>
+                      <div style={{ fontSize: '13px', color: '#718096' }}>📞 هاتف العميل: <strong>{order.customer_phone}</strong></div>
                     </div>
                     <div style={{ textAlign: 'left' }}>
                       <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20' }}>{order.price} QAR</span>
