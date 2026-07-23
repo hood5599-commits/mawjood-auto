@@ -21,6 +21,11 @@ interface SidebarProps {
   setFilterYear: (year: string) => void;
   filterCategory: string;
   setFilterCategory: (cat: string) => void;
+  
+  // الخصائص التي تم إضافتها لحل خطأ البناء (Build Error)
+  filterEngine?: string;
+  setFilterEngine?: (engine: string) => void;
+  addToCart?: (item: any) => void;
 }
 
 // 1. القاموس العربي للأقسام
@@ -63,9 +68,10 @@ const MAKE_DOMAINS: Record<string, string> = {
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
     lang, carData, years, translateMake, translateModel, categories, inventory, 
-    searchTerm, setSearchTerm, // 👈 تمت إعادتهم هنا
+    searchTerm, setSearchTerm, 
     filterMake, setFilterMake, filterModel, setFilterModel, filterYear, setFilterYear,
-    filterCategory, setFilterCategory 
+    filterCategory, setFilterCategory,
+    filterEngine, setFilterEngine, addToCart 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -110,7 +116,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           📋 {lang === 'ar' ? 'كتالوج قطع الغيار' : 'Parts Catalog'}
         </h3>
 
-        {/* 👈 تم إعادة مربع البحث الذي كان مفقوداً */}
+        {/* مربع البحث */}
         <div style={{ marginBottom: '20px' }}>
           <input
             type="text"
@@ -205,7 +211,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                             getPartCategory(part.name) === category
                                           );
 
-                                          // 👈 التحسين: إخفاء القسم بالكامل إذا لم يكن يحتوي على أي قطع لتنظيف شجرة البحث
+                                          // إخفاء القسم بالكامل إذا لم يكن يحتوي على أي قطع
                                           if (filteredParts.length === 0) return null;
 
                                           return (
