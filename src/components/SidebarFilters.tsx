@@ -19,6 +19,8 @@ interface SidebarProps {
   setFilterModel: (model: string) => void;
   filterYear: string;
   setFilterYear: (year: string) => void;
+  filterEngine: string;
+  setFilterEngine: (engine: string) => void;
   filterCategory: string;
   setFilterCategory: (cat: string) => void;
 }
