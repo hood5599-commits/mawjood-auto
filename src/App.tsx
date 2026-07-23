@@ -71,17 +71,13 @@ export default function App() {
   const [sortBy, setSortBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
   const [, setShowScrollTop] = useState(false);
   const toastCounter = useRef(0);
 
   const isFiltering = searchTerm !== '' || filterMake !== '' || filterModel !== '' || filterYear !== '' || filterEngine !== '' || filterCategory !== '';
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (_message: string, _type: 'success' | 'error' = 'success') => {
     toastCounter.current += 1;
-    const id = `${Date.now()}-${toastCounter.current}`;
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(tst => tst.id !== id)), 3200);
   };
 
   useEffect(() => {
@@ -420,7 +416,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* نظام RockAuto: إخفاء القطع افتراضياً حتى يتم اختيار سيارة، قسم، أو بحث */}
                 {!isFiltering ? (
                   <div style={{ ...styles.stateCard, ...styles.stateCardDashed, marginTop: '20px' }}>
                     <span style={styles.stateIcon}>🔍</span>
