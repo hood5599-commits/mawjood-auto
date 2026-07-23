@@ -151,20 +151,47 @@ export default function App() {
     }
   };
 
+  // نظام تصفية تسلسلي صارم (1+2+3+4+5): لا تظهر القطعة إلا بتطابق الفلاتر النشطة بالكامل
   const filteredParts = inventory.filter(item => {
-    // شرط صارم: منع ظهور القطع ما لم يتم اختيار الموديل (filterModel) أو استخدام بحث نصي
+    // شرط أساسي: لا تظهر أي قطعة ما لم يتم اختيار الموديل (filterModel) أو استخدام بحث نصي حر
     if (!searchTerm && !filterModel) {
       return false;
     }
 
-    const matchesSearchText = !searchTerm || (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesMake = !filterMake || item.make === filterMake;
-    const matchesModel = !filterModel || (item.model && item.model === filterModel);
-    const matchesYear = !filterYear || (item.year && String(item.year) === String(filterYear));
-    const matchesEngine = !filterEngine || (item.engine && item.engine === filterEngine);
-    const matchesCategory = !filterCategory || getPartCategory(item.name) === filterCategory;
-    
-    return matchesSearchText && matchesMake && matchesModel && matchesYear && matchesEngine && matchesCategory;
+    // 1. بحث النص الحر (إن وجد)
+    if (searchTerm) {
+      const matchesSearch = (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || 
+                            (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
+      if (!matchesSearch) return false;
+    }
+
+    // 2. مطابقة الماركة (إلزامية إذا تم اختيارها)
+    if (filterMake && item.make !== filterMake) {
+      return false;
+    }
+
+    // 3. مطابقة الموديل (إلزامية، وبدونها لا تظهر القطع أساساً كما تم توضيحه في الشرط أعلاه)
+    if (filterModel && item.model !== filterModel) {
+      return false;
+    }
+
+    // 4. مطابقة السنة (تُفعل تدريجياً إن تم اختيارها، وإن لم تطابق تُستبعد القطعة)
+    if (filterYear && String(item.year) !== String(filterYear)) {
+      return false;
+    }
+
+    // 5. مطابقة المحرك (تُفعل تدريجياً إن تم اختيارها)
+    if (filterEngine && item.engine !== filterEngine) {
+      return false;
+    }
+
+    // 6. مطابقة القسم (تُفعل تدريجياً إن تم اختيارها)
+    if (filterCategory && getPartCategory(item.name) !== filterCategory) {
+      return false;
+    }
+
+    // إذا تجاوزت القطعة جميع الشروط المحددة بنجاح، يتم إظهارها
+    return true;
   });
 
   const sortedParts = [...filteredParts].sort((a, b) => {
@@ -424,11 +451,11 @@ export default function App() {
                 {!isFiltering ? (
                   <div style={{ ...styles.stateCard, ...styles.stateCardDashed, marginTop: '20px' }}>
                     <span style={styles.stateIcon}>🔍</span>
-                    <h3 style={styles.stateTitle}>{lang === 'ar' ? 'اختر سيارتك أو تصفح الأقسام للبدء' : 'Select your car or browse categories to start'}</h3>
+                    <h3 style={styles.stateTitle}>{lang === 'ar' ? 'اختر الموديل أو تصفح الأقسام للبدء' : 'Select your model or browse categories to start'}</h3>
                     <p style={styles.stateBody}>
                       {lang === 'ar' 
-                        ? 'يرجى اختيار شركة السيارة، الموديل، أو تحديد القسم من القائمة الجانبية (أو استخدام بحث القطع) لعرض قطع الغيار المتوفرة.' 
-                        : 'Please select a car make, model, or choose a category from the sidebar to view available auto parts.'}
+                        ? 'يرجى اختيار الماركة والموديل وتحديد خيارات البحث بالتسلسل لعرض قطع الغيار المتطابقة بدقة.' 
+                        : 'Please select a car make and model to view matching auto parts.'}
                     </p>
                   </div>
                 ) : loading ? (
@@ -439,8 +466,8 @@ export default function App() {
                 ) : visibleParts.length === 0 ? (
                   <div style={{ ...styles.stateCard, ...styles.stateCardDashed, marginTop: '20px' }}>
                     <span style={styles.stateIcon}>📦</span>
-                    <h3 style={styles.stateTitle}>{lang === 'ar' ? 'لا توجد قطع مطابقة لبحثك' : 'No parts match your criteria'}</h3>
-                    <p style={styles.stateBody}>{lang === 'ar' ? 'جرب البحث عن اسم آخر أو تصفح قسم مختلف، أو يمكنك التواصل معنا لتوفير القطعة.' : 'Try searching for another term or browsing a different category.'}</p>
+                    <h3 style={styles.stateTitle}>{lang === 'ar' ? 'لا توجد قطع مطابقة لهذه الخيارات بالتحديد' : 'No parts match this exact combination'}</h3>
+                    <p style={styles.stateBody}>{lang === 'ar' ? 'تأكد من مطابقة جميع الخيارات أو جرب تعديل بعضها، أو يمكنك التواصل معنا لتوفير القطعة.' : 'Ensure all options match or try adjusting them.'}</p>
                     <button onClick={handleGeneralContact} style={{ marginTop: '16px', padding: '10px 20px', backgroundColor: 'var(--mw-primary)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
                       {lang === 'ar' ? 'طلب قطعة خاصة عبر واتساب 💬' : 'Request Custom Part 💬'}
                     </button>
