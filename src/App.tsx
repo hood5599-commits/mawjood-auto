@@ -66,6 +66,7 @@ export default function App() {
     if (savedSession) {
       const parsedSession = JSON.parse(savedSession);
       setSession(parsedSession);
+      // 🔥 استرجاع سلة المشتريات الخاصة بهذا المستخدم فقط عند فتح الموقع
       const userId = parsedSession.phone || parsedSession.email || parsedSession.user?.id;
       if (userId) {
         const savedCart = localStorage.getItem(`mawjood_cart_${userId}`);
@@ -85,6 +86,7 @@ export default function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // 🔥 حفظ سلة المشتريات أوتوماتيكياً في الذاكرة الخاصة بالمستخدم الحالي كلما تغيرت
   useEffect(() => {
     if (session) {
       const userId = session.phone || session.email || session.user?.id;
@@ -195,6 +197,7 @@ export default function App() {
       if (response.ok) {
         showToast(lang === 'ar' ? 'تم إرسال طلبك للكراجات بنجاح! سيتم التواصل معك قريباً 🚀' : 'Order sent successfully! We will contact you soon 🚀', 'success');
         
+        // مسح السلة من الذاكرة ومن الـ localStorage لهذا المستخدم بعد إتمام الطلب بنجاح
         const userId = session.phone || session.email || session.user?.id;
         if (userId) localStorage.removeItem(`mawjood_cart_${userId}`);
         
@@ -239,7 +242,7 @@ export default function App() {
           onOpenCart={() => setIsCartOpen(true)} 
           onLogout={() => { 
             setSession(null); 
-            setCartItems([]); 
+            setCartItems([]); // إخفاء السلة من الشاشة فوراً عند الخروج
             localStorage.removeItem('mawjood_session'); 
             setView('shop'); 
             showToast(lang === 'ar' ? 'تم تسجيل الخروج بنجاح' : 'Logged out', 'success'); 
@@ -371,7 +374,7 @@ export default function App() {
         {showScrollTop && <button className="mw-fab" style={{ ...styles.fabBase, bottom: '82px', backgroundColor: 'var(--mw-surface)', color: 'var(--mw-primary)', border: '1px solid var(--mw-border)' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>↑</button>}
 
         <div className="mw-toast-stack">
-          {toasts.map(tst => <div key={tst.id} className="mw-toast" style={{ backgroundColor: tst.type === 'error' ? 'var(--mw-danger)' : 'var(--mw-success)' }}>{tst.message}</div>)}
+          {toasts.map(tst => <div key={tst.id} className="mw-toast" style={{ backgroundColor: tst.type === 'error' ? 'var(--mw-danger)' : 'var(--mw-success)' }}>{toasts.message}</div>)}
         </div>
       </div>
     </>
