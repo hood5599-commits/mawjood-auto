@@ -21,7 +21,33 @@ const CAR_DATA: Record<string, { models: string[], engines: string[] }> = { "ت�
 const YEARS = Array.from({ length: 2026 - 1970 + 1 }, (_, i) => (2026 - i).toString());
 const PARTS_CATEGORIES = [ "Belt Drive", "Body & Lamp Assembly", "Brake & Wheel Hub", "Cooling System", "Drivetrain", "Electrical", "Electrical-Bulb & Socket", "Electrical-Connector", "Electrical-Switch & Relay", "Engine", "Exhaust & Emission", "Fuel & Air", "Heat & Air Conditioning", "Ignition", "Interior", "Steering", "Suspension", "Transmission-Automatic", "Wheel", "Wiper & Washer" ];
 const RADIUS = { sm: '10px', md: '14px', lg: '20px' };
-const styles: Record<string, React.CSSProperties> = { page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink)', transition: 'background-color 0.2s ease, color 0.2s ease' }, main: { maxWidth: '1240px', margin: '28px auto 0', padding: '0 20px' }, contentCol: { flex: '2 1 640px', minWidth: 0 }, consolePanel: { backgroundColor: 'var(--mw-surface)', padding: '22px 24px', borderRadius: RADIUS.lg, boxShadow: 'var(--mw-shadow-md)', border: '1px solid var(--mw-border)', marginBottom: '18px' }, panelTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }, eyebrow: { display: 'inline-block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--mw-accent-dark)', backgroundColor: 'var(--mw-accent-bg)', padding: '4px 10px', borderRadius: '999px' }, themeToggle: { width: '36px', height: '36px', borderRadius: '50%', border: '1px solid var(--mw-border)', backgroundColor: 'var(--mw-bg)', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mw-ink)' }, searchLabel: { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)' }, searchInput: { width: '100%', padding: '14px 18px', borderRadius: RADIUS.sm, border: '1.5px solid var(--mw-border)', fontSize: '15px', boxSizing: 'border-box', backgroundColor: 'var(--mw-bg)', color: 'var(--mw-ink)', outline: 'none', transition: 'border-color 0.15s ease, box-shadow 0.15s ease' }, statStrip: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed var(--mw-border)' }, statCount: { fontSize: '13px', color: 'var(--mw-ink-muted)', fontWeight: 600 }, statCountNum: { color: 'var(--mw-primary)', fontSize: '16px', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }, secureBadge: { fontSize: '12px', color: 'var(--mw-success)', backgroundColor: 'var(--mw-success-bg)', padding: '5px 12px', borderRadius: '999px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }, sortSelect: { fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)', backgroundColor: 'var(--mw-bg)', border: '1.5px solid var(--mw-border)', borderRadius: RADIUS.sm, padding: '8px 12px', cursor: 'pointer', outline: 'none' }, chipsRow: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px', alignItems: 'center' }, chip: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 700, color: 'var(--mw-primary)', backgroundColor: 'var(--mw-accent-bg)', border: '1px solid var(--mw-border)', padding: '6px 10px', borderRadius: '999px' }, chipClear: { fontSize: '12.5px', fontWeight: 800, color: 'var(--mw-ink-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: '6px 4px' }, stateCard: { textAlign: 'center', padding: '64px 20px', backgroundColor: 'var(--mw-surface)', borderRadius: RADIUS.lg, boxShadow: 'var(--mw-shadow-sm)' }, stateCardDashed: { border: '2px dashed var(--mw-border)', boxShadow: 'none' }, stateIcon: { fontSize: '46px', lineHeight: 1 }, stateTitle: { color: 'var(--mw-ink)', marginTop: '16px', fontSize: '17px', fontWeight: 800 }, stateBody: { color: 'var(--mw-ink-muted)', fontSize: '14px', marginTop: '8px', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.7 }, loadMoreBtn: { display: 'block', margin: '28px auto 0', padding: '12px 32px', borderRadius: '999px', border: '1.5px solid var(--mw-primary)', backgroundColor: 'transparent', color: 'var(--mw-primary)', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }, fabBase: { position: 'fixed', insetInlineEnd: '20px', width: '52px', height: '52px', borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: 'var(--mw-shadow-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', zIndex: 40 }, };
+
+const styles: Record<string, React.CSSProperties> = { 
+  page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink)', transition: 'background-color 0.2s ease, color 0.2s ease' }, 
+  main: { maxWidth: '1240px', margin: '28px auto 0', padding: '0 20px' }, 
+  contentCol: { flex: '2 1 640px', minWidth: 0 }, 
+  consolePanel: { backgroundColor: 'var(--mw-surface)', padding: '22px 24px', borderRadius: RADIUS.lg, boxShadow: 'var(--mw-shadow-md)', border: '1px solid var(--mw-border)', marginBottom: '18px' }, 
+  panelTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }, 
+  eyebrow: { display: 'inline-block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--mw-accent-dark)', backgroundColor: 'var(--mw-accent-bg)', padding: '4px 10px', borderRadius: '999px' }, 
+  themeToggle: { width: '36px', height: '36px', borderRadius: '50%', border: '1px solid var(--mw-border)', backgroundColor: 'var(--mw-bg)', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mw-ink)' }, 
+  searchLabel: { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)' }, 
+  searchInput: { width: '100%', padding: '14px 18px', borderRadius: RADIUS.sm, border: '1.5px solid var(--mw-border)', fontSize: '15px', boxSizing: 'border-box', backgroundColor: 'var(--mw-bg)', color: 'var(--mw-ink)', outline: 'none', transition: 'border-color 0.15s ease, box-shadow 0.15s ease' }, 
+  statStrip: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed var(--mw-border)' }, 
+  statCount: { fontSize: '13px', color: 'var(--mw-ink-muted)', fontWeight: 600 }, 
+  statCountNum: { color: 'var(--mw-primary)', fontSize: '16px', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }, 
+  secureBadge: { fontSize: '12px', color: 'var(--mw-success)', backgroundColor: 'var(--mw-success-bg)', padding: '5px 12px', borderRadius: '999px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }, 
+  sortSelect: { fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)', backgroundColor: 'var(--mw-bg)', border: '1.5px solid var(--mw-border)', borderRadius: RADIUS.sm, padding: '8px 12px', cursor: 'pointer', outline: 'none' }, 
+  chipsRow: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px', alignItems: 'center' }, 
+  chip: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 700, color: 'var(--mw-primary)', backgroundColor: 'var(--mw-accent-bg)', border: '1px solid var(--mw-border)', padding: '6px 10px', borderRadius: '999px' }, 
+  chipClear: { fontSize: '12.5px', fontWeight: 800, color: 'var(--mw-ink-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: '6px 4px' }, 
+  stateCard: { textAlign: 'center', padding: '64px 20px', backgroundColor: 'var(--mw-surface)', borderRadius: RADIUS.lg, boxShadow: 'var(--mw-shadow-sm)' }, 
+  stateCardDashed: { border: '2px dashed var(--mw-border)', boxShadow: 'none' }, 
+  stateIcon: { fontSize: '46px', lineHeight: 1 }, 
+  stateTitle: { color: 'var(--mw-ink)', marginTop: '16px', fontSize: '17px', fontWeight: 800 }, 
+  stateBody: { color: 'var(--mw-ink-muted)', fontSize: '14px', marginTop: '8px', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.7 }, 
+  loadMoreBtn: { display: 'block', margin: '28px auto 0', padding: '12px 32px', borderRadius: '999px', border: '1.5px solid var(--mw-primary)', backgroundColor: 'transparent', color: 'var(--mw-primary)', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }, 
+  fabBase: { position: 'fixed', insetInlineEnd: '20px', width: '52px', height: '52px', borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: 'var(--mw-shadow-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', zIndex: 40 }, 
+};
 
 export default function App() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
@@ -42,7 +68,7 @@ export default function App() {
   const [filterModel, setFilterModel] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterEngine, setFilterEngine] = useState('');
-  const [filterCategory, setFilterCategory] = useState(''); // 🔥 أضفنا حالة لتخزين القسم الفرعي المختار
+  const [filterCategory, setFilterCategory] = useState('');
 
   const [sortBy, setSortBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -131,7 +157,6 @@ export default function App() {
     }
   };
 
-  // 🔥 دمج فلترة القسم الفرعي (Category) مع الشروط الأساسية
   const filteredParts = inventory.filter(item => {
     const matchesSearchText = !searchTerm || (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesMake = !filterMake || item.make === filterMake;
@@ -336,7 +361,6 @@ export default function App() {
           {view === 'shop' && (
             <div className="mw-shop-layout" style={{ marginTop: '4px' }}>
               <div className="mw-sidebar-col">
-                {/* تمرير دالة تحديد الفئة إلى الـ Sidebar */}
                 <SidebarFilters 
                   lang={lang} 
                   carData={CAR_DATA} 
@@ -359,6 +383,7 @@ export default function App() {
                   setFilterEngine={setFilterEngine} 
                   filterCategory={filterCategory}
                   setFilterCategory={setFilterCategory}
+                  addToCart={handleBuyClick}
                 />
               </div>
 
@@ -370,39 +395,92 @@ export default function App() {
                   </div>
                   <label style={styles.searchLabel}>{t[lang].searchLabel}</label>
                   <input type="text" className="mw-search-input" placeholder={t[lang].searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={styles.searchInput} />
+                  
                   <div style={styles.statStrip}>
-                    <span style={styles.statCount}>{t[lang].matchingParts}: <span style={styles.statCountNum}>{filteredParts.length}</span></span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <select style={styles.sortSelect} value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
-                        <option value="newest">{lang === 'ar' ? 'الأحدث' : 'Newest'}</option>
-                        <option value="price_asc">{lang === 'ar' ? 'السعر: الأقل أولاً' : 'Price: Low to High'}</option>
-                        <option value="price_desc">{lang === 'ar' ? 'السعر: الأعلى أولاً' : 'Price: High to Low'}</option>
+                    <span style={styles.statCount}>
+                      {t[lang].matchingParts}: <span style={styles.statCountNum}>{filteredParts.length}</span>
+                    </span>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={styles.secureBadge}>
+                        ✓ {lang === 'ar' ? 'قطع معتمدة' : 'Verified Parts'}
+                      </span>
+                      <select 
+                        value={sortBy} 
+                        onChange={(e: any) => setSortBy(e.target.value)} 
+                        style={styles.sortSelect}
+                      >
+                        <option value="newest">{lang === 'ar' ? 'الأحدث أولاً' : 'Newest First'}</option>
+                        <option value="price_asc">{lang === 'ar' ? 'السعر: من الأقل للأعلى' : 'Price: Low to High'}</option>
+                        <option value="price_desc">{lang === 'ar' ? 'السعر: من الأعلى للأقل' : 'Price: High to Low'}</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                {isFiltering && (
+                {/* 🏷️ عرض الفلاتر النشطة (Chips) */}
+                {activeChips.length > 0 && (
                   <div style={styles.chipsRow}>
-                    {activeChips.map(chip => <span key={chip.key} style={styles.chip}>{chip.label} <button className="mw-chip-x" onClick={chip.onRemove}>✕</button></span>)}
-                    <button style={styles.chipClear} onClick={clearAllFilters}>{lang === 'ar' ? 'مسح الفلاتر' : 'Clear filters'}</button>
+                    {activeChips.map(chip => (
+                      <span key={chip.key} style={styles.chip}>
+                        {chip.label}
+                        <button onClick={chip.onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold' }}>✕</button>
+                      </span>
+                    ))}
+                    <button onClick={clearAllFilters} style={styles.chipClear}>
+                      {lang === 'ar' ? 'مسح الكل' : 'Clear All'}
+                    </button>
                   </div>
                 )}
 
+                {/* 📦 قائمة القطع */}
                 {loading ? (
-                  <div className="mw-parts-grid">{Array.from({ length: 8 }).map((_, i) => <div key={i} style={{ height: '220px', borderRadius: '14px', backgroundColor: 'var(--mw-surface)', border: '1px solid var(--mw-border)' }} />)}</div>
-                ) : !isFiltering ? (
-                  <div className="mw-state-card" style={{ ...styles.stateCard, ...styles.stateCardDashed }}><span style={styles.stateIcon}>🔍</span><h3 style={styles.stateTitle}>{lang === 'ar' ? 'ابدأ البحث في الشجرة الجانبية' : 'Start Browsing the Catalog Sidebar'}</h3></div>
-                ) : filteredParts.length === 0 ? (
-                  <div className="mw-state-card" style={styles.stateCard}><span style={styles.stateIcon}>🚫</span><p style={{ ...styles.stateBody, marginTop: '16px', fontWeight: 700, color: 'var(--mw-ink)' }}>{t[lang].noPartsFound}</p></div>
+                  <div style={styles.stateCard}>
+                    <span style={styles.stateIcon}>⌛</span>
+                    <h3 style={styles.stateTitle}>{lang === 'ar' ? 'جاري تحميل القطع...' : 'Loading parts...'}</h3>
+                  </div>
+                ) : visibleParts.length === 0 ? (
+                  <div style={{ ...styles.stateCard, ...styles.stateCardDashed }}>
+                    <span style={styles.stateIcon}>🔍</span>
+                    <h3 style={styles.stateTitle}>
+                      {isFiltering 
+                        ? (lang === 'ar' ? 'لم يتم العثور على قطع تطابق البحث' : 'No matching parts found') 
+                        : (lang === 'ar' ? 'لا توجد قطع غيار متاحة حالياً' : 'No parts available right now')}
+                    </h3>
+                    <p style={styles.stateBody}>
+                      {lang === 'ar' 
+                        ? 'جرّب تغيير خيارات البحث أو تواصل معنا لمساعدتك في العثور على القطعة.' 
+                        : 'Try adjusting your filters or contact us to help you find the part.'}
+                    </p>
+                    <button 
+                      onClick={handleGeneralContact} 
+                      style={{ marginTop: '18px', padding: '10px 20px', backgroundColor: '#25D366', color: '#fff', border: 'none', borderRadius: '999px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      💬 {lang === 'ar' ? 'تواصل عبر واتساب' : 'Contact via WhatsApp'}
+                    </button>
+                  </div>
                 ) : (
                   <>
                     <div className="mw-parts-grid">
                       {visibleParts.map(item => (
-                        <PartCard key={item.id} lang={lang} item={item} translateMake={TRANSLATE_MAKE} onBuy={handleBuyClick} onShare={handleShare} />
+                        <PartCard 
+                          key={item.id} 
+                          item={item} 
+                          lang={lang} 
+                          onBuyClick={handleBuyClick} 
+                          onShareClick={handleShare} 
+                        />
                       ))}
                     </div>
-                    {visibleCount < sortedParts.length && <button className="mw-load-more" style={styles.loadMoreBtn} onClick={() => setVisibleCount(c => c + PAGE_SIZE)}>{lang === 'ar' ? 'عرض المزيد' : 'Load more'}</button>}
+
+                    {visibleCount < sortedParts.length && (
+                      <button 
+                        onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)} 
+                        style={styles.loadMoreBtn}
+                      >
+                        {lang === 'ar' ? 'عرض المزيد من القطع' : 'Load More Parts'}
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -410,12 +488,29 @@ export default function App() {
           )}
         </main>
 
-        <button className="mw-fab" style={{ ...styles.fabBase, bottom: '20px', backgroundColor: '#25D366', color: '#fff' }} onClick={handleGeneralContact}>💬</button>
-        {showScrollTop && <button className="mw-fab" style={{ ...styles.fabBase, bottom: '82px', backgroundColor: 'var(--mw-surface)', color: 'var(--mw-primary)', border: '1px solid var(--mw-border)' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>↑</button>}
+        {/* 🔝 زر التمرير إلى الأعلى */}
+        {showScrollTop && (
+          <button 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
+            style={{ ...styles.fabBase, bottom: '24px', backgroundColor: 'var(--mw-primary)', color: '#fff' }}
+          >
+            ↑
+          </button>
+        )}
 
+        {/* 🔔 التنبيهات (Toasts) */}
         <div className="mw-toast-stack">
-          {toasts.map(tst => <div key={tst.id} className="mw-toast" style={{ backgroundColor: tst.type === 'error' ? 'var(--mw-danger)' : 'var(--mw-success)' }}>{tst.message}</div>)}
+          {toasts.map(toast => (
+            <div 
+              key={toast.id} 
+              className="mw-toast" 
+              style={{ backgroundColor: toast.type === 'error' ? 'var(--mw-danger)' : 'var(--mw-success)' }}
+            >
+              {toast.message}
+            </div>
+          ))}
         </div>
+
       </div>
     </>
   );
