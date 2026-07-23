@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { t } from '../utils/translations.ts';
 
 interface CustomerProfileProps {
   lang: 'ar' | 'en';
