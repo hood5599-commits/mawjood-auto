@@ -12,6 +12,8 @@ interface GarageProps {
 }
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
+  const [activeTab, setActiveTab] = useState<'parts' | 'orders'>('parts');
+
   const [partName, setPartName] = useState('');
   const [partPrice, setPartPrice] = useState('');
   const [partMake, setPartMake] = useState('');
@@ -22,301 +24,196 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [uploadingImage, setUploadingImage] = useState(false);
   
   const [myParts, setMyParts] = useState<any[]>([]);
+  const [myOrders, setMyOrders] = useState<any[]>([]);
+  const [orderNotes, setOrderNotes] = useState<Record<number, string>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // السحر هنا: سيسحب الكود رقم الهاتف، أو الإيميل، أو المعرف ليكون هو الـ ID الخاص بالكراج
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || session?.code || 'garage_unknown';
 
   const fetchMyParts = async () => {
     if (!userId || userId === 'garage_unknown') return;
     try {
-      const response = await fetch(`${supabaseUrl}/parts?user_id=eq.${userId}&order=id.desc`, {
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}` // استخدمنا apiKey كبديل لو لم يكن هناك توكن
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMyParts(data);
-      }
-    } catch (error) {
-      console.error("Error fetching my parts", error);
-    }
+      const response = await fetch(`${supabaseUrl}/parts?user_id=eq.${userId}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } });
+      if (response.ok) setMyParts(await response.json());
+    } catch (error) { console.error(error); }
+  };
+
+  // 🔥 جلب الطلبات الواردة من العملاء
+  const fetchMyOrders = async () => {
+    if (!userId || userId === 'garage_unknown') return;
+    try {
+      const response = await fetch(`${supabaseUrl}/orders?garage_id=eq.${userId}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } });
+      if (response.ok) setMyOrders(await response.json());
+    } catch (error) { console.error(error); }
   };
 
   useEffect(() => {
     fetchMyParts();
+    fetchMyOrders();
   }, [session]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // نفس كود رفع الصورة...
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert(t[lang].alertSize);
-      return;
-    }
-
     setUploadingImage(true);
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-
     try {
       const uploadUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/part-images/${fileName}`;
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`,
-          'Content-Type': file.type
-        },
-        body: file
-      });
-
+      const response = await fetch(uploadUrl, { method: 'POST', headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': file.type }, body: file });
       if (response.ok) {
-        const publicUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/part-images/${fileName}`;
-        setPartImg(publicUrl);
-        alert(t[lang].alertUploadSuccess || (lang === 'ar' ? 'تم رفع الصورة بنجاح!' : 'Image uploaded successfully!'));
-      } else {
-        alert('Upload failed');
+        setPartImg(`${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/part-images/${fileName}`);
+        alert(lang === 'ar' ? 'تم رفع الصورة بنجاح!' : 'Image uploaded!');
       }
-    } catch (error) {
-      alert('Error uploading');
-    } finally {
-      setUploadingImage(false);
-    }
+    } catch (error) {} finally { setUploadingImage(false); }
   };
 
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!userId || userId === 'garage_unknown') {
-      alert(lang === 'ar' ? '⚠️ يرجى تسجيل الدخول مجدداً لإضافة القطعة.' : 'Please login again to add a part.');
-      return;
-    }
-
+    if (!userId || userId === 'garage_unknown') return alert('Please login again');
     try {
       const method = editingId ? 'PATCH' : 'POST';
       const url = editingId ? `${supabaseUrl}/parts?id=eq.${editingId}` : `${supabaseUrl}/parts`;
-
-      const payload = {
-        name: partName,
-        price: parseFloat(partPrice),
-        make: partMake,
-        model: partModel,
-        year: partYear,
-        engine: partEngine,
-        image_url: partImg || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-        user_id: userId // هذا هو رقم أو إيميل الكراج
-      };
-
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        alert(lang === 'ar' ? 'تم حفظ القطعة بنجاح! 🚀' : 'Part saved successfully! 🚀');
-        resetForm();
-        fetchMyParts();
-        onSuccess();
-      } else {
-        const errorData = await response.json();
-        alert(`رفضت قاعدة البيانات الحفظ ⚠️\nالسبب: ${errorData.message || errorData.details}`);
-      }
-    } catch (error: any) {
-      alert(`حدث خطأ برمجي ⚠️\nالسبب: ${error.message}`);
-    }
+      const payload = { name: partName, price: parseFloat(partPrice), make: partMake, model: partModel, year: partYear, engine: partEngine, image_url: partImg || 'https://via.placeholder.com/400', user_id: userId };
+      const response = await fetch(url, { method, headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(payload) });
+      if (response.ok) { alert(lang === 'ar' ? 'تم الحفظ!' : 'Saved!'); resetForm(); fetchMyParts(); onSuccess(); }
+    } catch (error: any) { alert('Error saving'); }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm(lang === 'ar' ? 'هل أنت متأكد من حذف هذه القطعة؟' : 'Are you sure you want to delete this part?')) return;
-    
+    if (!window.confirm(lang === 'ar' ? 'هل أنت متأكد من الحذف؟' : 'Are you sure?')) return;
     try {
-      const response = await fetch(`${supabaseUrl}/parts?id=eq.${id}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`
-        }
-      });
-      if (response.ok) {
-        fetchMyParts();
-        onSuccess();
-      }
-    } catch (error) {
-      alert('Error deleting part');
-    }
+      const response = await fetch(`${supabaseUrl}/parts?id=eq.${id}`, { method: 'DELETE', headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } });
+      if (response.ok) { fetchMyParts(); onSuccess(); }
+    } catch (error) {}
   };
 
   const handleEdit = (part: any) => {
-    setPartName(part.name);
-    setPartPrice(part.price.toString());
-    setPartMake(part.make);
-    setPartModel(part.model || '');
-    setPartYear(part.year);
-    setPartEngine(part.engine || '');
-    setPartImg(part.image_url === 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80' ? '' : part.image_url);
-    setEditingId(part.id);
+    setPartName(part.name); setPartPrice(part.price.toString()); setPartMake(part.make); setPartModel(part.model || ''); setPartYear(part.year); setPartEngine(part.engine || ''); setPartImg(part.image_url); setEditingId(part.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const resetForm = () => {
-    setPartName(''); setPartPrice(''); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg('');
-    setEditingId(null);
+  const resetForm = () => { setPartName(''); setPartPrice(''); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setEditingId(null); };
+
+  // 🔥 تحديث حالة الطلب
+  const updateOrderStatus = async (orderId: number, newStatus: string) => {
+    try {
+      const noteToSave = orderNotes[orderId] || '';
+      const response = await fetch(`${supabaseUrl}/orders?id=eq.${orderId}`, {
+        method: 'PATCH',
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, notes: noteToSave })
+      });
+      if (response.ok) {
+        alert(lang === 'ar' ? 'تم تحديث حالة الطلب بنجاح' : 'Order status updated');
+        fetchMyOrders();
+      }
+    } catch (error) { alert('Error updating order'); }
   };
 
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
       
-      <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ color: '#1a365d', margin: 0 }}>
-            {editingId 
-              ? (lang === 'ar' ? '✏️ تعديل بيانات القطعة' : '✏️ Edit Part') 
-              : (lang === 'ar' ? '➕ إضافة قطعة جديدة' : '➕ Add New Part')}
-          </h2>
-          {editingId && (
-            <button onClick={resetForm} style={{ padding: '8px 16px', backgroundColor: '#e2e8f0', color: '#4a5568', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {lang === 'ar' ? 'إلغاء التعديل' : 'Cancel Edit'}
-            </button>
+      {/* التبويبات العلوية */}
+      <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
+        <button onClick={() => setActiveTab('parts')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'parts' ? '#3182ce' : 'transparent', color: activeTab === 'parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' }}>
+          📦 {lang === 'ar' ? 'إدارة الإعلانات' : 'Manage Ads'}
+        </button>
+        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px', position: 'relative' }}>
+          📥 {lang === 'ar' ? 'الطلبات الواردة' : 'Incoming Orders'}
+          {myOrders.filter(o => o.status === 'pending').length > 0 && (
+            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 6px', borderRadius: '10px' }}>
+              {myOrders.filter(o => o.status === 'pending').length} جديد
+            </span>
           )}
-        </div>
-
-        <form onSubmit={handlePublish} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].partNameLabel}</label>
-            <input type="text" placeholder={t[lang].partNamePlaceholder} value={partName} onChange={(e) => setPartName(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].priceLabel}</label>
-            <input type="number" placeholder={t[lang].pricePlaceholder} value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].makeLabel}</label>
-              <select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); setPartEngine(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required>
-                <option value="">{t[lang].selectMake}</option>
-                {Object.keys(carData).map(make => (
-                  <option key={make} value={make}>{make}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].modelLabel}</label>
-              <select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}>
-                <option value="">{t[lang].selectModel || (lang === 'ar' ? 'اختر الموديل' : 'Select Model')}</option>
-                {partMake && carData[partMake]?.models.map((model: string) => (
-                  <option key={model} value={model}>{model}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].yearLabel}</label>
-              <select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required>
-                <option value="">{t[lang].selectYear}</option>
-                {years.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].engineLabel}</label>
-              <select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}>
-                <option value="">{t[lang].selectEngine || (lang === 'ar' ? 'اختر المحرك' : 'Select Engine')}</option>
-                {partMake && carData[partMake]?.engines.map((engine: string) => (
-                  <option key={engine} value={engine}>{engine}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].uploadLabel}</label>
-            <div style={{ border: '2px dashed #cbd5e0', padding: '20px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f7fafc', cursor: 'pointer', position: 'relative' }}>
-              <input type="file" accept="image/*" onChange={handleImageUpload} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} />
-              <p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>
-                {uploadingImage ? t[lang].uploadBtnUploading : t[lang].uploadBtnIdle}
-              </p>
-            </div>
-            
-            <div style={{ marginTop: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#718096' }}>{t[lang].uploadOrLink}</label>
-              <input type="text" placeholder={t[lang].uploadLinkPlaceholder} value={partImg} onChange={(e) => setPartImg(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
-            </div>
-
-            {partImg && (
-              <div style={{ marginTop: '15px', textAlign: 'center' }}>
-                <p style={{ fontSize: '13px', color: '#2f855a', fontWeight: 'bold', marginBottom: '8px' }}>{t[lang].uploadPreview || (lang === 'ar' ? 'معاينة الصورة' : 'Preview')}</p>
-                <img src={partImg} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }} />
-              </div>
-            )}
-          </div>
-
-          <button type="submit" style={{ width: '100%', padding: '14px', backgroundColor: editingId ? '#3182ce' : '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
-            {editingId 
-              ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes') 
-              : (lang === 'ar' ? 'نشر القطعة' : 'Publish Part')}
-          </button>
-        </form>
+        </button>
       </div>
 
-      {/* قسم إدارة إعلانات الكراج */}
-      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-        <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #edf2f7', paddingBottom: '15px' }}>
-          📦 {lang === 'ar' ? 'إعلاناتي' : 'My Listings'} <span style={{ fontSize: '14px', color: '#718096' }}>({myParts.length})</span>
-        </h3>
-        
-        {myParts.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>
-            {lang === 'ar' ? 'لم تقم بإضافة أي قطع حتى الآن.' : 'You have not added any parts yet.'}
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      {activeTab === 'parts' && (
+        <>
+          <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+            <h2 style={{ color: '#1a365d', margin: '0 0 20px 0' }}>{editingId ? '✏️ تعديل' : '➕ إضافة'}</h2>
+            <form onSubmit={handlePublish} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].partNameLabel}</label><input type="text" placeholder={t[lang].partNamePlaceholder} value={partName} onChange={(e) => setPartName(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
+              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].priceLabel}</label><input type="number" placeholder={t[lang].pricePlaceholder} value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].makeLabel}</label><select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); setPartEngine(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectMake}</option>{Object.keys(carData).map(make => <option key={make} value={make}>{make}</option>)}</select></div>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].modelLabel}</label><select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}><option value="">{t[lang].selectModel}</option>{partMake && carData[partMake]?.models.map((model: string) => <option key={model} value={model}>{model}</option>)}</select></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].yearLabel}</label><select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectYear}</option>{years.map(year => <option key={year} value={year}>{year}</option>)}</select></div>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].engineLabel}</label><select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}><option value="">{t[lang].selectEngine}</option>{partMake && carData[partMake]?.engines.map((engine: string) => <option key={engine} value={engine}>{engine}</option>)}</select></div>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].uploadLabel}</label>
+                <div style={{ border: '2px dashed #cbd5e0', padding: '20px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f7fafc', cursor: 'pointer', position: 'relative' }}><input type="file" accept="image/*" onChange={handleImageUpload} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} /><p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : 'اضغط هنا لاختيار صورة'}</p></div>
+                {partImg && <div style={{ marginTop: '15px', textAlign: 'center' }}><img src={partImg} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '10px' }} /></div>}
+              </div>
+              <button type="submit" style={{ width: '100%', padding: '14px', backgroundColor: editingId ? '#3182ce' : '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}>{editingId ? 'حفظ التعديلات' : 'نشر القطعة'}</button>
+            </form>
+          </div>
+
+          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+            <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📦 إعلاناتي ({myParts.length})</h3>
             {myParts.map(part => (
-              <div key={part.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <img src={part.image_url} alt={part.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
-                  <div>
-                    <h4 style={{ margin: '0 0 5px 0', color: '#2d3748', fontSize: '15px' }}>{part.name}</h4>
-                    <div style={{ fontSize: '13px', color: '#718096', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      <span style={{ backgroundColor: '#edf2f7', padding: '2px 8px', borderRadius: '4px' }}>{part.make} {part.model}</span>
-                      <span style={{ backgroundColor: '#edf2f7', padding: '2px 8px', borderRadius: '4px' }}>📅 {part.year}</span>
-                      <span style={{ color: '#dd6b20', fontWeight: 'bold' }}>💰 {part.price} {lang === 'ar' ? 'ر.ق' : 'QAR'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => handleEdit(part)} style={{ padding: '8px 12px', backgroundColor: '#ebf8ff', color: '#3182ce', border: '1px solid #bee3f8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                    {lang === 'ar' ? 'تعديل' : 'Edit'}
-                  </button>
-                  <button onClick={() => handleDelete(part.id)} style={{ padding: '8px 12px', backgroundColor: '#fff5f5', color: '#e53e3e', border: '1px solid #fed7d7', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                    {lang === 'ar' ? 'حذف' : 'Delete'}
-                  </button>
-                </div>
-
+              <div key={part.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '10px' }}>
+                <div><h4 style={{ margin: '0 0 5px 0' }}>{part.name}</h4><span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{part.price} QAR</span></div>
+                <div style={{ display: 'flex', gap: '10px' }}><button onClick={() => handleEdit(part)} style={{ padding: '8px 12px', backgroundColor: '#ebf8ff', color: '#3182ce', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>تعديل</button><button onClick={() => handleDelete(part.id)} style={{ padding: '8px 12px', backgroundColor: '#fff5f5', color: '#e53e3e', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>حذف</button></div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {activeTab === 'orders' && (
+        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 الطلبات الواردة من العملاء</h3>
+          
+          {myOrders.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>لا توجد طلبات جديدة.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {myOrders.map(order => (
+                <div key={order.id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', backgroundColor: order.status === 'pending' ? '#fffff0' : '#f8fafc' }}>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                    <div>
+                      <h4 style={{ margin: '0 0 5px 0', fontSize: '18px', color: '#2d3748' }}>{order.part_name}</h4>
+                      <p style={{ margin: 0, color: '#4a5568', fontWeight: 'bold' }}>رقم العميل: <span style={{ color: '#3182ce' }} dir="ltr">{order.customer_phone}</span></p>
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20' }}>{order.price} QAR</span>
+                      <div style={{ marginTop: '5px' }}>
+                        {order.status === 'pending' && <span style={{ backgroundColor: '#fefcbf', color: '#b7791f', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>قيد الانتظار ⏳</span>}
+                        {order.status === 'confirmed' && <span style={{ backgroundColor: '#c6f6d5', color: '#2f855a', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>تم التأكيد والتجهيز ✅</span>}
+                        {order.status === 'rejected' && <span style={{ backgroundColor: '#fed7d7', color: '#c53030', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>مرفوض / مسترجع ❌</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ fontSize: '13px', color: '#718096', fontWeight: 'bold' }}>ملاحظات للعميل / سبب الرفض:</label>
+                    <input type="text" placeholder="اكتب ملاحظة (اختياري)..." value={orderNotes[order.id] !== undefined ? orderNotes[order.id] : (order.notes || '')} onChange={(e) => setOrderNotes({ ...orderNotes, [order.id]: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', marginTop: '5px' }} />
+                  </div>
+
+                  {order.status === 'pending' && (
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button onClick={() => updateOrderStatus(order.id, 'confirmed')} style={{ flex: 1, padding: '10px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>تأكيد الطلب (متاح) ✅</button>
+                      <button onClick={() => updateOrderStatus(order.id, 'rejected')} style={{ flex: 1, padding: '10px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>رفض / غير متوفر ❌</button>
+                    </div>
+                  )}
+                  {order.status !== 'pending' && (
+                    <button onClick={() => updateOrderStatus(order.id, 'pending')} style={{ padding: '8px 15px', backgroundColor: '#edf2f7', color: '#4a5568', border: '1px solid #cbd5e0', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>تراجع (إعادة الطلب لقيد الانتظار) 🔄</button>
+                  )}
+
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );
