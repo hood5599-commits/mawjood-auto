@@ -97,9 +97,21 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
-  const handleBuyClick = (item: any) => {
-    setCartItems(prev => [...prev, item]);
-    showToast(lang === 'ar' ? 'تمت إضافة القطعة للسلة 🛒' : 'Item added to cart 🛒', 'success');
+  // 🔥 إضافة القطعة للسلة بالكمية المحددة مع دمج الكميات للقطع المكررة
+  const handleBuyClick = (item: any, quantity: number = 1) => {
+    setCartItems(prev => {
+      const existingIdx = prev.findIndex(i => i.id === item.id);
+      if (existingIdx > -1) {
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: (updated[existingIdx].quantity || 1) + quantity
+        };
+        return updated;
+      }
+      return [...prev, { ...item, quantity }];
+    });
+    showToast(lang === 'ar' ? `تمت إضافة (${quantity}) قطع للسلة 🛒` : `Added (${quantity}) items 🛒`, 'success');
   };
 
   const toggleCategory = (category: string) => { setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); };
@@ -117,14 +129,24 @@ export default function App() {
     setIsCheckoutLoading(true);
 
     try {
-      const ordersPayload = cartItems.map(item => ({
-        part_name: `${item.name} (${item.make} ${item.model || ''})`,
-        price: Number(item.price),
-        garage_id: item.user_id,
-        customer_phone: session.phone || session.email || 'غير معروف',
-        status: 'pending',
-        notes: ''
-      }));
+      // إرسال الطلبات بما يلائم الكميات
+      const ordersPayload: any[] = [];
+      cartItems.forEach(item => {
+        const qty = item.quantity || 1;
+        const partNo = item.part_number || item.code || item.sku || '';
+        const nameWithPN = partNo ? `${item.name} [PN: ${partNo}] (${item.make} ${item.model || ''})` : `${item.name} (${item.make} ${item.model || ''})`;
+        
+        for (let q = 0; q < qty; q++) {
+          ordersPayload.push({
+            part_name: nameWithPN,
+            price: Number(item.price),
+            garage_id: item.user_id,
+            customer_phone: session.phone || session.email || 'غير معروف',
+            status: 'pending',
+            notes: ''
+          });
+        }
+      });
 
       const response = await fetch(`${SUPABASE_URL}/orders`, {
         method: 'POST',
@@ -157,6 +179,10 @@ export default function App() {
     }
   };
 
+  // إجمالي السلة المحسوب مع ضرب السعر بالكمية
+  const totalCartPrice = cartItems.reduce((total, item) => total + (Number(item.price) * (item.quantity || 1)), 0);
+  const totalCartCount = cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
+
   return (
     <>
       <style>{`
@@ -174,7 +200,7 @@ export default function App() {
           view={view} 
           setView={setView} 
           session={session} 
-          cartCount={cartItems.length} 
+          cartCount={totalCartCount} 
           onOpenCart={() => setIsCartOpen(true)} 
           onLogout={() => { 
             setSession(null); 
@@ -202,21 +228,33 @@ export default function App() {
                     {lang === 'ar' ? 'السلة فارغة حالياً.' : 'Your cart is currently empty.'}
                   </div>
                 ) : (
-                  cartItems.map((item, index) => (
-                    <div key={index} style={{ display: 'flex', gap: '15px', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px dashed var(--mw-border)' }}>
-                      <img src={item.image_url || 'https://via.placeholder.com/70'} alt={item.name} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{ margin: '0 0 5px 0', color: 'var(--mw-ink)', fontSize: '15px' }}>{item.name}</h4>
-                        <p style={{ margin: '0 0 8px 0', color: 'var(--mw-ink-muted)', fontSize: '12px' }}>{item.make} - {item.model}</p>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: 'var(--mw-accent-dark)', fontWeight: 'bold', fontSize: '15px' }}>{item.price} QAR</span>
-                          <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ background: '#fff5f5', border: '1px solid #fed7d7', color: '#e53e3e', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', padding: '4px 8px', borderRadius: '6px' }}>
-                            {lang === 'ar' ? 'حذف 🗑️' : 'Remove 🗑️'}
-                          </button>
+                  cartItems.map((item, index) => {
+                    const itemQty = item.quantity || 1;
+                    const itemTotal = Number(item.price) * itemQty;
+                    const partNo = item.part_number || item.code || item.sku;
+
+                    return (
+                      <div key={index} style={{ display: 'flex', gap: '15px', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px dashed var(--mw-border)' }}>
+                        <img src={item.image_url || 'https://via.placeholder.com/70'} alt={item.name} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ margin: '0 0 4px 0', color: 'var(--mw-ink)', fontSize: '15px' }}>{item.name}</h4>
+                          
+                          {partNo && <span style={{ fontSize: '11px', color: '#718096', display: 'block', marginBottom: '4px' }}>Part #: {partNo}</span>}
+                          
+                          <p style={{ margin: '0 0 8px 0', color: 'var(--mw-ink-muted)', fontSize: '12px' }}>
+                            {item.make} - {item.model} | <strong style={{ color: '#3182ce' }}>العدد: {itemQty}</strong>
+                          </p>
+                          
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--mw-accent-dark)', fontWeight: 'bold', fontSize: '15px' }}>{itemTotal} QAR</span>
+                            <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ background: '#fff5f5', border: '1px solid #fed7d7', color: '#e53e3e', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', padding: '4px 8px', borderRadius: '6px' }}>
+                              {lang === 'ar' ? 'حذف 🗑️' : 'Remove 🗑️'}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
               
@@ -224,7 +262,7 @@ export default function App() {
                 <div style={{ borderTop: '1px solid var(--mw-border)', paddingTop: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '18px', fontWeight: 'bold', color: 'var(--mw-ink)' }}>
                     <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
-                    <span style={{ color: 'var(--mw-primary)' }}>{cartItems.reduce((total, item) => total + Number(item.price), 0)} QAR</span>
+                    <span style={{ color: 'var(--mw-primary)' }}>{totalCartPrice} QAR</span>
                   </div>
                   <button onClick={handleCheckoutDatabase} disabled={isCheckoutLoading} style={{ width: '100%', padding: '15px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center', opacity: isCheckoutLoading ? 0.7 : 1 }}>
                     {isCheckoutLoading ? (lang === 'ar' ? 'جاري الإرسال...' : 'Sending...') : (lang === 'ar' ? 'إتمام الطلب الآن' : 'Checkout Now')}
@@ -252,7 +290,6 @@ export default function App() {
             </div>
           )}
 
-          {/* 🔥 تم جعل الشجرة تأخذ عرض الشاشة بالكامل دون ظهور العمود الأيسر المزدوج */}
           {view === 'shop' && (
             <div style={{ marginTop: '20px', width: '100%' }}>
               <SidebarFilters 
