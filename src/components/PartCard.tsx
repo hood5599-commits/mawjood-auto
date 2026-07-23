@@ -8,7 +8,8 @@ interface PartCardProps {
   onBuy?: (item: any) => void;
   onBuyClick?: (item: any) => void;
   onShare?: (item: any) => void;
-  onShareClick?: (item: any) => void; // 👈 التوافق التام مع App.tsx
+  // 👈 إضافة دعم Promise<void> لحل مشكلة Vercel بشكل نهائي
+  onShareClick?: (item: any) => Promise<void> | void; 
 }
 
 export const PartCard: React.FC<PartCardProps> = ({ 
@@ -20,7 +21,6 @@ export const PartCard: React.FC<PartCardProps> = ({
   onShare,
   onShareClick 
 }) => {
-  // توحيد منطق الدوال لتفادي اختلاف المسميات بين App.tsx و PartCard
   const handleBuy = onBuyClick || onBuy || (() => {});
   const handleShare = onShareClick || onShare || (() => {});
 
