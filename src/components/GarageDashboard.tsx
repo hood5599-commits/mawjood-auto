@@ -38,7 +38,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 جلب الطلبات الواردة من العملاء
   const fetchMyOrders = async () => {
     if (!userId || userId === 'garage_unknown') return;
     try {
@@ -53,7 +52,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   }, [session]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // نفس كود رفع الصورة...
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
@@ -97,7 +95,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const resetForm = () => { setPartName(''); setPartPrice(''); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setEditingId(null); };
 
-  // 🔥 تحديث حالة الطلب
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
       const noteToSave = orderNotes[orderId] || '';
@@ -116,7 +113,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
       
-      {/* التبويبات العلوية */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
         <button onClick={() => setActiveTab('parts')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'parts' ? '#3182ce' : 'transparent', color: activeTab === 'parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' }}>
           📦 {lang === 'ar' ? 'إدارة الإعلانات' : 'Manage Ads'}
@@ -180,21 +176,24 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                     <div>
-                      <h4 style={{ margin: '0 0 5px 0', fontSize: '18px', color: '#2d3748' }}>{order.part_name}</h4>
-                      <p style={{ margin: 0, color: '#4a5568', fontWeight: 'bold' }}>رقم العميل: <span style={{ color: '#3182ce' }} dir="ltr">{order.customer_phone}</span></p>
+                      {/* 🔥 تم إخفاء رقم/إيميل العميل، وعرض رقم الطلب فقط للحفاظ على الخصوصية وحماية أرباحك */}
+                      <span style={{ fontSize: '13px', backgroundColor: '#edf2f7', color: '#2b6cb0', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold' }}>
+                        📦 رقم الطلب: #{order.id}
+                      </span>
+                      <h4 style={{ margin: '8px 0 5px 0', fontSize: '18px', color: '#2d3748' }}>{order.part_name}</h4>
                     </div>
                     <div style={{ textAlign: 'left' }}>
                       <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20' }}>{order.price} QAR</span>
                       <div style={{ marginTop: '5px' }}>
                         {order.status === 'pending' && <span style={{ backgroundColor: '#fefcbf', color: '#b7791f', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>قيد الانتظار ⏳</span>}
                         {order.status === 'confirmed' && <span style={{ backgroundColor: '#c6f6d5', color: '#2f855a', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>تم التأكيد والتجهيز ✅</span>}
-                        {order.status === 'rejected' && <span style={{ backgroundColor: '#fed7d7', color: '#c53030', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>مرفوض / مسترجع ❌</span>}
+                        {order.status === 'rejected' && <span style={{ backgroundColor: '#fed7d7', color: '#c53030', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>مرفوض / غير متوفر ❌</span>}
                       </div>
                     </div>
                   </div>
 
                   <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontSize: '13px', color: '#718096', fontWeight: 'bold' }}>ملاحظات للعميل / سبب الرفض:</label>
+                    <label style={{ fontSize: '13px', color: '#718096', fontWeight: 'bold' }}>ملاحظات للإدارة / سبب الرفض:</label>
                     <input type="text" placeholder="اكتب ملاحظة (اختياري)..." value={orderNotes[order.id] !== undefined ? orderNotes[order.id] : (order.notes || '')} onChange={(e) => setOrderNotes({ ...orderNotes, [order.id]: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', marginTop: '5px' }} />
                   </div>
 
