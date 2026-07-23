@@ -15,6 +15,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [activeTab, setActiveTab] = useState<'parts' | 'orders'>('parts');
 
   const [partName, setPartName] = useState('');
+  const [partNumber, setPartNumber] = useState(''); // 🔥 رقم القطعة
   const [partPrice, setPartPrice] = useState('');
   const [partMake, setPartMake] = useState('');
   const [partModel, setPartModel] = useState('');
@@ -74,7 +75,17 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     try {
       const method = editingId ? 'PATCH' : 'POST';
       const url = editingId ? `${supabaseUrl}/parts?id=eq.${editingId}` : `${supabaseUrl}/parts`;
-      const payload = { name: partName, price: parseFloat(partPrice), make: partMake, model: partModel, year: partYear, engine: partEngine, image_url: partImg || 'https://via.placeholder.com/400', user_id: userId };
+      const payload = { 
+        name: partName, 
+        part_number: partNumber, // 🔥 حفظ رقم القطعة
+        price: parseFloat(partPrice), 
+        make: partMake, 
+        model: partModel, 
+        year: partYear, 
+        engine: partEngine, 
+        image_url: partImg || 'https://via.placeholder.com/400', 
+        user_id: userId 
+      };
       const response = await fetch(url, { method, headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(payload) });
       if (response.ok) { alert(lang === 'ar' ? 'تم الحفظ!' : 'Saved!'); resetForm(); fetchMyParts(); onSuccess(); }
     } catch (error: any) { alert('Error saving'); }
@@ -89,11 +100,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   };
 
   const handleEdit = (part: any) => {
-    setPartName(part.name); setPartPrice(part.price.toString()); setPartMake(part.make); setPartModel(part.model || ''); setPartYear(part.year); setPartEngine(part.engine || ''); setPartImg(part.image_url); setEditingId(part.id);
+    setPartName(part.name); 
+    setPartNumber(part.part_number || ''); 
+    setPartPrice(part.price.toString()); 
+    setPartMake(part.make); 
+    setPartModel(part.model || ''); 
+    setPartYear(part.year); 
+    setPartEngine(part.engine || ''); 
+    setPartImg(part.image_url); 
+    setEditingId(part.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const resetForm = () => { setPartName(''); setPartPrice(''); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setEditingId(null); };
+  const resetForm = () => { setPartName(''); setPartNumber(''); setPartPrice(''); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setEditingId(null); };
 
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
@@ -130,23 +149,38 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       {activeTab === 'parts' && (
         <>
           <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-            <h2 style={{ color: '#1a365d', margin: '0 0 20px 0' }}>{editingId ? '✏️ تعديل' : '➕ إضافة'}</h2>
+            <h2 style={{ color: '#1a365d', margin: '0 0 20px 0' }}>{editingId ? '✏️ تعديل إعلان' : '➕ إضافة قطعة جديدة'}</h2>
             <form onSubmit={handlePublish} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].partNameLabel}</label><input type="text" placeholder={t[lang].partNamePlaceholder} value={partName} onChange={(e) => setPartName(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].partNameLabel}</label>
+                  <input type="text" placeholder={t[lang].partNamePlaceholder} value={partName} onChange={(e) => setPartName(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>رقم القطعة (Part Number / OEM):</label>
+                  <input type="text" placeholder="مثال: 13505369" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
               <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].priceLabel}</label><input type="number" placeholder={t[lang].pricePlaceholder} value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].makeLabel}</label><select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); setPartEngine(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectMake}</option>{Object.keys(carData).map(make => <option key={make} value={make}>{make}</option>)}</select></div>
                 <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].modelLabel}</label><select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}><option value="">{t[lang].selectModel}</option>{partMake && carData[partMake]?.models.map((model: string) => <option key={model} value={model}>{model}</option>)}</select></div>
               </div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].yearLabel}</label><select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectYear}</option>{years.map(year => <option key={year} value={year}>{year}</option>)}</select></div>
                 <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].engineLabel}</label><select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}><option value="">{t[lang].selectEngine}</option>{partMake && carData[partMake]?.engines.map((engine: string) => <option key={engine} value={engine}>{engine}</option>)}</select></div>
               </div>
+              
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].uploadLabel}</label>
                 <div style={{ border: '2px dashed #cbd5e0', padding: '20px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f7fafc', cursor: 'pointer', position: 'relative' }}><input type="file" accept="image/*" onChange={handleImageUpload} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} /><p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : 'اضغط هنا لاختيار صورة'}</p></div>
                 {partImg && <div style={{ marginTop: '15px', textAlign: 'center' }}><img src={partImg} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '10px' }} /></div>}
               </div>
+              
               <button type="submit" style={{ width: '100%', padding: '14px', backgroundColor: editingId ? '#3182ce' : '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}>{editingId ? 'حفظ التعديلات' : 'نشر القطعة'}</button>
             </form>
           </div>
@@ -155,8 +189,14 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📦 إعلاناتي ({myParts.length})</h3>
             {myParts.map(part => (
               <div key={part.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '10px' }}>
-                <div><h4 style={{ margin: '0 0 5px 0' }}>{part.name}</h4><span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{part.price} QAR</span></div>
-                <div style={{ display: 'flex', gap: '10px' }}><button onClick={() => handleEdit(part)} style={{ padding: '8px 12px', backgroundColor: '#ebf8ff', color: '#3182ce', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>تعديل</button><button onClick={() => handleDelete(part.id)} style={{ padding: '8px 12px', backgroundColor: '#fff5f5', color: '#e53e3e', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>حذف</button></div>
+                <div>
+                  <h4 style={{ margin: '0 0 5px 0' }}>{part.name} {part.part_number && <span style={{ fontSize: '12px', color: '#718096' }}>[PN: {part.part_number}]</span>}</h4>
+                  <span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{part.price} QAR</span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => handleEdit(part)} style={{ padding: '8px 12px', backgroundColor: '#ebf8ff', color: '#3182ce', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>تعديل</button>
+                  <button onClick={() => handleDelete(part.id)} style={{ padding: '8px 12px', backgroundColor: '#fff5f5', color: '#e53e3e', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>حذف</button>
+                </div>
               </div>
             ))}
           </div>
@@ -176,7 +216,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                     <div>
-                      {/* 🔥 تم إخفاء رقم/إيميل العميل، وعرض رقم الطلب فقط للحفاظ على الخصوصية وحماية أرباحك */}
                       <span style={{ fontSize: '13px', backgroundColor: '#edf2f7', color: '#2b6cb0', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold' }}>
                         📦 رقم الطلب: #{order.id}
                       </span>
