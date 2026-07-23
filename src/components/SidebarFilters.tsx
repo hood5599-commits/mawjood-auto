@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { getPartCategory } from '../utils/categoryHelper';
 
+const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
+const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
+
 interface SidebarProps {
   lang: 'ar' | 'en';
   carData: any;
@@ -71,18 +74,34 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
-  
-  // حالة الذاكرة للكمية لكل قطعة
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
-
-  // حالة القطعة المحددة لعرض نافذة التوافق (Fitment Modal)
   const [fitmentModalPart, setFitmentModalPart] = useState<any | null>(null);
+
+  // حالة البحث المباشر
+  const [activeSearchQuery, setActiveSearchQuery] = useState<string>('');
+
+  // 🔥 حالة نافذة طلب القطعة الخاص داخل التطبيق
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [custPhone, setCustPhone] = useState('');
+  const [custNotes, setCustNotes] = useState('');
+  const [isSubmittingReq, setIsSubmittingReq] = useState(false);
+  const [reqSubmitted, setReqSubmitted] = useState(false);
 
   const getQty = (id: number) => partQuantities[id] || 1;
   const changeQty = (id: number, delta: number) => {
     const current = getQty(id);
     const newQty = Math.max(1, current + delta);
     setPartQuantities(prev => ({ ...prev, [id]: newQty }));
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActiveSearchQuery(searchTerm.trim());
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    setActiveSearchQuery('');
   };
 
   const toggleNode = (nodeKey: string, make?: string, model?: string, year?: string, category?: string) => {
@@ -115,7 +134,18 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const isRtl = lang === 'ar';
 
-  // جلب كل السيارات التي تتطابق مع نفس رقم القطعة
+  // 🔥 خوارزمية فلترة نتائج البحث بـ Part Number أو الاسم
+  const searchResults = activeSearchQuery 
+    ? inventory.filter(part => {
+        const query = activeSearchQuery.toLowerCase();
+        const nameMatch = part.name && part.name.toLowerCase().includes(query);
+        const pnMatch = (part.part_number || part.code || part.sku || '').toString().toLowerCase().includes(query);
+        const makeMatch = part.make && part.make.toLowerCase().includes(query);
+        const modelMatch = part.model && part.model.toLowerCase().includes(query);
+        return nameMatch || pnMatch || makeMatch || modelMatch;
+      })
+    : [];
+
   const compatibleVehicles = fitmentModalPart
     ? inventory.filter(p => {
         const modalPN = (fitmentModalPart.part_number || fitmentModalPart.code || fitmentModalPart.sku || '').toString().trim().toLowerCase();
@@ -127,6 +157,41 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         return p.id === fitmentModalPart.id;
       })
     : [];
+
+  // 🔥 إرسال الطلب المباشر داخل التطبيق إلى Supabase
+  const handleInAppRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!custPhone.trim()) return alert(lang === 'ar' ? 'يرجى إدخال رقم الهاتف' : 'Please enter phone number');
+
+    setIsSubmittingReq(true);
+    try {
+      const response = await fetch(`${SUPABASE_URL}/orders`, {
+        method: 'POST',
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify([{
+          part_name: `طلب خاص: ${activeSearchQuery}`,
+          price: 0,
+          customer_phone: custPhone,
+          status: 'pending',
+          notes: custNotes || 'طلب قطعة غيار غير متوفرة من البحث'
+        }])
+      });
+
+      if (response.ok) {
+        setReqSubmitted(true);
+      } else {
+        alert(lang === 'ar' ? 'حدث خطأ في إرسال الطلب' : 'Error sending request');
+      }
+    } catch (err) {
+      alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error');
+    } finally {
+      setIsSubmittingReq(false);
+    }
+  };
 
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -141,275 +206,629 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         boxSizing: 'border-box'
       }}>
         
-        <h3 style={{  
-          margin: '0 0 20px 0',  
-          color: '#1a365d',  
-          borderBottom: '2px solid #3182ce',  
-          paddingBottom: '12px',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-        }}>
-          📋 {lang === 'ar' ? 'كتالوج قطع الغيار التفاعلي' : 'Interactive Parts Catalog'}
-        </h3>
-
-        {/* مربع البحث */}
-        <div style={{ marginBottom: '20px' }}>
-          <input
-            type="text"
-            placeholder={lang === 'ar' ? 'ابحث برقم القطعة (Part Number) أو الاسم...' : 'Search by Part Number or Name...'}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+        {/* شريط البحث المطور */}
+        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <input
+              type="text"
+              placeholder={lang === 'ar' ? 'ادخل رقم القطعة (Part Number) أو اسمها هنا...' : 'Enter Part Number or Name here...'}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '14px 18px',
+                borderRadius: '12px',
+                border: '2px solid #3182ce',
+                outline: 'none',
+                fontSize: '15px',
+                boxSizing: 'border-box',
+                backgroundColor: '#f8fafc',
+                direction: isRtl ? 'rtl' : 'ltr'
+              }}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                style={{
+                  position: 'absolute',
+                  [isRtl ? 'left' : 'right']: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '18px',
+                  color: '#a0aec0',
+                  cursor: 'pointer'
+                }}
+              >
+                ✖
+              </button>
+            )}
+          </div>
+          <button
+            type="submit"
             style={{
-              width: '100%',
-              padding: '14px 18px',
+              padding: '0 24px',
+              backgroundColor: '#3182ce',
+              color: 'white',
+              border: 'none',
               borderRadius: '12px',
-              border: '1.5px solid #cbd5e0',
-              outline: 'none',
+              fontWeight: 'bold',
               fontSize: '15px',
-              boxSizing: 'border-box',
-              backgroundColor: '#f8fafc',
-              direction: isRtl ? 'rtl' : 'ltr'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(49, 130, 206, 0.25)'
             }}
-          />
-        </div>
+          >
+            🔍 {lang === 'ar' ? 'بحث' : 'Search'}
+          </button>
+        </form>
 
-        <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
-          {Object.keys(carData).map(make => {
-            const makeKey = `make_${make}`;
-            const isMakeOpen = !!expandedNodes[makeKey] || filterMake === make;
-            const makeName = isRtl ? make : (translateMake[make] || make);
+        {/* حالة 1: الشاشة المخصصة لنتائج البحث */}
+        {activeSearchQuery ? (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ margin: 0, color: '#1a365d', fontSize: '18px', fontWeight: 'bold' }}>
+                  🔎 {lang === 'ar' ? `نتائج البحث عن: "${activeSearchQuery}"` : `Search results for: "${activeSearchQuery}"`}
+                </h3>
+                <span style={{ fontSize: '13px', color: '#718096', marginTop: '4px', display: 'block' }}>
+                  {lang === 'ar' ? `تم العثور على (${searchResults.length}) قطعة متطابقة` : `Found (${searchResults.length}) matching parts`}
+                </span>
+              </div>
+              <button
+                onClick={clearSearch}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#edf2f7',
+                  color: '#2d3748',
+                  border: '1px solid #cbd5e0',
+                  borderRadius: '10px',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                ↩️ {lang === 'ar' ? 'العودة للكتالوج' : 'Back to Catalog'}
+              </button>
+            </div>
 
-            return (
-              <li key={make} style={{ marginBottom: '8px' }}>
-                <div  
-                  onClick={() => toggleNode(makeKey, make)}
-                  style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold', padding: '10px 14px' }}
+            {searchResults.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '50px 20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '2px dashed #e2e8f0' }}>
+                <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>🚫</span>
+                <h4 style={{ margin: '0 0 8px 0', color: '#2d3748', fontSize: '16px' }}>
+                  {lang === 'ar' ? `عفواً، لا توجد قطع متوفرة بهذا الرقم أو الاسم ("${activeSearchQuery}")` : `No parts found matching "${activeSearchQuery}"`}
+                </h4>
+                <p style={{ color: '#718096', fontSize: '13.5px', margin: '0 0 20px 0' }}>
+                  {lang === 'ar' ? 'يمكنك إرسال طلب خاص بالقطعة من داخل البرنامج ليصل للكراجات فوراً.' : 'Send an in-app request directly to garages.'}
+                </p>
+                
+                {/* 🔥 زر الطلب المباشر من داخل البرنامج بدلاً من الواتساب */}
+                <button
+                  onClick={() => {
+                    setReqSubmitted(false);
+                    setShowRequestModal(true);
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#3182ce',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {!imgErrors[make] ? (
-                      <img  
-                        src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`}  
-                        alt={make}  
-                        style={{ width: '24px', height: '24px', objectFit: 'contain' }}
-                        onError={() => setImgErrors(prev => ({...prev, [make]: true}))}
-                      />
-                    ) : (
-                      <span style={{ fontSize: '18px' }}>🚗</span>
-                    )}
-                    <span style={{ fontSize: '15px' }}>{makeName}</span>
-                  </div>
-                  <span style={{ fontSize: '12px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
-                </div>
+                  📩 {lang === 'ar' ? 'إرسال طلب قطعة داخل البرنامج' : 'Send In-App Request'}
+                </button>
+              </div>
+            ) : (
+              <div style={{  
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+                gap: '18px'
+              }}>
+                {searchResults.map(part => {
+                  const partNo = part.part_number || part.code || part.sku || part.id;
+                  const qty = getQty(part.id);
 
-                {isMakeOpen && (
-                  <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '20px', marginTop: '6px' }}>
-                    {carData[make]?.models.map((model: string) => {
-                      const modelKey = `model_${make}_${model}`;
-                      const isModelOpen = !!expandedNodes[modelKey] || (filterMake === make && filterModel === model);
-                      const modelName = isRtl ? model : (translateModel[model] || model);
-
-                      return (
-                        <li key={model} style={{ marginBottom: '6px' }}>
-                          <div  
-                            onClick={() => toggleNode(modelKey, undefined, model)}
-                            style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '14px', padding: '8px 12px' }}
+                  return (
+                    <div 
+                      key={part.id} 
+                      style={{ 
+                        backgroundColor: 'white', 
+                        padding: '16px', 
+                        borderRadius: '14px', 
+                        border: '1px solid #e2e8f0', 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        justifyContent: 'space-between', 
+                        gap: '12px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                        <img 
+                          src={part.image_url || 'https://via.placeholder.com/80'} 
+                          alt={part.name} 
+                          style={{ width: '75px', height: '75px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #edf2f7' }} 
+                        />
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
+                          <div style={{ fontSize: '12px', color: '#718096', marginBottom: '6px' }}>
+                            🚘 {part.make} - {part.model} ({part.year})
+                          </div>
+                          
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFitmentModalPart(part);
+                            }}
+                            style={{ 
+                              fontSize: '11.5px', 
+                              color: '#2b6cb0', 
+                              backgroundColor: '#ebf8ff', 
+                              padding: '3px 8px', 
+                              borderRadius: '6px', 
+                              width: 'fit-content', 
+                              marginBottom: '6px', 
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              border: '1px solid #bee3f8',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            title={lang === 'ar' ? 'اضغط لعرض كافة السيارات المتوافقة' : 'Click to view matching vehicles'}
                           >
-                            <span>📂 {modelName}</span>
-                            <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                            🔍 Part #: {partNo}
                           </div>
 
-                          {isModelOpen && (
-                            <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '20px', marginTop: '6px' }}>
-                              {years.map(year => {
-                                const yearKey = `year_${make}_${model}_${year}`;
-                                const isYearOpen = !!expandedNodes[yearKey] || (filterMake === make && filterModel === model && filterYear === year);
+                          <div>
+                            <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16.5px' }}>{part.price} QAR</span>
+                          </div>
+                        </div>
+                      </div>
 
-                                return (
-                                  <li key={year} style={{ marginBottom: '6px' }}>
-                                    <div  
-                                      onClick={() => toggleNode(yearKey, undefined, undefined, year)}
-                                      style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '13.5px', color: '#2b6cb0', padding: '7px 12px' }}
-                                    >
-                                      <span>📅 {year}</span>
-                                      <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
-                                    </div>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); changeQty(part.id, -1); }}
+                            style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
+                          >
+                            -
+                          </button>
+                          <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', color: '#2d3748' }}>
+                            {qty}
+                          </span>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); changeQty(part.id, 1); }}
+                            style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
+                          >
+                            +
+                          </button>
+                        </div>
 
-                                    {isYearOpen && (
-                                      <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
-                                        {categories.map(category => {
-                                          const categoryKey = `cat_${make}_${model}_${year}_${category}`;
-                                          const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
-                                          const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
+                        {addToCart && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(part, qty);
+                            }}
+                            style={{ 
+                              flex: 1,
+                              backgroundColor: '#38a169', 
+                              color: 'white', 
+                              border: 'none', 
+                              borderRadius: '8px', 
+                              padding: '9px 12px', 
+                              fontSize: '13px', 
+                              fontWeight: 'bold', 
+                              cursor: 'pointer', 
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
+                          </button>
+                        )}
+                      </div>
 
-                                          const filteredParts = inventory.filter(part =>  
-                                            part.make === make &&  
-                                            part.model === model &&  
-                                            String(part.year) === String(year) &&  
-                                            getPartCategory(part.name) === category
-                                          );
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* حالة 2: كتالوج الشجرة التفاعلي */
+          <>
+            <h3 style={{  
+              margin: '0 0 16px 0',  
+              color: '#1a365d',  
+              borderBottom: '2px solid #3182ce',  
+              paddingBottom: '10px',
+              fontSize: '17px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              📋 {lang === 'ar' ? 'تصفح حسب نوع السيارة' : 'Browse by Vehicle'}
+            </h3>
 
-                                          if (filteredParts.length === 0) return null;
+            <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
+              {Object.keys(carData).map(make => {
+                const makeKey = `make_${make}`;
+                const isMakeOpen = !!expandedNodes[makeKey] || filterMake === make;
+                const makeName = isRtl ? make : (translateMake[make] || make);
 
-                                          return (
-                                            <li key={category} style={{ marginBottom: '6px' }}>
-                                              <div  
-                                                onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, category)}
-                                                style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}
-                                              >
-                                                <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', color: '#3182ce' }}>({filteredParts.length} قطع)</span></span>
-                                                <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
-                                              </div>
+                return (
+                  <li key={make} style={{ marginBottom: '8px' }}>
+                    <div  
+                      onClick={() => toggleNode(makeKey, make)}
+                      style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold', padding: '10px 14px' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {!imgErrors[make] ? (
+                          <img  
+                            src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`}  
+                            alt={make}  
+                            style={{ width: '24px', height: '24px', objectFit: 'contain' }}
+                            onError={() => setImgErrors(prev => ({...prev, [make]: true}))}
+                          />
+                        ) : (
+                          <span style={{ fontSize: '18px' }}>🚗</span>
+                        )}
+                        <span style={{ fontSize: '15px' }}>{makeName}</span>
+                      </div>
+                      <span style={{ fontSize: '12px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                    </div>
 
-                                              {/* عرض القطع الشبكي */}
-                                              {isCategoryOpen && (
-                                                <div style={{  
-                                                  padding: '16px',  
-                                                  backgroundColor: '#fffaf0',  
-                                                  borderRadius: '14px',  
-                                                  border: '1px solid #feebc8',
-                                                  marginTop: '8px',
-                                                  marginBottom: '12px',
-                                                  display: 'grid',
-                                                  gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-                                                  gap: '15px',
-                                                  [isRtl ? 'marginRight' : 'marginLeft']: '10px'
-                                                }}>
-                                                  {filteredParts.map(part => {
-                                                    const partNo = part.part_number || part.code || part.sku || part.id;
-                                                    const qty = getQty(part.id);
+                    {isMakeOpen && (
+                      <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '20px', marginTop: '6px' }}>
+                        {carData[make]?.models.map((model: string) => {
+                          const modelKey = `model_${make}_${model}`;
+                          const isModelOpen = !!expandedNodes[modelKey] || (filterMake === make && filterModel === model);
+                          const modelName = isRtl ? model : (translateModel[model] || model);
 
-                                                    return (
-                                                      <div 
-                                                        key={part.id} 
-                                                        style={{ 
-                                                          backgroundColor: 'white', 
-                                                          padding: '14px', 
-                                                          borderRadius: '12px', 
-                                                          border: '1px solid #e2e8f0', 
-                                                          display: 'flex', 
-                                                          flexDirection: 'column',
-                                                          justifyContent: 'space-between', 
-                                                          gap: '12px',
-                                                          boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-                                                        }}
-                                                      >
-                                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                                                          <img 
-                                                            src={part.image_url || 'https://via.placeholder.com/80'} 
-                                                            alt={part.name} 
-                                                            style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #edf2f7' }} 
-                                                          />
-                                                          <div style={{ flex: 1 }}>
-                                                            <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
-                                                            
-                                                            {/* زر رقم القطعة لعرض التوافق */}
-                                                            <div 
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setFitmentModalPart(part);
-                                                              }}
-                                                              style={{ 
-                                                                fontSize: '11.5px', 
-                                                                color: '#2b6cb0', 
-                                                                backgroundColor: '#ebf8ff', 
-                                                                padding: '3px 8px', 
-                                                                borderRadius: '6px', 
-                                                                width: 'fit-content', 
-                                                                marginBottom: '6px', 
-                                                                fontWeight: 'bold',
-                                                                cursor: 'pointer',
-                                                                border: '1px solid #bee3f8',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px'
-                                                              }}
-                                                              title={lang === 'ar' ? 'اضغط لعرض كافة السيارات المتوافقة' : 'Click to view matching vehicles'}
-                                                            >
-                                                              🔍 Part #: {partNo}
+                          return (
+                            <li key={model} style={{ marginBottom: '6px' }}>
+                              <div  
+                                onClick={() => toggleNode(modelKey, undefined, model)}
+                                style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '14px', padding: '8px 12px' }}
+                              >
+                                <span>📂 {modelName}</span>
+                                <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                              </div>
+
+                              {isModelOpen && (
+                                <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '20px', marginTop: '6px' }}>
+                                  {years.map(year => {
+                                    const yearKey = `year_${make}_${model}_${year}`;
+                                    const isYearOpen = !!expandedNodes[yearKey] || (filterMake === make && filterModel === model && filterYear === year);
+
+                                    return (
+                                      <li key={year} style={{ marginBottom: '6px' }}>
+                                        <div  
+                                          onClick={() => toggleNode(yearKey, undefined, undefined, year)}
+                                          style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '13.5px', color: '#2b6cb0', padding: '7px 12px' }}
+                                        >
+                                          <span>📅 {year}</span>
+                                          <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                        </div>
+
+                                        {isYearOpen && (
+                                          <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
+                                            {categories.map(category => {
+                                              const categoryKey = `cat_${make}_${model}_${year}_${category}`;
+                                              const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
+                                              const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
+
+                                              const filteredParts = inventory.filter(part =>  
+                                                part.make === make &&  
+                                                part.model === model &&  
+                                                String(part.year) === String(year) &&  
+                                                getPartCategory(part.name) === category
+                                              );
+
+                                              if (filteredParts.length === 0) return null;
+
+                                              return (
+                                                <li key={category} style={{ marginBottom: '6px' }}>
+                                                  <div  
+                                                    onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, category)}
+                                                    style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}
+                                                  >
+                                                    <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', color: '#3182ce' }}>({filteredParts.length} قطع)</span></span>
+                                                    <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                  </div>
+
+                                                  {isCategoryOpen && (
+                                                    <div style={{  
+                                                      padding: '16px',  
+                                                      backgroundColor: '#fffaf0',  
+                                                      borderRadius: '14px',  
+                                                      border: '1px solid #feebc8',
+                                                      marginTop: '8px',
+                                                      marginBottom: '12px',
+                                                      display: 'grid',
+                                                      gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+                                                      gap: '15px',
+                                                      [isRtl ? 'marginRight' : 'marginLeft']: '10px'
+                                                    }}>
+                                                      {filteredParts.map(part => {
+                                                        const partNo = part.part_number || part.code || part.sku || part.id;
+                                                        const qty = getQty(part.id);
+
+                                                        return (
+                                                          <div 
+                                                            key={part.id} 
+                                                            style={{ 
+                                                              backgroundColor: 'white', 
+                                                              padding: '14px', 
+                                                              borderRadius: '12px', 
+                                                              border: '1px solid #e2e8f0', 
+                                                              display: 'flex', 
+                                                              flexDirection: 'column',
+                                                              justifyContent: 'space-between', 
+                                                              gap: '12px',
+                                                              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                                                            }}
+                                                          >
+                                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                                                              <img 
+                                                                src={part.image_url || 'https://via.placeholder.com/80'} 
+                                                                alt={part.name} 
+                                                                style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #edf2f7' }} 
+                                                              />
+                                                              <div style={{ flex: 1 }}>
+                                                                <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
+                                                                
+                                                                <div 
+                                                                  onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setFitmentModalPart(part);
+                                                                  }}
+                                                                  style={{ 
+                                                                    fontSize: '11.5px', 
+                                                                    color: '#2b6cb0', 
+                                                                    backgroundColor: '#ebf8ff', 
+                                                                    padding: '3px 8px', 
+                                                                    borderRadius: '6px', 
+                                                                    width: 'fit-content', 
+                                                                    marginBottom: '6px', 
+                                                                    fontWeight: 'bold',
+                                                                    cursor: 'pointer',
+                                                                    border: '1px solid #bee3f8',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px'
+                                                                  }}
+                                                                  title={lang === 'ar' ? 'اضغط لعرض كافة السيارات المتوافقة' : 'Click to view matching vehicles'}
+                                                                >
+                                                                  🔍 Part #: {partNo}
+                                                                </div>
+
+                                                                <div>
+                                                                  <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16px' }}>{part.price} QAR</span>
+                                                                </div>
+                                                              </div>
                                                             </div>
 
-                                                            <div>
-                                                              <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16px' }}>{part.price} QAR</span>
+                                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
+                                                              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+                                                                <button 
+                                                                  onClick={(e) => { e.stopPropagation(); changeQty(part.id, -1); }}
+                                                                  style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
+                                                                >
+                                                                  -
+                                                                </button>
+                                                                <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', color: '#2d3748' }}>
+                                                                  {qty}
+                                                                </span>
+                                                                <button 
+                                                                  onClick={(e) => { e.stopPropagation(); changeQty(part.id, 1); }}
+                                                                  style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
+                                                                >
+                                                                  +
+                                                                </button>
+                                                              </div>
+
+                                                              {addToCart && (
+                                                                <button 
+                                                                  onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    addToCart(part, qty);
+                                                                  }}
+                                                                  style={{ 
+                                                                    flex: 1,
+                                                                    backgroundColor: '#38a169', 
+                                                                    color: 'white', 
+                                                                    border: 'none', 
+                                                                    borderRadius: '8px', 
+                                                                    padding: '8px 12px', 
+                                                                    fontSize: '13px', 
+                                                                    fontWeight: 'bold', 
+                                                                    cursor: 'pointer', 
+                                                                    display: 'flex',
+                                                                    justifyContent: 'center',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px'
+                                                                  }}
+                                                                >
+                                                                  🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
+                                                                </button>
+                                                              )}
                                                             </div>
+
                                                           </div>
-                                                        </div>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  )}
 
-                                                        {/* أزرار الكمية + زر السلة */}
-                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
-                                                          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-                                                            <button 
-                                                              onClick={(e) => { e.stopPropagation(); changeQty(part.id, -1); }}
-                                                              style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
-                                                            >
-                                                              -
-                                                            </button>
-                                                            <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', color: '#2d3748' }}>
-                                                              {qty}
-                                                            </span>
-                                                            <button 
-                                                              onClick={(e) => { e.stopPropagation(); changeQty(part.id, 1); }}
-                                                              style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
-                                                            >
-                                                              +
-                                                            </button>
-                                                          </div>
+                                                </li>
+                                              );
+                                            })}
+                                          </ul>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
 
-                                                          {addToCart && (
-                                                            <button 
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                addToCart(part, qty);
-                                                              }}
-                                                              style={{ 
-                                                                flex: 1,
-                                                                backgroundColor: '#38a169', 
-                                                                color: 'white', 
-                                                                border: 'none', 
-                                                                borderRadius: '8px', 
-                                                                padding: '8px 12px', 
-                                                                fontSize: '13px', 
-                                                                fontWeight: 'bold', 
-                                                                cursor: 'pointer', 
-                                                                display: 'flex',
-                                                                justifyContent: 'center',
-                                                                alignItems: 'center',
-                                                                gap: '6px'
-                                                              }}
-                                                            >
-                                                              🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
-                                                            </button>
-                                                          )}
-                                                        </div>
-
-                                                      </div>
-                                                    );
-                                                  })}
-                                                </div>
-                                              )}
-
-                                            </li>
-                                          );
-                                        })}
-                                      </ul>
-                                    )}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ul>
       </div>
+
+      {/* 🔥 نافذة إرسال طلب قطعة غيار داخل البرنامج */}
+      {showRequestModal && (
+        <div 
+          onClick={() => setShowRequestModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '18px',
+              padding: '24px',
+              maxWidth: '460px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+              direction: isRtl ? 'rtl' : 'ltr'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>
+                📩 {lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}
+              </h3>
+              <button 
+                onClick={() => setShowRequestModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}
+              >
+                ✖
+              </button>
+            </div>
+
+            {reqSubmitted ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <span style={{ fontSize: '50px', display: 'block', marginBottom: '10px' }}>✅</span>
+                <h4 style={{ margin: '0 0 8px 0', color: '#2f855a', fontSize: '17px' }}>
+                  {lang === 'ar' ? 'تم إرسال طلبك بنجاح!' : 'Request Sent Successfully!'}
+                </h4>
+                <p style={{ color: '#4a5568', fontSize: '13.5px', marginBottom: '20px' }}>
+                  {lang === 'ar' ? 'تم تسجيل طلبك في النظام، وستصلك العروض والإشعارات فور توفر القطعة لدى الكراجات.' : 'Your request is logged in the system.'}
+                </p>
+                <button
+                  onClick={() => setShowRequestModal(false)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#3182ce',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {lang === 'ar' ? 'حسناً، تم' : 'OK'}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleInAppRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ backgroundColor: '#ebf8ff', padding: '12px', borderRadius: '10px', border: '1px solid #bee3f8', fontSize: '13.5px', color: '#2b6cb0' }}>
+                  <strong>{lang === 'ar' ? 'القطعة المطلوبة:' : 'Requested Part:'}</strong> {activeSearchQuery}
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#2d3748' }}>
+                    {lang === 'ar' ? 'رقم الهاتف للتواصل:' : 'Phone Number:'}
+                  </label>
+                  <input 
+                    type="tel" 
+                    placeholder="e.g. 55555555"
+                    value={custPhone}
+                    onChange={(e) => setCustPhone(e.target.value)}
+                    style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', outline: 'none' }}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#2d3748' }}>
+                    {lang === 'ar' ? 'تفاصيل إضافية (الموديل، السنة، الملاحظات):' : 'Additional details:'}
+                  </label>
+                  <textarea 
+                    placeholder={lang === 'ar' ? 'اكتب أي ملاحظات تساعد في إيجاد القطعة المناسبة...' : 'Write any extra notes...'}
+                    value={custNotes}
+                    onChange={(e) => setCustNotes(e.target.value)}
+                    rows={3}
+                    style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingReq}
+                  style={{
+                    width: '100%',
+                    padding: '13px',
+                    backgroundColor: '#38a169',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: 'bold',
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    opacity: isSubmittingReq ? 0.7 : 1,
+                    marginTop: '6px'
+                  }}
+                >
+                  {isSubmittingReq ? (lang === 'ar' ? 'جاري الإرسال...' : 'Sending...') : (lang === 'ar' ? 'إرسال الطلب الآن 🚀' : 'Submit Request 🚀')}
+                </button>
+              </form>
+            )}
+
+          </div>
+        </div>
+      )}
 
       {/* نافذة عرض السيارات المتوافقة */}
       {fitmentModalPart && (
@@ -440,11 +859,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               maxHeight: '80vh',
               overflowY: 'auto',
               boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
-              direction: isRtl ? 'rtl' : 'ltr',
-              position: 'relative'
+              direction: isRtl ? 'rtl' : 'ltr'
             }}
           >
-            {/* عنوان النافذة */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>
@@ -456,13 +873,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </div>
               <button 
                 onClick={() => setFitmentModalPart(null)}
-                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0', padding: '0 4px' }}
+                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}
               >
                 ✖
               </button>
             </div>
 
-            {/* تفاصيل القطعة */}
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f7fafc', padding: '12px', borderRadius: '10px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
               <img 
                 src={fitmentModalPart.image_url || 'https://via.placeholder.com/60'} 
@@ -479,7 +895,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               {lang === 'ar' ? 'هذه القطعة تركب وتتوافق مع السيارات التالية:' : 'This part fits the following vehicles:'}
             </h4>
 
-            {/* قائمة السيارات */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {compatibleVehicles.length > 0 ? (
                 compatibleVehicles.map((v, idx) => (
