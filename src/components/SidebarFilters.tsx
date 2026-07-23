@@ -72,8 +72,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   
-  // حالة الذاكرة للكمية لكل قطعة برقم تعريفها (id)
+  // حالة الذاكرة للكمية لكل قطعة
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
+
+  // 🔥 حالة القطعة المحددة لعرض نافذة التوافق (Fitment / Buyer's Guide)
+  const [fitmentModalPart, setFitmentModalPart] = useState<any | null>(null);
 
   const getQty = (id: number) => partQuantities[id] || 1;
   const changeQty = (id: number, delta: number) => {
@@ -111,6 +114,19 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   };
 
   const isRtl = lang === 'ar';
+
+  // 🔥 البحث عن كل السيارات التي تتطابق مع نفس رقم القطعة
+  const compatibleVehicles = fitmentModalPart
+    ? inventory.filter(p => {
+        const modalPN = (fitmentModalPart.part_number || fitmentModalPart.code || fitmentModalPart.sku || '').toString().trim().toLowerCase();
+        const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
+        
+        if (modalPN && itemPN) {
+          return modalPN === itemPN;
+        }
+        return p.id === fitmentModalPart.id;
+      })
+    : [];
 
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -247,7 +263,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
 
-                                              {/* عرض القطع + رقم القطعة + التحكم بالكمية + زر السلة */}
+                                              {/* عرض القطع + زر التوافق للـ Part Number */}
                                               {isCategoryOpen && (
                                                 <div style={{  
                                                   padding: '16px',  
@@ -289,19 +305,41 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                           <div style={{ flex: 1 }}>
                                                             <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
                                                             
-                                                            {/* 🔥 عرض رقم القطعة (Part Number / OEM) */}
-                                                            <div style={{ fontSize: '11.5px', color: '#4a5568', backgroundColor: '#edf2f7', padding: '2px 6px', borderRadius: '4px', width: 'fit-content', marginBottom: '6px', fontWeight: '600' }}>
-                                                              Part #: {partNo}
+                                                            {/* 🔥 زر رقم القطعة القابل للنقر لعرض التوافق */}
+                                                            <div 
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setFitmentModalPart(part);
+                                                              }}
+                                                              style={{ 
+                                                                fontSize: '11.5px', 
+                                                                color: '#2b6cb0', 
+                                                                backgroundColor: '#ebf8ff', 
+                                                                padding: '3px 8px', 
+                                                                borderRadius: '6px', 
+                                                                width: 'fit-content', 
+                                                                marginBottom: '6px', 
+                                                                fontWeight: 'bold',
+                                                                cursor: 'pointer',
+                                                                border: '1px solid #bee3f8',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px',
+                                                                transition: 'background-color 0.2s'
+                                                              }}
+                                                              title={lang === 'ar' ? 'اضغط لعرض كافة السيارات المتوافقة' : 'Click to view matching vehicles'}
+                                                            >
+                                                              🔍 Part #: {partNo}
                                                             </div>
 
-                                                            <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16px' }}>{part.price} QAR</span>
+                                                            <div>
+                                                              <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16px' }}>{part.price} QAR</span>
+                                                            </div>
                                                           </div>
                                                         </div>
 
-                                                        {/* 🔥 أزرار التحكم بالكمية (+ و -) مع زر إضافة للسلة */}
+                                                        {/* أزرار التحكم بالكمية (+ و -) + أضف للسلة */}
                                                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
-                                                          
-                                                          {/* عداد الكمية */}
                                                           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
                                                             <button 
                                                               onClick={(e) => { e.stopPropagation(); changeQty(part.id, -1); }}
@@ -320,7 +358,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                             </button>
                                                           </div>
 
-                                                          {/* زر أضف للسلة */}
                                                           {addToCart && (
                                                             <button 
                                                               onClick={(e) => {
@@ -346,8 +383,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                               🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
                                                             </button>
                                                           )}
-
                                                         </div>
+
                                                       </div>
                                                     );
                                                   })}
@@ -374,6 +411,130 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           })}
         </ul>
       </div>
+
+      {/* 🔥 نافذة عرض السيارات المتوافقة (Fitment Popup Modal) */}
+      {fitmentModalPart && (
+        <div 
+          onClick={() => setFitmentModalPart(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '18px',
+              padding: '24px',
+              maxWidth: '520px',
+              width: '100%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+              direction: isRtl ? 'rtl' : 'ltr',
+              position: 'relative'
+            }}
+          >
+            {/* عنوان النافذة */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>
+                  🚘 {lang === 'ar' ? 'دليل توافق القطعة مع السيارات' : 'Vehicle Fitment Guide'}
+                </h3>
+                <div style={{ fontSize: '13px', color: '#4a5568', marginTop: '4px' }}>
+                  {fitmentModalPart.name} | <strong style={{ color: '#2b6cb0' }}>Part #: {fitmentModalPart.part_number || fitmentModalPart.id}</strong>
+                </div>
+              </div>
+              <button 
+                onClick={() => setFitmentModalPart(null)}
+                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0', padding: '0 4px' }}
+              >
+                ✖
+              </button>
+            </div>
+
+            {/* صورة وسعر القطعة داخل النافذة */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f7fafc', padding: '12px', borderRadius: '10px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
+              <img 
+                src={fitmentModalPart.image_url || 'https://via.placeholder.com/60'} 
+                alt={fitmentModalPart.name} 
+                style={{ width: '55px', height: '55px', objectFit: 'cover', borderRadius: '8px' }} 
+              />
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#2d3748' }}>{fitmentModalPart.name}</div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#dd6b20' }}>{fitmentModalPart.price} QAR</div>
+              </div>
+            </div>
+
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#2d3748' }}>
+              {lang === 'ar' ? 'هذه القطعة تركب وتتوافق مع السيارات التالية:' : 'This part fits the following vehicles:'}
+            </h4>
+
+            {/* قائمة السيارات المتوافقة */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {compatibleVehicles.length > 0 ? (
+                compatibleVehicles.map((v, idx) => (
+                  <div 
+                    key={idx} 
+                    style={{
+                      padding: '10px 14px',
+                      backgroundColor: '#fff',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e0',
+                      display: 'flex',
+                      justify: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '13.5px'
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: '#1a365d' }}>{v.make} - {v.model || 'عام'}</strong>
+                      {v.engine && <span style={{ fontSize: '12px', color: '#718096', display: 'block', marginTop: '2px' }}>⚡ {v.engine}</span>}
+                    </div>
+                    <span style={{ backgroundColor: '#ebf8ff', color: '#2b6cb0', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold', fontSize: '12.5px' }}>
+                      📅 {v.year}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}>
+                  <strong>{fitmentModalPart.make} - {fitmentModalPart.model || 'عام'}</strong> (📅 {fitmentModalPart.year})
+                </div>
+              )}
+            </div>
+
+            <button 
+              onClick={() => setFitmentModalPart(null)}
+              style={{
+                width: '100%',
+                marginTop: '20px',
+                padding: '12px',
+                backgroundColor: '#3182ce',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              {lang === 'ar' ? 'إغلاق النافذة' : 'Close'}
+            </button>
+
+          </div>
+        </div>
+      )}
+
     </aside>
   );
 };
