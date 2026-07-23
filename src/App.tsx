@@ -6,7 +6,6 @@ import { AuthModal } from './components/AuthModal';
 import { GarageDashboard } from './components/GarageDashboard';
 import { SidebarFilters } from './components/SidebarFilters';
 import { PartCard } from './components/PartCard';
-// 🔥 تم استدعاء صفحة العميل هنا
 import { CustomerProfile } from './components/CustomerProfile';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
@@ -141,7 +140,6 @@ export default function App() {
   if (filterYear) activeChips.push({ key: 'year', label: filterYear, onRemove: () => setFilterYear('') });
   if (filterEngine) activeChips.push({ key: 'engine', label: lang === 'ar' ? filterEngine : filterEngine.replace('سلندر', 'Cyl').replace('لتر', 'L').replace('توربو', 'Turbo').replace('هايبرد (الهجين)', 'Hybrid'), onRemove: () => setFilterEngine('') });
 
-  // 🔥 نظام الدفع الذكي الجديد المرتبط بقاعدة البيانات
   const handleCheckoutDatabase = async () => {
     if (cartItems.length === 0) return;
 
@@ -158,7 +156,7 @@ export default function App() {
       const ordersPayload = cartItems.map(item => ({
         part_name: `${item.name} (${item.make} ${item.model || ''})`,
         price: Number(item.price),
-        garage_id: item.user_id, // توجيه القطعة لصاحبها الأصلي
+        garage_id: item.user_id,
         customer_phone: session.phone || session.email || 'غير معروف',
         status: 'pending',
         notes: ''
@@ -179,7 +177,7 @@ export default function App() {
         showToast(lang === 'ar' ? 'تم إرسال طلبك للكراجات بنجاح! سيتم التواصل معك قريباً 🚀' : 'Order sent successfully! We will contact you soon 🚀', 'success');
         setCartItems([]);
         setIsCartOpen(false);
-        setView('profile'); // توجيه العميل لصفحة حسابي بعد إتمام الطلب ليتابع حالته
+        setView('profile');
       } else {
         const err = await response.json();
         alert(`خطأ: ${err.message || err.details}`);
@@ -208,7 +206,23 @@ export default function App() {
 
       <div data-mw-theme={theme} dir={lang === 'ar' ? 'rtl' : 'ltr'} style={{ ...styles.page, direction: lang === 'ar' ? 'rtl' : 'ltr', textAlign: lang === 'ar' ? 'right' : 'left' }}>
 
-        <Header lang={lang} setLang={setLang} view={view} setView={setView} session={session} cartCount={cartItems.length} onOpenCart={() => setIsCartOpen(true)} onLogout={() => { setSession(null); localStorage.removeItem('mawjood_session'); setView('shop'); showToast(lang === 'ar' ? 'تم تسجيل الخروج بنجاح' : 'Logged out', 'success'); }} />
+        {/* 🔥 تم إضافة تفريغ السلة (setCartItems([])) هنا عند تسجيل الخروج */}
+        <Header 
+          lang={lang} 
+          setLang={setLang} 
+          view={view} 
+          setView={setView} 
+          session={session} 
+          cartCount={cartItems.length} 
+          onOpenCart={() => setIsCartOpen(true)} 
+          onLogout={() => { 
+            setSession(null); 
+            setCartItems([]); // 👈 تفريغ السلة فوراً عند الخروج
+            localStorage.removeItem('mawjood_session'); 
+            setView('shop'); 
+            showToast(lang === 'ar' ? 'تم تسجيل الخروج بنجاح' : 'Logged out', 'success'); 
+          }} 
+        />
 
         {isCartOpen && (
           <>
@@ -266,12 +280,10 @@ export default function App() {
 
           {view === 'dashboard' && session?.role === 'garage' && <GarageDashboard lang={lang} carData={CAR_DATA} years={YEARS} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} onSuccess={() => { fetchParts(); setView('shop'); }} />}
 
-          {/* 🔥 عرض صفحة طلبات العميل هنا */}
           {view === 'profile' && session && session.role !== 'garage' && (
             <CustomerProfile lang={lang} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} />
           )}
 
-          {/* 🔥 عرض إعدادات الكراج (تمهيد للخطوة القادمة) */}
           {view === 'profile' && session && session.role === 'garage' && (
             <div className="mw-state-card" style={styles.stateCard}>
               <span style={styles.stateIcon}>⚙️</span>
