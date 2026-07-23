@@ -1,29 +1,29 @@
 import React, { useState } from 'react';
 import { getPartCategory } from '../utils/categoryHelper';
 
-interface SidebarProps {
+export interface SidebarProps {
   lang: 'ar' | 'en';
   carData: any;
   years: string[];
   translateMake: Record<string, string>;
   translateModel: Record<string, string>;
   categories: string[];
-  expandedCategories: string[];
-  toggleCategory: (category: string) => void;
+  expandedCategories?: string[];
+  toggleCategory?: (category: string) => void;
   inventory: any[];
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
+  searchTerm?: string;
+  setSearchTerm?: (term: string) => void;
   filterMake: string;
   setFilterMake: (make: string) => void;
   filterModel: string;
   setFilterModel: (model: string) => void;
   filterYear: string;
   setFilterYear: (year: string) => void;
-  filterEngine: string;
-  setFilterEngine: (engine: string) => void;
+  filterEngine?: string;                  // 👈 أصبحت اختيارية مع دعم النوع
+  setFilterEngine?: (engine: string) => void; // 👈 أصبحت اختيارية مع دعم النوع
   filterCategory: string;
   setFilterCategory: (cat: string) => void;
-  addToCart?: (part: any) => void; // إضافة دالة السلة اختياريًا
+  addToCart?: (part: any) => void;
 }
 
 // 1. القاموس العربي للأقسام
@@ -284,7 +284,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
 const nodeStyle: React.CSSProperties = {
   display: 'flex',
-  justify: 'space-between',
+  justifyContent: 'space-between', // 👈 إصلاح خطأ التصحيح CSS (كانت justify فقط)
   alignItems: 'center',
   cursor: 'pointer',
   padding: '6px 10px',
@@ -292,3 +292,5 @@ const nodeStyle: React.CSSProperties = {
   transition: 'all 0.15s ease-in-out',
   userSelect: 'none',
 };
+
+export default SidebarFilters;
