@@ -21,12 +21,8 @@ interface SidebarProps {
   setFilterYear: (year: string) => void;
   filterCategory: string;
   setFilterCategory: (cat: string) => void;
-  filterEngine?: string;
-  setFilterEngine?: (engine: string) => void;
-  addToCart?: (item: any) => void;
 }
 
-// 1. القاموس العربي للأقسام
 const CATEGORY_TRANSLATION: Record<string, string> = {
   "Belt Drive": "السيور والبكرات",
   "Body & Lamp Assembly": "الهيكل والإضاءة",
@@ -50,7 +46,6 @@ const CATEGORY_TRANSLATION: Record<string, string> = {
   "Wiper & Washer": "المساحات وبخاخات المياه"
 };
 
-// 2. الروابط الموثوقة للشعارات
 const MAKE_DOMAINS: Record<string, string> = {
   "تويوتا": "toyota.com", "هيونداي": "hyundai.com", "نيسان": "nissan-global.com",
   "فورد": "ford.com", "شفروليه": "chevrolet.com", "كيا": "kia.com",
@@ -75,15 +70,31 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   const toggleNode = (nodeKey: string, make?: string, model?: string, year?: string, category?: string) => {
+    const willBeOpen = !expandedNodes[nodeKey];
+    
     setExpandedNodes(prev => ({
       ...prev,
-      [nodeKey]: !prev[nodeKey]
+      [nodeKey]: willBeOpen
     }));
 
-    if (make !== undefined) setFilterMake(make);
-    if (model !== undefined) setFilterModel(model);
-    if (year !== undefined) setFilterYear(year);
-    if (category !== undefined) setFilterCategory(category);
+    if (make !== undefined) {
+      setFilterMake(willBeOpen ? make : '');
+      setFilterModel('');
+      setFilterYear('');
+      setFilterCategory('');
+    }
+    if (model !== undefined) {
+      setFilterModel(willBeOpen ? model : '');
+      setFilterYear('');
+      setFilterCategory('');
+    }
+    if (year !== undefined) {
+      setFilterYear(willBeOpen ? year : '');
+      setFilterCategory('');
+    }
+    if (category !== undefined) {
+      setFilterCategory(willBeOpen ? category : '');
+    }
   };
 
   const isRtl = lang === 'ar';
@@ -136,13 +147,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
           {Object.keys(carData).map(make => {
             const makeKey = `make_${make}`;
-            const isMakeOpen = expandedNodes[makeKey] || filterMake === make;
+            const isMakeOpen = !!expandedNodes[makeKey];
             const makeName = isRtl ? make : (translateMake[make] || make);
 
             return (
               <li key={make} style={{ marginBottom: '6px' }}>
                 <div  
-                  onClick={() => toggleNode(makeKey, make, '', '', '')}
+                  onClick={() => toggleNode(makeKey, make)}
                   style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -165,13 +176,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                     {carData[make]?.models.map((model: string) => {
                       const modelKey = `model_${make}_${model}`;
-                      const isModelOpen = expandedNodes[modelKey] || (filterMake === make && filterModel === model);
+                      const isModelOpen = !!expandedNodes[modelKey];
                       const modelName = isRtl ? model : (translateModel[model] || model);
 
                       return (
                         <li key={model} style={{ marginBottom: '4px' }}>
                           <div  
-                            onClick={() => toggleNode(modelKey, make, model, '', '')}
+                            onClick={() => toggleNode(modelKey, undefined, model)}
                             style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '13px' }}
                           >
                             <span>📂 {modelName}</span>
@@ -182,12 +193,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                             <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                               {years.map(year => {
                                 const yearKey = `year_${make}_${model}_${year}`;
-                                const isYearOpen = expandedNodes[yearKey] || (filterMake === make && filterModel === model && filterYear === year);
+                                const isYearOpen = !!expandedNodes[yearKey];
 
                                 return (
                                   <li key={year} style={{ marginBottom: '4px' }}>
                                     <div  
-                                      onClick={() => toggleNode(yearKey, make, model, year, '')}
+                                      onClick={() => toggleNode(yearKey, undefined, undefined, year)}
                                       style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '12px', color: '#2b6cb0' }}
                                     >
                                       <span>📅 {year}</span>
@@ -198,7 +209,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                       <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                                         {categories.map(category => {
                                           const categoryKey = `cat_${make}_${model}_${year}_${category}`;
-                                          const isCategoryOpen = expandedNodes[categoryKey] || (filterCategory === category);
+                                          const isCategoryOpen = !!expandedNodes[categoryKey];
                                           const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
 
                                           const filteredParts = inventory.filter(part =>  
@@ -213,7 +224,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                           return (
                                             <li key={category} style={{ marginBottom: '3px' }}>
                                               <div  
-                                                onClick={() => toggleNode(categoryKey, make, model, year, category)}
+                                                onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, category)}
                                                 style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '12px', color: '#2d3748', padding: '4px 6px' }}
                                               >
                                                 <span>⚙️ {translatedCategory} <span style={{ fontSize: '10px', color: '#a0aec0' }}>({filteredParts.length})</span></span>
