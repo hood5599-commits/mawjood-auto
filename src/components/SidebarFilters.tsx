@@ -234,7 +234,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 <span style={{ fontSize: '8px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
 
-                                              {/* 🔥 عرض القطع مباشرة داخل الشجرة تماماً مثل موقع RockAuto */}
+                                              {/* 🔥 عرض القطع مباشرة داخل الشجرة مع تصحيح justifyContent */}
                                               {isCategoryOpen && (
                                                 <div style={{  
                                                   padding: '8px',  
@@ -257,7 +257,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                         borderRadius: '8px', 
                                                         border: '1px solid #e2e8f0', 
                                                         display: 'flex', 
-                                                        justify: 'space-between',
+                                                        justifyContent: 'space-between', // 👈 تم التصحيح هنا
                                                         alignItems: 'center', 
                                                         gap: '8px' 
                                                       }}
