@@ -151,7 +151,6 @@ export default function App() {
     }
   };
 
-  // نظام تصفية تسلسلي صارم: لا تظهر القطع إلا عند تحديد الموديل والسنة معاً (والمتطلبات الأخرى إذا وجدت)
   const filteredParts = inventory.filter(item => {
     if (!searchTerm && (!filterModel || !filterYear)) {
       return false;
@@ -472,6 +471,7 @@ export default function App() {
                           key={item.id} 
                           item={item} 
                           lang={lang} 
+                          translateMake={TRANSLATE_MAKE} 
                           onBuy={handleBuyClick} 
                           onShare={handleShare} 
                         />
