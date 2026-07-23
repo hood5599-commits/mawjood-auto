@@ -23,6 +23,7 @@ interface SidebarProps {
   setFilterEngine: (engine: string) => void;
   filterCategory: string;
   setFilterCategory: (cat: string) => void;
+  addToCart?: (part: any) => void; // إضافة دالة السلة اختياريًا
 }
 
 // 1. القاموس العربي للأقسام
@@ -66,7 +67,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
     lang, carData, years, translateMake, translateModel, categories, inventory, 
     filterMake, setFilterMake, filterModel, setFilterModel, filterYear, setFilterYear,
-    filterCategory, setFilterCategory 
+    filterCategory, setFilterCategory, addToCart
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -87,10 +88,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const isRtl = lang === 'ar';
 
   return (
-    <aside style={{ flex: '1 1 300px', maxWidth: '350px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{  
         backgroundColor: 'white',  
-        padding: '25px',  
+        padding: '20px',  
         borderRadius: '16px',  
         boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
         border: '1px solid #edf2f7',
@@ -176,7 +177,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                       <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                                         {categories.map(category => {
                                           const categoryKey = `cat_${make}_${model}_${year}_${category}`;
-                                          const isCategoryOpen = expandedNodes[categoryKey] || (filterCategory === category);
+                                          const isCategoryOpen = expandedNodes[categoryKey] || (filterMake === make && filterModel === model && filterYear === year && filterCategory === category);
                                           const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
 
                                           const filteredParts = inventory.filter(part =>  
@@ -186,15 +187,77 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                             getPartCategory(part.name) === category
                                           );
 
+                                          // إخفاء الفئة إن لم تحتوي على قطع لتسهيل التصفح
+                                          if (filteredParts.length === 0) return null;
+
                                           return (
-                                            <li key={category} style={{ marginBottom: '3px' }}>
+                                            <li key={category} style={{ marginBottom: '6px' }}>
                                               <div  
                                                 onClick={() => toggleNode(categoryKey, make, model, year, category)}
-                                                style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '12px', color: '#2d3748', padding: '4px 6px' }}
+                                                style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#feebc8' : '#f7fafc', fontSize: '12px', color: '#2d3748', padding: '6px 10px', border: '1px solid #e2e8f0' }}
                                               >
-                                                <span>⚙️ {translatedCategory} <span style={{ fontSize: '10px', color: '#a0aec0' }}>({filteredParts.length})</span></span>
+                                                <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#dd6b20' }}>({filteredParts.length})</span></span>
                                                 <span style={{ fontSize: '8px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
+
+                                              {/* 🛒 شجرة القطع داخل الفئة مباشرة بأسلوب RockAuto */}
+                                              {isCategoryOpen && (
+                                                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px', backgroundColor: '#fff', border: '1px solid #cbd5e0', borderRadius: '8px' }}>
+                                                  {filteredParts.map(part => (
+                                                    <div 
+                                                      key={part.id} 
+                                                      style={{ 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        gap: '8px', 
+                                                        padding: '10px', 
+                                                        backgroundColor: '#f8fafc', 
+                                                        border: '1px solid #e2e8f0', 
+                                                        borderRadius: '8px' 
+                                                      }}
+                                                    >
+                                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                        {part.image_url ? (
+                                                          <img src={part.image_url} alt={part.name} style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                                                        ) : (
+                                                          <div style={{ width: '45px', height: '45px', backgroundColor: '#edf2f7', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '20px' }}>🔧</div>
+                                                        )}
+                                                        <div style={{ flex: 1 }}>
+                                                          <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1a202c' }}>{part.name}</div>
+                                                          {part.engine && <div style={{ fontSize: '11px', color: '#718096' }}>{part.engine}</div>}
+                                                        </div>
+                                                      </div>
+
+                                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #cbd5e0', paddingTop: '6px' }}>
+                                                        <span style={{ fontWeight: 'bold', color: '#c53030', fontSize: '14px' }}>
+                                                          {part.price} QAR
+                                                        </span>
+                                                        {addToCart && (
+                                                          <button
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              addToCart(part);
+                                                            }}
+                                                            style={{
+                                                              backgroundColor: '#2b6cb0',
+                                                              color: 'white',
+                                                              border: 'none',
+                                                              padding: '5px 10px',
+                                                              borderRadius: '6px',
+                                                              cursor: 'pointer',
+                                                              fontWeight: 'bold',
+                                                              fontSize: '11px',
+                                                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                                            }}
+                                                          >
+                                                            🛒 {isRtl ? 'إضافة' : 'Add'}
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
                                             </li>
                                           );
                                         })}
@@ -221,7 +284,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
 const nodeStyle: React.CSSProperties = {
   display: 'flex',
-  justifyContent: 'space-between',
+  justify: 'space-between',
   alignItems: 'center',
   cursor: 'pointer',
   padding: '6px 10px',
