@@ -21,6 +21,9 @@ interface SidebarProps {
   setFilterYear: (year: string) => void;
   filterCategory: string;
   setFilterCategory: (cat: string) => void;
+  filterEngine?: string;
+  setFilterEngine?: (engine: string) => void;
+  addToCart?: (item: any) => void;
 }
 
 const CATEGORY_TRANSLATION: Record<string, string> = {
@@ -147,7 +150,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
           {Object.keys(carData).map(make => {
             const makeKey = `make_${make}`;
-            const isMakeOpen = !!expandedNodes[makeKey];
+            const isMakeOpen = !!expandedNodes[makeKey] || filterMake === make;
             const makeName = isRtl ? make : (translateMake[make] || make);
 
             return (
@@ -176,7 +179,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                     {carData[make]?.models.map((model: string) => {
                       const modelKey = `model_${make}_${model}`;
-                      const isModelOpen = !!expandedNodes[modelKey];
+                      const isModelOpen = !!expandedNodes[modelKey] || (filterMake === make && filterModel === model);
                       const modelName = isRtl ? model : (translateModel[model] || model);
 
                       return (
@@ -193,7 +196,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                             <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                               {years.map(year => {
                                 const yearKey = `year_${make}_${model}_${year}`;
-                                const isYearOpen = !!expandedNodes[yearKey];
+                                const isYearOpen = !!expandedNodes[yearKey] || (filterMake === make && filterModel === model && filterYear === year);
 
                                 return (
                                   <li key={year} style={{ marginBottom: '4px' }}>
@@ -209,7 +212,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                       <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                                         {categories.map(category => {
                                           const categoryKey = `cat_${make}_${model}_${year}_${category}`;
-                                          const isCategoryOpen = !!expandedNodes[categoryKey];
+                                          const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
                                           const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
 
                                           const filteredParts = inventory.filter(part =>  
