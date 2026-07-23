@@ -35,7 +35,6 @@ const styles: Record<string, React.CSSProperties> = {
   statStrip: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed var(--mw-border)' }, 
   statCount: { fontSize: '13px', color: 'var(--mw-ink-muted)', fontWeight: 600 }, 
   statCountNum: { color: 'var(--mw-primary)', fontSize: '16px', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }, 
-  secureBadge: { fontSize: '12px', color: 'var(--mw-success)', backgroundColor: 'var(--mw-success-bg)', padding: '5px 12px', borderRadius: '999px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }, 
   sortSelect: { fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)', backgroundColor: 'var(--mw-bg)', border: '1.5px solid var(--mw-border)', borderRadius: RADIUS.sm, padding: '8px 12px', cursor: 'pointer', outline: 'none' }, 
   chipsRow: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px', alignItems: 'center' }, 
   chip: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 700, color: 'var(--mw-primary)', backgroundColor: 'var(--mw-accent-bg)', border: '1px solid var(--mw-border)', padding: '6px 10px', borderRadius: '999px' }, 
@@ -46,7 +45,6 @@ const styles: Record<string, React.CSSProperties> = {
   stateTitle: { color: 'var(--mw-ink)', marginTop: '16px', fontSize: '17px', fontWeight: 800 }, 
   stateBody: { color: 'var(--mw-ink-muted)', fontSize: '14px', marginTop: '8px', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.7 }, 
   loadMoreBtn: { display: 'block', margin: '28px auto 0', padding: '12px 32px', borderRadius: '999px', border: '1.5px solid var(--mw-primary)', backgroundColor: 'transparent', color: 'var(--mw-primary)', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }, 
-  fabBase: { position: 'fixed', insetInlineEnd: '20px', width: '52px', height: '52px', borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: 'var(--mw-shadow-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', zIndex: 40 }, 
 };
 
 export default function App() {
@@ -74,7 +72,7 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [, setShowScrollTop] = useState(false);
   const toastCounter = useRef(0);
 
   const isFiltering = searchTerm !== '' || filterMake !== '' || filterModel !== '' || filterYear !== '' || filterEngine !== '' || filterCategory !== '';
@@ -400,17 +398,9 @@ export default function App() {
                     <span style={styles.statCount}>
                       {t[lang].matchingParts}: <span style={styles.statCountNum}>{filteredParts.length}</span>
                     </span>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={styles.secureBadge}>
-                        ✓ {lang === 'ar' ? 'قطع معتمدة' : 'Verified Parts'}
-                      </span>
-                      <select 
-                        value={sortBy} 
-                        onChange={(e: any) => setSortBy(e.target.value)} 
-                        style={styles.sortSelect}
-                      >
-                        <option value="newest">{lang === 'ar' ? 'الأحدث أولاً' : 'Newest First'}</option>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} style={styles.sortSelect}>
+                        <option value="newest">{lang === 'ar' ? 'الأحدث' : 'Newest'}</option>
                         <option value="price_asc">{lang === 'ar' ? 'السعر: من الأقل للأعلى' : 'Price: Low to High'}</option>
                         <option value="price_desc">{lang === 'ar' ? 'السعر: من الأعلى للأقل' : 'Price: High to Low'}</option>
                       </select>
@@ -418,67 +408,60 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 🏷️ عرض الفلاتر النشطة (Chips) */}
                 {activeChips.length > 0 && (
                   <div style={styles.chipsRow}>
                     {activeChips.map(chip => (
                       <span key={chip.key} style={styles.chip}>
                         {chip.label}
-                        <button onClick={chip.onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold' }}>✕</button>
+                        <button onClick={chip.onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold' }}>×</button>
                       </span>
                     ))}
-                    <button onClick={clearAllFilters} style={styles.chipClear}>
-                      {lang === 'ar' ? 'مسح الكل' : 'Clear All'}
-                    </button>
+                    <button onClick={clearAllFilters} style={styles.chipClear}>{lang === 'ar' ? 'مسح الكل' : 'Clear All'}</button>
                   </div>
                 )}
 
-                {/* 📦 قائمة القطع */}
-                {loading ? (
-                  <div style={styles.stateCard}>
-                    <span style={styles.stateIcon}>⌛</span>
-                    <h3 style={styles.stateTitle}>{lang === 'ar' ? 'جاري تحميل القطع...' : 'Loading parts...'}</h3>
-                  </div>
-                ) : visibleParts.length === 0 ? (
-                  <div style={{ ...styles.stateCard, ...styles.stateCardDashed }}>
+                {/* نظام RockAuto: إخفاء القطع افتراضياً حتى يتم اختيار سيارة، قسم، أو بحث */}
+                {!isFiltering ? (
+                  <div style={{ ...styles.stateCard, ...styles.stateCardDashed, marginTop: '20px' }}>
                     <span style={styles.stateIcon}>🔍</span>
-                    <h3 style={styles.stateTitle}>
-                      {isFiltering 
-                        ? (lang === 'ar' ? 'لم يتم العثور على قطع تطابق البحث' : 'No matching parts found') 
-                        : (lang === 'ar' ? 'لا توجد قطع غيار متاحة حالياً' : 'No parts available right now')}
-                    </h3>
+                    <h3 style={styles.stateTitle}>{lang === 'ar' ? 'اختر سيارتك أو تصفح الأقسام للبدء' : 'Select your car or browse categories to start'}</h3>
                     <p style={styles.stateBody}>
                       {lang === 'ar' 
-                        ? 'جرّب تغيير خيارات البحث أو تواصل معنا لمساعدتك في العثور على القطعة.' 
-                        : 'Try adjusting your filters or contact us to help you find the part.'}
+                        ? 'يرجى اختيار شركة السيارة، الموديل، أو تحديد القسم من القائمة الجانبية (أو استخدام بحث القطع) لعرض قطع الغيار المتوفرة.' 
+                        : 'Please select a car make, model, or choose a category from the sidebar to view available auto parts.'}
                     </p>
-                    <button 
-                      onClick={handleGeneralContact} 
-                      style={{ marginTop: '18px', padding: '10px 20px', backgroundColor: '#25D366', color: '#fff', border: 'none', borderRadius: '999px', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      💬 {lang === 'ar' ? 'تواصل عبر واتساب' : 'Contact via WhatsApp'}
+                  </div>
+                ) : loading ? (
+                  <div style={{ textAlign: 'center', padding: '60px', color: 'var(--mw-ink-muted)' }}>
+                    <div style={{ fontSize: '30px', marginBottom: '10px' }}>⏳</div>
+                    {lang === 'ar' ? 'جاري تحميل القطع...' : 'Loading parts...'}
+                  </div>
+                ) : visibleParts.length === 0 ? (
+                  <div style={{ ...styles.stateCard, ...styles.stateCardDashed, marginTop: '20px' }}>
+                    <span style={styles.stateIcon}>📦</span>
+                    <h3 style={styles.stateTitle}>{lang === 'ar' ? 'لا توجد قطع مطابقة لبحثك' : 'No parts match your criteria'}</h3>
+                    <p style={styles.stateBody}>{lang === 'ar' ? 'جرب البحث عن اسم آخر أو تصفح قسم مختلف، أو يمكنك التواصل معنا لتوفير القطعة.' : 'Try searching for another term or browsing a different category.'}</p>
+                    <button onClick={handleGeneralContact} style={{ marginTop: '16px', padding: '10px 20px', backgroundColor: 'var(--mw-primary)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      {lang === 'ar' ? 'طلب قطعة خاصة عبر واتساب 💬' : 'Request Custom Part 💬'}
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div className="mw-parts-grid">
+                    <div className="mw-parts-grid" style={{ marginTop: '20px' }}>
                       {visibleParts.map(item => (
                         <PartCard 
                           key={item.id} 
                           item={item} 
                           lang={lang} 
-                          onBuyClick={handleBuyClick} 
-                          onShareClick={handleShare} 
+                          onBuy={handleBuyClick} 
+                          onShare={handleShare} 
                         />
                       ))}
                     </div>
 
                     {visibleCount < sortedParts.length && (
-                      <button 
-                        onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)} 
-                        style={styles.loadMoreBtn}
-                      >
-                        {lang === 'ar' ? 'عرض المزيد من القطع' : 'Load More Parts'}
+                      <button onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)} style={styles.loadMoreBtn}>
+                        {lang === 'ar' ? `عرض المزيد (${sortedParts.length - visibleCount} متبقي)` : `Load More (${sortedParts.length - visibleCount} remaining)`}
                       </button>
                     )}
                   </>
@@ -486,31 +469,8 @@ export default function App() {
               </div>
             </div>
           )}
+
         </main>
-
-        {/* 🔝 زر التمرير إلى الأعلى */}
-        {showScrollTop && (
-          <button 
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
-            style={{ ...styles.fabBase, bottom: '24px', backgroundColor: 'var(--mw-primary)', color: '#fff' }}
-          >
-            ↑
-          </button>
-        )}
-
-        {/* 🔔 التنبيهات (Toasts) */}
-        <div className="mw-toast-stack">
-          {toasts.map(toast => (
-            <div 
-              key={toast.id} 
-              className="mw-toast" 
-              style={{ backgroundColor: toast.type === 'error' ? 'var(--mw-danger)' : 'var(--mw-success)' }}
-            >
-              {toast.message}
-            </div>
-          ))}
-        </div>
-
       </div>
     </>
   );
