@@ -66,7 +66,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     lang, carData, years, translateMake, translateModel, categories, inventory, 
     searchTerm, setSearchTerm, 
     filterMake, setFilterMake, filterModel, setFilterModel, filterYear, setFilterYear,
-    filterCategory, setFilterCategory 
+    filterCategory, setFilterCategory, addToCart 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -103,10 +103,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const isRtl = lang === 'ar';
 
   return (
-    <aside style={{ flex: '1 1 300px', maxWidth: '350px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <aside style={{ flex: '1 1 320px', maxWidth: '380px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{  
         backgroundColor: 'white',  
-        padding: '25px',  
+        padding: '20px',  
         borderRadius: '16px',  
         boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
         border: '1px solid #edf2f7',
@@ -114,10 +114,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       }}>
         
         <h3 style={{  
-          margin: '0 0 20px 0',  
+          margin: '0 0 16px 0',  
           color: '#1a365d',  
           borderBottom: '2px solid #3182ce',  
-          paddingBottom: '12px',
+          paddingBottom: '10px',
           fontSize: '16px',
           fontWeight: 'bold',
           display: 'flex',
@@ -128,7 +128,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         </h3>
 
         {/* مربع البحث */}
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '16px' }}>
           <input
             type="text"
             placeholder={lang === 'ar' ? 'ابحث برقم القطعة أو الاسم...' : 'Search by part number or name...'}
@@ -136,11 +136,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
               width: '100%',
-              padding: '10px 15px',
+              padding: '10px 14px',
               borderRadius: '8px',
               border: '1px solid #cbd5e0',
               outline: 'none',
-              fontSize: '14px',
+              fontSize: '13.5px',
               boxSizing: 'border-box',
               direction: isRtl ? 'rtl' : 'ltr'
             }}
@@ -164,11 +164,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                       <img  
                         src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`}  
                         alt={make}  
-                        style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                        style={{ width: '20px', height: '20px', objectFit: 'contain' }}
                         onError={() => setImgErrors(prev => ({...prev, [make]: true}))}
                       />
                     ) : (
-                      <span style={{ fontSize: '16px' }}>🚗</span>
+                      <span style={{ fontSize: '15px' }}>🚗</span>
                     )}
                     <span>{makeName}</span>
                   </div>
@@ -176,7 +176,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 </div>
 
                 {isMakeOpen && (
-                  <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
+                  <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '12px', marginTop: '4px' }}>
                     {carData[make]?.models.map((model: string) => {
                       const modelKey = `model_${make}_${model}`;
                       const isModelOpen = !!expandedNodes[modelKey] || (filterMake === make && filterModel === model);
@@ -193,7 +193,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                           </div>
 
                           {isModelOpen && (
-                            <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
+                            <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '12px', marginTop: '4px' }}>
                               {years.map(year => {
                                 const yearKey = `year_${make}_${model}_${year}`;
                                 const isYearOpen = !!expandedNodes[yearKey] || (filterMake === make && filterModel === model && filterYear === year);
@@ -209,7 +209,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                     </div>
 
                                     {isYearOpen && (
-                                      <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
+                                      <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '10px', marginTop: '4px' }}>
                                         {categories.map(category => {
                                           const categoryKey = `cat_${make}_${model}_${year}_${category}`;
                                           const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
@@ -231,7 +231,75 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '12px', color: '#2d3748', padding: '4px 6px' }}
                                               >
                                                 <span>⚙️ {translatedCategory} <span style={{ fontSize: '10px', color: '#a0aec0' }}>({filteredParts.length})</span></span>
+                                                <span style={{ fontSize: '8px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
+
+                                              {/* 🔥 عرض القطع مباشرة داخل الشجرة تماماً مثل موقع RockAuto */}
+                                              {isCategoryOpen && (
+                                                <div style={{  
+                                                  padding: '8px',  
+                                                  backgroundColor: '#fffaf0',  
+                                                  borderRadius: '8px',  
+                                                  border: '1px solid #feebc8',
+                                                  marginTop: '4px',
+                                                  marginBottom: '8px',
+                                                  display: 'flex',
+                                                  flexDirection: 'column',
+                                                  gap: '8px',
+                                                  [isRtl ? 'marginRight' : 'marginLeft']: '8px'
+                                                }}>
+                                                  {filteredParts.map(part => (
+                                                    <div 
+                                                      key={part.id} 
+                                                      style={{ 
+                                                        backgroundColor: 'white', 
+                                                        padding: '8px 10px', 
+                                                        borderRadius: '8px', 
+                                                        border: '1px solid #e2e8f0', 
+                                                        display: 'flex', 
+                                                        justify: 'space-between',
+                                                        alignItems: 'center', 
+                                                        gap: '8px' 
+                                                      }}
+                                                    >
+                                                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1 }}>
+                                                        <img 
+                                                          src={part.image_url || 'https://via.placeholder.com/50'} 
+                                                          alt={part.name} 
+                                                          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px' }} 
+                                                        />
+                                                        <div>
+                                                          <div style={{ fontWeight: 'bold', fontSize: '12px', color: '#2d3748' }}>{part.name}</div>
+                                                          <div style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '11.5px', marginTop: '2px' }}>{part.price} QAR</div>
+                                                        </div>
+                                                      </div>
+
+                                                      {addToCart && (
+                                                        <button 
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            addToCart(part);
+                                                          }}
+                                                          style={{ 
+                                                            backgroundColor: '#38a169', 
+                                                            color: 'white', 
+                                                            border: 'none', 
+                                                            borderRadius: '6px', 
+                                                            padding: '5px 10px', 
+                                                            fontSize: '11px', 
+                                                            fontWeight: 'bold', 
+                                                            cursor: 'pointer', 
+                                                            whiteSpace: 'nowrap'
+                                                          }}
+                                                        >
+                                                          🛒 {lang === 'ar' ? 'أضف' : 'Add'}
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+
                                             </li>
                                           );
                                         })}
