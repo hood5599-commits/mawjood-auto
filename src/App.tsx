@@ -13,111 +13,21 @@ const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 const WHATSAPP_NUMBER = "97455555555";
 const PAGE_SIZE = 12;
 
-const TRANSLATE_MAKE: Record<string, string> = {
-  "تويوتا": "Toyota", "هيونداي": "Hyundai", "نيسان": "Nissan", "فورد": "Ford",
-  "شفروليه": "Chevrolet", "كيا": "Kia", "هوندا": "Honda", "لكزس": "Lexus",
-  "ميتسوبيشي": "Mitsubishi", "مازدا": "Mazda", "جي إم سي": "GMC",
-  "بي إم دبليو": "BMW", "مرسيدس": "Mercedes-Benz", "فولكس فاجن": "Volkswagen",
-  "أودي": "Audi", "جيب": "Jeep", "دودج": "Dodge", "رام": "Ram",
-  "لاند روفر": "Land Rover", "إنفينيتي": "Infiniti", "سوبارو": "Subaru",
-  "رينو": "Renault", "سوزوكي": "Suzuki", "بورش": "Porsche", "كرايسلر": "Chrysler"
-};
-
-const TRANSLATE_MODEL: Record<string, string> = {
-  "كامري": "Camry", "كورولا": "Corolla", "يارس": "Yaris", "هيلوكس": "Hilux", "لاندكروزر": "Land Cruiser", "برادو": "Prado", "أفالون": "Avalon", "راف فور": "RAV4", "فورشنر": "Fortuner", "شاص": "LC70 (Shas)",
-  "إلنترا": "Elantra", "سوناتا": "Sonata", "أكسنت": "Accent", "توسان": "Tucson", "سانتافي": "Santa Fe", "أزيرا": "Azera", "كريتا": "Creta", "كونا": "Kona",
-  "باترول": "Patrol", "ألتيما": "Altima", "صني": "Sunny", "ماكسيما": "Maxima", "إكس تريل": "X-Trail", "نافارا": "Navara", "باثفايندر": "Pathfinder", "سنترا": "Sentra",
-  "تورس": "Taurus", "إكسبلورر": "Explorer", "إف-150": "F-150", "إكسبديشن": "Expedition", "موستنج": "Mustang", "إيدج": "Edge", "رينجر": "Ranger",
-  "تاهو": "Tahoe", "سوبربان": "Suburban", "سيلفرادو": "Silverado", "ماليبو": "Malibu", "كابتيفا": "Captiva", "ترافيرس": "Traverse", "كابرس": "Caprice",
-  "سيراتو": "Cerato", "أوبتيما / K5": "Optima", "ريو": "Rio", "سبورتج": "Sportage", "سورينتو": "Sorento", "كادينزا / K8": "Cadenza", "بيغاس": "Pegas",
-  "أكورد": "Accord", "سيفيك": "Civic", "سي آر في": "CR-V", "سيتي": "City", "بايلوت": "Pilot", "أوديسي": "Odyssey",
-  "باجيرو": "Pajero", "لانسر": "Lancer", "أتراج": "Attrage", "إكليبس كروس": "Eclipse Cross", "L200": "L200",
-  "مازدا 6": "Mazda 6", "مازدا 3": "Mazda 3", "CX-9": "CX-9", "CX-5": "CX-5",
-  "يوكن": "Yukon", "سييرا": "Sierra", "أكاديا": "Acadia", "تيرين": "Terrain",
-  "الفئة الثالثة": "3 Series", "الفئة الخامسة": "5 Series", "الفئة السابعة": "7 Series",
-  "جولف": "Golf", "باسات": "Passat", "تيغوان": "Tiguan", "طوارق": "Touareg",
-  "رانجلر": "Wrangler", "جراند شيروكي": "Grand Cherokee", "شيروكي": "Cherokee",
-  "تشارجر": "Charger", "تشالنجر": "Challenger", "دورانجو": "Durango",
-  "رينج روفر": "Range Rover", "ديفندر": "Defender", "ديسكفري": "Discovery",
-  "فورستر": "Forester", "أوت باك": "Outback", "إمبريزا": "Impreza",
-  "داستر": "Duster", "ميجان": "Megane", "كوليوس": "Koleos",
-  "سويفت": "Swift", "جيمني": "Jimny", "فيتارا": "Vitara",
-  "كايين": "Cayenne", "ماكان": "Macan", "911": "911"
-};
-
-const CAR_DATA: Record<string, { models: string[], engines: string[] }> = {
-  "تويوتا": { models: ["كامري", "كورولا", "يارس", "هيلوكس", "لاندكروزر", "برادو", "أفالون", "راف فور", "فورشنر", "شاص"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر", "6 سلندر - 4.0 لتر", "8 سلندر - 4.6 لتر", "8 سلندر - 5.7 لتر", "هايبرد (الهجين)"] },
-  "هيونداي": { models: ["إلنترا", "سوناتا", "أكسنت", "توسان", "سانتافي", "أزيرا", "كريتا", "كونا"], engines: ["4 سلندر - 1.4 لتر", "4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر"] },
-  "نيسان": { models: ["باترول", "ألتيما", "صني", "ماكسيما", "إكس تريل", "نافارا", "باثفايندر", "سنترا"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 4.0 لتر", "8 سلندر - 5.6 لتر"] },
-  "فورد": { models: ["تورس", "إكسبلورر", "إف-150", "إكسبديشن", "موستنج", "إيدج", "رينجر"], engines: ["4 سلندر EcoBoost - 2.0 لتر", "6 سلندر - 3.5 لتر", "6 سلندر EcoBoost - 3.5 لتر", "8 سلندر - 5.0 لتر"] },
-  "شفروليه": { models: ["تاهو", "سوبربان", "سيلفرادو", "ماليبو", "كابتيفا", "ترافيرس", "كابرس"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.3 لتر", "8 سلندر - 6.0 لتر", "8 سلندر - 6.2 لتر"] },
-  "كيا": { models: ["سيراتو", "أوبتيما / K5", "ريو", "سبورتج", "سورينتو", "كادينزا / K8", "بيغاس"], engines: ["4 سلندر - 1.4 لتر", "4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر"] },
-  "هوندا": { models: ["أكورد", "سيفيك", "سي آر في", "سيتي", "بايلوت", "أوديسي"], engines: ["4 سلندر توربو - 1.5 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.4 لتر", "6 سلندر - 3.5 لتر"] },
-  "لكزس": { models: ["ES", "LS", "LX", "RX", "GX", "IS", "UX"], engines: ["4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر", "6 سلندر توربو - 3.4 لتر", "8 سلندر - 4.6 لتر", "8 سلندر - 5.7 لتر"] },
-  "ميتسوبيشي": { models: ["باجيرو", "لانسر", "أتراج", "إكليبس كروس", "L200"], engines: ["4 سلندر - 1.2 لتر", "4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "6 سلندر - 3.5 لتر"] },
-  "مازدا": { models: ["CX-9", "CX-5", "مازدا 6", "مازدا 3"], engines: ["4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "4 سلندر توربو - 2.5 لتر"] },
-  "جي إم سي": { models: ["يوكن", "سييرا", "أكاديا", "تيرين"], engines: ["4 سلندر - 1.5 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.3 لتر", "8 سلندر - 6.2 لتر"] },
-  "بي إم دبليو": { models: ["الفئة الثالثة", "الفئة الخامسة", "الفئة السابعة", "X5", "X6"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر توربو - 3.0 لتر", "8 سلندر توربو - 4.4 لتر"] },
-  "مرسيدس": { models: ["C-Class", "E-Class", "S-Class", "G-Class", "GLE"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.0 لتر", "8 سلندر - 4.0 لتر"] },
-  "فولكس فاجن": { models: ["جولف", "باسات", "تيغوان", "طوارق"], engines: ["4 سلندر توربو - 1.4 لتر", "4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.6 لتر"] },
-  "أودي": { models: ["A3", "A4", "A6", "Q5", "Q7"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر توربو - 3.0 لتر"] },
-  "جيب": { models: ["رانجلر", "جراند شيروكي", "شيروكي"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] },
-  "دودج": { models: ["تشارجر", "تشالنجر", "دورانجو"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر", "8 سلندر - 6.4 لتر"] },
-  "رام": { models: ["1500"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] },
-  "لاند روفر": { models: ["رينج روفر", "ديفندر", "ديسكفري"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.0 لتر", "8 سلندر - 5.0 لتر"] },
-  "إنفينيتي": { models: ["Q50", "QX50", "QX80"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.7 لتر", "8 سلندر - 5.6 لتر"] },
-  "سوبارو": { models: ["فورستر", "أوت باك", "إمبريزا"], engines: ["4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر"] },
-  "رينو": { models: ["داستر", "ميجان", "كوليوس"], engines: ["4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر توربو - 1.3 لتر"] },
-  "سوزوكي": { models: ["سويفت", "جيمني", "فيتارا"], engines: ["4 سلندر - 1.2 لتر", "4 سلندر - 1.5 لتر"] },
-  "بورش": { models: ["كايين", "ماكان", "911"], engines: ["6 سلندر توربو - 3.0 لتر", "8 سلندر توربو - 4.0 لتر"] },
-  "كرايسلر": { models: ["300C"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] }
-};
-
+const TRANSLATE_MAKE: Record<string, string> = { "تويوتا": "Toyota", "هيونداي": "Hyundai", "نيسان": "Nissan", "فورد": "Ford", "شفروليه": "Chevrolet", "كيا": "Kia", "هوندا": "Honda", "لكزس": "Lexus", "ميتسوبيشي": "Mitsubishi", "مازدا": "Mazda", "جي إم سي": "GMC", "بي إم دبليو": "BMW", "مرسيدس": "Mercedes-Benz", "فولكس فاجن": "Volkswagen", "أودي": "Audi", "جيب": "Jeep", "دودج": "Dodge", "رام": "Ram", "لاند روفر": "Land Rover", "إنفينيتي": "Infiniti", "سوبارو": "Subaru", "رينو": "Renault", "سوزوكي": "Suzuki", "بورش": "Porsche", "كرايسلر": "Chrysler" };
+const TRANSLATE_MODEL: Record<string, string> = { "كامري": "Camry", "كورولا": "Corolla", "يارس": "Yaris", "هيلوكس": "Hilux", "لاندكروزر": "Land Cruiser", "برادو": "Prado", "أفالون": "Avalon", "راف فور": "RAV4", "فورشنر": "Fortuner", "شاص": "LC70 (Shas)", "إلنترا": "Elantra", "سوناتا": "Sonata", "أكسنت": "Accent", "توسان": "Tucson", "سانتافي": "Santa Fe", "أزيرا": "Azera", "كريتا": "Creta", "كونا": "Kona", "باترول": "Patrol", "ألتيما": "Altima", "صني": "Sunny", "ماكسيما": "Maxima", "إكس تريل": "X-Trail", "نافارا": "Navara", "باثفايندر": "Pathfinder", "سنترا": "Sentra", "تورس": "Taurus", "إكسبلورر": "Explorer", "إف-150": "F-150", "إكسبديشن": "Expedition", "موستنج": "Mustang", "إيدج": "Edge", "رينجر": "Ranger", "تاهو": "Tahoe", "سوبربان": "Suburban", "سيلفرادو": "Silverado", "ماليبو": "Malibu", "كابتيفا": "Captiva", "ترافيرس": "Traverse", "كابرس": "Caprice", "سيراتو": "Cerato", "أوبتيما / K5": "Optima", "ريو": "Rio", "سبورتج": "Sportage", "سورينتو": "Sorento", "كادينزا / K8": "Cadenza", "بيغاس": "Pegas", "أكورد": "Accord", "سيفيك": "Civic", "سي آر في": "CR-V", "سيتي": "City", "بايلوت": "Pilot", "أوديسي": "Odyssey", "باجيرو": "Pajero", "لانسر": "Lancer", "أتراج": "Attrage", "إكليبس كروس": "Eclipse Cross", "L200": "L200", "مازدا 6": "Mazda 6", "مازدا 3": "Mazda 3", "CX-9": "CX-9", "CX-5": "CX-5", "يوكن": "Yukon", "سييرا": "Sierra", "أكاديا": "Acadia", "تيرين": "Terrain", "الفئة الثالثة": "3 Series", "الفئة الخامسة": "5 Series", "الفئة السابعة": "7 Series", "جولف": "Golf", "باسات": "Passat", "تيغوان": "Tiguan", "طوارق": "Touareg", "رانجلر": "Wrangler", "جراند شيروكي": "Grand Cherokee", "شيروكي": "Cherokee", "تشارجر": "Charger", "تشالنجر": "Challenger", "دورانجو": "Durango", "رينج روفر": "Range Rover", "ديفندر": "Defender", "ديسكفري": "Discovery", "فورستر": "Forester", "أوت باك": "Outback", "إمبريزا": "Impreza", "داستر": "Duster", "ميجان": "Megane", "كوليوس": "Koleos", "سويفت": "Swift", "جيمني": "Jimny", "فيتارا": "Vitara", "كايين": "Cayenne", "ماكان": "Macan", "911": "911" };
+const CAR_DATA: Record<string, { models: string[], engines: string[] }> = { "تويوتا": { models: ["كامري", "كورولا", "يارس", "هيلوكس", "لاندكروزر", "برادو", "أفالون", "راف فور", "فورشنر", "شاص"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر", "6 سلندر - 4.0 لتر", "8 سلندر - 4.6 لتر", "8 سلندر - 5.7 لتر", "هايبرد (الهجين)"] }, "هيونداي": { models: ["إلنترا", "سوناتا", "أكسنت", "توسان", "سانتافي", "أزيرا", "كريتا", "كونا"], engines: ["4 سلندر - 1.4 لتر", "4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر"] }, "نيسان": { models: ["باترول", "ألتيما", "صني", "ماكسيما", "إكس تريل", "نافارا", "باثفايندر", "سنترا"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 4.0 لتر", "8 سلندر - 5.6 لتر"] }, "فورد": { models: ["تورس", "إكسبلورر", "إف-150", "إكسبديشن", "موستنج", "إيدج", "رينجر"], engines: ["4 سلندر EcoBoost - 2.0 لتر", "6 سلندر - 3.5 لتر", "6 سلندر EcoBoost - 3.5 لتر", "8 سلندر - 5.0 لتر"] }, "شفروليه": { models: ["تاهو", "سوبربان", "سيلفرادو", "ماليبو", "كابتيفا", "ترافيرس", "كابرس"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.3 لتر", "8 سلندر - 6.0 لتر", "8 سلندر - 6.2 لتر"] }, "كيا": { models: ["سيراتو", "أوبتيما / K5", "ريو", "سبورتج", "سورينتو", "كادينزا / K8", "بيغاس"], engines: ["4 سلندر - 1.4 لتر", "4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر"] }, "هوندا": { models: ["أكورد", "سيفيك", "سي آر في", "سيتي", "بايلوت", "أوديسي"], engines: ["4 سلندر توربو - 1.5 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.4 لتر", "6 سلندر - 3.5 لتر"] }, "لكزس": { models: ["ES", "LS", "LX", "RX", "GX", "IS", "UX"], engines: ["4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر", "6 سلندر توربو - 3.4 لتر", "8 سلندر - 4.6 لتر", "8 سلندر - 5.7 لتر"] }, "ميتسوبيشي": { models: ["باجيرو", "لانسر", "أتراج", "إكليبس كروس", "L200"], engines: ["4 سلندر - 1.2 لتر", "4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "6 سلندر - 3.5 لتر"] }, "مازدا": { models: ["CX-9", "CX-5", "مازدا 6", "مازدا 3"], engines: ["4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "4 سلندر توربو - 2.5 لتر"] }, "جي إم سي": { models: ["يوكن", "سييرا", "أكاديا", "تيرين"], engines: ["4 سلندر - 1.5 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.3 لتر", "8 سلندر - 6.2 لتر"] }, "بي إم دبليو": { models: ["الفئة الثالثة", "الفئة الخامسة", "الفئة السابعة", "X5", "X6"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر توربو - 3.0 لتر", "8 سلندر توربو - 4.4 لتر"] }, "مرسيدس": { models: ["C-Class", "E-Class", "S-Class", "G-Class", "GLE"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.0 لتر", "8 سلندر - 4.0 لتر"] }, "فولكس فاجن": { models: ["جولف", "باسات", "تيغوان", "طوارق"], engines: ["4 سلندر توربو - 1.4 لتر", "4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.6 لتر"] }, "أودي": { models: ["A3", "A4", "A6", "Q5", "Q7"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر توربو - 3.0 لتر"] }, "جيب": { models: ["رانجلر", "جراند شيروكي", "شيروكي"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] }, "دودج": { models: ["تشارجر", "تشالنجر", "دورانجو"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر", "8 سلندر - 6.4 لتر"] }, "رام": { models: ["1500"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] }, "لاند روفر": { models: ["رينج روفر", "ديفندر", "ديسكفري"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.0 لتر", "8 سلندر - 5.0 لتر"] }, "إنفينيتي": { models: ["Q50", "QX50", "QX80"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.7 لتر", "8 سلندر - 5.6 لتر"] }, "سوبارو": { models: ["فورستر", "أوت باك", "إمبريزا"], engines: ["4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر"] }, "رينو": { models: ["داستر", "ميجان", "كوليوس"], engines: ["4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر توربو - 1.3 لتر"] }, "سوزوكي": { models: ["سويفت", "جيمني", "فيتارا"], engines: ["4 سلندر - 1.2 لتر", "4 سلندر - 1.5 لتر"] }, "بورش": { models: ["كايين", "ماكان", "911"], engines: ["6 سلندر توربو - 3.0 لتر", "8 سلندر توربو - 4.0 لتر"] }, "كرايسلر": { models: ["300C"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] } };
 const YEARS = Array.from({ length: 2026 - 1970 + 1 }, (_, i) => (2026 - i).toString());
-
-const PARTS_CATEGORIES = [
-  "Belt Drive", "Body & Lamp Assembly", "Brake & Wheel Hub", "Cooling System", "Drivetrain",
-  "Electrical", "Electrical-Bulb & Socket", "Electrical-Connector", "Electrical-Switch & Relay",
-  "Engine", "Exhaust & Emission", "Fuel & Air", "Heat & Air Conditioning", "Ignition",
-  "Interior", "Steering", "Suspension", "Transmission-Automatic", "Wheel", "Wiper & Washer"
-];
-
+const PARTS_CATEGORIES = [ "Belt Drive", "Body & Lamp Assembly", "Brake & Wheel Hub", "Cooling System", "Drivetrain", "Electrical", "Electrical-Bulb & Socket", "Electrical-Connector", "Electrical-Switch & Relay", "Engine", "Exhaust & Emission", "Fuel & Air", "Heat & Air Conditioning", "Ignition", "Interior", "Steering", "Suspension", "Transmission-Automatic", "Wheel", "Wiper & Washer" ];
 const RADIUS = { sm: '10px', md: '14px', lg: '20px' };
-
-const styles: Record<string, React.CSSProperties> = {
-  page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink)', transition: 'background-color 0.2s ease, color 0.2s ease' },
-  main: { maxWidth: '1240px', margin: '28px auto 0', padding: '0 20px' },
-  contentCol: { flex: '2 1 640px', minWidth: 0 },
-  consolePanel: { backgroundColor: 'var(--mw-surface)', padding: '22px 24px', borderRadius: RADIUS.lg, boxShadow: 'var(--mw-shadow-md)', border: '1px solid var(--mw-border)', marginBottom: '18px' },
-  panelTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' },
-  eyebrow: { display: 'inline-block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--mw-accent-dark)', backgroundColor: 'var(--mw-accent-bg)', padding: '4px 10px', borderRadius: '999px' },
-  themeToggle: { width: '36px', height: '36px', borderRadius: '50%', border: '1px solid var(--mw-border)', backgroundColor: 'var(--mw-bg)', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mw-ink)' },
-  searchLabel: { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)' },
-  searchInput: { width: '100%', padding: '14px 18px', borderRadius: RADIUS.sm, border: '1.5px solid var(--mw-border)', fontSize: '15px', boxSizing: 'border-box', backgroundColor: 'var(--mw-bg)', color: 'var(--mw-ink)', outline: 'none', transition: 'border-color 0.15s ease, box-shadow 0.15s ease' },
-  statStrip: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed var(--mw-border)' },
-  statCount: { fontSize: '13px', color: 'var(--mw-ink-muted)', fontWeight: 600 },
-  statCountNum: { color: 'var(--mw-primary)', fontSize: '16px', fontWeight: 800, fontVariantNumeric: 'tabular-nums' },
-  secureBadge: { fontSize: '12px', color: 'var(--mw-success)', backgroundColor: 'var(--mw-success-bg)', padding: '5px 12px', borderRadius: '999px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' },
-  sortSelect: { fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)', backgroundColor: 'var(--mw-bg)', border: '1.5px solid var(--mw-border)', borderRadius: RADIUS.sm, padding: '8px 12px', cursor: 'pointer', outline: 'none' },
-  chipsRow: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px', alignItems: 'center' },
-  chip: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 700, color: 'var(--mw-primary)', backgroundColor: 'var(--mw-accent-bg)', border: '1px solid var(--mw-border)', padding: '6px 10px', borderRadius: '999px' },
-  chipClear: { fontSize: '12.5px', fontWeight: 800, color: 'var(--mw-ink-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: '6px 4px' },
-  stateCard: { textAlign: 'center', padding: '64px 20px', backgroundColor: 'var(--mw-surface)', borderRadius: RADIUS.lg, boxShadow: 'var(--mw-shadow-sm)' },
-  stateCardDashed: { border: '2px dashed var(--mw-border)', boxShadow: 'none' },
-  stateIcon: { fontSize: '46px', lineHeight: 1 },
-  stateTitle: { color: 'var(--mw-ink)', marginTop: '16px', fontSize: '17px', fontWeight: 800 },
-  stateBody: { color: 'var(--mw-ink-muted)', fontSize: '14px', marginTop: '8px', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.7 },
-  loadMoreBtn: { display: 'block', margin: '28px auto 0', padding: '12px 32px', borderRadius: '999px', border: '1.5px solid var(--mw-primary)', backgroundColor: 'transparent', color: 'var(--mw-primary)', fontWeight: 800, fontSize: '14px', cursor: 'pointer' },
-  fabBase: { position: 'fixed', insetInlineEnd: '20px', width: '52px', height: '52px', borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: 'var(--mw-shadow-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', zIndex: 40 },
-};
+const styles: Record<string, React.CSSProperties> = { page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink)', transition: 'background-color 0.2s ease, color 0.2s ease' }, main: { maxWidth: '1240px', margin: '28px auto 0', padding: '0 20px' }, contentCol: { flex: '2 1 640px', minWidth: 0 }, consolePanel: { backgroundColor: 'var(--mw-surface)', padding: '22px 24px', borderRadius: RADIUS.lg, boxShadow: 'var(--mw-shadow-md)', border: '1px solid var(--mw-border)', marginBottom: '18px' }, panelTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }, eyebrow: { display: 'inline-block', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--mw-accent-dark)', backgroundColor: 'var(--mw-accent-bg)', padding: '4px 10px', borderRadius: '999px' }, themeToggle: { width: '36px', height: '36px', borderRadius: '50%', border: '1px solid var(--mw-border)', backgroundColor: 'var(--mw-bg)', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mw-ink)' }, searchLabel: { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)' }, searchInput: { width: '100%', padding: '14px 18px', borderRadius: RADIUS.sm, border: '1.5px solid var(--mw-border)', fontSize: '15px', boxSizing: 'border-box', backgroundColor: 'var(--mw-bg)', color: 'var(--mw-ink)', outline: 'none', transition: 'border-color 0.15s ease, box-shadow 0.15s ease' }, statStrip: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed var(--mw-border)' }, statCount: { fontSize: '13px', color: 'var(--mw-ink-muted)', fontWeight: 600 }, statCountNum: { color: 'var(--mw-primary)', fontSize: '16px', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }, secureBadge: { fontSize: '12px', color: 'var(--mw-success)', backgroundColor: 'var(--mw-success-bg)', padding: '5px 12px', borderRadius: '999px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }, sortSelect: { fontSize: '13px', fontWeight: 700, color: 'var(--mw-ink)', backgroundColor: 'var(--mw-bg)', border: '1.5px solid var(--mw-border)', borderRadius: RADIUS.sm, padding: '8px 12px', cursor: 'pointer', outline: 'none' }, chipsRow: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px', alignItems: 'center' }, chip: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 700, color: 'var(--mw-primary)', backgroundColor: 'var(--mw-accent-bg)', border: '1px solid var(--mw-border)', padding: '6px 10px', borderRadius: '999px' }, chipClear: { fontSize: '12.5px', fontWeight: 800, color: 'var(--mw-ink-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: '6px 4px' }, stateCard: { textAlign: 'center', padding: '64px 20px', backgroundColor: 'var(--mw-surface)', borderRadius: RADIUS.lg, boxShadow: 'var(--mw-shadow-sm)' }, stateCardDashed: { border: '2px dashed var(--mw-border)', boxShadow: 'none' }, stateIcon: { fontSize: '46px', lineHeight: 1 }, stateTitle: { color: 'var(--mw-ink)', marginTop: '16px', fontSize: '17px', fontWeight: 800 }, stateBody: { color: 'var(--mw-ink-muted)', fontSize: '14px', marginTop: '8px', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.7 }, loadMoreBtn: { display: 'block', margin: '28px auto 0', padding: '12px 32px', borderRadius: '999px', border: '1.5px solid var(--mw-primary)', backgroundColor: 'transparent', color: 'var(--mw-primary)', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }, fabBase: { position: 'fixed', insetInlineEnd: '20px', width: '52px', height: '52px', borderRadius: '50%', border: 'none', cursor: 'pointer', boxShadow: 'var(--mw-shadow-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', zIndex: 40 }, };
 
 export default function App() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile'>('shop');
   
-  // 🛒 حالات السلة الجديدة
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   const [inventory, setInventory] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -186,9 +96,7 @@ export default function App() {
   };
 
   const filteredParts = inventory.filter(item => {
-    const matchesSearchText = !searchTerm || 
-      (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || 
-      (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearchText = !searchTerm || (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesMake = !filterMake || item.make === filterMake;
     const matchesModel = !filterModel || (item.model && item.model === filterModel);
     const matchesYear = !filterYear || (item.year && String(item.year) === String(filterYear));
@@ -203,49 +111,26 @@ export default function App() {
   });
   const visibleParts = sortedParts.slice(0, visibleCount);
 
-  const toggleTheme = () => {
-    setTheme(prev => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      localStorage.setItem('mawjood_theme', next);
-      return next;
-    });
-  };
+  const toggleTheme = () => { setTheme(prev => { const next = prev === 'light' ? 'dark' : 'light'; localStorage.setItem('mawjood_theme', next); return next; }); };
 
-  const clearAllFilters = () => {
-    setSearchTerm(''); setFilterMake(''); setFilterModel(''); setFilterYear(''); setFilterEngine('');
-  };
+  const clearAllFilters = () => { setSearchTerm(''); setFilterMake(''); setFilterModel(''); setFilterYear(''); setFilterEngine(''); };
 
-  // 🛒 تحديث زر الشراء ليضيف القطعة للسلة بدلاً من فتح الواتساب فوراً
   const handleBuyClick = (item: any) => {
     setCartItems(prev => [...prev, item]);
     showToast(lang === 'ar' ? 'تمت إضافة القطعة للسلة 🛒' : 'Item added to cart 🛒', 'success');
   };
 
   const handleGeneralContact = () => {
-    const text = lang === 'ar'
-      ? `مرحباً موجود أوتو 👋\nأبحث عن قطعة غيار ولم أجدها في المتجر، هل يمكنكم المساعدة؟`
-      : `Hello Mawjood Auto 👋\nI'm looking for a part I couldn't find in the shop — can you help?`;
+    const text = lang === 'ar' ? `مرحباً موجود أوتو 👋\nأبحث عن قطعة غيار ولم أجدها في المتجر، هل يمكنكم المساعدة؟` : `Hello Mawjood Auto 👋\nI'm looking for a part I couldn't find in the shop — can you help?`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleShare = async (item: any) => {
-    const shareText = lang === 'ar'
-      ? `🚗 *موجود أوتو*\n\n🛠️ القطعة: *${item.name}*\n🚘 السيارة: *${item.make} - ${item.model || 'عام'}*\n📅 الموديل: *${item.year}*\n💰 السعر: *${item.price} ر.ق*`
-      : `🚗 *Mawjood Auto*\n\n🛠️ Part: *${item.name}*\n🚘 Car: *${item.make} - ${item.model || 'General'}*\n📅 Year: *${item.year}*\n💰 Price: *${item.price} QAR*`;
-
-    if (navigator.share) {
-      try { await navigator.share({ title: `Mawjood Auto`, text: shareText, url: window.location.href }); } catch (err) {}
-    } else {
-      try {
-        await navigator.clipboard.writeText(shareText);
-        showToast(t[lang].alertCopied, 'success');
-      } catch (err) { showToast('Failed to copy', 'error'); }
-    }
+    const shareText = lang === 'ar' ? `🚗 *موجود أوتو*\n\n🛠️ القطعة: *${item.name}*\n🚘 السيارة: *${item.make} - ${item.model || 'عام'}*\n📅 الموديل: *${item.year}*\n💰 السعر: *${item.price} ر.ق*` : `🚗 *Mawjood Auto*\n\n🛠️ Part: *${item.name}*\n🚘 Car: *${item.make} - ${item.model || 'General'}*\n📅 Year: *${item.year}*\n💰 Price: *${item.price} QAR*`;
+    if (navigator.share) { try { await navigator.share({ title: `Mawjood Auto`, text: shareText, url: window.location.href }); } catch (err) {} } else { try { await navigator.clipboard.writeText(shareText); showToast(t[lang].alertCopied, 'success'); } catch (err) { showToast('Failed to copy', 'error'); } }
   };
 
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]);
-  };
+  const toggleCategory = (category: string) => { setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); };
 
   const activeChips: { key: string; label: string; onRemove: () => void }[] = [];
   if (searchTerm) activeChips.push({ key: 'search', label: `"${searchTerm}"`, onRemove: () => setSearchTerm('') });
@@ -254,22 +139,53 @@ export default function App() {
   if (filterYear) activeChips.push({ key: 'year', label: filterYear, onRemove: () => setFilterYear('') });
   if (filterEngine) activeChips.push({ key: 'engine', label: lang === 'ar' ? filterEngine : filterEngine.replace('سلندر', 'Cyl').replace('لتر', 'L').replace('توربو', 'Turbo').replace('هايبرد (الهجين)', 'Hybrid'), onRemove: () => setFilterEngine('') });
 
-  // 🛒 دالة إرسال السلة بالكامل عبر واتساب
-  const handleCheckout = () => {
+  // 🔥 نظام الدفع الذكي الجديد المرتبط بقاعدة البيانات
+  const handleCheckoutDatabase = async () => {
     if (cartItems.length === 0) return;
-    let text = lang === 'ar' ? `مرحباً موجود أوتو 👋\nأرغب في إتمام طلب الشراء للقطع التالية:\n\n` : `Hello Mawjood Auto 👋\nI would like to checkout the following items:\n\n`;
-    let total = 0;
-    
-    cartItems.forEach((item, index) => {
-      text += `${index + 1}. *${item.name}* (${item.make} ${item.model || ''})\n   💰 السعر: ${item.price} QAR\n`;
-      total += Number(item.price);
-    });
-    
-    text += `\n💵 *الإجمالي: ${total} QAR*\n\nالرجاء تأكيد الطلب.`;
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, '_blank');
-    
-    setCartItems([]); // تفريغ السلة بعد الطلب
-    setIsCartOpen(false); // إغلاق النافذة
+
+    if (!session) {
+      showToast(lang === 'ar' ? 'يرجى تسجيل الدخول أولاً لإتمام الطلب 🔒' : 'Please login to checkout 🔒', 'error');
+      setIsCartOpen(false);
+      setView('auth');
+      return;
+    }
+
+    setIsCheckoutLoading(true);
+
+    try {
+      const ordersPayload = cartItems.map(item => ({
+        part_name: `${item.name} (${item.make} ${item.model || ''})`,
+        price: Number(item.price),
+        garage_id: item.user_id, // توجيه القطعة لصاحبها الأصلي
+        customer_phone: session.phone || session.email || 'غير معروف',
+        status: 'pending',
+        notes: ''
+      }));
+
+      const response = await fetch(`${SUPABASE_URL}/orders`, {
+        method: 'POST',
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${session.token || API_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(ordersPayload)
+      });
+
+      if (response.ok) {
+        showToast(lang === 'ar' ? 'تم إرسال طلبك للكراجات بنجاح! سيتم التواصل معك قريباً 🚀' : 'Order sent successfully! We will contact you soon 🚀', 'success');
+        setCartItems([]);
+        setIsCartOpen(false);
+      } else {
+        const err = await response.json();
+        alert(`خطأ: ${err.message || err.details}`);
+      }
+    } catch (error: any) {
+      alert('خطأ في الاتصال بقاعدة البيانات');
+    } finally {
+      setIsCheckoutLoading(false);
+    }
   };
 
   return (
@@ -291,7 +207,6 @@ export default function App() {
 
         <Header lang={lang} setLang={setLang} view={view} setView={setView} session={session} cartCount={cartItems.length} onOpenCart={() => setIsCartOpen(true)} onLogout={() => { setSession(null); localStorage.removeItem('mawjood_session'); setView('shop'); showToast(lang === 'ar' ? 'تم تسجيل الخروج بنجاح' : 'Logged out', 'success'); }} />
 
-        {/* 🛒 مكون سلة المشتريات الجانبية المتراكب (Sidebar Modal) */}
         {isCartOpen && (
           <>
             <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100 }} />
@@ -333,8 +248,8 @@ export default function App() {
                     <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
                     <span style={{ color: 'var(--mw-primary)' }}>{cartItems.reduce((total, item) => total + Number(item.price), 0)} QAR</span>
                   </div>
-                  <button onClick={handleCheckout} style={{ width: '100%', padding: '15px', backgroundColor: '#25D366', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}>
-                    💬 {lang === 'ar' ? 'إتمام الطلب عبر واتساب' : 'Checkout via WhatsApp'}
+                  <button onClick={handleCheckoutDatabase} disabled={isCheckoutLoading} style={{ width: '100%', padding: '15px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center', opacity: isCheckoutLoading ? 0.7 : 1 }}>
+                    {isCheckoutLoading ? (lang === 'ar' ? 'جاري الإرسال...' : 'Sending...') : (lang === 'ar' ? 'إتمام الطلب الآن' : 'Checkout Now')}
                   </button>
                 </div>
               )}
@@ -348,15 +263,12 @@ export default function App() {
 
           {view === 'dashboard' && session?.role === 'garage' && <GarageDashboard lang={lang} carData={CAR_DATA} years={YEARS} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} onSuccess={() => { fetchParts(); setView('shop'); }} />}
 
-          {/* 👤 واجهة الملف الشخصي (تمهيد للمرحلة الثانية) */}
           {view === 'profile' && (
             <div className="mw-state-card" style={styles.stateCard}>
               <span style={styles.stateIcon}>🏗️</span>
               <h3 style={styles.stateTitle}>{lang === 'ar' ? 'صفحة الملف الشخصي (قريباً)' : 'Profile Page (Coming Soon)'}</h3>
               <p style={styles.stateBody}>
-                {lang === 'ar' 
-                  ? 'جاري تجهيز لوحة تحكم الملف الشخصي لتعديل بياناتك (الاسم، الموقع، ورقم الواتساب)... سيتم إضافتها في المرحلة القادمة!' 
-                  : 'Profile dashboard for editing details (Name, Location, WhatsApp) is being prepared... Coming in the next step!'}
+                {lang === 'ar' ? 'جاري تجهيز لوحة تحكم الملف الشخصي لتعديل بياناتك (الاسم، الموقع، ورقم الواتساب)... سيتم إضافتها في المرحلة القادمة!' : 'Profile dashboard for editing details (Name, Location, WhatsApp) is being prepared... Coming in the next step!'}
               </p>
             </div>
           )}
