@@ -222,6 +222,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                             getPartCategory(part.name) === category
                                           );
 
+                                          // إخفاء الأقسام التي لا تحتوي على قطع غيار نهائياً
                                           if (filteredParts.length === 0) return null;
 
                                           return (
@@ -231,7 +232,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '12px', color: '#2d3748', padding: '4px 6px' }}
                                               >
                                                 <span>⚙️ {translatedCategory} <span style={{ fontSize: '10px', color: '#a0aec0' }}>({filteredParts.length})</span></span>
-                                                <span style={{ fontSize: '8px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
                                             </li>
                                           );
