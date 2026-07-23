@@ -19,8 +19,8 @@ interface SidebarProps {
   setFilterModel: (model: string) => void;
   filterYear: string;
   setFilterYear: (year: string) => void;
-  filterEngine: string;
-  setFilterEngine: (engine: string) => void;
+  filterCategory: string;
+  setFilterCategory: (cat: string) => void;
 }
 
 // 1. القاموس العربي للأقسام
@@ -63,22 +63,23 @@ const MAKE_DOMAINS: Record<string, string> = {
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
     lang, carData, years, translateMake, translateModel, categories, inventory, 
-    filterMake, setFilterMake, filterModel, setFilterModel, filterYear, setFilterYear, filterEngine, setFilterEngine 
+    filterMake, setFilterMake, filterModel, setFilterModel, filterYear, setFilterYear,
+    filterCategory, setFilterCategory 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
-  const toggleNode = (nodeKey: string, make?: string, model?: string, year?: string) => {
+  const toggleNode = (nodeKey: string, make?: string, model?: string, year?: string, category?: string) => {
     setExpandedNodes(prev => ({
       ...prev,
       [nodeKey]: !prev[nodeKey]
     }));
 
-    // تطبيق الفلترة التلقائية عند الضغط على الشجرة لتحديث الحالة الرئيسية
     if (make !== undefined) setFilterMake(make);
     if (model !== undefined) setFilterModel(model);
     if (year !== undefined) setFilterYear(year);
+    if (category !== undefined) setFilterCategory(category);
   };
 
   const isRtl = lang === 'ar';
@@ -117,7 +118,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             return (
               <li key={make} style={{ marginBottom: '6px' }}>
                 <div  
-                  onClick={() => toggleNode(makeKey, make, '', '')}
+                  onClick={() => toggleNode(makeKey, make, '', '', '')}
                   style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -146,7 +147,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                       return (
                         <li key={model} style={{ marginBottom: '4px' }}>
                           <div  
-                            onClick={() => toggleNode(modelKey, make, model, '')}
+                            onClick={() => toggleNode(modelKey, make, model, '', '')}
                             style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '13px' }}
                           >
                             <span>📂 {modelName}</span>
@@ -162,7 +163,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                 return (
                                   <li key={year} style={{ marginBottom: '4px' }}>
                                     <div  
-                                      onClick={() => toggleNode(yearKey, make, model, year)}
+                                      onClick={() => toggleNode(yearKey, make, model, year, '')}
                                       style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '12px', color: '#2b6cb0' }}
                                     >
                                       <span>📅 {year}</span>
@@ -173,7 +174,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                       <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '4px' }}>
                                         {categories.map(category => {
                                           const categoryKey = `cat_${make}_${model}_${year}_${category}`;
-                                          const isCategoryOpen = expandedNodes[categoryKey];
+                                          const isCategoryOpen = expandedNodes[categoryKey] || (filterCategory === category);
                                           const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
 
                                           const filteredParts = inventory.filter(part =>  
@@ -186,36 +187,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                           return (
                                             <li key={category} style={{ marginBottom: '3px' }}>
                                               <div  
-                                                onClick={() => toggleNode(categoryKey)}
-                                                style={{ ...nodeStyle, fontSize: '12px', color: '#2d3748', padding: '4px 6px' }}
+                                                onClick={() => toggleNode(categoryKey, make, model, year, category)}
+                                                style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '12px', color: '#2d3748', padding: '4px 6px' }}
                                               >
                                                 <span>⚙️ {translatedCategory} <span style={{ fontSize: '10px', color: '#a0aec0' }}>({filteredParts.length})</span></span>
                                                 <span style={{ fontSize: '8px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
-
-                                              {isCategoryOpen && (
-                                                <div style={{  
-                                                  padding: '6px 12px',  
-                                                  backgroundColor: '#fffaf0',  
-                                                  borderRadius: '6px',  
-                                                  border: '1px solid #feebc8',
-                                                  marginTop: '2px',
-                                                  display: 'flex',
-                                                  flexDirection: 'column',
-                                                  gap: '6px',
-                                                  [isRtl ? 'marginRight' : 'marginLeft']: '12px'
-                                                }}>
-                                                  {filteredParts.length === 0 ? (
-                                                    <span style={{ color: '#a0aec0', fontSize: '11px', fontStyle: 'italic' }}>
-                                                      {lang === 'ar' ? 'لا توجد قطع متوفرة' : 'No parts available'}
-                                                    </span>
-                                                  ) : (
-                                                    <div style={{ fontSize: '11px', color: '#dd6b20', fontWeight: 'bold' }}>
-                                                      {lang === 'ar' ? `✨ تم تصفية ${filteredParts.length} قطعة في الشاشة الرئيسية` : `✨ Filtered ${filteredParts.length} parts`}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              )}
                                             </li>
                                           );
                                         })}
