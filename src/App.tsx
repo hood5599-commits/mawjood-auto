@@ -97,20 +97,30 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 إضافة القطعة للسلة بالكمية المحددة مع دمج الكميات للقطع المكررة
+  // 🔥 إضافة القطعة للسلة والتأكد من عدم تجاوز المخزون المتاح
   const handleBuyClick = (item: any, quantity: number = 1) => {
+    const maxStock = typeof item.stock !== 'undefined' && item.stock !== null ? Number(item.stock) : 5;
+
     setCartItems(prev => {
       const existingIdx = prev.findIndex(i => i.id === item.id);
       if (existingIdx > -1) {
+        const currentQty = prev[existingIdx].quantity || 1;
+        const totalTarget = currentQty + quantity;
+
+        if (totalTarget > maxStock) {
+          alert(lang === 'ar' ? `عفواً، الحد الأقصى المتوفر في المخزون هو ${maxStock} قطعة فقط` : `Only ${maxStock} items available in stock`);
+          const updated = [...prev];
+          updated[existingIdx] = { ...updated[existingIdx], quantity: maxStock };
+          return updated;
+        }
+
         const updated = [...prev];
-        updated[existingIdx] = {
-          ...updated[existingIdx],
-          quantity: (updated[existingIdx].quantity || 1) + quantity
-        };
+        updated[existingIdx] = { ...updated[existingIdx], quantity: totalTarget };
         return updated;
       }
-      return [...prev, { ...item, quantity }];
+      return [...prev, { ...item, quantity: Math.min(maxStock, quantity) }];
     });
+    
     showToast(lang === 'ar' ? `تمت إضافة (${quantity}) قطع للسلة 🛒` : `Added (${quantity}) items 🛒`, 'success');
   };
 
@@ -129,7 +139,6 @@ export default function App() {
     setIsCheckoutLoading(true);
 
     try {
-      // إرسال الطلبات بما يلائم الكميات
       const ordersPayload: any[] = [];
       cartItems.forEach(item => {
         const qty = item.quantity || 1;
@@ -179,7 +188,6 @@ export default function App() {
     }
   };
 
-  // إجمالي السلة المحسوب مع ضرب السعر بالكمية
   const totalCartPrice = cartItems.reduce((total, item) => total + (Number(item.price) * (item.quantity || 1)), 0);
   const totalCartCount = cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
 
@@ -275,7 +283,7 @@ export default function App() {
 
         <main className="mw-main-container" style={styles.main}>
 
-          {view === 'auth' && <AuthModal lang={lang} authUrl={AUTH_URL} apiKey={API_KEY} onSuccess={(newSession: any) => { setSession(newSession); localStorage.setItem('mawjood_session', JSON.stringify(newSession)); setView(newSession.role === 'garage' ? 'dashboard' : 'shop'); showToast(newSession.role === 'garage' ? 'مرحباً بك' : 'مرحباً بك'); }} />}
+          {view === 'auth' && <AuthModal lang={lang} authUrl={AUTH_URL} apiKey={API_KEY} onSuccess={(newSession: any) => { setSession(newSession); localStorage.setItem('mawjood_session', JSON.stringify(newSession)); setView(newSession.role === 'garage' ? 'dashboard' : 'shop'); showToast('مرحباً بك'); }} />}
 
           {view === 'dashboard' && session?.role === 'garage' && <GarageDashboard lang={lang} carData={CAR_DATA} years={YEARS} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} onSuccess={() => { fetchParts(); setView('shop'); }} />}
 
