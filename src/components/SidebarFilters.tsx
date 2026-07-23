@@ -222,7 +222,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                             getPartCategory(part.name) === category
                                           );
 
-                                          // إخفاء الأقسام التي لا تحتوي على قطع غيار نهائياً
                                           if (filteredParts.length === 0) return null;
 
                                           return (
