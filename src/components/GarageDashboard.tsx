@@ -21,18 +21,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [partImg, setPartImg] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   
-  // حالات جديدة لإدارة القطع الخاصة بالكراج
   const [myParts, setMyParts] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // جلب القطع الخاصة بهذا الكراج فقط
+  // استخراج ID الكراج بشكل آمن جداً لمنع انهيار الكود
+  const userId = session?.user?.id || session?.id || session?.user_id || null;
+
   const fetchMyParts = async () => {
-    if (!session?.user?.id) return;
+    if (!userId) return; // إذا لم يجد ID يتوقف بصمت ولا ينهار
     try {
-      const response = await fetch(`${supabaseUrl}/parts?user_id=eq.${session.user.id}&order=id.desc`, {
+      const response = await fetch(`${supabaseUrl}/parts?user_id=eq.${userId}&order=id.desc`, {
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session.token}`
+          'Authorization': `Bearer ${session?.token || session?.access_token}`
         }
       });
       if (response.ok) {
@@ -68,7 +69,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         method: 'POST',
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${session?.token || session?.access_token}`,
           'Content-Type': file.type
         },
         body: file
@@ -90,8 +91,15 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // التحقق قبل الإرسال لمنع الأخطاء الوهمية
+    if (!userId) {
+      alert(lang === 'ar' ? '⚠️ لا يمكن التعرف على معرّف الكراج الخاص بك، يرجى تسجيل الدخول مجدداً.' : 'Session ID missing. Please login again.');
+      console.log("Current session data:", session);
+      return;
+    }
+
     try {
-      // تحديد ما إذا كنا نعدل قطعة موجودة أم نضيف واحدة جديدة
       const method = editingId ? 'PATCH' : 'POST';
       const url = editingId ? `${supabaseUrl}/parts?id=eq.${editingId}` : `${supabaseUrl}/parts`;
 
@@ -103,16 +111,14 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         year: partYear,
         engine: partEngine,
         image_url: partImg || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-        user_id: session.user.id // ربط القطعة بالكراج المضاف
+        user_id: userId // استخدام الـ ID الآمن
       };
-
-      console.log("جاري إرسال هذه البيانات إلى قاعدة البيانات:", payload);
 
       const response = await fetch(url, {
         method: method,
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${session?.token || session?.access_token}`,
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
@@ -120,19 +126,18 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
 
       if (response.ok) {
-        alert(lang === 'ar' ? 'تم حفظ القطعة بنجاح!' : 'Part saved successfully!');
+        alert(lang === 'ar' ? 'تم حفظ القطعة بنجاح! 🚀' : 'Part saved successfully! 🚀');
         resetForm();
-        fetchMyParts(); // تحديث القائمة فوراً
-        onSuccess(); // تحديث المتجر الرئيسي
+        fetchMyParts();
+        onSuccess();
       } else {
-        // 🔥 هنا السحر: استخراج الخطأ الفعلي من Supabase وعرضه
         const errorData = await response.json();
-        console.error("Supabase Error Details:", errorData);
-        alert(`خطأ من قاعدة البيانات ⚠️:\n${errorData.message || errorData.details || JSON.stringify(errorData)}`);
+        console.error("Supabase Details:", errorData);
+        alert(`رفضت قاعدة البيانات الحفظ ⚠️\nالسبب: ${errorData.message || errorData.details || JSON.stringify(errorData)}`);
       }
-    } catch (error) {
-      console.error("Network Error:", error);
-      alert('حدث خطأ في الاتصال بقاعدة البيانات!');
+    } catch (error: any) {
+      console.error("JS Crash Error:", error);
+      alert(`حدث خطأ برمجي ⚠️\nالسبب: ${error.message}`);
     }
   };
 
@@ -144,7 +149,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         method: 'DELETE',
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session.token}`
+          'Authorization': `Bearer ${session?.token || session?.access_token}`
         }
       });
       if (response.ok) {
@@ -165,7 +170,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartEngine(part.engine || '');
     setPartImg(part.image_url === 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80' ? '' : part.image_url);
     setEditingId(part.id);
-    window.scrollTo({ top: 0, behavior: 'smooth' }); // الصعود للنموذج أعلى الصفحة
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetForm = () => {
@@ -176,7 +181,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
       
-      {/* قسم نموذج الإضافة والتعديل */}
       <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ color: '#1a365d', margin: 0 }}>
