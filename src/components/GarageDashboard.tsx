@@ -24,16 +24,16 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [myParts, setMyParts] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // استخراج ID الكراج بشكل آمن جداً لمنع انهيار الكود
-  const userId = session?.user?.id || session?.id || session?.user_id || null;
+  // السحر هنا: سيسحب الكود رقم الهاتف، أو الإيميل، أو المعرف ليكون هو الـ ID الخاص بالكراج
+  const userId = session?.user?.id || session?.id || session?.phone || session?.email || session?.code || 'garage_unknown';
 
   const fetchMyParts = async () => {
-    if (!userId) return; // إذا لم يجد ID يتوقف بصمت ولا ينهار
+    if (!userId || userId === 'garage_unknown') return;
     try {
       const response = await fetch(`${supabaseUrl}/parts?user_id=eq.${userId}&order=id.desc`, {
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || session?.access_token}`
+          'Authorization': `Bearer ${session?.token || apiKey}` // استخدمنا apiKey كبديل لو لم يكن هناك توكن
         }
       });
       if (response.ok) {
@@ -69,7 +69,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         method: 'POST',
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || session?.access_token}`,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
           'Content-Type': file.type
         },
         body: file
@@ -92,10 +92,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // التحقق قبل الإرسال لمنع الأخطاء الوهمية
-    if (!userId) {
-      alert(lang === 'ar' ? '⚠️ لا يمكن التعرف على معرّف الكراج الخاص بك، يرجى تسجيل الدخول مجدداً.' : 'Session ID missing. Please login again.');
-      console.log("Current session data:", session);
+    if (!userId || userId === 'garage_unknown') {
+      alert(lang === 'ar' ? '⚠️ يرجى تسجيل الدخول مجدداً لإضافة القطعة.' : 'Please login again to add a part.');
       return;
     }
 
@@ -111,14 +109,14 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         year: partYear,
         engine: partEngine,
         image_url: partImg || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-        user_id: userId // استخدام الـ ID الآمن
+        user_id: userId // هذا هو رقم أو إيميل الكراج
       };
 
       const response = await fetch(url, {
         method: method,
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || session?.access_token}`,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
@@ -132,11 +130,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         onSuccess();
       } else {
         const errorData = await response.json();
-        console.error("Supabase Details:", errorData);
-        alert(`رفضت قاعدة البيانات الحفظ ⚠️\nالسبب: ${errorData.message || errorData.details || JSON.stringify(errorData)}`);
+        alert(`رفضت قاعدة البيانات الحفظ ⚠️\nالسبب: ${errorData.message || errorData.details}`);
       }
     } catch (error: any) {
-      console.error("JS Crash Error:", error);
       alert(`حدث خطأ برمجي ⚠️\nالسبب: ${error.message}`);
     }
   };
@@ -149,7 +145,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         method: 'DELETE',
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || session?.access_token}`
+          'Authorization': `Bearer ${session?.token || apiKey}`
         }
       });
       if (response.ok) {
