@@ -4,22 +4,25 @@ import { t } from '../utils/translations';
 interface PartCardProps {
   lang: 'ar' | 'en';
   item: any;
-  translateMake: any;
+  translateMake?: any;
   onBuy?: (item: any) => void;
-  onBuyClick?: (item: any) => void; // 👈 إضافة دعم الخاصية لتوافق ملف App.tsx
+  onBuyClick?: (item: any) => void;
   onShare?: (item: any) => void;
+  onShareClick?: (item: any) => void; // 👈 التوافق التام مع App.tsx
 }
 
 export const PartCard: React.FC<PartCardProps> = ({ 
   lang, 
   item, 
-  translateMake, 
+  translateMake = {}, 
   onBuy, 
   onBuyClick, 
-  onShare 
+  onShare,
+  onShareClick 
 }) => {
-  // استخدام إما onBuyClick أو onBuy بحسب الممرر من App.tsx
+  // توحيد منطق الدوال لتفادي اختلاف المسميات بين App.tsx و PartCard
   const handleBuy = onBuyClick || onBuy || (() => {});
+  const handleShare = onShareClick || onShare || (() => {});
 
   return (
     <div 
@@ -84,9 +87,9 @@ export const PartCard: React.FC<PartCardProps> = ({
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', borderTop: '1px solid #edf2f7', paddingTop: '12px' }}>
-          <span style={{ fontSize: '12px', color: '#718096' }}>{t[lang].expectedPrice}:</span>
+          <span style={{ fontSize: '12px', color: '#718096' }}>{t[lang]?.expectedPrice || (lang === 'ar' ? 'السعر المتوقع' : 'Expected Price')}:</span>
           <strong style={{ fontSize: '18px', color: '#e53e3e' }}>
-            {item.price} <span style={{ fontSize: '13px' }}>{t[lang].currency}</span>
+            {item.price} <span style={{ fontSize: '13px' }}>{t[lang]?.currency || (lang === 'ar' ? 'ر.ق' : 'QAR')}</span>
           </strong>
         </div>
 
@@ -98,14 +101,12 @@ export const PartCard: React.FC<PartCardProps> = ({
             🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
           </button>
           
-          {onShare && (
-            <button 
-              onClick={() => onShare(item)} 
-              style={{ padding: '10px 12px', backgroundColor: '#edf2f7', color: '#4a5568', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
-            >
-              {t[lang].share}
-            </button>
-          )}
+          <button 
+            onClick={() => handleShare(item)} 
+            style={{ padding: '10px 12px', backgroundColor: '#edf2f7', color: '#4a5568', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+          >
+            {t[lang]?.share || (lang === 'ar' ? 'مشاركة' : 'Share')}
+          </button>
         </div>
       </div>
     </div>
