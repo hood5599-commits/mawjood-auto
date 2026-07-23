@@ -77,10 +77,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
   const [fitmentModalPart, setFitmentModalPart] = useState<any | null>(null);
 
-  // حالة البحث المباشر
   const [activeSearchQuery, setActiveSearchQuery] = useState<string>('');
-
-  // 🔥 حالة نافذة طلب القطعة الخاص داخل التطبيق
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [custPhone, setCustPhone] = useState('');
   const [custNotes, setCustNotes] = useState('');
@@ -88,10 +85,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [reqSubmitted, setReqSubmitted] = useState(false);
 
   const getQty = (id: number) => partQuantities[id] || 1;
-  const changeQty = (id: number, delta: number) => {
-    const current = getQty(id);
-    const newQty = Math.max(1, current + delta);
-    setPartQuantities(prev => ({ ...prev, [id]: newQty }));
+
+  // 🔥 دالة زيادة وتنقيص الكمية المربوطة بالمخزون المتاح
+  const changeQty = (part: any, delta: number) => {
+    const maxStock = typeof part.stock !== 'undefined' && part.stock !== null ? Number(part.stock) : 5;
+    const current = getQty(part.id);
+    const newQty = Math.max(1, Math.min(maxStock, current + delta));
+    setPartQuantities(prev => ({ ...prev, [part.id]: newQty }));
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -106,35 +106,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const toggleNode = (nodeKey: string, make?: string, model?: string, year?: string, category?: string) => {
     const willBeOpen = !expandedNodes[nodeKey];
-    
-    setExpandedNodes(prev => ({
-      ...prev,
-      [nodeKey]: willBeOpen
-    }));
+    setExpandedNodes(prev => ({ ...prev, [nodeKey]: willBeOpen }));
 
-    if (make !== undefined) {
-      setFilterMake(willBeOpen ? make : '');
-      setFilterModel('');
-      setFilterYear('');
-      setFilterCategory('');
-    }
-    if (model !== undefined) {
-      setFilterModel(willBeOpen ? model : '');
-      setFilterYear('');
-      setFilterCategory('');
-    }
-    if (year !== undefined) {
-      setFilterYear(willBeOpen ? year : '');
-      setFilterCategory('');
-    }
-    if (category !== undefined) {
-      setFilterCategory(willBeOpen ? category : '');
-    }
+    if (make !== undefined) { setFilterMake(willBeOpen ? make : ''); setFilterModel(''); setFilterYear(''); setFilterCategory(''); }
+    if (model !== undefined) { setFilterModel(willBeOpen ? model : ''); setFilterYear(''); setFilterCategory(''); }
+    if (year !== undefined) { setFilterYear(willBeOpen ? year : ''); setFilterCategory(''); }
+    if (category !== undefined) { setFilterCategory(willBeOpen ? category : ''); }
   };
 
   const isRtl = lang === 'ar';
 
-  // 🔥 خوارزمية فلترة نتائج البحث بـ Part Number أو الاسم
   const searchResults = activeSearchQuery 
     ? inventory.filter(part => {
         const query = activeSearchQuery.toLowerCase();
@@ -150,15 +131,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     ? inventory.filter(p => {
         const modalPN = (fitmentModalPart.part_number || fitmentModalPart.code || fitmentModalPart.sku || '').toString().trim().toLowerCase();
         const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
-        
-        if (modalPN && itemPN) {
-          return modalPN === itemPN;
-        }
-        return p.id === fitmentModalPart.id;
+        return modalPN && itemPN ? modalPN === itemPN : p.id === fitmentModalPart.id;
       })
     : [];
 
-  // 🔥 إرسال الطلب المباشر داخل التطبيق إلى Supabase
   const handleInAppRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!custPhone.trim()) return alert(lang === 'ar' ? 'يرجى إدخال رقم الهاتف' : 'Please enter phone number');
@@ -167,30 +143,154 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     try {
       const response = await fetch(`${SUPABASE_URL}/orders`, {
         method: 'POST',
-        headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify([{
           part_name: `طلب خاص: ${activeSearchQuery}`,
           price: 0,
           customer_phone: custPhone,
           status: 'pending',
-          notes: custNotes || 'طلب قطعة غيار غير متوفرة من البحث'
+          notes: custNotes || 'طلب قطعة غير متوفرة'
         }])
       });
 
-      if (response.ok) {
-        setReqSubmitted(true);
-      } else {
-        alert(lang === 'ar' ? 'حدث خطأ في إرسال الطلب' : 'Error sending request');
-      }
-    } catch (err) {
-      alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error');
-    } finally {
-      setIsSubmittingReq(false);
-    }
+      if (response.ok) { setReqSubmitted(true); } else { alert(lang === 'ar' ? 'حدث خطأ في إرسال الطلب' : 'Error sending request'); }
+    } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
+  };
+
+  // دالة تحكم بالكرت الفردي لمنع تكرار الكود
+  const renderPartCard = (part: any) => {
+    const partNo = part.part_number || part.code || part.sku || part.id;
+    const qty = getQty(part.id);
+    const maxStock = typeof part.stock !== 'undefined' && part.stock !== null ? Number(part.stock) : 5;
+    const isOutOfStock = maxStock <= 0;
+
+    return (
+      <div 
+        key={part.id} 
+        style={{ 
+          backgroundColor: 'white', 
+          padding: '16px', 
+          borderRadius: '14px', 
+          border: '1px solid #e2e8f0', 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'space-between', 
+          gap: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
+        }}
+      >
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+          <img 
+            src={part.image_url || 'https://via.placeholder.com/80'} 
+            alt={part.name} 
+            style={{ width: '75px', height: '75px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #edf2f7' }} 
+          />
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
+            <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>
+              🚘 {part.make} - {part.model} ({part.year})
+            </div>
+            
+            <div 
+              onClick={(e) => { e.stopPropagation(); setFitmentModalPart(part); }}
+              style={{ 
+                fontSize: '11.5px', color: '#2b6cb0', backgroundColor: '#ebf8ff', 
+                padding: '3px 8px', borderRadius: '6px', width: 'fit-content', 
+                marginBottom: '6px', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #bee3f8' 
+              }}
+            >
+              🔍 Part #: {partNo}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16.5px' }}>{part.price} QAR</span>
+              
+              {/* 🔥 شارة توضح الكمية المتبقية للمشتري */}
+              <span style={{ 
+                fontSize: '11px', 
+                fontWeight: 'bold', 
+                color: isOutOfStock ? '#e53e3e' : '#2f855a', 
+                backgroundColor: isOutOfStock ? '#fff5f5' : '#f0fff4', 
+                padding: '2px 8px', 
+                borderRadius: '6px',
+                border: isOutOfStock ? '1px solid #fed7d7' : '1px solid #c6f6d5'
+              }}>
+                {isOutOfStock ? (lang === 'ar' ? 'نفدت الكمية' : 'Out of Stock') : `${lang === 'ar' ? 'المتوفر:' : 'Stock:'} ${maxStock}`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 🔥 أزرار التحكم بالكمية المحكومة برقم الـ Stock */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+            
+            {/* زر التنقيص (-) */}
+            <button 
+              onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }}
+              disabled={qty <= 1 || isOutOfStock}
+              style={{ 
+                width: '32px', height: '32px', border: 'none', 
+                backgroundColor: (qty <= 1 || isOutOfStock) ? '#edf2f7' : '#e2e8f0', 
+                color: (qty <= 1 || isOutOfStock) ? '#a0aec0' : '#2d3748', 
+                fontWeight: 'bold', fontSize: '16px', 
+                cursor: (qty <= 1 || isOutOfStock) ? 'not-allowed' : 'pointer' 
+              }}
+            >
+              -
+            </button>
+
+            <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', color: '#2d3748' }}>
+              {isOutOfStock ? 0 : qty}
+            </span>
+
+            {/* زر الزيادة (+) يربط بالـ Stock المتاح */}
+            <button 
+              onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }}
+              disabled={qty >= maxStock || isOutOfStock}
+              style={{ 
+                width: '32px', height: '32px', border: 'none', 
+                backgroundColor: (qty >= maxStock || isOutOfStock) ? '#edf2f7' : '#e2e8f0', 
+                color: (qty >= maxStock || isOutOfStock) ? '#a0aec0' : '#2d3748', 
+                fontWeight: 'bold', fontSize: '16px', 
+                cursor: (qty >= maxStock || isOutOfStock) ? 'not-allowed' : 'pointer' 
+              }}
+              title={qty >= maxStock ? (lang === 'ar' ? 'تم الوصول للحد الأقصى المتوفر' : 'Maximum stock reached') : ''}
+            >
+              +
+            </button>
+          </div>
+
+          {addToCart && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isOutOfStock) addToCart(part, qty);
+              }}
+              disabled={isOutOfStock}
+              style={{ 
+                flex: 1,
+                backgroundColor: isOutOfStock ? '#a0aec0' : '#38a169', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px', 
+                padding: '9px 12px', 
+                fontSize: '13px', 
+                fontWeight: 'bold', 
+                cursor: isOutOfStock ? 'not-allowed' : 'pointer', 
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              🛒 {isOutOfStock ? (lang === 'ar' ? 'غير متوفر' : 'Unavailable') : (lang === 'ar' ? 'أضف للسلة' : 'Add to Cart')}
+            </button>
+          )}
+        </div>
+
+      </div>
+    );
   };
 
   return (
@@ -206,7 +306,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         boxSizing: 'border-box'
       }}>
         
-        {/* شريط البحث المطور */}
+        {/* شريط البحث */}
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <input
@@ -214,55 +314,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               placeholder={lang === 'ar' ? 'ادخل رقم القطعة (Part Number) أو اسمها هنا...' : 'Enter Part Number or Name here...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '14px 18px',
-                borderRadius: '12px',
-                border: '2px solid #3182ce',
-                outline: 'none',
-                fontSize: '15px',
-                boxSizing: 'border-box',
-                backgroundColor: '#f8fafc',
-                direction: isRtl ? 'rtl' : 'ltr'
-              }}
+              style={{ width: '100%', padding: '14px 18px', borderRadius: '12px', border: '2px solid #3182ce', outline: 'none', fontSize: '15px', boxSizing: 'border-box', backgroundColor: '#f8fafc', direction: isRtl ? 'rtl' : 'ltr' }}
             />
             {searchTerm && (
-              <button
-                type="button"
-                onClick={clearSearch}
-                style={{
-                  position: 'absolute',
-                  [isRtl ? 'left' : 'right']: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '18px',
-                  color: '#a0aec0',
-                  cursor: 'pointer'
-                }}
-              >
-                ✖
-              </button>
+              <button type="button" onClick={clearSearch} style={{ position: 'absolute', [isRtl ? 'left' : 'right']: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: '18px', color: '#a0aec0', cursor: 'pointer' }}>✖</button>
             )}
           </div>
-          <button
-            type="submit"
-            style={{
-              padding: '0 24px',
-              backgroundColor: '#3182ce',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              fontWeight: 'bold',
-              fontSize: '15px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 12px rgba(49, 130, 206, 0.25)'
-            }}
-          >
+          <button type="submit" style={{ padding: '0 24px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
             🔍 {lang === 'ar' ? 'بحث' : 'Search'}
           </button>
         </form>
@@ -279,22 +337,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   {lang === 'ar' ? `تم العثور على (${searchResults.length}) قطعة متطابقة` : `Found (${searchResults.length}) matching parts`}
                 </span>
               </div>
-              <button
-                onClick={clearSearch}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#edf2f7',
-                  color: '#2d3748',
-                  border: '1px solid #cbd5e0',
-                  borderRadius: '10px',
-                  fontWeight: 'bold',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
+              <button onClick={clearSearch} style={{ padding: '8px 16px', backgroundColor: '#edf2f7', color: '#2d3748', border: '1px solid #cbd5e0', borderRadius: '10px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
                 ↩️ {lang === 'ar' ? 'العودة للكتالوج' : 'Back to Catalog'}
               </button>
             </div>
@@ -302,170 +345,21 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             {searchResults.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '50px 20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '2px dashed #e2e8f0' }}>
                 <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>🚫</span>
-                <h4 style={{ margin: '0 0 8px 0', color: '#2d3748', fontSize: '16px' }}>
-                  {lang === 'ar' ? `عفواً، لا توجد قطع متوفرة بهذا الرقم أو الاسم ("${activeSearchQuery}")` : `No parts found matching "${activeSearchQuery}"`}
-                </h4>
-                <p style={{ color: '#718096', fontSize: '13.5px', margin: '0 0 20px 0' }}>
-                  {lang === 'ar' ? 'يمكنك إرسال طلب خاص بالقطعة من داخل البرنامج ليصل للكراجات فوراً.' : 'Send an in-app request directly to garages.'}
-                </p>
-                
-                {/* 🔥 زر الطلب المباشر من داخل البرنامج بدلاً من الواتساب */}
-                <button
-                  onClick={() => {
-                    setReqSubmitted(false);
-                    setShowRequestModal(true);
-                  }}
-                  style={{
-                    padding: '12px 24px',
-                    backgroundColor: '#3182ce',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
+                <h4 style={{ margin: '0 0 8px 0', color: '#2d3748', fontSize: '16px' }}>{lang === 'ar' ? `عفواً، لا توجد قطع متوفرة بهذا الرقم أو الاسم ("${activeSearchQuery}")` : `No parts found matching "${activeSearchQuery}"`}</h4>
+                <button onClick={() => { setReqSubmitted(false); setShowRequestModal(true); }} style={{ padding: '12px 24px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', marginTop: '15px' }}>
                   📩 {lang === 'ar' ? 'إرسال طلب قطعة داخل البرنامج' : 'Send In-App Request'}
                 </button>
               </div>
             ) : (
-              <div style={{  
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-                gap: '18px'
-              }}>
-                {searchResults.map(part => {
-                  const partNo = part.part_number || part.code || part.sku || part.id;
-                  const qty = getQty(part.id);
-
-                  return (
-                    <div 
-                      key={part.id} 
-                      style={{ 
-                        backgroundColor: 'white', 
-                        padding: '16px', 
-                        borderRadius: '14px', 
-                        border: '1px solid #e2e8f0', 
-                        display: 'flex', 
-                        flexDirection: 'column',
-                        justifyContent: 'space-between', 
-                        gap: '12px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                        <img 
-                          src={part.image_url || 'https://via.placeholder.com/80'} 
-                          alt={part.name} 
-                          style={{ width: '75px', height: '75px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #edf2f7' }} 
-                        />
-                        <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
-                          <div style={{ fontSize: '12px', color: '#718096', marginBottom: '6px' }}>
-                            🚘 {part.make} - {part.model} ({part.year})
-                          </div>
-                          
-                          <div 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setFitmentModalPart(part);
-                            }}
-                            style={{ 
-                              fontSize: '11.5px', 
-                              color: '#2b6cb0', 
-                              backgroundColor: '#ebf8ff', 
-                              padding: '3px 8px', 
-                              borderRadius: '6px', 
-                              width: 'fit-content', 
-                              marginBottom: '6px', 
-                              fontWeight: 'bold',
-                              cursor: 'pointer',
-                              border: '1px solid #bee3f8',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                            title={lang === 'ar' ? 'اضغط لعرض كافة السيارات المتوافقة' : 'Click to view matching vehicles'}
-                          >
-                            🔍 Part #: {partNo}
-                          </div>
-
-                          <div>
-                            <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16.5px' }}>{part.price} QAR</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); changeQty(part.id, -1); }}
-                            style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
-                          >
-                            -
-                          </button>
-                          <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', color: '#2d3748' }}>
-                            {qty}
-                          </span>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); changeQty(part.id, 1); }}
-                            style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        {addToCart && (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addToCart(part, qty);
-                            }}
-                            style={{ 
-                              flex: 1,
-                              backgroundColor: '#38a169', 
-                              color: 'white', 
-                              border: 'none', 
-                              borderRadius: '8px', 
-                              padding: '9px 12px', 
-                              fontSize: '13px', 
-                              fontWeight: 'bold', 
-                              cursor: 'pointer', 
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
-                          </button>
-                        )}
-                      </div>
-
-                    </div>
-                  );
-                })}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '18px' }}>
+                {searchResults.map(part => renderPartCard(part))}
               </div>
             )}
           </div>
         ) : (
           /* حالة 2: كتالوج الشجرة التفاعلي */
           <>
-            <h3 style={{  
-              margin: '0 0 16px 0',  
-              color: '#1a365d',  
-              borderBottom: '2px solid #3182ce',  
-              paddingBottom: '10px',
-              fontSize: '17px',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#1a365d', borderBottom: '2px solid #3182ce', paddingBottom: '10px', fontSize: '17px', fontWeight: 'bold' }}>
               📋 {lang === 'ar' ? 'تصفح حسب نوع السيارة' : 'Browse by Vehicle'}
             </h3>
 
@@ -477,18 +371,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                 return (
                   <li key={make} style={{ marginBottom: '8px' }}>
-                    <div  
-                      onClick={() => toggleNode(makeKey, make)}
-                      style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold', padding: '10px 14px' }}
-                    >
+                    <div onClick={() => toggleNode(makeKey, make)} style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold', padding: '10px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {!imgErrors[make] ? (
-                          <img  
-                            src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`}  
-                            alt={make}  
-                            style={{ width: '24px', height: '24px', objectFit: 'contain' }}
-                            onError={() => setImgErrors(prev => ({...prev, [make]: true}))}
-                          />
+                          <img src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`} alt={make} style={{ width: '24px', height: '24px', objectFit: 'contain' }} onError={() => setImgErrors(prev => ({...prev, [make]: true}))} />
                         ) : (
                           <span style={{ fontSize: '18px' }}>🚗</span>
                         )}
@@ -506,10 +392,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                           return (
                             <li key={model} style={{ marginBottom: '6px' }}>
-                              <div  
-                                onClick={() => toggleNode(modelKey, undefined, model)}
-                                style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '14px', padding: '8px 12px' }}
-                              >
+                              <div onClick={() => toggleNode(modelKey, undefined, model)} style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '14px', padding: '8px 12px' }}>
                                 <span>📂 {modelName}</span>
                                 <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                               </div>
@@ -522,10 +405,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                     return (
                                       <li key={year} style={{ marginBottom: '6px' }}>
-                                        <div  
-                                          onClick={() => toggleNode(yearKey, undefined, undefined, year)}
-                                          style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '13.5px', color: '#2b6cb0', padding: '7px 12px' }}
-                                        >
+                                        <div onClick={() => toggleNode(yearKey, undefined, undefined, year)} style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '13.5px', color: '#2b6cb0', padding: '7px 12px' }}>
                                           <span>📅 {year}</span>
                                           <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                         </div>
@@ -548,135 +428,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                               return (
                                                 <li key={category} style={{ marginBottom: '6px' }}>
-                                                  <div  
-                                                    onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, category)}
-                                                    style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}
-                                                  >
+                                                  <div onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, category)} style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}>
                                                     <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', color: '#3182ce' }}>({filteredParts.length} قطع)</span></span>
                                                     <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                   </div>
 
                                                   {isCategoryOpen && (
-                                                    <div style={{  
-                                                      padding: '16px',  
-                                                      backgroundColor: '#fffaf0',  
-                                                      borderRadius: '14px',  
-                                                      border: '1px solid #feebc8',
-                                                      marginTop: '8px',
-                                                      marginBottom: '12px',
-                                                      display: 'grid',
-                                                      gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-                                                      gap: '15px',
-                                                      [isRtl ? 'marginRight' : 'marginLeft']: '10px'
-                                                    }}>
-                                                      {filteredParts.map(part => {
-                                                        const partNo = part.part_number || part.code || part.sku || part.id;
-                                                        const qty = getQty(part.id);
-
-                                                        return (
-                                                          <div 
-                                                            key={part.id} 
-                                                            style={{ 
-                                                              backgroundColor: 'white', 
-                                                              padding: '14px', 
-                                                              borderRadius: '12px', 
-                                                              border: '1px solid #e2e8f0', 
-                                                              display: 'flex', 
-                                                              flexDirection: 'column',
-                                                              justifyContent: 'space-between', 
-                                                              gap: '12px',
-                                                              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-                                                            }}
-                                                          >
-                                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                                                              <img 
-                                                                src={part.image_url || 'https://via.placeholder.com/80'} 
-                                                                alt={part.name} 
-                                                                style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #edf2f7' }} 
-                                                              />
-                                                              <div style={{ flex: 1 }}>
-                                                                <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
-                                                                
-                                                                <div 
-                                                                  onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setFitmentModalPart(part);
-                                                                  }}
-                                                                  style={{ 
-                                                                    fontSize: '11.5px', 
-                                                                    color: '#2b6cb0', 
-                                                                    backgroundColor: '#ebf8ff', 
-                                                                    padding: '3px 8px', 
-                                                                    borderRadius: '6px', 
-                                                                    width: 'fit-content', 
-                                                                    marginBottom: '6px', 
-                                                                    fontWeight: 'bold',
-                                                                    cursor: 'pointer',
-                                                                    border: '1px solid #bee3f8',
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '4px'
-                                                                  }}
-                                                                  title={lang === 'ar' ? 'اضغط لعرض كافة السيارات المتوافقة' : 'Click to view matching vehicles'}
-                                                                >
-                                                                  🔍 Part #: {partNo}
-                                                                </div>
-
-                                                                <div>
-                                                                  <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16px' }}>{part.price} QAR</span>
-                                                                </div>
-                                                              </div>
-                                                            </div>
-
-                                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
-                                                              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-                                                                <button 
-                                                                  onClick={(e) => { e.stopPropagation(); changeQty(part.id, -1); }}
-                                                                  style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
-                                                                >
-                                                                  -
-                                                                </button>
-                                                                <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', color: '#2d3748' }}>
-                                                                  {qty}
-                                                                </span>
-                                                                <button 
-                                                                  onClick={(e) => { e.stopPropagation(); changeQty(part.id, 1); }}
-                                                                  style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
-                                                                >
-                                                                  +
-                                                                </button>
-                                                              </div>
-
-                                                              {addToCart && (
-                                                                <button 
-                                                                  onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    addToCart(part, qty);
-                                                                  }}
-                                                                  style={{ 
-                                                                    flex: 1,
-                                                                    backgroundColor: '#38a169', 
-                                                                    color: 'white', 
-                                                                    border: 'none', 
-                                                                    borderRadius: '8px', 
-                                                                    padding: '8px 12px', 
-                                                                    fontSize: '13px', 
-                                                                    fontWeight: 'bold', 
-                                                                    cursor: 'pointer', 
-                                                                    display: 'flex',
-                                                                    justifyContent: 'center',
-                                                                    alignItems: 'center',
-                                                                    gap: '6px'
-                                                                  }}
-                                                                >
-                                                                  🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
-                                                                </button>
-                                                              )}
-                                                            </div>
-
-                                                          </div>
-                                                        );
-                                                      })}
+                                                    <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px', [isRtl ? 'marginRight' : 'marginLeft']: '10px' }}>
+                                                      {filteredParts.map(part => renderPartCard(part))}
                                                     </div>
                                                   )}
 
@@ -704,247 +463,58 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
       </div>
 
-      {/* 🔥 نافذة إرسال طلب قطعة غيار داخل البرنامج */}
+      {/* نافذة طلب قطعة غير متوفرة */}
       {showRequestModal && (
-        <div 
-          onClick={() => setShowRequestModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '18px',
-              padding: '24px',
-              maxWidth: '460px',
-              width: '100%',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
-              direction: isRtl ? 'rtl' : 'ltr'
-            }}
-          >
+        <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '460px', width: '100%', direction: isRtl ? 'rtl' : 'ltr' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>
-                📩 {lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}
-              </h3>
-              <button 
-                onClick={() => setShowRequestModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}
-              >
-                ✖
-              </button>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>📩 {lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Request Part'}</h3>
+              <button onClick={() => setShowRequestModal(false)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}>✖</button>
             </div>
 
             {reqSubmitted ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <span style={{ fontSize: '50px', display: 'block', marginBottom: '10px' }}>✅</span>
-                <h4 style={{ margin: '0 0 8px 0', color: '#2f855a', fontSize: '17px' }}>
-                  {lang === 'ar' ? 'تم إرسال طلبك بنجاح!' : 'Request Sent Successfully!'}
-                </h4>
-                <p style={{ color: '#4a5568', fontSize: '13.5px', marginBottom: '20px' }}>
-                  {lang === 'ar' ? 'تم تسجيل طلبك في النظام، وستصلك العروض والإشعارات فور توفر القطعة لدى الكراجات.' : 'Your request is logged in the system.'}
-                </p>
-                <button
-                  onClick={() => setShowRequestModal(false)}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    backgroundColor: '#3182ce',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {lang === 'ar' ? 'حسناً، تم' : 'OK'}
+                <h4 style={{ margin: '0 0 8px 0', color: '#2f855a' }}>{lang === 'ar' ? 'تم إرسال طلبك بنجاح!' : 'Request Sent!'}</h4>
+                <button onClick={() => setShowRequestModal(false)} style={{ width: '100%', padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {lang === 'ar' ? 'تم' : 'OK'}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleInAppRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ backgroundColor: '#ebf8ff', padding: '12px', borderRadius: '10px', border: '1px solid #bee3f8', fontSize: '13.5px', color: '#2b6cb0' }}>
+                <div style={{ backgroundColor: '#ebf8ff', padding: '12px', borderRadius: '10px', fontSize: '13.5px', color: '#2b6cb0' }}>
                   <strong>{lang === 'ar' ? 'القطعة المطلوبة:' : 'Requested Part:'}</strong> {activeSearchQuery}
                 </div>
-
-                <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#2d3748' }}>
-                    {lang === 'ar' ? 'رقم الهاتف للتواصل:' : 'Phone Number:'}
-                  </label>
-                  <input 
-                    type="tel" 
-                    placeholder="e.g. 55555555"
-                    value={custPhone}
-                    onChange={(e) => setCustPhone(e.target.value)}
-                    style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', outline: 'none' }}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#2d3748' }}>
-                    {lang === 'ar' ? 'تفاصيل إضافية (الموديل، السنة، الملاحظات):' : 'Additional details:'}
-                  </label>
-                  <textarea 
-                    placeholder={lang === 'ar' ? 'اكتب أي ملاحظات تساعد في إيجاد القطعة المناسبة...' : 'Write any extra notes...'}
-                    value={custNotes}
-                    onChange={(e) => setCustNotes(e.target.value)}
-                    rows={3}
-                    style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingReq}
-                  style={{
-                    width: '100%',
-                    padding: '13px',
-                    backgroundColor: '#38a169',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontWeight: 'bold',
-                    fontSize: '15px',
-                    cursor: 'pointer',
-                    opacity: isSubmittingReq ? 0.7 : 1,
-                    marginTop: '6px'
-                  }}
-                >
-                  {isSubmittingReq ? (lang === 'ar' ? 'جاري الإرسال...' : 'Sending...') : (lang === 'ar' ? 'إرسال الطلب الآن 🚀' : 'Submit Request 🚀')}
+                <input type="tel" placeholder="رقم الهاتف" value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
+                <textarea placeholder="ملاحظات إضافية..." value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+                <button type="submit" disabled={isSubmittingReq} style={{ width: '100%', padding: '13px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {isSubmittingReq ? 'جاري الإرسال...' : 'إرسال الطلب الآن 🚀'}
                 </button>
               </form>
             )}
-
           </div>
         </div>
       )}
 
-      {/* نافذة عرض السيارات المتوافقة */}
+      {/* نافذة التوافق */}
       {fitmentModalPart && (
-        <div 
-          onClick={() => setFitmentModalPart(null)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '18px',
-              padding: '24px',
-              maxWidth: '520px',
-              width: '100%',
-              maxHeight: '80vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
-              direction: isRtl ? 'rtl' : 'ltr'
-            }}
-          >
+        <div onClick={() => setFitmentModalPart(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '80vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>
-                  🚘 {lang === 'ar' ? 'دليل توافق القطعة مع السيارات' : 'Vehicle Fitment Guide'}
-                </h3>
-                <div style={{ fontSize: '13px', color: '#4a5568', marginTop: '4px' }}>
-                  {fitmentModalPart.name} | <strong style={{ color: '#2b6cb0' }}>Part #: {fitmentModalPart.part_number || fitmentModalPart.id}</strong>
-                </div>
-              </div>
-              <button 
-                onClick={() => setFitmentModalPart(null)}
-                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}
-              >
-                ✖
-              </button>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>🚘 {lang === 'ar' ? 'دليل توافق القطعة' : 'Fitment Guide'}</h3>
+              <button onClick={() => setFitmentModalPart(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}>✖</button>
             </div>
-
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f7fafc', padding: '12px', borderRadius: '10px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
-              <img 
-                src={fitmentModalPart.image_url || 'https://via.placeholder.com/60'} 
-                alt={fitmentModalPart.name} 
-                style={{ width: '55px', height: '55px', objectFit: 'cover', borderRadius: '8px' }} 
-              />
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#2d3748' }}>{fitmentModalPart.name}</div>
-                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#dd6b20' }}>{fitmentModalPart.price} QAR</div>
-              </div>
-            </div>
-
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#2d3748' }}>
-              {lang === 'ar' ? 'هذه القطعة تركب وتتوافق مع السيارات التالية:' : 'This part fits the following vehicles:'}
-            </h4>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {compatibleVehicles.length > 0 ? (
-                compatibleVehicles.map((v, idx) => (
-                  <div 
-                    key={idx} 
-                    style={{
-                      padding: '10px 14px',
-                      backgroundColor: '#fff',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e0',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      fontSize: '13.5px'
-                    }}
-                  >
-                    <div>
-                      <strong style={{ color: '#1a365d' }}>{v.make} - {v.model || 'عام'}</strong>
-                      {v.engine && <span style={{ fontSize: '12px', color: '#718096', display: 'block', marginTop: '2px' }}>⚡ {v.engine}</span>}
-                    </div>
-                    <span style={{ backgroundColor: '#ebf8ff', color: '#2b6cb0', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold', fontSize: '12.5px' }}>
-                      📅 {v.year}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}>
-                  <strong>{fitmentModalPart.make} - {fitmentModalPart.model || 'عام'}</strong> (📅 {fitmentModalPart.year})
+              {compatibleVehicles.map((v, idx) => (
+                <div key={idx} style={{ padding: '10px 14px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong>{v.make} - {v.model || 'عام'}</strong>
+                  <span style={{ backgroundColor: '#ebf8ff', color: '#2b6cb0', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold' }}>📅 {v.year}</span>
                 </div>
-              )}
+              ))}
             </div>
-
-            <button 
-              onClick={() => setFitmentModalPart(null)}
-              style={{
-                width: '100%',
-                marginTop: '20px',
-                padding: '12px',
-                backgroundColor: '#3182ce',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              {lang === 'ar' ? 'إغلاق النافذة' : 'Close'}
+            <button onClick={() => setFitmentModalPart(null)} style={{ width: '100%', marginTop: '20px', padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+              {lang === 'ar' ? 'إغلاق' : 'Close'}
             </button>
-
           </div>
         </div>
       )}
