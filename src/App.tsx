@@ -6,6 +6,8 @@ import { AuthModal } from './components/AuthModal';
 import { GarageDashboard } from './components/GarageDashboard';
 import { SidebarFilters } from './components/SidebarFilters';
 import { PartCard } from './components/PartCard';
+// 🔥 تم استدعاء صفحة العميل هنا
+import { CustomerProfile } from './components/CustomerProfile';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -177,6 +179,7 @@ export default function App() {
         showToast(lang === 'ar' ? 'تم إرسال طلبك للكراجات بنجاح! سيتم التواصل معك قريباً 🚀' : 'Order sent successfully! We will contact you soon 🚀', 'success');
         setCartItems([]);
         setIsCartOpen(false);
+        setView('profile'); // توجيه العميل لصفحة حسابي بعد إتمام الطلب ليتابع حالته
       } else {
         const err = await response.json();
         alert(`خطأ: ${err.message || err.details}`);
@@ -263,13 +266,16 @@ export default function App() {
 
           {view === 'dashboard' && session?.role === 'garage' && <GarageDashboard lang={lang} carData={CAR_DATA} years={YEARS} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} onSuccess={() => { fetchParts(); setView('shop'); }} />}
 
-          {view === 'profile' && (
+          {/* 🔥 عرض صفحة طلبات العميل هنا */}
+          {view === 'profile' && session && session.role !== 'garage' && (
+            <CustomerProfile lang={lang} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} />
+          )}
+
+          {/* 🔥 عرض إعدادات الكراج (تمهيد للخطوة القادمة) */}
+          {view === 'profile' && session && session.role === 'garage' && (
             <div className="mw-state-card" style={styles.stateCard}>
-              <span style={styles.stateIcon}>🏗️</span>
-              <h3 style={styles.stateTitle}>{lang === 'ar' ? 'صفحة الملف الشخصي (قريباً)' : 'Profile Page (Coming Soon)'}</h3>
-              <p style={styles.stateBody}>
-                {lang === 'ar' ? 'جاري تجهيز لوحة تحكم الملف الشخصي لتعديل بياناتك (الاسم، الموقع، ورقم الواتساب)... سيتم إضافتها في المرحلة القادمة!' : 'Profile dashboard for editing details (Name, Location, WhatsApp) is being prepared... Coming in the next step!'}
-              </p>
+              <span style={styles.stateIcon}>⚙️</span>
+              <h3 style={styles.stateTitle}>{lang === 'ar' ? 'إعدادات الكراج (قريباً)' : 'Garage Settings (Coming Soon)'}</h3>
             </div>
           )}
 
