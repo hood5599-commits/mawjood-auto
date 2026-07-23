@@ -23,7 +23,7 @@ interface SidebarProps {
   setFilterCategory: (cat: string) => void;
   filterEngine?: string;
   setFilterEngine?: (engine: string) => void;
-  addToCart?: (item: any) => void;
+  addToCart?: (item: any, quantity: number) => void;
 }
 
 const CATEGORY_TRANSLATION: Record<string, string> = {
@@ -71,6 +71,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+  
+  // حالة الذاكرة للكمية لكل قطعة برقم تعريفها (id)
+  const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
+
+  const getQty = (id: number) => partQuantities[id] || 1;
+  const changeQty = (id: number, delta: number) => {
+    const current = getQty(id);
+    const newQty = Math.max(1, current + delta);
+    setPartQuantities(prev => ({ ...prev, [id]: newQty }));
+  };
 
   const toggleNode = (nodeKey: string, make?: string, model?: string, year?: string, category?: string) => {
     const willBeOpen = !expandedNodes[nodeKey];
@@ -126,14 +136,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           alignItems: 'center',
           gap: '10px'
         }}>
-          📋 {lang === 'ar' ? 'كتالوج قطع الغيار التفاعلي (RockAuto Style)' : 'Interactive Parts Catalog'}
+          📋 {lang === 'ar' ? 'كتالوج قطع الغيار التفاعلي' : 'Interactive Parts Catalog'}
         </h3>
 
-        {/* مربع البحث العلوي الشامل */}
+        {/* مربع البحث */}
         <div style={{ marginBottom: '20px' }}>
           <input
             type="text"
-            placeholder={lang === 'ar' ? 'ابحث برقم القطعة أو الاسم مباشرة...' : 'Search by part number or name...'}
+            placeholder={lang === 'ar' ? 'ابحث برقم القطعة (Part Number) أو الاسم...' : 'Search by Part Number or Name...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -237,7 +247,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                               </div>
 
-                                              {/* 🔥 عرض القطع مباشرة داخل الشجرة بشكل شبكي واسع يملأ عرض الشاشة (Grid View) */}
+                                              {/* عرض القطع + رقم القطعة + التحكم بالكمية + زر السلة */}
                                               {isCategoryOpen && (
                                                 <div style={{  
                                                   padding: '16px',  
@@ -247,65 +257,100 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                   marginTop: '8px',
                                                   marginBottom: '12px',
                                                   display: 'grid',
-                                                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', // 👈 يتكيف مع العرض
+                                                  gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
                                                   gap: '15px',
                                                   [isRtl ? 'marginRight' : 'marginLeft']: '10px'
                                                 }}>
-                                                  {filteredParts.map(part => (
-                                                    <div 
-                                                      key={part.id} 
-                                                      style={{ 
-                                                        backgroundColor: 'white', 
-                                                        padding: '14px', 
-                                                        borderRadius: '12px', 
-                                                        border: '1px solid #e2e8f0', 
-                                                        display: 'flex', 
-                                                        flexDirection: 'column',
-                                                        justifyContent: 'space-between', 
-                                                        gap: '12px',
-                                                        boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-                                                      }}
-                                                    >
-                                                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                        <img 
-                                                          src={part.image_url || 'https://via.placeholder.com/80'} 
-                                                          alt={part.name} 
-                                                          style={{ width: '65px', height: '65px', objectFit: 'cover', borderRadius: '8px' }} 
-                                                        />
-                                                        <div style={{ flex: 1 }}>
-                                                          <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
-                                                          <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '15px' }}>{part.price} QAR</span>
+                                                  {filteredParts.map(part => {
+                                                    const partNo = part.part_number || part.code || part.sku || part.id;
+                                                    const qty = getQty(part.id);
+
+                                                    return (
+                                                      <div 
+                                                        key={part.id} 
+                                                        style={{ 
+                                                          backgroundColor: 'white', 
+                                                          padding: '14px', 
+                                                          borderRadius: '12px', 
+                                                          border: '1px solid #e2e8f0', 
+                                                          display: 'flex', 
+                                                          flexDirection: 'column',
+                                                          justifyContent: 'space-between', 
+                                                          gap: '12px',
+                                                          boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                                                        }}
+                                                      >
+                                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                                                          <img 
+                                                            src={part.image_url || 'https://via.placeholder.com/80'} 
+                                                            alt={part.name} 
+                                                            style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #edf2f7' }} 
+                                                          />
+                                                          <div style={{ flex: 1 }}>
+                                                            <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
+                                                            
+                                                            {/* 🔥 عرض رقم القطعة (Part Number / OEM) */}
+                                                            <div style={{ fontSize: '11.5px', color: '#4a5568', backgroundColor: '#edf2f7', padding: '2px 6px', borderRadius: '4px', width: 'fit-content', marginBottom: '6px', fontWeight: '600' }}>
+                                                              Part #: {partNo}
+                                                            </div>
+
+                                                            <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16px' }}>{part.price} QAR</span>
+                                                          </div>
+                                                        </div>
+
+                                                        {/* 🔥 أزرار التحكم بالكمية (+ و -) مع زر إضافة للسلة */}
+                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
+                                                          
+                                                          {/* عداد الكمية */}
+                                                          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+                                                            <button 
+                                                              onClick={(e) => { e.stopPropagation(); changeQty(part.id, -1); }}
+                                                              style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
+                                                            >
+                                                              -
+                                                            </button>
+                                                            <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', color: '#2d3748' }}>
+                                                              {qty}
+                                                            </span>
+                                                            <button 
+                                                              onClick={(e) => { e.stopPropagation(); changeQty(part.id, 1); }}
+                                                              style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', color: '#2d3748', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
+                                                            >
+                                                              +
+                                                            </button>
+                                                          </div>
+
+                                                          {/* زر أضف للسلة */}
+                                                          {addToCart && (
+                                                            <button 
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                addToCart(part, qty);
+                                                              }}
+                                                              style={{ 
+                                                                flex: 1,
+                                                                backgroundColor: '#38a169', 
+                                                                color: 'white', 
+                                                                border: 'none', 
+                                                                borderRadius: '8px', 
+                                                                padding: '8px 12px', 
+                                                                fontSize: '13px', 
+                                                                fontWeight: 'bold', 
+                                                                cursor: 'pointer', 
+                                                                display: 'flex',
+                                                                justifyContent: 'center',
+                                                                alignItems: 'center',
+                                                                gap: '6px'
+                                                              }}
+                                                            >
+                                                              🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
+                                                            </button>
+                                                          )}
+
                                                         </div>
                                                       </div>
-
-                                                      {addToCart && (
-                                                        <button 
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            addToCart(part);
-                                                          }}
-                                                          style={{ 
-                                                            width: '100%',
-                                                            backgroundColor: '#38a169', 
-                                                            color: 'white', 
-                                                            border: 'none', 
-                                                            borderRadius: '8px', 
-                                                            padding: '8px 12px', 
-                                                            fontSize: '12.5px', 
-                                                            fontWeight: 'bold', 
-                                                            cursor: 'pointer', 
-                                                            textAlign: 'center',
-                                                            display: 'flex',
-                                                            justifyContent: 'center',
-                                                            alignItems: 'center',
-                                                            gap: '6px'
-                                                          }}
-                                                        >
-                                                          🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
-                                                        </button>
-                                                      )}
-                                                    </div>
-                                                  ))}
+                                                    );
+                                                  })}
                                                 </div>
                                               )}
 
