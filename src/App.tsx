@@ -152,6 +152,11 @@ export default function App() {
   };
 
   const filteredParts = inventory.filter(item => {
+    // شرط إضافي: عدم إظهار القطع إلا إذا تم اختيار الموديل أو استخدام البحث النصي
+    if (!searchTerm && !filterModel) {
+      return false;
+    }
+
     const matchesSearchText = !searchTerm || (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) || (item.make && item.make.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesMake = !filterMake || item.make === filterMake;
     const matchesModel = !filterModel || (item.model && item.model === filterModel);
