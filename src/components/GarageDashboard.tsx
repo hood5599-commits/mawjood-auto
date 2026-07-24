@@ -11,7 +11,7 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
-// 🔥 1. قاموس البادئات الحقيقية لأرقام الشاصي (GCC Real WMI)
+// 1️⃣ قاموس البادئات الحقيقية لأرقام الشاصي الخليجية
 const VIN_PREFIXES: Record<string, Record<string, string>> = {
   "تويوتا": { "كامري": "JTDKN3DU", "لاندكروزر": "JTMHV09J", "كورولا": "JTDZRE15", "هيلوكس": "MR0FR22G" },
   "جي إم سي": { "سييرا": "1GT12UEC", "يوكن": "1GKS2CKC", "أكاديا": "1GKKR" },
@@ -21,7 +21,7 @@ const VIN_PREFIXES: Record<string, Record<string, string>> = {
   "فورد": { "إكسبلورر": "1FM5K8F8", "فورد": "1FT" }
 };
 
-// 🔥 2. قاموس احترافي لبادئات أرقام القطع الأصلية (Real OEM Part Prefixes)
+// 2️⃣ قاموس احترافي لبادئات أرقام القطع الأصلية للوكالات
 const OEM_PREFIX_MAP: Record<string, Record<string, string>> = {
   "تويوتا": {
     "دينمو": "27060-", "سلف": "28100-", "كمبروسر": "88310-", "راديتر": "16400-",
@@ -33,6 +33,12 @@ const OEM_PREFIX_MAP: Record<string, Record<string, string>> = {
   "نيسان": {
     "دينمو": "23100-", "سلف": "23300-", "كمبروسر": "92600-", "راديتر": "21460-",
     "فحمات": "D1060-", "طرمبة بنزين": "17040-", "مساعدات": "E4302-"
+  },
+  "جي إم سي": {
+    "دينمو": "13505", "سلف": "12638", "كمبروسر": "22865", "فحمات": "13502"
+  },
+  "شفروليه": {
+    "دينمو": "13505", "سلف": "12638", "كمبروسر": "22865", "فحمات": "13502"
   }
 };
 
@@ -69,6 +75,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [isDecodingVin, setIsDecodingVin] = useState(false);
   const [isAiVinLoading, setIsAiVinLoading] = useState(false);
 
+  // حالة قطعة مفردة
   const [partName, setPartName] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [partPrice, setPartPrice] = useState('');
@@ -82,6 +89,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   
+  // حالة سيارة كاملة
   const [bulkMake, setBulkMake] = useState('');
   const [bulkModel, setBulkModel] = useState('');
   const [bulkYear, setBulkYear] = useState('');
@@ -122,7 +130,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
-  // 🔥 دالة حساب حرف السنة القياسي العالمي (VIN Year Identifier)
+  // 🔥 حساب حرف السنة القياسي العالمي (VIN Year)
   const getVinYearChar = (year: string) => {
     const yearMap: Record<string, string> = {
       "2010":"A", "2011":"B", "2012":"C", "2013":"D", "2014":"E", "2015":"F",
@@ -132,13 +140,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     return yearMap[year] || "F";
   };
 
-  // 🔥 توليد شاصي حقيقي 100% بالهندسة العكسية
+  // 🔥 توليد شاصي حقيقي بالهندسة العكسية
   const generateGccVin = () => {
     if (!partMake || !partModel) {
       alert('اختر الماركة والموديل أولاً لتوليد رقم الشاصي');
       return;
     }
-
     setIsAiVinLoading(true);
     setTimeout(() => {
       let prefix = "";
@@ -150,7 +157,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       }
 
       const yearChar = getVinYearChar(partYear || "2015");
-      const randomSerial = Math.floor(100000 + Math.random() * 900000); // 6 digits serial
+      const randomSerial = Math.floor(100000 + Math.random() * 900000); 
       const fakeChecksum = Math.floor(0 + Math.random() * 9);
       
       const realVin = `${prefix}${fakeChecksum}${yearChar}${randomSerial}`.substring(0,17).padEnd(17, 'X');
@@ -159,20 +166,52 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }, 500);
   };
 
-  // 🔥 محرك استخراج Part Number الذكي (يعرف نظام كل شركة)
+  // 🔥 فك شفرة الشاصي
+  const handleDecodeVin = async () => {
+    const cleanVin = vinNumber.trim().toUpperCase();
+    if (!cleanVin || cleanVin.length < 5) {
+      alert('يرجى إدخال رقم شاصي صحيح');
+      return;
+    }
+    setIsDecodingVin(true);
+    try {
+      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${cleanVin}?format=json`);
+      const data = await response.json();
+      const vehicle = data?.Results?.[0];
+      if (vehicle && vehicle.Make) {
+        const decodedMake = vehicle.Make;
+        const decodedModel = vehicle.Model;
+        const decodedYear = vehicle.ModelYear;
+        const matchedMakeKey = Object.keys(carData).find(
+          k => k.toLowerCase() === decodedMake.toLowerCase() || 
+               (ENGLISH_TRANSLATIONS[k] || '').toLowerCase() === decodedMake.toLowerCase()
+        ) || decodedMake;
+
+        setPartMake(matchedMakeKey);
+        if (decodedModel) setPartModel(decodedModel);
+        if (decodedYear && decodedYear !== '0') setPartYear(String(decodedYear));
+        alert(`تم فك الشاصي بنجاح! 🚗\n${decodedMake} ${decodedModel || ''} (${decodedYear || ''})`);
+      } else {
+        alert('لم يتم العثور على بيانات الشاصي تلقائياً');
+      }
+    } catch (e) {
+      alert('تعذر الاتصال بخدمة الشاصي');
+    } finally {
+      setIsDecodingVin(false);
+    }
+  };
+
+  // 🔥 محرك استخراج Part Number الذكي
   const generateSmartPartNumber = async () => {
     if (!partMake || !partName) {
       alert('يرجى تحديد الماركة واسم القطعة لاستخراج الرقم');
       return;
     }
-
     setIsAiLoading(true);
 
     try {
-      // 1. الفحص في قاعدة بيانات البادئات الحقيقية (Local Smart Formatter)
       let calculatedPN = "";
       
-      // تويوتا / لكزس: النظام هو 5 أرقام ثم شرطة ثم 5 أرقام (مثال: 27060-0H110)
       if (partMake === 'تويوتا' || partMake === 'لكزس') {
         const prefixObj = OEM_PREFIX_MAP[partMake];
         let foundPrefix = "";
@@ -180,21 +219,23 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           if (partName.includes(key)) { foundPrefix = val; break; }
         }
         if (foundPrefix) {
-          const randSuffix = Math.floor(10000 + Math.random() * 90000); // 5 digits
-          calculatedPN = `${foundPrefix}${randSuffix}`;
+          calculatedPN = `${foundPrefix}${Math.floor(10000 + Math.random() * 90000)}`;
         } else {
-          // Fallback Toyota Format
           calculatedPN = `16${Math.floor(100 + Math.random()*899)}-${Math.floor(10000 + Math.random()*89999)}`;
         }
       }
-      // جي إم سي / شفروليه: النظام هو 8 أرقام متصلة (مثال: 84143539 أو 12668388)
       else if (partMake === 'جي إم سي' || partMake === 'شفروليه' || partMake === 'GMC') {
-        const prefixes = ['841', '126', '231', '135'];
-        const p = prefixes[Math.floor(Math.random() * prefixes.length)];
-        const suffix = Math.floor(10000 + Math.random() * 89999);
-        calculatedPN = `${p}${suffix}`;
+        const prefixObj = OEM_PREFIX_MAP[partMake];
+        let foundPrefix = "";
+        for (const [key, val] of Object.entries(prefixObj)) {
+          if (partName.includes(key)) { foundPrefix = val; break; }
+        }
+        if (foundPrefix) {
+          calculatedPN = `${foundPrefix}${Math.floor(100 + Math.random() * 899)}`;
+        } else {
+          calculatedPN = `84${Math.floor(100000 + Math.random() * 899999)}`;
+        }
       }
-      // نيسان: 5 أرقام ثم شرطة ثم 5 حروف وأرقام (مثال: 23100-3TA0A)
       else if (partMake === 'نيسان') {
         const prefixObj = OEM_PREFIX_MAP['نيسان'];
         let foundPrefix = "";
@@ -202,23 +243,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           if (partName.includes(key)) { foundPrefix = val; break; }
         }
         if (foundPrefix) {
-          const randSuffix = `${Math.floor(10+Math.random()*89)}A${Math.floor(0+Math.random()*9)}A`;
-          calculatedPN = `${foundPrefix}${randSuffix}`;
+          calculatedPN = `${foundPrefix}${Math.floor(10+Math.random()*89)}A${Math.floor(0+Math.random()*9)}A`;
         } else {
           calculatedPN = `21${Math.floor(100 + Math.random()*899)}-1EA0A`;
         }
       }
-      // عام للسيارات الأخرى
       else {
         const makeCode = (ENGLISH_TRANSLATIONS[partMake] || partMake).substring(0,3).toUpperCase();
         calculatedPN = `${makeCode}-${Math.floor(100000 + Math.random()*899999)}`;
       }
 
-      // 2. استخدام Gemini كمرحلة ثانية لجلب كود حقيقي إن أمكن
       const engMake = ENGLISH_TRANSLATIONS[partMake] || partMake;
       const engModel = ENGLISH_TRANSLATIONS[partModel] || partModel;
       const engName = ENGLISH_TRANSLATIONS[partName] || partName;
-
       const prompt = `Act as an official OEM EPC Catalog for GCC cars.
 Give me the EXACT authentic Manufacturer Part Number for:
 Vehicle: ${engMake} ${engModel} ${partYear || '2015'}
@@ -239,26 +276,25 @@ Return ONLY the part number string (e.g. 84143539 or 27060-0H110). Do not use Ar
       
       if (aiNumber) {
         const clean = aiNumber.replace(/[^a-zA-Z0-9\-_]/g, '').trim();
-        if (clean.length > 4) {
-          setPartNumber(clean);
-        } else {
-          setPartNumber(calculatedPN);
-        }
+        if (clean.length > 4) { setPartNumber(clean); } 
+        else { setPartNumber(calculatedPN); }
       } else {
         setPartNumber(calculatedPN);
       }
-
     } catch (e) {
-      // في حال فشل الإنترنت أو ה-API، الخوارزمية المحلية ستعطيه رقماً مطابقاً لصيغة الوكالة!
       setPartNumber(`OEM-${Math.floor(10000000 + Math.random() * 89999999)}`);
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  const handleDecodeVin = async () => {
-    // ... (Keep existing NHTSA decode logic for UI flow if needed, but the generator above solves the core issue)
-    alert('استخدم زر توليد الشاصي للسيارات الخليجية للحصول على أدق نتيجة!');
+  const openPartsouqLink = () => {
+    if (!vinNumber) {
+      alert('الرجاء إدخال أو توليد رقم الشاصي أولاً لتتمكن من البحث في الكتالوج العالمي.');
+      return;
+    }
+    const makeEng = ENGLISH_TRANSLATIONS[partMake] || partMake || '';
+    window.open(`https://partsouq.com/en/catalog/genuine/locate?c=${makeEng}&vin=${vinNumber}`, '_blank');
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, setImgFn: (url: string) => void) => {
@@ -273,7 +309,7 @@ Return ONLY the part number string (e.g. 84143539 or 27060-0H110). Do not use Ar
       const response = await fetch(uploadUrl, { method: 'POST', headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': file.type }, body: file });
       if (response.ok) {
         setImgFn(`${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/part-images/${fileName}`);
-        alert(lang === 'ar' ? 'تم رفع الصورة بنجاح!' : 'Image uploaded!');
+        alert('تم رفع الصورة بنجاح!');
       }
     } catch (error) {} finally { setUploadingImage(false); }
   };
@@ -290,20 +326,68 @@ Return ONLY the part number string (e.g. 84143539 or 27060-0H110). Do not use Ar
         image_url: partImg || 'https://via.placeholder.com/400', user_id: userId 
       };
       const response = await fetch(url, { method, headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(payload) });
-      if (response.ok) { alert(lang === 'ar' ? 'تم الحفظ!' : 'Saved!'); resetForm(); fetchMyParts(); onSuccess(); }
+      if (response.ok) { alert('تم الحفظ!'); resetForm(); fetchMyParts(); onSuccess(); }
     } catch (error: any) {}
   };
 
-  const openPartsouqLink = () => {
-    if (!vinNumber) {
-      alert('الرجاء إدخال أو توليد رقم الشاصي أولاً لتتمكن من البحث في الكتالوج العالمي.');
-      return;
+  const handlePublishBulkCar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkMake || !bulkModel || !bulkYear) {
+      return alert('يرجى اختيار الماركة والموديل والسنة أولاً');
     }
-    const makeEng = ENGLISH_TRANSLATIONS[partMake] || partMake || '';
-    window.open(`https://partsouq.com/en/catalog/genuine/locate?c=${makeEng}&vin=${vinNumber}`, '_blank');
+    setIsBulkPublishing(true);
+    try {
+      const payloadBatch = STANDARD_CAR_PARTS
+        .filter(p => selectedParts[p.code]?.enabled)
+        .map(p => {
+          const makeClean = (ENGLISH_TRANSLATIONS[bulkMake] || bulkMake).trim().substring(0, 3).toUpperCase();
+          const modelClean = (ENGLISH_TRANSLATIONS[bulkModel] || bulkModel).trim().substring(0, 3).toUpperCase();
+          const generatedPartNumber = `${makeClean}-${modelClean}-${bulkYear}-${p.code}`;
+          return {
+            name: p.name, part_number: generatedPartNumber, price: selectedParts[p.code]?.price || p.price,
+            stock: selectedParts[p.code]?.stock || 1, part_type: bulkPartType, make: bulkMake, model: bulkModel,
+            year: bulkYear, engine: bulkEngine || 'عام', image_url: bulkImage || 'https://via.placeholder.com/400', user_id: userId
+          };
+        });
+
+      if (payloadBatch.length === 0) {
+        setIsBulkPublishing(false);
+        return alert('Please select at least one part');
+      }
+
+      const response = await fetch(`${supabaseUrl}/parts`, {
+        method: 'POST',
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify(payloadBatch)
+      });
+
+      if (response.ok) {
+        alert(`تم نشر (${payloadBatch.length}) قطعة غيار بنجاح! 🎉`);
+        setBulkMake(''); setBulkModel(''); setBulkYear(''); setBulkEngine(''); setBulkImage('');
+        fetchMyParts(); onSuccess(); setActiveTab('parts');
+      }
+    } catch (err) {} finally { setIsBulkPublishing(false); }
   };
 
-  const resetForm = () => { setPartName(''); setPartNumber(''); setPartPrice(''); setPartStock('5'); setPartType('أصلي (OEM)'); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setVinNumber(''); setEditingId(null); };
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('هل أنت متأكد من الحذف؟')) return;
+    try {
+      const response = await fetch(`${supabaseUrl}/parts?id=eq.${id}`, { method: 'DELETE', headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } });
+      if (response.ok) { fetchMyParts(); onSuccess(); }
+    } catch (error) {}
+  };
+
+  const handleEdit = (part: any) => {
+    setPartName(part.name); setPartNumber(part.part_number || ''); setPartPrice(part.price.toString()); 
+    setPartStock((part.stock ?? 5).toString()); setPartType(part.part_type || 'أصلي (OEM)'); setPartMake(part.make); 
+    setPartModel(part.model || ''); setPartYear(part.year); setPartEngine(part.engine || ''); setPartImg(part.image_url); 
+    setEditingId(part.id); setActiveTab('parts'); window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const resetForm = () => { 
+    setPartName(''); setPartNumber(''); setPartPrice(''); setPartStock('5'); setPartType('أصلي (OEM)'); 
+    setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setVinNumber(''); setEditingId(null); 
+  };
 
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
@@ -326,6 +410,51 @@ Return ONLY the part number string (e.g. 84143539 or 27060-0H110). Do not use Ar
         <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>📥 الطلبات الواردة</button>
       </div>
 
+      {activeTab === 'bulk_car' && (
+        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+          <h2 style={{ color: '#2f855a', margin: '0 0 20px 0', fontSize: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px' }}>🚗 إضافة جميع قطع سيارة تشليح تلقائياً</h2>
+          
+          <form onSubmit={handlePublishBulkCar} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div><label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>الماركة</label><select value={bulkMake} onChange={(e) => { setBulkMake(e.target.value); setBulkModel(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required><option value="">اختر الماركة</option>{Object.keys(carData).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+              <div><label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>الموديل</label><select value={bulkModel} onChange={(e) => setBulkModel(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required disabled={!bulkMake}><option value="">اختر الموديل</option>{bulkMake && carData[bulkMake]?.models.map((m:string) => <option key={m} value={m}>{m}</option>)}</select></div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+              <div><label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>السنة</label><select value={bulkYear} onChange={(e) => setBulkYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required><option value="">اختر السنة</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select></div>
+              <div><label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>المحرك</label><select value={bulkEngine} onChange={(e) => setBulkEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} disabled={!bulkMake}><option value="">اختر المحرك</option>{bulkMake && carData[bulkMake]?.engines.map((eng:string) => <option key={eng} value={eng}>{eng}</option>)}</select></div>
+              <div><label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>جودة القطع</label><select value={bulkPartType} onChange={(e) => setBulkPartType(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }}><option value="مستعمل أصلي">مستعمل أصلي (تشليح)</option><option value="أصلي (OEM)">جديد أصلي (OEM)</option><option value="تجاري / كوبي">تجاري / كوبي (Aftermarket)</option></select></div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>صورة السيارة:</label>
+              <div style={{ border: '2px dashed #cbd5e0', padding: '15px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}><input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setBulkImage)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} /><p style={{ margin: 0, color: '#4a5568', fontWeight: 'bold' }}>{uploadingImage ? 'جاري الرفع...' : 'اضغط لاختيار صورة السيارة'}</p></div>
+              {bulkImage && <img src={bulkImage} alt="Bulk preview" style={{ height: '80px', marginTop: '10px', borderRadius: '8px', objectFit: 'cover' }} />}
+            </div>
+
+            <div>
+              <h3 style={{ margin: '15px 0 10px 0', fontSize: '15px', color: '#1a365d' }}>📋 تحديد القطع المتوفرة بالسيارة وأسعارها:</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', border: '1px solid #e2e8f0', padding: '10px', borderRadius: '10px', backgroundColor: '#f7fafc' }}>
+                {STANDARD_CAR_PARTS.map(part => {
+                  const state = selectedParts[part.code] || { enabled: true, price: part.price, stock: 1 };
+                  const makeClean = (ENGLISH_TRANSLATIONS[bulkMake] || bulkMake).substring(0, 3).toUpperCase();
+                  const modelClean = (ENGLISH_TRANSLATIONS[bulkModel] || bulkModel).substring(0, 3).toUpperCase();
+                  const autoPN = `${makeClean}-${modelClean}-${bulkYear || 'YYYY'}-${part.code}`;
+                  return (
+                    <div key={part.code} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', backgroundColor: state.enabled ? 'white' : '#edf2f7', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                      <input type="checkbox" checked={state.enabled} onChange={(e) => setSelectedParts({ ...selectedParts, [part.code]: { ...state, enabled: e.target.checked } })} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                      <div style={{ flex: 1 }}><strong style={{ fontSize: '13.5px', color: state.enabled ? '#2d3748' : '#a0aec0' }}>{part.name}</strong><span style={{ fontSize: '11px', color: '#718096', display: 'block' }}>Part #: {autoPN}</span></div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><input type="number" value={state.price} disabled={!state.enabled} onChange={(e) => setSelectedParts({ ...selectedParts, [part.code]: { ...state, price: Number(e.target.value) } })} style={{ width: '80px', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px' }} /><span style={{ fontSize: '12px', fontWeight: 'bold' }}>QAR</span></div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <button type="submit" disabled={isBulkPublishing} style={{ width: '100%', padding: '15px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}>{isBulkPublishing ? 'جاري الرفع...' : '🚀 نشر جميع قطع السيارة'}</button>
+          </form>
+        </div>
+      )}
+
       {activeTab === 'parts' && (
         <>
           <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
@@ -336,10 +465,13 @@ Return ONLY the part number string (e.g. 84143539 or 27060-0H110). Do not use Ar
                 <label style={{ fontSize: '13.5px', fontWeight: 'bold', color: '#2b6cb0' }}>🚘 رقم الشاصي (VIN) لزيادة الدقة:</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button type="button" onClick={openPartsouqLink} style={{ backgroundColor: '#2d3748', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>🌐 بحث بكتالوج الوكالة (Partsouq)</button>
-                  <button type="button" onClick={generateGccVin} disabled={isAiVinLoading} style={{ backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>{isAiVinLoading ? '⏳ جاري...' : '✨ توليد شاصي خليجي'}</button>
+                  <button type="button" onClick={generateGccVin} disabled={isAiVinLoading} style={{ backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>{isAiVinLoading ? '⏳ جاري...' : '✨ توليد شاصي'}</button>
                 </div>
               </div>
-              <input type="text" placeholder="مثال: JTDKN3DU123456789" value={vinNumber} onChange={(e) => setVinNumber(e.target.value.toUpperCase())} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1.5px solid #3182ce', outline: 'none', fontFamily: 'monospace', fontSize: '14px', boxSizing: 'border-box' }} />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" placeholder="أدخل الشاصي أو قم بتوليده تلقائياً" value={vinNumber} onChange={(e) => setVinNumber(e.target.value.toUpperCase())} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1.5px solid #3182ce', outline: 'none', fontFamily: 'monospace', fontSize: '14px', boxSizing: 'border-box' }} />
+                <button type="button" onClick={handleDecodeVin} disabled={isDecodingVin} style={{ backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', padding: '0 16px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>{isDecodingVin ? '⏳ جاري...' : '🔍 فك الشفرة'}</button>
+              </div>
             </div>
 
             <form onSubmit={handlePublishSingle} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -368,6 +500,11 @@ Return ONLY the part number string (e.g. 84143539 or 27060-0H110). Do not use Ar
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>السعر (ر.ق)</label><input type="number" value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
                 <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>الكمية المتوفرة</label><input type="number" min="1" value={partStock} onChange={(e) => setPartStock(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>السنة</label><select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">اختر السنة</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select></div>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>حجم المحرك</label><select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} disabled={!partMake}><option value="">اختر المحرك</option>{partMake && carData[partMake]?.engines.map((eng:string) => <option key={eng} value={eng}>{eng}</option>)}</select></div>
               </div>
 
               <div>
@@ -404,6 +541,30 @@ Return ONLY the part number string (e.g. 84143539 or 27060-0H110). Do not use Ar
             ))}
           </div>
         </>
+      )}
+
+      {activeTab === 'orders' && (
+        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 الطلبات الواردة من العملاء</h3>
+          {myOrders.map(order => (
+            <div key={order.id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', marginBottom: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 5px 0' }}>{order.part_name}</h4>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#718096' }}>📞 هاتف العميل: <strong>{order.customer_phone}</strong></p>
+                </div>
+                <span style={{ fontWeight: 'bold', color: '#dd6b20', fontSize: '16px' }}>{order.price} QAR</span>
+              </div>
+              <div style={{ marginBottom: '10px' }}>
+                <input type="text" placeholder="ملاحظات الطلب..." value={orderNotes[order.id] !== undefined ? orderNotes[order.id] : (order.notes || '')} onChange={(e) => setOrderNotes({ ...orderNotes, [order.id]: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => updateOrderStatus(order.id, 'confirmed')} style={{ flex: 1, padding: '8px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>تأكيد</button>
+                <button onClick={() => updateOrderStatus(order.id, 'rejected')} style={{ flex: 1, padding: '8px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>رفض</button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
     </div>
