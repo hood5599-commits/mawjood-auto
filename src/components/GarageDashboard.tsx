@@ -11,7 +11,6 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
-// قاموس سريع لتحويل الماركات والأسماء العربية الشائعة للإنجليزية عند طلب الذكاء الاصطناعي
 const ENGLISH_TRANSLATIONS: Record<string, string> = {
   "تويوتا": "Toyota", "هيونداي": "Hyundai", "نيسان": "Nissan", "فورد": "Ford",
   "شفروليه": "Chevrolet", "كيا": "Kia", "هوندا": "Honda", "لكزس": "Lexus",
@@ -44,6 +43,10 @@ const STANDARD_CAR_PARTS = [
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'parts' | 'orders' | 'bulk_car'>('parts');
+
+  // 🔥 رقم الشاصي (VIN)
+  const [vinNumber, setVinNumber] = useState('');
+  const [isDecodingVin, setIsDecodingVin] = useState(false);
 
   // إضافة قطعة واحدة
   const [partName, setPartName] = useState('');
@@ -103,7 +106,48 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 دالة الذكاء الاصطناعي المحدثة 100% (تضمن نصوصاً وحروفاً إنجليزية فقط برقم القطعة)
+  // 🔥 1. دالة فك شفرة رقم الشاصي (VIN Decoder) عبر API السيارات العالمي المجاني
+  const handleDecodeVin = async () => {
+    const cleanVin = vinNumber.trim().toUpperCase();
+    if (!cleanVin || cleanVin.length !== 17) {
+      alert(lang === 'ar' ? 'يرجى إدخال رقم شاصي صحيح مكون من 17 حرف ورقم' : 'Please enter a valid 17-digit VIN');
+      return;
+    }
+
+    setIsDecodingVin(true);
+    try {
+      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${cleanVin}?format=json`);
+      const data = await response.json();
+      const vehicle = data?.Results?.[0];
+
+      if (vehicle) {
+        const decodedMake = vehicle.Make;
+        const decodedModel = vehicle.Model;
+        const decodedYear = vehicle.ModelYear;
+        const decodedDisplacement = vehicle.DisplacementL ? `${vehicle.DisplacementL}L` : '';
+
+        // تطابق الماركة مع القائمة لدينا
+        const matchedMakeKey = Object.keys(carData).find(
+          k => (ENGLISH_TRANSLATIONS[k] || k).toLowerCase() === (decodedMake || '').toLowerCase()
+        ) || decodedMake;
+
+        if (matchedMakeKey) setPartMake(matchedMakeKey);
+        if (decodedModel) setPartModel(decodedModel);
+        if (decodedYear) setPartYear(String(decodedYear));
+        if (decodedDisplacement) setPartEngine(decodedDisplacement);
+
+        alert(lang === 'ar' ? `تم التعرف على السيارة بنجاح! 🚗\n${decodedMake} ${decodedModel} (${decodedYear})` : `Vehicle decoded: ${decodedMake} ${decodedModel} (${decodedYear})`);
+      } else {
+        alert(lang === 'ar' ? 'تعذر التعرف على بيانات رقم الشاصي' : 'Could not decode VIN');
+      }
+    } catch (e) {
+      alert(lang === 'ar' ? 'خطأ في الاتصال بخدمة فك الشاصي' : 'Error connecting to VIN Service');
+    } finally {
+      setIsDecodingVin(false);
+    }
+  };
+
+  // 🔥 2. دالة الذكاء الاصطناعي مع إضافة رقم الشاصي والمواصفات الدقيقة
   const fetchAiPartNumber = async () => {
     if (!partMake || !partModel || !partName) {
       alert(lang === 'ar' ? 'يرجى اختيار الماركة، الموديل، وكتابة اسم القطعة أولاً' : 'Please select Make, Model, and Part Name first');
@@ -112,27 +156,27 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
     setIsAiLoading(true);
 
-    // تحويل الكلمات إلى إنجليزي ليكون الاستعلام دقيقاً
     const engMake = ENGLISH_TRANSLATIONS[partMake] || partMake;
     const engModel = ENGLISH_TRANSLATIONS[partModel] || partModel;
     const engName = ENGLISH_TRANSLATIONS[partName] || partName;
 
-    // تجهيز رمز إنجليزي احتياطي احترافي (مثال: TOY-CAM-85412)
-    const cleanMakeCode = (ENGLISH_TRANSLATIONS[partMake] || "CAR").substring(0, 3).toUpperCase();
-    const cleanModelCode = (ENGLISH_TRANSLATIONS[partModel] || "MOD").substring(0, 3).toUpperCase();
+    const cleanMakeCode = engMake.substring(0, 3).toUpperCase();
+    const cleanModelCode = engModel.substring(0, 3).toUpperCase();
     const fallbackNum = `${cleanMakeCode}-${cleanModelCode}-${Math.floor(10000 + Math.random() * 90000)}`;
 
     try {
-      const prompt = `Search the automotive OEM database for GCC / Middle East cars.
-What is the exact official OEM Part Number code for:
+      const prompt = `Act as an official automotive OEM Parts EPC Catalog for GCC/Middle East specifications.
+Find the exact manufacturer OEM Part Number for:
+- VIN (Chassis #): ${vinNumber || 'N/A'}
 - Make: ${engMake}
 - Model: ${engModel}
-- Year: ${partYear || '2015'}
-- Part: ${engName}
+- Year: ${partYear || 'General'}
+- Engine: ${partEngine || 'General'}
+- Part Name: ${engName}
 
-Rules:
-Return ONLY the alphanumeric part number code (e.g. 27060-0H110 or 13505369). 
-NO Arabic letters. NO spaces or explainations. Pure English numbers and letters.`;
+Output constraint:
+Return ONLY the clean English OEM Part Number code (e.g. 27060-0H110, 13505369, 28100-31090).
+NO Arabic characters. NO explanation. Pure English string.`;
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -147,7 +191,6 @@ NO Arabic letters. NO spaces or explainations. Pure English numbers and letters.
       const aiNumber = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (aiNumber) {
-        // استخراج الإنجليزي والأرقام والشرطات فقط من رد الذكاء الاصطناعي
         const englishOnly = aiNumber.replace(/[^a-zA-Z0-9\-_]/g, '').trim();
         if (englishOnly && englishOnly.length >= 3) {
           setPartNumber(englishOnly);
@@ -286,7 +329,7 @@ NO Arabic letters. NO spaces or explainations. Pure English numbers and letters.
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const resetForm = () => { setPartName(''); setPartNumber(''); setPartPrice(''); setPartStock('5'); setPartType('أصلي (OEM)'); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setEditingId(null); };
+  const resetForm = () => { setPartName(''); setPartNumber(''); setPartPrice(''); setPartStock('5'); setPartType('أصلي (OEM)'); setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setVinNumber(''); setEditingId(null); };
 
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
@@ -421,6 +464,34 @@ NO Arabic letters. NO spaces or explainations. Pure English numbers and letters.
         <>
           <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
             <h2 style={{ color: '#1a365d', margin: '0 0 20px 0' }}>{editingId ? '✏️ تعديل إعلان' : '➕ إضافة قطعة مفردة'}</h2>
+            
+            {/* 🔥 حقل رقم الشاصي (VIN Decoder) مع إمكانية استخراج المواصفات أوتوماتيكياً */}
+            <div style={{ backgroundColor: '#ebf8ff', padding: '16px', borderRadius: '12px', border: '1px solid #bee3f8', marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold', color: '#2b6cb0' }}>
+                🚘 أدخل رقم الشاصي (VIN - 17 حرف ورقم) لتحديد بيانات السيارة تلقائياً:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input 
+                  type="text" 
+                  maxLength={17}
+                  placeholder="مثال: 4T1BF1FK5FU123456" 
+                  value={vinNumber} 
+                  onChange={(e) => setVinNumber(e.target.value.toUpperCase())} 
+                  style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1.5px solid #3182ce', outline: 'none', fontFamily: 'monospace', fontSize: '14px' }} 
+                />
+                <button
+                  type="button"
+                  onClick={handleDecodeVin}
+                  disabled={isDecodingVin}
+                  style={{
+                    backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', padding: '0 16px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap'
+                  }}
+                >
+                  {isDecodingVin ? '⏳ جاري الفك...' : '🔍 فك شفرة الشاصي'}
+                </button>
+              </div>
+            </div>
+
             <form onSubmit={handlePublishSingle} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
@@ -432,7 +503,7 @@ NO Arabic letters. NO spaces or explainations. Pure English numbers and letters.
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>رقم القطعة (Part Number):</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <input type="text" placeholder="مثال: 13505369" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
+                    <input type="text" placeholder="مثال: 27060-0H110" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
                     <button
                       type="button"
                       onClick={fetchAiPartNumber}
@@ -497,7 +568,7 @@ NO Arabic letters. NO spaces or explainations. Pure English numbers and letters.
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].yearLabel}</label><select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectYear}</option>{years.map(year => <option key={year} value={year}>{year}</option>)}</select></div>
-                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].engineLabel}</label><select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}><option value="">{t[lang].selectEngine}</option>{partMake && carData[partMake]?.engines.map((engine: string) => <option key={engine} value={engine}>{engine}</option>)}</select></div>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].engineLabel}</label><select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} disabled={!partMake}><option value="">{t[lang].selectEngine}</option>{partMake && carData[partMake]?.engines.map((engine: string) => <option key={engine} value={engine}>{engine}</option>)}</select></div>
               </div>
               
               <div>
