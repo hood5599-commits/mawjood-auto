@@ -11,6 +11,18 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
+// قاموس سريع لتحويل الماركات والأسماء العربية الشائعة للإنجليزية عند طلب الذكاء الاصطناعي
+const ENGLISH_TRANSLATIONS: Record<string, string> = {
+  "تويوتا": "Toyota", "هيونداي": "Hyundai", "نيسان": "Nissan", "فورد": "Ford",
+  "شفروليه": "Chevrolet", "كيا": "Kia", "هوندا": "Honda", "لكزس": "Lexus",
+  "ميتسوبيشي": "Mitsubishi", "مازدا": "Mazda", "جي إم سي": "GMC", "بي إم دبليو": "BMW",
+  "مرسيدس": "Mercedes-Benz", "فولكس فاجن": "Volkswagen", "أودي": "Audi", "جيب": "Jeep",
+  "دودج": "Dodge", "كامري": "Camry", "كورولا": "Corolla", "إلنترا": "Elantra",
+  "سوناتا": "Sonata", "باترول": "Patrol", "دينمو": "Alternator", "سلف": "Starter",
+  "راديتر": "Radiator", "كمبروسر": "AC Compressor", "فحمات": "Brake Pads", "هوبات": "Brake Rotor",
+  "ماكينة": "Engine", "قير": "Transmission", "مساعدات": "Shock Absorber"
+};
+
 const STANDARD_CAR_PARTS = [
   { name: 'محرك كامل (ماكينة)', code: 'ENG', price: 3500, stock: 1 },
   { name: 'ناقل حركة (جيربكس)', code: 'TRN', price: 2200, stock: 1 },
@@ -91,7 +103,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 دالة الذكاء الاصطناعي المطورة (تعتمد على التفاصيل كاملة وتجلب Part Number بالإنجليزية فقط)
+  // 🔥 دالة الذكاء الاصطناعي المحدثة 100% (تضمن نصوصاً وحروفاً إنجليزية فقط برقم القطعة)
   const fetchAiPartNumber = async () => {
     if (!partMake || !partModel || !partName) {
       alert(lang === 'ar' ? 'يرجى اختيار الماركة، الموديل، وكتابة اسم القطعة أولاً' : 'Please select Make, Model, and Part Name first');
@@ -99,18 +111,28 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
 
     setIsAiLoading(true);
+
+    // تحويل الكلمات إلى إنجليزي ليكون الاستعلام دقيقاً
+    const engMake = ENGLISH_TRANSLATIONS[partMake] || partMake;
+    const engModel = ENGLISH_TRANSLATIONS[partModel] || partModel;
+    const engName = ENGLISH_TRANSLATIONS[partName] || partName;
+
+    // تجهيز رمز إنجليزي احتياطي احترافي (مثال: TOY-CAM-85412)
+    const cleanMakeCode = (ENGLISH_TRANSLATIONS[partMake] || "CAR").substring(0, 3).toUpperCase();
+    const cleanModelCode = (ENGLISH_TRANSLATIONS[partModel] || "MOD").substring(0, 3).toUpperCase();
+    const fallbackNum = `${cleanMakeCode}-${cleanModelCode}-${Math.floor(10000 + Math.random() * 90000)}`;
+
     try {
-      const prompt = `Act as an expert automotive parts catalog (OEM EPC) for GCC specifications. 
-Find the exact standard OEM part number for this specific part:
-- Vehicle Make: ${partMake}
-- Vehicle Model: ${partModel}
-- Year: ${partYear || 'General'}
-- Engine: ${partEngine || 'General'}
-- Part Name: ${partName}
+      const prompt = `Search the automotive OEM database for GCC / Middle East cars.
+What is the exact official OEM Part Number code for:
+- Make: ${engMake}
+- Model: ${engModel}
+- Year: ${partYear || '2015'}
+- Part: ${engName}
 
 Rules:
-1. Return ONLY the part number code in English letters and numbers (e.g., 28100-0H110, 13505369).
-2. Do NOT write any Arabic text, explanation, or extra characters. Only output the raw part number string.`;
+Return ONLY the alphanumeric part number code (e.g. 27060-0H110 or 13505369). 
+NO Arabic letters. NO spaces or explainations. Pure English numbers and letters.`;
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -125,15 +147,17 @@ Rules:
       const aiNumber = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (aiNumber) {
-        // تنظيف النتيجة تماماً لتبقى إنجليزية وأرقام فقط
-        const cleanNum = aiNumber.replace(/[^a-zA-Z0-9\-_]/g, '').trim();
-        setPartNumber(cleanNum);
+        // استخراج الإنجليزي والأرقام والشرطات فقط من رد الذكاء الاصطناعي
+        const englishOnly = aiNumber.replace(/[^a-zA-Z0-9\-_]/g, '').trim();
+        if (englishOnly && englishOnly.length >= 3) {
+          setPartNumber(englishOnly);
+        } else {
+          setPartNumber(fallbackNum);
+        }
       } else {
-        const fallbackNum = `${partMake.substring(0,3).toUpperCase()}-${partModel.substring(0,3).toUpperCase()}-${Date.now().toString().slice(-5)}`;
         setPartNumber(fallbackNum);
       }
     } catch (e) {
-      const fallbackNum = `OEM-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       setPartNumber(fallbackNum);
     } finally {
       setIsAiLoading(false);
@@ -193,8 +217,8 @@ Rules:
       const payloadBatch = STANDARD_CAR_PARTS
         .filter(p => selectedParts[p.code]?.enabled)
         .map(p => {
-          const makeClean = bulkMake.trim().substring(0, 3).toUpperCase();
-          const modelClean = bulkModel.trim().substring(0, 3).toUpperCase();
+          const makeClean = (ENGLISH_TRANSLATIONS[bulkMake] || bulkMake).trim().substring(0, 3).toUpperCase();
+          const modelClean = (ENGLISH_TRANSLATIONS[bulkModel] || bulkModel).trim().substring(0, 3).toUpperCase();
           const generatedPartNumber = `${makeClean}-${modelClean}-${bulkYear}-${p.code}`;
 
           return {
@@ -364,9 +388,9 @@ Rules:
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', border: '1px solid #e2e8f0', padding: '10px', borderRadius: '10px', backgroundColor: '#f7fafc' }}>
                 {STANDARD_CAR_PARTS.map(part => {
                   const state = selectedParts[part.code] || { enabled: true, price: part.price, stock: 1 };
-                  const makeCode = bulkMake ? bulkMake.substring(0, 3).toUpperCase() : 'MAKE';
-                  const modelCode = bulkModel ? bulkModel.substring(0, 3).toUpperCase() : 'MOD';
-                  const autoPN = `${makeCode}-${modelCode}-${bulkYear || 'YYYY'}-${part.code}`;
+                  const makeClean = (ENGLISH_TRANSLATIONS[bulkMake] || bulkMake).substring(0, 3).toUpperCase();
+                  const modelClean = (ENGLISH_TRANSLATIONS[bulkModel] || bulkModel).substring(0, 3).toUpperCase();
+                  const autoPN = `${makeClean}-${modelClean}-${bulkYear || 'YYYY'}-${part.code}`;
 
                   return (
                     <div key={part.code} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', backgroundColor: state.enabled ? 'white' : '#edf2f7', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
