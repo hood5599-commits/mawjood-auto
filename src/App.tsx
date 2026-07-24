@@ -103,9 +103,31 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 فتح نافذة الفحص والشراء المباشر للقطعة
-  const handleBuyClick = (item: any, _quantity: number = 1) => {
-    setSelectedPartForCheckout(item);
+  // 🔥 إضافة القطعة للسلة والتأكد من عدم تجاوز المخزون المتاح
+  const handleBuyClick = (item: any, quantity: number = 1) => {
+    const maxStock = typeof item.stock !== 'undefined' && item.stock !== null ? Number(item.stock) : 5;
+
+    setCartItems(prev => {
+      const existingIdx = prev.findIndex(i => i.id === item.id);
+      if (existingIdx > -1) {
+        const currentQty = prev[existingIdx].quantity || 1;
+        const totalTarget = currentQty + quantity;
+
+        if (totalTarget > maxStock) {
+          alert(lang === 'ar' ? `عفواً، الحد الأقصى المتوفر في المخزون هو ${maxStock} قطعة فقط` : `Only ${maxStock} items available in stock`);
+          const updated = [...prev];
+          updated[existingIdx] = { ...updated[existingIdx], quantity: maxStock };
+          return updated;
+        }
+
+        const updated = [...prev];
+        updated[existingIdx] = { ...updated[existingIdx], quantity: totalTarget };
+        return updated;
+      }
+      return [...prev, { ...item, quantity: Math.min(maxStock, quantity) }];
+    });
+    
+    showToast(lang === 'ar' ? `تمت إضافة (${quantity}) قطع للسلة 🛒` : `Added (${quantity}) items 🛒`, 'success');
   };
 
   const toggleCategory = (category: string) => { setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); };
@@ -223,7 +245,7 @@ export default function App() {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
               }}
             >
-              📦 {lang === 'ar' ? 'متابعة طلباتي وأكواد التسليم' : 'Track My Orders'}
+              📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
             </button>
           </div>
         )}
@@ -251,24 +273,47 @@ export default function App() {
                     const partNo = item.part_number || item.code || item.sku;
 
                     return (
-                      <div key={index} style={{ display: 'flex', gap: '15px', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px dashed var(--mw-border)' }}>
-                        <img src={item.image_url || 'https://via.placeholder.com/70'} alt={item.name} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
-                        <div style={{ flex: 1 }}>
-                          <h4 style={{ margin: '0 0 4px 0', color: 'var(--mw-ink)', fontSize: '15px' }}>{item.name}</h4>
-                          
-                          {partNo && <span style={{ fontSize: '11px', color: '#718096', display: 'block', marginBottom: '4px' }}>Part #: {partNo}</span>}
-                          
-                          <p style={{ margin: '0 0 8px 0', color: 'var(--mw-ink-muted)', fontSize: '12px' }}>
-                            {item.make} - {item.model} | <strong style={{ color: '#3182ce' }}>العدد: {itemQty}</strong>
-                          </p>
-                          
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--mw-accent-dark)', fontWeight: 'bold', fontSize: '15px' }}>{itemTotal} QAR</span>
-                            <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ background: '#fff5f5', border: '1px solid #fed7d7', color: '#e53e3e', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', padding: '4px 8px', borderRadius: '6px' }}>
-                              {lang === 'ar' ? 'حذف 🗑️' : 'Remove 🗑️'}
-                            </button>
+                      <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px dashed var(--mw-border)' }}>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                          <img src={item.image_url || 'https://via.placeholder.com/70'} alt={item.name} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ margin: '0 0 4px 0', color: 'var(--mw-ink)', fontSize: '15px' }}>{item.name}</h4>
+                            
+                            {partNo && <span style={{ fontSize: '11px', color: '#718096', display: 'block', marginBottom: '4px' }}>Part #: {partNo}</span>}
+                            
+                            <p style={{ margin: '0 0 8px 0', color: 'var(--mw-ink-muted)', fontSize: '12px' }}>
+                              {item.make} - {item.model} | <strong style={{ color: '#3182ce' }}>العدد: {itemQty}</strong>
+                            </p>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: 'var(--mw-accent-dark)', fontWeight: 'bold', fontSize: '15px' }}>{itemTotal} QAR</span>
+                              <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ background: '#fff5f5', border: '1px solid #fed7d7', color: '#e53e3e', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', padding: '4px 8px', borderRadius: '6px' }}>
+                                {lang === 'ar' ? 'حذف 🗑️' : 'Remove 🗑️'}
+                              </button>
+                            </div>
                           </div>
                         </div>
+
+                        {/* زر أسأل البائع عن التوافق من داخل السلة مباشرة */}
+                        <button
+                          onClick={() => {
+                            setIsCartOpen(false);
+                            setSelectedPartForCheckout(item);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px',
+                            backgroundColor: '#805ad5',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '12.5px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ❓ {lang === 'ar' ? 'أسأل البائع هل تركب؟' : 'Ask Fitment'}
+                        </button>
                       </div>
                     );
                   })
@@ -355,7 +400,7 @@ export default function App() {
           />
         )}
 
-        {/* 2️⃣ نافذة تتبع الطلبات وأكواد التسليم والتقييم للعميل */}
+        {/* 2️⃣ نافذة تتبع الاستفسارات والطلبات وأكواد التسليم والتقييم للعميل */}
         {showOrderTracker && (
           <CustomerOrderTracker
             lang={lang}
