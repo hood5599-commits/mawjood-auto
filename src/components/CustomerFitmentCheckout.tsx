@@ -9,7 +9,7 @@ interface PartItem {
   year: string;
   engine?: string;
   image_url?: string;
-  user_id: string; // id الكراج
+  user_id: string;
   part_number?: string;
 }
 
@@ -34,10 +34,8 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
   onClose,
   onSuccess
 }) => {
-  // تصحيح حالة التبويب الحالية وتطابق الأنواع
   const [activeStep, setActiveStep] = useState<'inquire' | 'checkout'>('inquire');
 
-  // بيانات نموذج فحص التوافق
   const [carMake, setCarMake] = useState(part.make || '');
   const [carModel, setCarModel] = useState(part.model || '');
   const [carYear, setCarYear] = useState(part.year || '');
@@ -48,14 +46,12 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
   const [uploadingImg, setUploadingImg] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // بيانات الدفع والتوصيل
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup_hq'>('delivery');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
   const [addressDetails, setAddressDetails] = useState('');
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
 
-  // رفع الصور لسيرفر Supabase Storage
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>, setImgFn: (url: string) => void) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -82,7 +78,6 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
     }
   };
 
-  // 📍 الحصول على موقع العميل الحالي عبر GPS
   const handleGetLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -98,7 +93,7 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
     }
   };
 
-  // 1️⃣ إرسال استفسار فحص التوافق للكرّاج
+  // 1️⃣ إرسال استفسار فحص التوافق للكرّاج مع كشف الأخطاء
   const handleSendFitmentInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -108,9 +103,9 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
     try {
       const payload = {
         inquiry_code: inquiryCode,
-        part_id: part.id,
-        garage_id: part.user_id,
-        customer_phone: customerPhone,
+        part_id: Number(part.id),
+        garage_id: String(part.user_id || 'unknown_garage'),
+        customer_phone: customerPhone || '55000000',
         car_make: carMake,
         car_model: carModel,
         car_year: carYear,
@@ -137,16 +132,16 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
         onSuccess();
         onClose();
       } else {
-        alert('Error sending inquiry');
+        const errJson = await response.json().catch(() => ({}));
+        alert(`خطأ من السيرفر: ${errJson.message || errJson.hint || 'يرجى التأكد من تشغيل كود SQL في Supabase'}`);
       }
-    } catch (err) {
-      alert('Error sending inquiry');
+    } catch (err: any) {
+      alert(`خطأ الاتصال: ${err?.message || 'تعذر التواصل مع قاعدة البيانات'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // 2️⃣ إتمام الدفع وإنشاء الطلب النهائي
   const handleCompleteOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -194,7 +189,8 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
         onSuccess();
         onClose();
       } else {
-        alert('Error placing order');
+        const errJson = await response.json().catch(() => ({}));
+        alert(`خطأ: ${errJson.message || 'فشل إتمام الطلب'}`);
       }
     } catch (err) {
       alert('Error placing order');
@@ -207,10 +203,8 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
       <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '30px', maxWidth: '600px', width: '92%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', position: 'relative' }}>
         
-        {/* زر الإغلاق */}
         <button onClick={onClose} style={{ position: 'absolute', top: '15px', left: lang === 'ar' ? '15px' : 'auto', right: lang === 'ar' ? 'auto' : '15px', border: 'none', background: '#edf2f7', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
 
-        {/* كرت القطعة المراد استفسارها/شراؤها */}
         <div style={{ display: 'flex', gap: '15px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', alignItems: 'center' }}>
           <img src={part.image_url || 'https://via.placeholder.com/80'} alt={part.name} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '8px' }} />
           <div style={{ flex: 1 }}>
@@ -220,7 +214,6 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* أزرار التبديل بين الاستفسار والشراء المباشر */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #edf2f7', paddingBottom: '10px' }}>
           <button 
             type="button"
@@ -238,7 +231,6 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Step 1: نموذج الاستفسار للتأكد من التوافق */}
         {activeStep === 'inquire' && (
           <form onSubmit={handleSendFitmentInquiry} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <p style={{ margin: 0, fontSize: '13px', color: '#4a5568', lineHeight: '1.5' }}>
@@ -265,7 +257,6 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
               <input type="text" placeholder="مثال: JTDKN3DU123456789" value={vinNumber} onChange={(e) => setVinNumber(e.target.value.toUpperCase())} style={{ width: '100%', padding: '9px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box', fontFamily: 'monospace' }} />
             </div>
 
-            {/* رفع صورة الاستمارة والقطعة القديمة */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>📸 صورة استمارة السيارة:</label>
@@ -291,11 +282,9 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
           </form>
         )}
 
-        {/* Step 2: نموذج الشراء والدفع والتوصيل */}
         {activeStep === 'checkout' && (
           <form onSubmit={handleCompleteOrder} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             
-            {/* خيارات طريقة التسليم */}
             <div>
               <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', color: '#2d3748', marginBottom: '8px' }}>
                 🚚 خيار الاستلام والتوصيل:
@@ -318,7 +307,6 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* تفاصيل موقع التوصيل */}
             {deliveryType === 'delivery' && (
               <div style={{ backgroundColor: '#ebf8ff', padding: '12px', borderRadius: '10px', border: '1px solid #bee3f8' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -339,7 +327,6 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
               </div>
             )}
 
-            {/* خيارات الدفع */}
             <div>
               <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', color: '#2d3748', marginBottom: '8px' }}>
                 💳 طريقة الدفع:
@@ -362,7 +349,6 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* ملخص المبلغ والأمان */}
             <div style={{ padding: '12px', backgroundColor: '#f7fafc', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span>سعر القطعة:</span>
