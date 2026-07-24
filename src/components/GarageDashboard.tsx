@@ -44,7 +44,7 @@ const STANDARD_CAR_PARTS = [
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'parts' | 'orders' | 'bulk_car'>('parts');
 
-  // 🔥 رقم الشاصي (VIN)
+  // رقم الشاصي / الهيكل (VIN / Frame Number)
   const [vinNumber, setVinNumber] = useState('');
   const [isDecodingVin, setIsDecodingVin] = useState(false);
 
@@ -106,48 +106,68 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 1. دالة فك شفرة رقم الشاصي (VIN Decoder) عبر API السيارات العالمي المجاني
+  // 🔥 1. فك شفرة الشاصي الخليجي/الياباني/العالمي الذكي بواسطة الذكاء الاصطناعي
   const handleDecodeVin = async () => {
     const cleanVin = vinNumber.trim().toUpperCase();
-    if (!cleanVin || cleanVin.length !== 17) {
-      alert(lang === 'ar' ? 'يرجى إدخال رقم شاصي صحيح مكون من 17 حرف ورقم' : 'Please enter a valid 17-digit VIN');
+    if (!cleanVin || cleanVin.length < 5) {
+      alert(lang === 'ar' ? 'يرجى إدخال رقم شاصي أو رقم هيكل صحيح' : 'Please enter a valid chassis or VIN number');
       return;
     }
 
     setIsDecodingVin(true);
     try {
-      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${cleanVin}?format=json`);
+      const prompt = `Act as an expert GCC and Global automotive catalog (EPC). 
+Decode this vehicle Chassis Number / Frame Number / VIN: "${cleanVin}".
+
+Return JSON ONLY with this format:
+{
+  "make": "Manufacturer (e.g. Toyota, Nissan, Lexus, Ford)",
+  "model": "Model Name (e.g. Land Cruiser, Patrol, Camry)",
+  "year": "Model Year (e.g. 2015)",
+  "engine": "Engine Size/Type if known (e.g. 4.0L V6)"
+}
+Return raw JSON object ONLY, no markdown, no explanation.`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        }
+      );
+
       const data = await response.json();
-      const vehicle = data?.Results?.[0];
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
 
-      if (vehicle) {
-        const decodedMake = vehicle.Make;
-        const decodedModel = vehicle.Model;
-        const decodedYear = vehicle.ModelYear;
-        const decodedDisplacement = vehicle.DisplacementL ? `${vehicle.DisplacementL}L` : '';
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.make) {
+          const matchedMakeKey = Object.keys(carData).find(
+            k => k.toLowerCase() === parsed.make.toLowerCase() || 
+                 (ENGLISH_TRANSLATIONS[k] || '').toLowerCase() === parsed.make.toLowerCase()
+          ) || parsed.make;
 
-        // تطابق الماركة مع القائمة لدينا
-        const matchedMakeKey = Object.keys(carData).find(
-          k => (ENGLISH_TRANSLATIONS[k] || k).toLowerCase() === (decodedMake || '').toLowerCase()
-        ) || decodedMake;
+          setPartMake(matchedMakeKey);
+          if (parsed.model) setPartModel(parsed.model);
+          if (parsed.year) setPartYear(String(parsed.year));
+          if (parsed.engine) setPartEngine(parsed.engine);
 
-        if (matchedMakeKey) setPartMake(matchedMakeKey);
-        if (decodedModel) setPartModel(decodedModel);
-        if (decodedYear) setPartYear(String(decodedYear));
-        if (decodedDisplacement) setPartEngine(decodedDisplacement);
-
-        alert(lang === 'ar' ? `تم التعرف على السيارة بنجاح! 🚗\n${decodedMake} ${decodedModel} (${decodedYear})` : `Vehicle decoded: ${decodedMake} ${decodedModel} (${decodedYear})`);
-      } else {
-        alert(lang === 'ar' ? 'تعذر التعرف على بيانات رقم الشاصي' : 'Could not decode VIN');
+          alert(lang === 'ar' ? `تم التعرف على الشاصي بنجاح! 🚗\n${parsed.make} ${parsed.model || ''} (${parsed.year || ''})` : `Decoded: ${parsed.make} ${parsed.model || ''}`);
+          return;
+        }
       }
+
+      alert(lang === 'ar' ? 'لم يتم العثور على تفاصيل هذا الشاصي، يرجى اختيار الماركة والموديل يدوياً' : 'Could not decode chassis number');
     } catch (e) {
-      alert(lang === 'ar' ? 'خطأ في الاتصال بخدمة فك الشاصي' : 'Error connecting to VIN Service');
+      alert(lang === 'ar' ? 'تعذر فك شفرة الشاصي، يرجى المحاولة يدوياً' : 'Error decoding VIN');
     } finally {
       setIsDecodingVin(false);
     }
   };
 
-  // 🔥 2. دالة الذكاء الاصطناعي مع إضافة رقم الشاصي والمواصفات الدقيقة
+  // 🔥 2. استخراج Part Number بالذكاء الاصطناعي برقم الشاصي المكتشف
   const fetchAiPartNumber = async () => {
     if (!partMake || !partModel || !partName) {
       alert(lang === 'ar' ? 'يرجى اختيار الماركة، الموديل، وكتابة اسم القطعة أولاً' : 'Please select Make, Model, and Part Name first');
@@ -165,18 +185,18 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     const fallbackNum = `${cleanMakeCode}-${cleanModelCode}-${Math.floor(10000 + Math.random() * 90000)}`;
 
     try {
-      const prompt = `Act as an official automotive OEM Parts EPC Catalog for GCC/Middle East specifications.
+      const prompt = `Act as an official OEM Parts EPC Catalog for Middle East / GCC specifications.
 Find the exact manufacturer OEM Part Number for:
-- VIN (Chassis #): ${vinNumber || 'N/A'}
+- Chassis / VIN #: ${vinNumber || 'N/A'}
 - Make: ${engMake}
 - Model: ${engModel}
 - Year: ${partYear || 'General'}
 - Engine: ${partEngine || 'General'}
 - Part Name: ${engName}
 
-Output constraint:
-Return ONLY the clean English OEM Part Number code (e.g. 27060-0H110, 13505369, 28100-31090).
-NO Arabic characters. NO explanation. Pure English string.`;
+Rules:
+Return ONLY the clean English OEM Part Number code (e.g., 27060-0H110, 13505369, 28100-31090).
+NO Arabic characters. NO explanations. Pure English string.`;
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -465,16 +485,15 @@ NO Arabic characters. NO explanation. Pure English string.`;
           <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
             <h2 style={{ color: '#1a365d', margin: '0 0 20px 0' }}>{editingId ? '✏️ تعديل إعلان' : '➕ إضافة قطعة مفردة'}</h2>
             
-            {/* 🔥 حقل رقم الشاصي (VIN Decoder) مع إمكانية استخراج المواصفات أوتوماتيكياً */}
+            {/* 🔥 حقل رقم الشاصي والمرن للخليجي والياباني والأمريكي */}
             <div style={{ backgroundColor: '#ebf8ff', padding: '16px', borderRadius: '12px', border: '1px solid #bee3f8', marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold', color: '#2b6cb0' }}>
-                🚘 أدخل رقم الشاصي (VIN - 17 حرف ورقم) لتحديد بيانات السيارة تلقائياً:
+                🚘 أدخل رقم الشاصي / رقم الهيكل (VIN أو Frame Number) للتعرف على السيارة:
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                   type="text" 
-                  maxLength={17}
-                  placeholder="مثال: 4T1BF1FK5FU123456" 
+                  placeholder="مثال: Y61-012345 أو 4T1BF1FK5FU123456" 
                   value={vinNumber} 
                   onChange={(e) => setVinNumber(e.target.value.toUpperCase())} 
                   style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1.5px solid #3182ce', outline: 'none', fontFamily: 'monospace', fontSize: '14px' }} 
