@@ -7,6 +7,7 @@ interface Props {
   apiKey: string;
   session: any;
   onClose: () => void;
+  onSelectPartForCheckout?: (part: any) => void;
 }
 
 export const CustomerOrderTracker: React.FC<Props> = ({
@@ -15,7 +16,8 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   supabaseUrl,
   apiKey,
   session,
-  onClose
+  onClose,
+  onSelectPartForCheckout
 }) => {
   const [activeTab, setActiveTab] = useState<'inquiries' | 'orders'>('inquiries');
   const [orders, setOrders] = useState<any[]>([]);
@@ -85,6 +87,8 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
+  const confirmedInquiries = inquiries.filter(i => i.status === 'confirmed_compatible');
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
       <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '30px', maxWidth: '650px', width: '92%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', position: 'relative' }}>
@@ -95,13 +99,18 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'My Inquiries & Orders'}
         </h3>
 
-        {/* أزرار التنقل بين الاستفسارات والطلبات المدفوعة */}
+        {/* أزرار التنقل بين الاستفسارات والطلبات */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #edf2f7', paddingBottom: '10px' }}>
           <button 
             onClick={() => setActiveTab('inquiries')}
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : '#f7fafc', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}
+            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : '#f7fafc', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', position: 'relative' }}
           >
             ❓ استفسارات التوافق ({inquiries.length})
+            {confirmedInquiries.length > 0 && (
+              <span style={{ position: 'absolute', top: '-5px', right: '-5px', backgroundColor: '#38a169', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '10px', fontWeight: 'bold' }}>
+                {confirmedInquiries.length}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => setActiveTab('orders')}
@@ -114,13 +123,12 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         {loading ? (
           <p style={{ textAlign: 'center', color: '#718096' }}>جاري التحميل...</p>
         ) : activeTab === 'inquiries' ? (
-          /* عرض استفسارات التوافق للعميل */
           inquiries.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>لا توجد استفسارات متوافقة حالياً.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {inquiries.map(inq => (
-                <div key={inq.id} style={{ padding: '18px', border: '1px solid #e2e8f0', borderRadius: '15px', backgroundColor: '#f8fafc' }}>
+                <div key={inq.id} style={{ padding: '18px', border: inq.status === 'confirmed_compatible' ? '2px solid #38a169' : '1px solid #e2e8f0', borderRadius: '15px', backgroundColor: inq.status === 'confirmed_compatible' ? '#f0fff4' : '#f8fafc' }}>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#e9d8fd', color: '#553c9a', padding: '3px 8px', borderRadius: '6px' }}>
@@ -131,7 +139,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     </span>
                   </div>
 
-                  {/* تفاصيل القطعة المستفسر عنها */}
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: 'white', padding: '10px', borderRadius: '10px', border: '1px solid #edf2f7', marginBottom: '10px' }}>
                     <img src={inq.part_image || 'https://via.placeholder.com/60'} alt={inq.part_name} style={{ width: '55px', height: '55px', objectFit: 'cover', borderRadius: '8px' }} />
                     <div style={{ flex: 1 }}>
@@ -144,11 +151,32 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     🚘 سيارتك: {inq.car_make} {inq.car_model} ({inq.car_year})
                   </div>
 
-                  {/* تفاصيل الضمان الممنوحة من الكراج عند الموافقة */}
+                  {/* إذا تم تأكيد التوافق: إظهار الضمان وزر الشراء المباشر للعميل */}
                   {inq.status === 'confirmed_compatible' && (
-                    <div style={{ backgroundColor: '#f0fff4', padding: '12px', borderRadius: '10px', border: '1px solid #c6f6d5', color: '#22543d', fontSize: '13px' }}>
-                      <div>✅ <strong>القطعة تركب على سيارتك!</strong></div>
-                      <div>🛡️ مهلة الإرجاع: <strong>{inq.return_days || 3} أيام</strong> | ضمان التشغيل: <strong>{inq.warranty_days || 14} يوماً</strong></div>
+                    <div style={{ backgroundColor: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #c6f6d5', color: '#22543d', fontSize: '13px', marginTop: '10px' }}>
+                      <div style={{ fontWeight: 'bold', color: '#276749', marginBottom: '4px' }}>🎉 الكراج يؤكد: القطعة متوافقة 100% مع سيارتك!</div>
+                      <div style={{ fontSize: '12px', color: '#4a5568', marginBottom: '10px' }}>🛡️ مهلة الإرجاع: {inq.return_days || 3} أيام | ضمان التشغيل: {inq.warranty_days || 14} يوماً</div>
+                      
+                      <button
+                        onClick={() => {
+                          onClose();
+                          if (onSelectPartForCheckout) {
+                            onSelectPartForCheckout({
+                              id: inq.part_id,
+                              name: inq.part_name,
+                              price: inq.part_price,
+                              image_url: inq.part_image,
+                              user_id: inq.garage_id,
+                              make: inq.car_make,
+                              model: inq.car_model,
+                              year: inq.car_year
+                            });
+                          }
+                        }}
+                        style={{ width: '100%', padding: '11px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}
+                      >
+                        🛒 إتمام الشراء والتوصيل الآن
+                      </button>
                     </div>
                   )}
 
@@ -157,7 +185,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             </div>
           )
         ) : (
-          /* عرض طلبات الشراء المدفوعة للعميل */
           orders.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>لا توجد لديك طلبات سابقة.</p>
           ) : (
@@ -170,7 +197,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                       رمز الطلب: {order.order_code || `#ORD-${order.id}`}
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: 'bold', color: order.status === 'delivered' ? '#38a169' : '#dd6b20' }}>
-                      {order.status === 'delivered' ? '✅ تم التسليم' : '🚚 قيد التوصيل والتحضير'}
+                      {order.status === 'ready_for_pickup' ? '📦 القطعة جاهزة للطلب' : order.status === 'handed_to_driver' ? '🚚 القطعة مع المندوب وفي الطريق إليك' : order.status === 'delivered' ? '✅ تم التسليم' : '⏳ جاري التجهيز'}
                     </span>
                   </div>
 
