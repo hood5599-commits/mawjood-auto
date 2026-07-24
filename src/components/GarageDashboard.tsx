@@ -38,7 +38,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [partNumber, setPartNumber] = useState('');
   const [partPrice, setPartPrice] = useState('');
   const [partStock, setPartStock] = useState('5');
-  const [partType, setPartType] = useState('أصلي (OEM)'); // 🔥 جودة القطعة
+  const [partType, setPartType] = useState('أصلي (OEM)');
   const [partMake, setPartMake] = useState('');
   const [partModel, setPartModel] = useState('');
   const [partYear, setPartYear] = useState('');
@@ -91,7 +91,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 دالة تخمين رقم القطعة بالذكاء الاصطناعي عبر Gemini
   const fetchAiPartNumber = async () => {
     if (!partMake || !partModel || !partName) {
       alert(lang === 'ar' ? 'يرجى اختيار الماركة والموديل واسم القطعة أولاً' : 'Please select Make, Model, and Part Name first');
@@ -159,7 +158,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         part_number: partNumber || `OEM-${Date.now().toString().slice(-6)}`,
         price: parseFloat(partPrice), 
         stock: parseInt(partStock) || 1, 
-        part_type: partType, // 🔥 حفظ الجودة (أصلي/كوبي)
+        part_type: partType,
         make: partMake, 
         model: partModel, 
         year: partYear, 
@@ -290,7 +289,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </button>
       </div>
 
-      {/* إضافة سيارة كاملة تلقائياً */}
       {activeTab === 'bulk_car' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
@@ -300,7 +298,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           </div>
 
           <form onSubmit={handlePublishBulkCar} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>{t[lang].makeLabel}</label>
@@ -386,7 +383,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* إضافة قطعة مفردة */}
       {activeTab === 'parts' && (
         <>
           <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
@@ -399,7 +395,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   <input type="text" placeholder={t[lang].partNamePlaceholder} value={partName} onChange={(e) => setPartName(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
                 </div>
 
-                {/* 🔥 حقل رقم القطعة + زر الذكاء الاصطناعي */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>رقم القطعة (Part Number):</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -418,7 +413,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                 </div>
               </div>
 
-              {/* 🔥 اختيار جودة القطعة (أصلي أم كوبي) */}
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold', color: '#2d3748' }}>
                   نوع / جودة القطعة:
@@ -428,24 +422,24 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     { label: '💎 أصلي (OEM)', val: 'أصلي (OEM)', color: '#2b6cb0', bg: '#ebf8ff' },
                     { label: '⚙️ تجاري / كوبي', val: 'تجاري / كوبي', color: '#dd6b20', bg: '#fffaf0' },
                     { label: '🚗 مستعمل أصلي', val: 'مستعمل أصلي', color: '#38a169', bg: '#f0fff4' }
-                  ].map(t => (
+                  ].map(tItem => (
                     <button
-                      key={t.val}
+                      key={tItem.val}
                       type="button"
-                      onClick={() => setPartType(t.val)}
+                      onClick={() => setPartType(tItem.val)}
                       style={{
                         flex: 1,
                         padding: '10px',
                         borderRadius: '8px',
-                        border: partType === t.val ? `2px solid ${t.color}` : '1px solid #cbd5e0',
-                        backgroundColor: partType === t.val ? t.bg : '#f7fafc',
-                        color: partType === t.val ? t.color : '#4a5568',
+                        border: partType === tItem.val ? `2px solid ${tItem.color}` : '1px solid #cbd5e0',
+                        backgroundColor: partType === tItem.val ? tItem.bg : '#f7fafc',
+                        color: partType === tItem.val ? tItem.color : '#4a5568',
                         fontWeight: 'bold',
                         fontSize: '13px',
                         cursor: 'pointer'
                       }}
                     >
-                      {t.label}
+                      {tItem.label}
                     </button>
                   ))}
                 </div>
@@ -500,15 +494,33 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </>
       )}
 
-      {/* الطلبات الواردة */}
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 الطلبات الواردة من العملاء</h3>
           {myOrders.map(order => (
-            <div key={order.id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', marginBottom: '10px' }}>
-              <h4>{order.part_name}</h4>
-              <p>📞 {order.customer_phone} - {order.price} QAR</p>
-              <button onClick={() => updateOrderStatus(order.id, 'confirmed')} style={{ padding: '8px 12px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>تأكيد</button>
+            <div key={order.id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', marginBottom: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 5px 0' }}>{order.part_name}</h4>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#718096' }}>📞 هاتف العميل: <strong>{order.customer_phone}</strong></p>
+                </div>
+                <span style={{ fontWeight: 'bold', color: '#dd6b20', fontSize: '16px' }}>{order.price} QAR</span>
+              </div>
+
+              <div style={{ marginBottom: '10px' }}>
+                <input 
+                  type="text" 
+                  placeholder="ملاحظات الطلب..." 
+                  value={orderNotes[order.id] !== undefined ? orderNotes[order.id] : (order.notes || '')} 
+                  onChange={(e) => setOrderNotes({ ...orderNotes, [order.id]: e.target.value })} 
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => updateOrderStatus(order.id, 'confirmed')} style={{ flex: 1, padding: '8px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>تأكيد</button>
+                <button onClick={() => updateOrderStatus(order.id, 'rejected')} style={{ flex: 1, padding: '8px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>رفض</button>
+              </div>
             </div>
           ))}
         </div>
