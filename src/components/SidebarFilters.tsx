@@ -30,24 +30,43 @@ interface SidebarProps {
 }
 
 const CATEGORY_TRANSLATION: Record<string, string> = {
-  "Belt Drive": "السيور والبكرات", "Body & Lamp Assembly": "الهيكل والإضاءة", "Brake & Wheel Hub": "الفرامل ومحاور العجلات",
-  "Cooling System": "نظام التبريد (الراديتر)", "Drivetrain": "نظام الدفع", "Electrical": "الكهرباء",
-  "Engine": "المحرك (الماكينة)", "Exhaust & Emission": "نظام العادم (الشكمان)", "Fuel & Air": "نظام الوقود والهواء",
-  "Heat & Air Conditioning": "التكييف والتدفئة", "Ignition": "نظام الإشعال (البواجي)", "Interior": "المقصورة الداخلية",
-  "Steering": "نظام التوجيه", "Suspension": "نظام التعليق", "Transmission-Automatic": "ناقل الحركة",
-  "Wheel": "العجلات والجنوط", "Wiper & Washer": "المساحات وبخاخات المياه"
+  "Belt Drive": "السيور والبكرات",
+  "Body & Lamp Assembly": "الهيكل والإضاءة",
+  "Brake & Wheel Hub": "الفرامل ومحاور العجلات",
+  "Cooling System": "نظام التبريد (الراديتر)",
+  "Drivetrain": "نظام الدفع",
+  "Electrical": "الكهرباء",
+  "Engine": "المحرك (الماكينة)",
+  "Exhaust & Emission": "نظام العادم (الشكمان)",
+  "Fuel & Air": "نظام الوقود والهواء",
+  "Heat & Air Conditioning": "التكييف والتدفئة",
+  "Ignition": "نظام الإشعال (البواجي)",
+  "Interior": "المقصورة الداخلية",
+  "Steering": "نظام التوجيه",
+  "Suspension": "نظام التعليق",
+  "Transmission-Automatic": "ناقل الحركة",
+  "Wheel": "العجلات والجنوط",
+  "Wiper & Washer": "المساحات وبخاخات المياه"
 };
 
 const MAKE_DOMAINS: Record<string, string> = {
-  "تويوتا": "toyota.com", "هيونداي": "hyundai.com", "نيسان": "nissan-global.com", "فورد": "ford.com",
-  "شفروليه": "chevrolet.com", "كيا": "kia.com", "هوندا": "honda.com", "لكزس": "lexus.com"
+  "تويوتا": "toyota.com", "هيونداي": "hyundai.com", "نيسان": "nissan-global.com",
+  "فورد": "ford.com", "شفروليه": "chevrolet.com", "كيا": "kia.com",
+  "هوندا": "honda.com", "لكزس": "lexus.com", "ميتسوبيشي": "mitsubishicars.com",
+  "مازدا": "mazda.com", "جي إم سي": "gmc.com", "بي إم دبليو": "bmw.com",
+  "مرسيدس": "mercedes-benz.com", "فولكس فاجن": "vw.com", "أودي": "audi.com",
+  "جيب": "jeep.com", "دودج": "dodge.com", "رام": "ramtrucks.com",
+  "لاند روفر": "landrover.com", "إنفينيتي": "infinitiusa.com", "سوبارو": "subaru.com",
+  "رينو": "renault.com", "سوزوكي": "globalsuzuki.com", "بورش": "porsche.com",
+  "كرايسلر": "chrysler.com"
 };
 
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
     lang, carData, years, translateMake, translateModel, categories, inventory, 
-    searchTerm, setSearchTerm, filterMake, setFilterMake, filterModel, setFilterModel, 
-    filterYear, setFilterYear, filterCategory, setFilterCategory, addToCart 
+    searchTerm, setSearchTerm, 
+    filterMake, setFilterMake, filterModel, setFilterModel, filterYear, setFilterYear,
+    filterCategory, setFilterCategory, addToCart 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -76,11 +95,15 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setActiveSearchQuery(searchTerm.trim());
   };
 
-  const clearSearch = () => { setSearchTerm(''); setActiveSearchQuery(''); };
+  const clearSearch = () => {
+    setSearchTerm('');
+    setActiveSearchQuery('');
+  };
 
   const toggleNode = (nodeKey: string, make?: string, model?: string, year?: string, category?: string) => {
     const willBeOpen = !expandedNodes[nodeKey];
     setExpandedNodes(prev => ({ ...prev, [nodeKey]: willBeOpen }));
+
     if (make !== undefined) { setFilterMake(willBeOpen ? make : ''); setFilterModel(''); setFilterYear(''); setFilterCategory(''); }
     if (model !== undefined) { setFilterModel(willBeOpen ? model : ''); setFilterYear(''); setFilterCategory(''); }
     if (year !== undefined) { setFilterYear(willBeOpen ? year : ''); setFilterCategory(''); }
@@ -104,18 +127,25 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const handleInAppRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!custPhone.trim()) return alert(lang === 'ar' ? 'يرجى إدخال رقم الهاتف' : 'Please enter phone number');
+
     setIsSubmittingReq(true);
     try {
       const response = await fetch(`${SUPABASE_URL}/orders`, {
         method: 'POST',
         headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify([{ part_name: `طلب خاص: ${activeSearchQuery}`, price: 0, customer_phone: custPhone, status: 'pending', notes: custNotes || 'طلب قطعة غير متوفرة' }])
+        body: JSON.stringify([{
+          part_name: `طلب خاص: ${activeSearchQuery}`,
+          price: 0,
+          customer_phone: custPhone,
+          status: 'pending',
+          notes: custNotes || 'طلب قطعة غير متوفرة'
+        }])
       });
-      if (response.ok) setReqSubmitted(true);
-    } catch (err) {} finally { setIsSubmittingReq(false); }
+
+      if (response.ok) { setReqSubmitted(true); } else { alert(lang === 'ar' ? 'حدث خطأ في إرسال الطلب' : 'Error sending request'); }
+    } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
-  // 🔥 دالة رسم كرت القطعة مع باج الجودة (أصلي / تجاري)
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -145,34 +175,24 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             style={{ width: '75px', height: '75px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #edf2f7' }} 
           />
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-              <h4 style={{ margin: 0, fontSize: '15px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
-            </div>
-
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
             <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>
               🚘 {part.make} - {part.model} ({part.year})
             </div>
             
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' }}>
-              {/* زر رقم القطعة */}
               <div 
                 onClick={(e) => { e.stopPropagation(); setFitmentModalPart(part); }}
-                style={{ 
-                  fontSize: '11px', color: '#2b6cb0', backgroundColor: '#ebf8ff', 
-                  padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #bee3f8' 
-                }}
+                style={{ fontSize: '11px', color: '#2b6cb0', backgroundColor: '#ebf8ff', padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #bee3f8' }}
               >
                 🔍 PN: {partNo}
               </div>
 
-              {/* 🔥 باج يوضح هل القطعة أصلي أم تجاري / كوبي */}
               <span style={{ 
-                fontSize: '11px', 
-                fontWeight: 'bold', 
+                fontSize: '11px', fontWeight: 'bold', 
                 color: pType.includes('تجاري') ? '#c05621' : '#2b6cb0', 
                 backgroundColor: pType.includes('تجاري') ? '#fffaf0' : '#ebf8ff', 
-                padding: '2px 6px', 
-                borderRadius: '5px',
+                padding: '2px 6px', borderRadius: '5px',
                 border: pType.includes('تجاري') ? '1px solid #feebc8' : '1px solid #bee3f8'
               }}>
                 {pType.includes('تجاري') ? '⚙️ تجاري/كوبي' : '💎 أصلي OEM'}
@@ -181,13 +201,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16.5px' }}>{part.price} QAR</span>
-              
-              <span style={{ 
-                fontSize: '11px', fontWeight: 'bold', 
-                color: isOutOfStock ? '#e53e3e' : '#2f855a', 
-                backgroundColor: isOutOfStock ? '#fff5f5' : '#f0fff4', 
-                padding: '2px 6px', borderRadius: '5px'
-              }}>
+              <span style={{ fontSize: '11px', fontWeight: 'bold', color: isOutOfStock ? '#e53e3e' : '#2f855a', backgroundColor: isOutOfStock ? '#fff5f5' : '#f0fff4', padding: '2px 6px', borderRadius: '5px' }}>
                 {isOutOfStock ? 'نفدت' : `المتوفر: ${maxStock}`}
               </span>
             </div>
@@ -211,7 +225,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             </button>
           )}
         </div>
-
       </div>
     );
   };
@@ -231,27 +244,110 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               <h3>🔎 نتائج البحث عن: "{activeSearchQuery}"</h3>
               <button onClick={clearSearch} style={{ padding: '8px 16px', borderRadius: '10px', cursor: 'pointer' }}>↩️ العودة للكتالوج</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '18px' }}>
-              {searchResults.map(part => renderPartCard(part))}
-            </div>
+            {searchResults.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
+                <p>عفواً، لا توجد قطع متوفرة لهذا البحث.</p>
+                <button onClick={() => { setReqSubmitted(false); setShowRequestModal(true); }} style={{ padding: '10px 20px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                  📩 إرسال طلب قطعة داخل البرنامج
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '18px' }}>
+                {searchResults.map(part => renderPartCard(part))}
+              </div>
+            )}
           </div>
         ) : (
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
             {Object.keys(carData).map(make => {
               const makeKey = `make_${make}`;
               const isMakeOpen = !!expandedNodes[makeKey] || filterMake === make;
+              const makeName = isRtl ? make : (translateMake[make] || make);
+
               return (
                 <li key={make} style={{ marginBottom: '8px' }}>
-                  <div onClick={() => toggleNode(makeKey, make)} style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', padding: '10px', backgroundColor: '#f7fafc', borderRadius: '8px', fontWeight: 'bold' }}>
-                    <span>🚗 {make}</span>
-                    <span>{isMakeOpen ? '▼' : '◀'}</span>
-                  </div>
-                  {isMakeOpen && (
-                    <div style={{ padding: '10px' }}>
-                      {carData[make]?.models.map((model: string) => (
-                        <div key={model} style={{ padding: '6px' }}>📂 {model}</div>
-                      ))}
+                  <div onClick={() => toggleNode(makeKey, make)} style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold', padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {!imgErrors[make] ? (
+                        <img src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`} alt={make} style={{ width: '24px', height: '24px', objectFit: 'contain' }} onError={() => setImgErrors(prev => ({...prev, [make]: true}))} />
+                      ) : (
+                        <span style={{ fontSize: '18px' }}>🚗</span>
+                      )}
+                      <span style={{ fontSize: '15px' }}>{makeName}</span>
                     </div>
+                    <span style={{ fontSize: '12px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                  </div>
+
+                  {isMakeOpen && (
+                    <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '20px', marginTop: '6px' }}>
+                      {carData[make]?.models.map((model: string) => {
+                        const modelKey = `model_${make}_${model}`;
+                        const isModelOpen = !!expandedNodes[modelKey] || (filterMake === make && filterModel === model);
+                        const modelName = isRtl ? model : (translateModel[model] || model);
+
+                        return (
+                          <li key={model} style={{ marginBottom: '6px' }}>
+                            <div onClick={() => toggleNode(modelKey, undefined, model)} style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '14px', padding: '8px 12px' }}>
+                              <span>📂 {modelName}</span>
+                              <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                            </div>
+
+                            {isModelOpen && (
+                              <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '20px', marginTop: '6px' }}>
+                                {years.map(year => {
+                                  const yearKey = `year_${make}_${model}_${year}`;
+                                  const isYearOpen = !!expandedNodes[yearKey] || (filterMake === make && filterModel === model && filterYear === year);
+
+                                  return (
+                                    <li key={year} style={{ marginBottom: '6px' }}>
+                                      <div onClick={() => toggleNode(yearKey, undefined, undefined, year)} style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '13.5px', color: '#2b6cb0', padding: '7px 12px' }}>
+                                        <span>📅 {year}</span>
+                                        <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                      </div>
+
+                                      {isYearOpen && (
+                                        <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
+                                          {categories.map(category => {
+                                            const categoryKey = `cat_${make}_${model}_${year}_${category}`;
+                                            const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
+                                            const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
+
+                                            const filteredParts = inventory.filter(part =>  
+                                              part.make === make &&  
+                                              part.model === model &&  
+                                              String(part.year) === String(year) &&  
+                                              getPartCategory(part.name) === category
+                                            );
+
+                                            if (filteredParts.length === 0) return null;
+
+                                            return (
+                                              <li key={category} style={{ marginBottom: '6px' }}>
+                                                <div onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, category)} style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}>
+                                                  <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', color: '#3182ce' }}>({filteredParts.length} قطع)</span></span>
+                                                  <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                </div>
+
+                                                {isCategoryOpen && (
+                                                  <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px', [isRtl ? 'marginRight' : 'marginLeft']: '10px' }}>
+                                                    {filteredParts.map(part => renderPartCard(part))}
+                                                  </div>
+                                                )}
+
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                      )}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </li>
               );
@@ -260,6 +356,67 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         )}
 
       </div>
+
+      {/* نافذة طلب قطعة غير متوفرة */}
+      {showRequestModal && (
+        <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '460px', width: '100%', direction: isRtl ? 'rtl' : 'ltr' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>📩 طلب قطعة غير متوفرة</h3>
+              <button onClick={() => setShowRequestModal(false)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}>✖</button>
+            </div>
+
+            {reqSubmitted ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <span style={{ fontSize: '50px', display: 'block', marginBottom: '10px' }}>✅</span>
+                <h4 style={{ margin: '0 0 8px 0', color: '#2f855a' }}>تم إرسال طلبك بنجاح!</h4>
+                <button onClick={() => setShowRequestModal(false)} style={{ width: '100%', padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>تم</button>
+              </div>
+            ) : (
+              <form onSubmit={handleInAppRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <input type="tel" placeholder="رقم الهاتف للتواصل" value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
+                <textarea placeholder="ملاحظات إضافية..." value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+                <button type="submit" disabled={isSubmittingReq} style={{ width: '100%', padding: '13px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {isSubmittingReq ? 'جاري الإرسال...' : 'إرسال الطلب الآن 🚀'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* نافذة التوافق */}
+      {fitmentModalPart && (
+        <div onClick={() => setFitmentModalPart(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '80vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>🚘 دليل توافق القطعة مع السيارات</h3>
+              <button onClick={() => setFitmentModalPart(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}>✖</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {compatibleVehicles.map((v, idx) => (
+                <div key={idx} style={{ padding: '10px 14px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong>{v.make} - {v.model || 'عام'}</strong>
+                  <span style={{ backgroundColor: '#ebf8ff', color: '#2b6cb0', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold' }}>📅 {v.year}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setFitmentModalPart(null)} style={{ width: '100%', marginTop: '20px', padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>إغلاق</button>
+          </div>
+        </div>
+      )}
+
     </aside>
   );
+};
+
+const nodeStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  cursor: 'pointer',
+  padding: '6px 10px',
+  borderRadius: '8px',
+  transition: 'all 0.15s ease-in-out',
+  userSelect: 'none',
 };
