@@ -91,16 +91,26 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 دالة الذكاء الاصطناعي المحدثة والمضمونة لتوليد رقم القطعة
+  // 🔥 دالة الذكاء الاصطناعي المطورة (تعتمد على التفاصيل كاملة وتجلب Part Number بالإنجليزية فقط)
   const fetchAiPartNumber = async () => {
     if (!partMake || !partModel || !partName) {
-      alert(lang === 'ar' ? 'يرجى اختيار الماركة والموديل وكتابة اسم القطعة أولاً' : 'Please select Make, Model, and Part Name first');
+      alert(lang === 'ar' ? 'يرجى اختيار الماركة، الموديل، وكتابة اسم القطعة أولاً' : 'Please select Make, Model, and Part Name first');
       return;
     }
 
     setIsAiLoading(true);
     try {
-      const prompt = `Give me a standard OEM part number for a ${partMake} ${partModel} ${partName}. Return ONLY the part number code, nothing else.`;
+      const prompt = `Act as an expert automotive parts catalog (OEM EPC) for GCC specifications. 
+Find the exact standard OEM part number for this specific part:
+- Vehicle Make: ${partMake}
+- Vehicle Model: ${partModel}
+- Year: ${partYear || 'General'}
+- Engine: ${partEngine || 'General'}
+- Part Name: ${partName}
+
+Rules:
+1. Return ONLY the part number code in English letters and numbers (e.g., 28100-0H110, 13505369).
+2. Do NOT write any Arabic text, explanation, or extra characters. Only output the raw part number string.`;
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -115,7 +125,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       const aiNumber = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (aiNumber) {
-        const cleanNum = aiNumber.replace(/[`*'"\n]/g, '').trim();
+        // تنظيف النتيجة تماماً لتبقى إنجليزية وأرقام فقط
+        const cleanNum = aiNumber.replace(/[^a-zA-Z0-9\-_]/g, '').trim();
         setPartNumber(cleanNum);
       } else {
         const fallbackNum = `${partMake.substring(0,3).toUpperCase()}-${partModel.substring(0,3).toUpperCase()}-${Date.now().toString().slice(-5)}`;
