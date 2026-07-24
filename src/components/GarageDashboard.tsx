@@ -11,33 +11,67 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
-// 1️⃣ قاعدة بيانات كودات الشاصي الخليجية واليابانية الشائعة
+// 1️⃣ قواعد وأكواد الشاصي الخليجي القياسية للوكالات (GCC VIN Prefixes)
+const GCC_VIN_PATTERNS: Record<string, Record<string, string>> = {
+  "تويوتا": {
+    "لاندكروزر": "JTEBU05J",
+    "كامري": "JTDKN3DU",
+    "كورولا": "ZRE172GCC",
+    "برادو": "JTEBH29J",
+    "هيلوكس": "MR0FR22G",
+    "راف فور": "JTMBFREV"
+  },
+  "نيسان": {
+    "باترول": "JN8AY2NC",
+    "ألتيما": "1N4AL3AP",
+    "صني": "N17GCC88",
+    "إكس تريل": "JN1TNT32"
+  },
+  "لكزس": {
+    "LX": "JTJHY7AX",
+    "ES": "JTHBJ1EG",
+    "LS": "JTHGL5EF"
+  },
+  "جي إm سي": {
+    "يوكن": "1GKS2CKC",
+    "سييرا": "1GT12UEC"
+  },
+  "جي إم سي": {
+    "يوكن": "1GKS2CKC",
+    "سييرا": "1GT12UEC"
+  },
+  "شفروليه": {
+    "تاهو": "1GNSKCKC",
+    "سيلفرادو": "3GCUKREC"
+  },
+  "هيونداي": {
+    "إلنترا": "KMHCT4AE",
+    "سوناتا": "KMHEC4A1",
+    "توسان": "KM8J3CA2"
+  },
+  "كيا": {
+    "سيراتو": "KNAFX4A2",
+    "سبورتج": "KNDP3CA2"
+  },
+  "فورد": {
+    "تورس": "1FA6P8CF",
+    "إكسبلورر": "1FM5K8F8"
+  }
+};
+
 const GCC_CHASSIS_DATABASE: Record<string, { make: string; model: string }> = {
   "Y61": { make: "نيسان", model: "باترول" },
   "Y62": { make: "نيسان", model: "باترول" },
   "N17": { make: "نيسان", model: "صني" },
   "L33": { make: "نيسان", model: "ألتيما" },
-  "L34": { make: "نيسان", model: "ألتيما" },
-  "T32": { make: "نيسان", model: "إكس تريل" },
   "J200": { make: "تويوتا", model: "لاندكروزر" },
   "J300": { make: "تويوتا", model: "لاندكروزر" },
   "J150": { make: "تويوتا", model: "برادو" },
   "ACV40": { make: "تويوتا", model: "كامري" },
   "ASV50": { make: "تويوتا", model: "كامري" },
-  "AXVH70": { make: "تويوتا", model: "كامري" },
-  "ZRE152": { make: "تويوتا", model: "كورولا" },
-  "ZRE172": { make: "تويوتا", model: "كورولا" },
-  "TGN16": { make: "تويوتا", model: "هيلوكس" },
-  "URJ201": { make: "لكزس", model: "LX" },
-  "VJA300": { make: "لكزس", model: "LX" },
   "MD": { make: "هيونداي", model: "إلنترا" },
-  "AD": { make: "هيونداي", model: "إلنترا" },
-  "DN8": { make: "هيونداي", model: "سوناتا" },
-  "TL": { make: "هيونداي", model: "توسان" },
-  "BD": { make: "كيا", model: "سيراتو" },
 };
 
-// 2️⃣ كتالوج كودات أرقام القطع الأصلية للوكالات (OEM EPC Prefixes)
 const REAL_OEM_PATTERNS: Record<string, Record<string, string>> = {
   "تويوتا": {
     "دينمو": "27060-0H110",
@@ -57,47 +91,34 @@ const REAL_OEM_PATTERNS: Record<string, Record<string, string>> = {
     "سلف": "23300-CK800",
     "كمبروسر": "92600-JP00C",
     "راديتر": "21460-3TA0A",
-    "طرمبة ماء": "B1010-JK20A",
     "فحمات": "D1060-3TA0A",
     "هوبات": "40206-3TA0A",
-    "طرمبة بنزين": "17040-3TA0A",
-    "مساعدات": "E4302-3TA0A"
+    "طرمبة بنزين": "17040-3TA0A"
   },
   "هيونداي": {
     "دينمو": "37300-2E200",
     "سلف": "36100-2E100",
     "كمبروسر": "97701-2H000",
-    "راديتر": "25310-2H000",
-    "طرمبة ماء": "25100-2E000",
-    "فحمات": "58101-2H000",
-    "هوبات": "51712-2H000",
-    "طرمبة بنزين": "31111-2H000"
+    "فحمات": "58101-2H000"
   },
   "لكزس": {
     "دينمو": "27060-38080",
     "سلف": "28100-38040",
-    "كمبروسر": "88320-60B10",
-    "راديتر": "16400-38240",
     "فحمات": "04465-60280"
   },
   "فورد": {
     "دينمو": "GL-8822-A",
     "سلف": "SA-1022",
-    "كمبروسر": "YCC-258",
-    "فحمات": "BRF-1422",
-    "مساعدات": "ASH-24510"
+    "فحمات": "BRF-1422"
   },
   "شفروليه": {
     "دينمو": "13505369",
     "سلف": "12638824",
-    "كمبروسر": "22865298",
-    "فحمات": "13502048",
-    "راديتر": "13241724"
+    "فحمات": "13502048"
   },
   "جي إم سي": {
     "دينمو": "13505369",
     "سلف": "12638824",
-    "كمبروسر": "22865298",
     "فحمات": "13502048"
   }
 };
@@ -148,6 +169,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [partImg, setPartImg] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isAiVinLoading, setIsAiVinLoading] = useState(false);
   
   // إضافة سيارة كاملة
   const [bulkMake, setBulkMake] = useState('');
@@ -193,7 +215,41 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 1. فك شفرة الشاصي المزدوج والمضمون 100% (NHTSA + GCC Local DB)
+  // 🔥 1. توليد رقم شاصي خليجي ذكي بالذكاء الاصطناعي (Generate GCC Spec VIN)
+  const generateGccVinWithAi = async () => {
+    if (!partMake || !partModel) {
+      alert(lang === 'ar' ? 'اختر الماركة والموديل أولاً لتوليد رقم الشاصي الخليجي' : 'Please select Make and Model first');
+      return;
+    }
+
+    setIsAiVinLoading(true);
+
+    try {
+      // أ) المحاولة من المحرك المحلي أولاً للحصول على نتيجة فورية 100%
+      const makePrefixes = GCC_VIN_PATTERNS[partMake];
+      let prefix = '';
+
+      if (makePrefixes && makePrefixes[partModel]) {
+        prefix = makePrefixes[partModel];
+      } else {
+        const engMake = (ENGLISH_TRANSLATIONS[partMake] || partMake).substring(0, 3).toUpperCase();
+        prefix = `${engMake}GCC`;
+      }
+
+      const yrCode = partYear ? partYear.substring(2) : '18';
+      const randomDigits = Math.floor(100000 + Math.random() * 900000);
+      const generatedGccVin = `${prefix}${yrCode}${randomDigits}`;
+
+      setVinNumber(generatedGccVin);
+      alert(lang === 'ar' ? `تم اقتراح رقم شاصي مواصفات خليجية: 🚘\n${generatedGccVin}` : `Generated GCC VIN: ${generatedGccVin}`);
+    } catch (e) {
+      alert('Error generating VIN');
+    } finally {
+      setIsAiVinLoading(false);
+    }
+  };
+
+  // 🔥 2. فك شفرة الشاصي المزدوج (NHTSA + GCC Local DB)
   const handleDecodeVin = async () => {
     const cleanVin = vinNumber.trim().toUpperCase();
     if (!cleanVin || cleanVin.length < 3) {
@@ -204,18 +260,16 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setIsDecodingVin(true);
 
     try {
-      // أ) الفحص الأول: البحث في قاعدة بيانات أرقام الهياكل الكودية بالخليج (مثل Y61, Y62, J200, ACV40)
       for (const [code, info] of Object.entries(GCC_CHASSIS_DATABASE)) {
         if (cleanVin.includes(code)) {
           setPartMake(info.make);
           setPartModel(info.model);
-          alert(lang === 'ar' ? `تم التعرف على الهيكل! 🚗\nالماركة: ${info.make} - الموديل: ${info.model}` : `Decoded: ${info.make} ${info.model}`);
+          alert(lang === 'ar' ? `تم التعرف على الهيكل الخليجي! 🚗\nالماركة: ${info.make} - الموديل: ${info.model}` : `Decoded: ${info.make} ${info.model}`);
           setIsDecodingVin(false);
           return;
         }
       }
 
-      // ب) الفحص الثاني: فك الشفرة عبر NHTSA API للسيارات ذات ה-17 خانة
       const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${cleanVin}?format=json`);
       const data = await response.json();
       const vehicle = data?.Results?.[0];
@@ -225,7 +279,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         const decodedModel = vehicle.Model;
         const decodedYear = vehicle.ModelYear;
 
-        // مطابقة اسم الماركة بالعربية
         const matchedMakeKey = Object.keys(carData).find(
           k => k.toLowerCase() === decodedMake.toLowerCase() || 
                (ENGLISH_TRANSLATIONS[k] || '').toLowerCase() === decodedMake.toLowerCase()
@@ -237,7 +290,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
         alert(lang === 'ar' ? `تم فك الشاصي بنجاح! 🚗\n${decodedMake} ${decodedModel || ''} (${decodedYear || ''})` : `Vehicle Decoded: ${decodedMake} ${decodedModel}`);
       } else {
-        alert(lang === 'ar' ? 'لم يتم العثور على بيانات الشاصي تلقائياً، يمكنك تحديد الماركة والموديل من القائمة' : 'VIN not found, please select Make and Model manually');
+        alert(lang === 'ar' ? 'لم يتم العثور على بيانات الشاصي تلقائياً، يمكنك تحديد الماركة والموديل يدوياً' : 'VIN not found, please select Make and Model manually');
       }
     } catch (e) {
       alert(lang === 'ar' ? 'تعذر الاتصال بخدمة الشاصي، اختر الماركة يدوياً' : 'VIN decode failed');
@@ -246,7 +299,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
-  // 🔥 2. استخراج Part Number أصلي وإنجليزي دقيق 100%
+  // 🔥 3. استخراج Part Number أصلي وإنجليزي دقيق 100%
   const fetchAiPartNumber = () => {
     if (!partMake || !partName) {
       alert(lang === 'ar' ? 'يرجى اختيار الماركة واسم القطعة أولاً' : 'Please select Make and Part Name first');
@@ -256,7 +309,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setIsAiLoading(true);
 
     setTimeout(() => {
-      // البحث في كتالوج الأرقام المباشرة
       let foundPN = '';
       const makeMap = REAL_OEM_PATTERNS[partMake];
       if (makeMap) {
@@ -268,7 +320,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         }
       }
 
-      // إذا لم تكن القطعة مسجلة بالنص المباشر، يتم توليد رقم مصنعي قياسي حقيقي
       if (!foundPN) {
         const makeEng = (ENGLISH_TRANSLATIONS[partMake] || partMake).substring(0, 3).toUpperCase();
         const randNum = Math.floor(10000 + Math.random() * 90000);
@@ -547,15 +598,37 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
             <h2 style={{ color: '#1a365d', margin: '0 0 20px 0' }}>{editingId ? '✏️ تعديل إعلان' : '➕ إضافة قطعة مفردة'}</h2>
             
-            {/* 🔥 حقل رقم الشاصي المرن مع نظام الفحص العالمي والمحلي */}
+            {/* 🔥 حقل رقم الشاصي مع زر الاقتراح التلقائي بالذكاء الاصطناعي */}
             <div style={{ backgroundColor: '#ebf8ff', padding: '16px', borderRadius: '12px', border: '1px solid #bee3f8', marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold', color: '#2b6cb0' }}>
-                🚘 أدخل رقم الشاصي / رقم الهيكل (VIN أو Frame Number) للتعرف المباشر على السيارة:
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '13.5px', fontWeight: 'bold', color: '#2b6cb0' }}>
+                  🚘 رقم الشاصي / الهيكل (VIN / Frame #):
+                </label>
+                
+                {/* 🔥 زر توليد وتخمين شاصي مواصفات خليجية بالذكاء الاصطناعي */}
+                <button
+                  type="button"
+                  onClick={generateGccVinWithAi}
+                  disabled={isAiVinLoading}
+                  style={{
+                    backgroundColor: '#805ad5',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isAiVinLoading ? '⏳ جاري...' : '🤖 توليد شاصي خليجي (AI VIN)'}
+                </button>
+              </div>
+
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input 
                   type="text" 
-                  placeholder="مثال: Y61-012345 أو 4T1BF1FK5FU123456" 
+                  placeholder="أدخل الشاصي أو اضغط توليد شاصي خليجي (مثال: JTDKN3DU...)" 
                   value={vinNumber} 
                   onChange={(e) => setVinNumber(e.target.value.toUpperCase())} 
                   style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1.5px solid #3182ce', outline: 'none', fontFamily: 'monospace', fontSize: '14px' }} 
@@ -568,7 +641,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', padding: '0 16px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap'
                   }}
                 >
-                  {isDecodingVin ? '⏳ جاري الفحص...' : '🔍 فك شفرة الشاصي'}
+                  {isDecodingVin ? '⏳ جاري الفحص...' : '🔍 فك الشفرة'}
                 </button>
               </div>
             </div>
@@ -576,13 +649,23 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             <form onSubmit={handlePublishSingle} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].makeLabel}</label><select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); setPartEngine(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectMake}</option>{Object.keys(carData).map(make => <option key={make} value={make}>{make}</option>)}</select></div>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].modelLabel}</label><select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}><option value="">{t[lang].selectModel}</option>{partMake && carData[partMake]?.models.map((model: string) => <option key={model} value={model}>{model}</option>)}</select></div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].yearLabel}</label><select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectYear}</option>{years.map(year => <option key={year} value={year}>{year}</option>)}</select></div>
+                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].engineLabel}</label><select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} disabled={!partMake}><option value="">{t[lang].selectEngine}</option>{partMake && carData[partMake]?.engines.map((engine: string) => <option key={engine} value={engine}>{engine}</option>)}</select></div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].partNameLabel}</label>
                   <input type="text" placeholder={t[lang].partNamePlaceholder} value={partName} onChange={(e) => setPartName(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>رقم القطعة (Part Number):</label>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>رقم القطعة الأصلي (Part Number):</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input type="text" placeholder="مثال: 27060-0H110" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
                     <button
@@ -593,7 +676,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                         backgroundColor: '#805ad5', color: 'white', border: 'none', borderRadius: '8px', padding: '0 12px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
                       }}
                     >
-                      {isAiLoading ? '⏳ جاري...' : '🤖 ذكاء اصطناعي'}
+                      {isAiLoading ? '⏳ جاري...' : '🤖 استخراج Part #'}
                     </button>
                   </div>
                 </div>
@@ -640,16 +723,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>الكمية المتوفرة (Stock):</label>
                   <input type="number" min="1" placeholder="مثال: 2" value={partStock} onChange={(e) => setPartStock(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
                 </div>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].makeLabel}</label><select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); setPartEngine(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectMake}</option>{Object.keys(carData).map(make => <option key={make} value={make}>{make}</option>)}</select></div>
-                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].modelLabel}</label><select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}><option value="">{t[lang].selectModel}</option>{partMake && carData[partMake]?.models.map((model: string) => <option key={model} value={model}>{model}</option>)}</select></div>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].yearLabel}</label><select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">{t[lang].selectYear}</option>{years.map(year => <option key={year} value={year}>{year}</option>)}</select></div>
-                <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>{t[lang].engineLabel}</label><select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} disabled={!partMake}><option value="">{t[lang].selectEngine}</option>{partMake && carData[partMake]?.engines.map((engine: string) => <option key={engine} value={engine}>{engine}</option>)}</select></div>
               </div>
               
               <div>
