@@ -5,6 +5,8 @@ import { AuthModal } from './components/AuthModal';
 import { GarageDashboard } from './components/GarageDashboard';
 import { SidebarFilters } from './components/SidebarFilters';
 import { CustomerProfile } from './components/CustomerProfile';
+import { CustomerFitmentCheckout } from './components/CustomerFitmentCheckout';
+import { CustomerOrderTracker } from './components/CustomerOrderTracker';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -29,6 +31,10 @@ export default function App() {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+
+  // حالات الشاشات والنوافذ المنبثقة للعميل
+  const [selectedPartForCheckout, setSelectedPartForCheckout] = useState<any | null>(null);
+  const [showOrderTracker, setShowOrderTracker] = useState(false);
 
   const [inventory, setInventory] = useState<any[]>([]);
   const [session, setSession] = useState<any | null>(null);
@@ -99,29 +105,8 @@ export default function App() {
 
   // 🔥 إضافة القطعة للسلة والتأكد من عدم تجاوز المخزون المتاح
   const handleBuyClick = (item: any, quantity: number = 1) => {
-    const maxStock = typeof item.stock !== 'undefined' && item.stock !== null ? Number(item.stock) : 5;
-
-    setCartItems(prev => {
-      const existingIdx = prev.findIndex(i => i.id === item.id);
-      if (existingIdx > -1) {
-        const currentQty = prev[existingIdx].quantity || 1;
-        const totalTarget = currentQty + quantity;
-
-        if (totalTarget > maxStock) {
-          alert(lang === 'ar' ? `عفواً، الحد الأقصى المتوفر في المخزون هو ${maxStock} قطعة فقط` : `Only ${maxStock} items available in stock`);
-          const updated = [...prev];
-          updated[existingIdx] = { ...updated[existingIdx], quantity: maxStock };
-          return updated;
-        }
-
-        const updated = [...prev];
-        updated[existingIdx] = { ...updated[existingIdx], quantity: totalTarget };
-        return updated;
-      }
-      return [...prev, { ...item, quantity: Math.min(maxStock, quantity) }];
-    });
-    
-    showToast(lang === 'ar' ? `تمت إضافة (${quantity}) قطع للسلة 🛒` : `Added (${quantity}) items 🛒`, 'success');
+    // فتح نافذة الفحص والشراء المباشر للقطعة
+    setSelectedPartForCheckout(item);
   };
 
   const toggleCategory = (category: string) => { setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); };
@@ -218,6 +203,31 @@ export default function App() {
             showToast(lang === 'ar' ? 'تم تسجيل الخروج بنجاح' : 'Logged out', 'success'); 
           }} 
         />
+
+        {/* زر سريع للعميل للوصول لمتابعة الطلبات كودات التسليم */}
+        {session && session.role !== 'garage' && (
+          <div style={{ maxWidth: '1240px', margin: '10px auto -15px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setShowOrderTracker(true)}
+              style={{
+                backgroundColor: '#3182ce',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              }}
+            >
+              📦 {lang === 'ar' ? 'متابعة طلباتي وأكواد التسليم' : 'Track My Orders'}
+            </button>
+          </div>
+        )}
 
         {isCartOpen && (
           <>
@@ -328,6 +338,36 @@ export default function App() {
           )}
 
         </main>
+
+        {/* 1️⃣ نافذة فحص التوافق والشراء المباشر للعميل */}
+        {selectedPartForCheckout && (
+          <CustomerFitmentCheckout
+            lang={lang}
+            part={selectedPartForCheckout}
+            customerPhone={session?.phone || session?.email || session?.user?.phone || '55000000'}
+            supabaseUrl={SUPABASE_URL}
+            apiKey={API_KEY}
+            session={session}
+            onClose={() => setSelectedPartForCheckout(null)}
+            onSuccess={() => {
+              setSelectedPartForCheckout(null);
+              fetchParts();
+            }}
+          />
+        )}
+
+        {/* 2️⃣ نافذة تتبع الطلبات وأكواد التسليم والتقييم للعميل */}
+        {showOrderTracker && (
+          <CustomerOrderTracker
+            lang={lang}
+            customerPhone={session?.phone || session?.email || session?.user?.phone || ''}
+            supabaseUrl={SUPABASE_URL}
+            apiKey={API_KEY}
+            session={session}
+            onClose={() => setShowOrderTracker(false)}
+          />
+        )}
+
       </div>
     </>
   );
