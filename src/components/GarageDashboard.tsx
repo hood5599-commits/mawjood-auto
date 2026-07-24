@@ -30,6 +30,10 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [myInquiries, setMyInquiries] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
 
+  // مودال معاينة القطعة المكبرة للكراج
+  const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
+
+  // مودال تحديد الضمان
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [returnDays, setReturnDays] = useState<number>(3);
   const [warrantyDays, setWarrantyDays] = useState<number>(14);
@@ -208,6 +212,22 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
+  // 📦 تحديث حالة الطلب من قبل الكراج
+  const updateOrderStatus = async (orderId: number, newStatus: string) => {
+    try {
+      const response = await fetch(`${supabaseUrl}/orders?id=eq.${orderId}`, {
+        method: 'PATCH',
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        alert(lang === 'ar' ? 'تم تحديث حالة الطلب بنجاح! 🚀' : 'Status updated!');
+        fetchMyOrders();
+      }
+    } catch (error) {}
+  };
+
   const handleDelete = async (id: number) => {
     if (!window.confirm(lang === 'ar' ? 'هل أنت متأكد من حذف هذه القطعة؟' : 'Are you sure?')) return;
     try {
@@ -251,6 +271,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>📥 {lang === 'ar' ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}</button>
       </div>
 
+      {/* 1. نموذج إضافة قطعة */}
       {activeTab === 'add_part' && (
         <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h2 style={{ color: '#1a365d', margin: '0 0 20px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>{editingId ? (lang === 'ar' ? '✏️ تعديل بيانات القطعة' : '✏️ Edit Part') : (lang === 'ar' ? '➕ إضافة قطعة غيار جديدة' : '➕ Add New Part')}</h2>
@@ -299,6 +320,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
+      {/* 2. استفسارات التوافق الواردة */}
       {activeTab === 'inquiries' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>❓ استفسارات مطابقة التوافق الواردة</h3>
@@ -317,11 +339,18 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     </span>
                   </div>
 
-                  {/* 📦 كرت تفاصيل القطعة المطلوب الاستفسار عنها */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '12px' }}>
-                    <img src={inquiry.part_image || 'https://via.placeholder.com/60'} alt={inquiry.part_name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
-                    <div>
-                      <strong style={{ fontSize: '15px', color: '#1a365d', display: 'block' }}>📦 {inquiry.part_name || 'قطعة من معروضاتك'}</strong>
+                  {/* 📦 كرت تفاصيل القطعة المطلوب الاستفسار عنها (مع إمكانية النقر للمعااينة المكبرة) */}
+                  <div 
+                    onClick={() => setPreviewPartDetails(inquiry)}
+                    style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', marginBottom: '12px', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                    title="اضغط هنا لمشاهدة القطعة وتفاصيلها بحجم مكبر"
+                  >
+                    <img src={inquiry.part_image || 'https://via.placeholder.com/60'} alt={inquiry.part_name} style={{ width: '65px', height: '65px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <strong style={{ fontSize: '15px', color: '#1a365d' }}>📦 {inquiry.part_name || 'قطعة من معروضاتك'}</strong>
+                        <span style={{ fontSize: '11px', color: '#3182ce', backgroundColor: '#ebf8ff', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>🔍 اضغط للمعاينة</span>
+                      </div>
                       {inquiry.part_number && <span style={{ fontSize: '12px', color: '#718096', display: 'block' }}>Part #: {inquiry.part_number}</span>}
                       <span style={{ fontSize: '13.5px', color: '#dd6b20', fontWeight: 'bold' }}>{inquiry.part_price || 0} QAR</span>
                     </div>
@@ -362,6 +391,22 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
+      {/* 🔍 نافذة المعاينة المكبرة للقطعة عند ضغط الكراج عليها */}
+      {previewPartDetails && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
+          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', maxWidth: '500px', width: '90%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+            <button onClick={() => setPreviewPartDetails(null)} style={{ position: 'absolute', top: '15px', right: '15px', border: 'none', background: '#edf2f7', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            <h3 style={{ margin: '0 0 15px 0', color: '#1a365d' }}>🔍 تفاصيل قطعة المعرض</h3>
+            <img src={previewPartDetails.part_image || 'https://via.placeholder.com/300'} alt={previewPartDetails.part_name} style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #cbd5e0', marginBottom: '15px' }} />
+            <h4 style={{ margin: '0 0 6px 0', fontSize: '18px', color: '#2d3748' }}>{previewPartDetails.part_name}</h4>
+            {previewPartDetails.part_number && <div style={{ fontSize: '13px', color: '#718096', marginBottom: '8px' }}>رقم القطعة: <strong>{previewPartDetails.part_number}</strong></div>}
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20', marginBottom: '15px' }}>{previewPartDetails.part_price || 0} QAR</div>
+            <button onClick={() => setPreviewPartDetails(null)} style={{ width: '100%', padding: '10px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>إغلاق المعاينة</button>
+          </div>
+        </div>
+      )}
+
+      {/* 🛡️ نافذة تحديد الضمان */}
       {selectedInquiry && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', maxWidth: '500px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
@@ -398,6 +443,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
+      {/* 3. إعلانات الكراج */}
       {activeTab === 'my_parts' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📦 جميع القطع المعروضة ({myParts.length})</h3>
@@ -420,24 +466,65 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
+      {/* 4. الطلبات الواردة من العملاء مع توضيح الموقع وأزرار المتابعة */}
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 الطلبات الواردة للشحن والاستلام</h3>
-          {myOrders.map(order => (
-            <div key={order.id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', marginBottom: '15px', backgroundColor: '#f8fafc' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <div>
-                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#3182ce', backgroundColor: '#ebf8ff', padding: '3px 8px', borderRadius: '4px', display: 'inline-block', marginBottom: '6px' }}>كود الطلب: {order.order_code || `#ORD-${order.id}`}</span>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#2d3748' }}>{order.part_name}</h4>
+          {myOrders.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>لا توجد طلبات جديدة حالياً.</p>
+          ) : (
+            myOrders.map(order => (
+              <div key={order.id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', marginBottom: '15px', backgroundColor: '#f8fafc' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#3182ce', backgroundColor: '#ebf8ff', padding: '3px 8px', borderRadius: '4px', display: 'inline-block', marginBottom: '6px' }}>كود الطلب: {order.order_code || `#ORD-${order.id}`}</span>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#2d3748' }}>{order.part_name}</h4>
+                  </div>
+                  <span style={{ fontWeight: 'bold', color: '#dd6b20', fontSize: '18px' }}>{order.price} QAR</span>
                 </div>
-                <span style={{ fontWeight: 'bold', color: '#dd6b20', fontSize: '18px' }}>{order.price} QAR</span>
+
+                {/* تفاصيل الموقع والاستلام للكراج */}
+                <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #edf2f7', fontSize: '13px', color: '#4a5568', marginBottom: '12px' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                    🚚 طريقة التسليم: {order.delivery_type === 'delivery' ? 'توصيل لموقع العميل' : '🏪 استلام من مقر موجود أووتو'}
+                  </div>
+                  {order.delivery_type === 'delivery' && (
+                    <div style={{ marginTop: '6px' }}>
+                      📍 العنوان: <strong>{order.address_details || 'غير محدد'}</strong>
+                      {order.location_lat && order.location_lng && (
+                        <a 
+                          href={`https://www.google.com/maps?q=${order.location_lat},${order.location_lng}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          style={{ display: 'inline-block', marginRight: '10px', backgroundColor: '#3182ce', color: 'white', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', textDecoration: 'none' }}
+                        >
+                          🗺️ فتح موقع العميل في Google Maps
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {order.pickup_code && <div style={{ color: '#2f855a', fontWeight: 'bold', marginTop: '6px' }}>🔑 كود تسليم المندوب: {order.pickup_code}</div>}
+                </div>
+
+                {/* أزرار تحديث حالة الطلب من قبل الكراج */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={() => updateOrderStatus(order.id, 'ready_for_pickup')} 
+                    style={{ flex: 1, padding: '9px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}
+                  >
+                    ✅ تأكيد توفر القطعة وتجهيزها
+                  </button>
+                  <button 
+                    onClick={() => updateOrderStatus(order.id, 'handed_to_driver')} 
+                    style={{ flex: 1, padding: '9px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}
+                  >
+                    🚚 تم تسليم القطعة للمندوب
+                  </button>
+                </div>
+
               </div>
-              <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #edf2f7', fontSize: '13px', color: '#4a5568' }}>
-                <div>🚚 نوع التسليم: <strong>{order.delivery_type === 'delivery' ? 'توصيل عبر مندوب موجود أووتو' : 'استلام من مقر موجود أووتو'}</strong></div>
-                {order.pickup_code && <div style={{ color: '#2f855a', fontWeight: 'bold', marginTop: '4px' }}>🔑 كود تسليم المندوب: {order.pickup_code}</div>}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
