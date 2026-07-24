@@ -93,7 +93,6 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
     }
   };
 
-  // 1️⃣ إرسال استفسار فحص التوافق للكرّاج مع كشف الأخطاء
   const handleSendFitmentInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -106,6 +105,10 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
         part_id: Number(part.id),
         garage_id: String(part.user_id || 'unknown_garage'),
         customer_phone: customerPhone || '55000000',
+        part_name: part.name,
+        part_image: part.image_url || '',
+        part_price: part.price || 0,
+        part_number: part.part_number || '',
         car_make: carMake,
         car_model: carModel,
         car_year: carYear,
@@ -128,15 +131,15 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
       });
 
       if (response.ok) {
-        alert(lang === 'ar' ? `تم إرسال طلب التوافق للبائع بنجاح! 🚀\nكود الاستفسار: ${inquiryCode}\nسيصلك تنبيه فور رد الكراج.` : 'Inquiry sent successfully!');
+        alert(lang === 'ar' ? `تم إرسال طلب التوافق للبائع بنجاح! 🚀\nكود الاستفسار: ${inquiryCode}\nتجد استفسارك في "متابعة طلباتي"` : 'Inquiry sent successfully!');
         onSuccess();
         onClose();
       } else {
         const errJson = await response.json().catch(() => ({}));
-        alert(`خطأ من السيرفر: ${errJson.message || errJson.hint || 'يرجى التأكد من تشغيل كود SQL في Supabase'}`);
+        alert(`خطأ: ${errJson.message || 'فشل الإرسال'}`);
       }
     } catch (err: any) {
-      alert(`خطأ الاتصال: ${err?.message || 'تعذر التواصل مع قاعدة البيانات'}`);
+      alert('خطأ في الاتصال');
     } finally {
       setLoading(false);
     }
@@ -183,7 +186,7 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
       if (response.ok) {
         alert(
           lang === 'ar' 
-            ? `مبروك! تم إتمام طلبك بنجاح 🎉\nرمز الطلب: ${orderCode}\nرمز كود التسليم الخاص بك: ${deliveryCode}\nسيتواصل معك مندوب موجود أووتو قريباً.` 
+            ? `مبروك! تم إتمام طلبك بنجاح 🎉\nرمز الطلب: ${orderCode}\nرمز كود التسليم الخاص بك: ${deliveryCode}` 
             : 'Order placed successfully!'
         );
         onSuccess();
