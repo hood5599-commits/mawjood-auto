@@ -103,9 +103,8 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 إضافة القطعة للسلة والتأكد من عدم تجاوز المخزون المتاح
-  const handleBuyClick = (item: any, quantity: number = 1) => {
-    // فتح نافذة الفحص والشراء المباشر للقطعة
+  // 🔥 فتح نافذة الفحص والشراء المباشر للقطعة
+  const handleBuyClick = (item: any, _quantity: number = 1) => {
     setSelectedPartForCheckout(item);
   };
 
