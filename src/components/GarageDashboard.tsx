@@ -30,10 +30,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [myInquiries, setMyInquiries] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // مودال معاينة القطعة المكبرة للكراج
   const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
-
-  // مودال تحديد الضمان
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [returnDays, setReturnDays] = useState<number>(3);
   const [warrantyDays, setWarrantyDays] = useState<number>(14);
@@ -212,7 +209,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
-  // 📦 تحديث حالة الطلب من قبل الكراج
   const updateOrderStatus = async (orderId: number, newStatus: string) => {
     try {
       const response = await fetch(`${supabaseUrl}/orders?id=eq.${orderId}`, {
@@ -271,7 +267,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>📥 {lang === 'ar' ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}</button>
       </div>
 
-      {/* 1. نموذج إضافة قطعة */}
       {activeTab === 'add_part' && (
         <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h2 style={{ color: '#1a365d', margin: '0 0 20px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>{editingId ? (lang === 'ar' ? '✏️ تعديل بيانات القطعة' : '✏️ Edit Part') : (lang === 'ar' ? '➕ إضافة قطعة غيار جديدة' : '➕ Add New Part')}</h2>
@@ -320,7 +315,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 2. استفسارات التوافق الواردة */}
       {activeTab === 'inquiries' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>❓ استفسارات مطابقة التوافق الواردة</h3>
@@ -339,11 +333,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     </span>
                   </div>
 
-                  {/* 📦 كرت تفاصيل القطعة المطلوب الاستفسار عنها (مع إمكانية النقر للمعااينة المكبرة) */}
                   <div 
                     onClick={() => setPreviewPartDetails(inquiry)}
-                    style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', marginBottom: '12px', cursor: 'pointer', transition: 'all 0.2s ease' }}
-                    title="اضغط هنا لمشاهدة القطعة وتفاصيلها بحجم مكبر"
+                    style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', marginBottom: '12px', cursor: 'pointer' }}
                   >
                     <img src={inquiry.part_image || 'https://via.placeholder.com/60'} alt={inquiry.part_name} style={{ width: '65px', height: '65px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
                     <div style={{ flex: 1 }}>
@@ -391,7 +383,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 🔍 نافذة المعاينة المكبرة للقطعة عند ضغط الكراج عليها */}
       {previewPartDetails && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
           <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', maxWidth: '500px', width: '90%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
@@ -406,7 +397,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 🛡️ نافذة تحديد الضمان */}
       {selectedInquiry && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', maxWidth: '500px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
@@ -443,7 +433,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 3. إعلانات الكراج */}
       {activeTab === 'my_parts' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📦 جميع القطع المعروضة ({myParts.length})</h3>
@@ -466,7 +455,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 4. الطلبات الواردة من العملاء مع توضيح الموقع وأزرار المتابعة */}
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 الطلبات الواردة للشحن والاستلام</h3>
@@ -483,7 +471,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   <span style={{ fontWeight: 'bold', color: '#dd6b20', fontSize: '18px' }}>{order.price} QAR</span>
                 </div>
 
-                {/* تفاصيل الموقع والاستلام للكراج */}
                 <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #edf2f7', fontSize: '13px', color: '#4a5568', marginBottom: '12px' }}>
                   <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
                     🚚 طريقة التسليم: {order.delivery_type === 'delivery' ? 'توصيل لموقع العميل' : '🏪 استلام من مقر موجود أووتو'}
@@ -506,7 +493,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   {order.pickup_code && <div style={{ color: '#2f855a', fontWeight: 'bold', marginTop: '6px' }}>🔑 كود تسليم المندوب: {order.pickup_code}</div>}
                 </div>
 
-                {/* أزرار تحديث حالة الطلب من قبل الكراج */}
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 
                     onClick={() => updateOrderStatus(order.id, 'ready_for_pickup')} 
