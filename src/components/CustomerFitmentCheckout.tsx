@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 interface PartItem {
   id: number;
+  inquiry_id?: number;
   name: string;
   price: number;
   make: string;
@@ -186,6 +187,15 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
       });
 
       if (response.ok) {
+        // 🔥 تحويل حالة الاستفسار إلى تم الشراء ليختفي تلقائياً من قائمة الاستفسارات المعلقة
+        if (part.inquiry_id) {
+          await fetch(`${supabaseUrl}/fitment_inquiries?id=eq.${part.inquiry_id}`, {
+            method: 'PATCH',
+            headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'ordered' })
+          }).catch(() => {});
+        }
+
         alert(
           lang === 'ar' 
             ? `مبروك! تم إتمام طلبك بنجاح 🎉\nرمز الطلب: ${orderCode}\nرمز كود التسليم الخاص بك: ${deliveryCode}` 
