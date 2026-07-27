@@ -30,10 +30,9 @@ export default function App() {
   
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   // حالات الشاشات والنوافذ المنبثقة للعميل
-  const [selectedPartForCheckout, setSelectedPartForCheckout] = useState<any | null>(null);
+  const [selectedPartForCheckout, setSelectedPartForCheckout] = useState<{ part: any; initialStep?: 'inquire' | 'checkout' } | null>(null);
   const [showOrderTracker, setShowOrderTracker] = useState(false);
 
   const [inventory, setInventory] = useState<any[]>([]);
@@ -103,96 +102,11 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
-  // 🔥 إضافة القطعة للسلة والتأكد من عدم تجاوز المخزون المتاح
-  const handleBuyClick = (item: any, quantity: number = 1) => {
-    const maxStock = typeof item.stock !== 'undefined' && item.stock !== null ? Number(item.stock) : 5;
-
-    setCartItems(prev => {
-      const existingIdx = prev.findIndex(i => i.id === item.id);
-      if (existingIdx > -1) {
-        const currentQty = prev[existingIdx].quantity || 1;
-        const totalTarget = currentQty + quantity;
-
-        if (totalTarget > maxStock) {
-          alert(lang === 'ar' ? `عفواً، الحد الأقصى المتوفر في المخزون هو ${maxStock} قطعة فقط` : `Only ${maxStock} items available in stock`);
-          const updated = [...prev];
-          updated[existingIdx] = { ...updated[existingIdx], quantity: maxStock };
-          return updated;
-        }
-
-        const updated = [...prev];
-        updated[existingIdx] = { ...updated[existingIdx], quantity: totalTarget };
-        return updated;
-      }
-      return [...prev, { ...item, quantity: Math.min(maxStock, quantity) }];
-    });
-    
-    showToast(lang === 'ar' ? `تمت إضافة (${quantity}) قطع للسلة 🛒` : `Added (${quantity}) items 🛒`, 'success');
+  const handleBuyClick = (item: any, _quantity: number = 1) => {
+    setSelectedPartForCheckout({ part: item, initialStep: 'inquire' });
   };
 
   const toggleCategory = (category: string) => { setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); };
-
-  const handleCheckoutDatabase = async () => {
-    if (cartItems.length === 0) return;
-
-    if (!session) {
-      showToast(lang === 'ar' ? 'يرجى تسجيل الدخول أولاً لإتمام الطلب 🔒' : 'Please login to checkout 🔒', 'error');
-      setIsCartOpen(false);
-      setView('auth');
-      return;
-    }
-
-    setIsCheckoutLoading(true);
-
-    try {
-      const ordersPayload: any[] = [];
-      cartItems.forEach(item => {
-        const qty = item.quantity || 1;
-        const partNo = item.part_number || item.code || item.sku || '';
-        const nameWithPN = partNo ? `${item.name} [PN: ${partNo}] (${item.make} ${item.model || ''})` : `${item.name} (${item.make} ${item.model || ''})`;
-        
-        for (let q = 0; q < qty; q++) {
-          ordersPayload.push({
-            part_name: nameWithPN,
-            price: Number(item.price),
-            garage_id: item.user_id,
-            customer_phone: session.phone || session.email || 'غير معروف',
-            status: 'pending',
-            notes: ''
-          });
-        }
-      });
-
-      const response = await fetch(`${SUPABASE_URL}/orders`, {
-        method: 'POST',
-        headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${session.token || API_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify(ordersPayload)
-      });
-
-      if (response.ok) {
-        showToast(lang === 'ar' ? 'تم إرسال طلبك للكراجات بنجاح! سيتم التواصل معك قريباً 🚀' : 'Order sent successfully! We will contact you soon 🚀', 'success');
-        
-        const userId = session.phone || session.email || session.user?.id;
-        if (userId) localStorage.removeItem(`mawjood_cart_${userId}`);
-        
-        setCartItems([]);
-        setIsCartOpen(false);
-        setView('profile');
-      } else {
-        const err = await response.json();
-        alert(`خطأ: ${err.message || err.details}`);
-      }
-    } catch (error: any) {
-      alert('خطأ في الاتصال بقاعدة البيانات');
-    } finally {
-      setIsCheckoutLoading(false);
-    }
-  };
 
   const totalCartPrice = cartItems.reduce((total, item) => total + (Number(item.price) * (item.quantity || 1)), 0);
   const totalCartCount = cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
@@ -225,7 +139,6 @@ export default function App() {
           }} 
         />
 
-        {/* زر سريع للعميل للوصول لمتابعة الطلبات كودات التسليم */}
         {session && session.role !== 'garage' && (
           <div style={{ maxWidth: '1240px', margin: '10px auto -15px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
             <button
@@ -250,6 +163,7 @@ export default function App() {
           </div>
         )}
 
+        {/* سلة المشتريات */}
         {isCartOpen && (
           <>
             <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100 }} />
@@ -294,16 +208,16 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* زر أسأل البائع عن التوافق من داخل السلة مباشرة */}
+                        {/* زر الانقال للدفع والشراء المباشر من السلة */}
                         <button
                           onClick={() => {
                             setIsCartOpen(false);
-                            setSelectedPartForCheckout(item);
+                            setSelectedPartForCheckout({ part: item, initialStep: 'checkout' });
                           }}
                           style={{
                             width: '100%',
                             padding: '8px',
-                            backgroundColor: '#805ad5',
+                            backgroundColor: '#38a169',
                             color: 'white',
                             border: 'none',
                             borderRadius: '8px',
@@ -312,7 +226,7 @@ export default function App() {
                             cursor: 'pointer'
                           }}
                         >
-                          ❓ {lang === 'ar' ? 'أسأل البائع هل تركب؟' : 'Ask Fitment'}
+                          💳 {lang === 'ar' ? 'إتمام الدفع لهذه القطعة' : 'Checkout This Part'}
                         </button>
                       </div>
                     );
@@ -326,8 +240,17 @@ export default function App() {
                     <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
                     <span style={{ color: 'var(--mw-primary)' }}>{totalCartPrice} QAR</span>
                   </div>
-                  <button onClick={handleCheckoutDatabase} disabled={isCheckoutLoading} style={{ width: '100%', padding: '15px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center', opacity: isCheckoutLoading ? 0.7 : 1 }}>
-                    {isCheckoutLoading ? (lang === 'ar' ? 'جاري الإرسال...' : 'Sending...') : (lang === 'ar' ? 'إتمام الطلب الآن' : 'Checkout Now')}
+                  <button 
+                    onClick={() => {
+                      setIsCartOpen(false);
+                      // الانقال للدفع لأول عنصر بالسلة
+                      if (cartItems.length > 0) {
+                        setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' });
+                      }
+                    }} 
+                    style={{ width: '100%', padding: '15px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}
+                  >
+                    🚀 {lang === 'ar' ? 'إتمام الشراء والدفع الآن' : 'Checkout Now'}
                   </button>
                 </div>
               )}
@@ -387,20 +310,30 @@ export default function App() {
         {selectedPartForCheckout && (
           <CustomerFitmentCheckout
             lang={lang}
-            part={selectedPartForCheckout}
+            part={selectedPartForCheckout.part}
+            initialStep={selectedPartForCheckout.initialStep || 'inquire'}
             customerPhone={session?.phone || session?.email || session?.user?.phone || '55000000'}
             supabaseUrl={SUPABASE_URL}
             apiKey={API_KEY}
             session={session}
             onClose={() => setSelectedPartForCheckout(null)}
             onSuccess={() => {
+              // 🔥 تفريغ السلة بعد إتمام الشراء بنجاح
+              const purchasedPartId = selectedPartForCheckout.part.id;
+              setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
+              const userId = session?.phone || session?.email || session?.user?.id;
+              if (userId) localStorage.removeItem(`mawjood_cart_${userId}`);
+
               setSelectedPartForCheckout(null);
               fetchParts();
+
+              // 🔥 فتح صفحة متابعة الطلبات تلقائياً
+              setShowOrderTracker(true);
             }}
           />
         )}
 
-        {/* 2️⃣ نافذة تتبع الاستفسارات والطلبات وأكواد التسليم والتقييم للعميل */}
+        {/* 2️⃣ نافذة تتبع الطلبات وأكواد التسليم للعميل */}
         {showOrderTracker && (
           <CustomerOrderTracker
             lang={lang}
@@ -409,6 +342,10 @@ export default function App() {
             apiKey={API_KEY}
             session={session}
             onClose={() => setShowOrderTracker(false)}
+            onSelectPartForCheckout={(part) => {
+              // 🔥 عند الضغط على "إتمام الشراء والتوصيل الآن" تحويل العميل مباشرة لصفحة الدفع
+              setSelectedPartForCheckout({ part, initialStep: 'checkout' });
+            }}
           />
         )}
 
