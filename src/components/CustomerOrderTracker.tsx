@@ -87,7 +87,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
-  const confirmedInquiries = inquiries.filter(i => i.status === 'confirmed_compatible');
+  // إخفاء الاستفسارات التي تم إتمام شرائها من قائمة الاستفسارات النشطة
+  const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
+  const confirmedInquiries = activeInquiries.filter(i => i.status === 'confirmed_compatible');
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
@@ -104,7 +106,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             onClick={() => setActiveTab('inquiries')}
             style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : '#f7fafc', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', position: 'relative' }}
           >
-            ❓ استفسارات التوافق ({inquiries.length})
+            ❓ استفسارات التوافق ({activeInquiries.length})
             {confirmedInquiries.length > 0 && (
               <span style={{ position: 'absolute', top: '-5px', right: '-5px', backgroundColor: '#38a169', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '10px', fontWeight: 'bold' }}>
                 {confirmedInquiries.length}
@@ -122,11 +124,11 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         {loading ? (
           <p style={{ textAlign: 'center', color: '#718096' }}>جاري التحميل...</p>
         ) : activeTab === 'inquiries' ? (
-          inquiries.length === 0 ? (
+          activeInquiries.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>لا توجد استفسارات متوافقة حالياً.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {inquiries.map(inq => (
+              {activeInquiries.map(inq => (
                 <div key={inq.id} style={{ padding: '18px', border: inq.status === 'confirmed_compatible' ? '2px solid #38a169' : '1px solid #e2e8f0', borderRadius: '15px', backgroundColor: inq.status === 'confirmed_compatible' ? '#f0fff4' : '#f8fafc' }}>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -161,6 +163,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                           if (onSelectPartForCheckout) {
                             onSelectPartForCheckout({
                               id: inq.part_id,
+                              inquiry_id: inq.id, // 🔥 ربط كود الاستفسار لإلغائه بعد الشراء
                               name: inq.part_name,
                               price: inq.part_price,
                               image_url: inq.part_image,
@@ -195,7 +198,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                       رمز الطلب: {order.order_code || `#ORD-${order.id}`}
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: 'bold', color: order.status === 'delivered' ? '#38a169' : '#dd6b20' }}>
-                      {order.status === 'ready_for_pickup' ? '📦 القطعة جاهزة للطلب' : order.status === 'handed_to_driver' ? '🚚 القطعة مع المندوب وفي الطريق إليك' : order.status === 'delivered' ? '✅ تم التسليم' : '⏳ جاري التجهيز'}
+                      {order.status === 'ready_for_pickup' ? '📦 القطعة جاهزة وفي انتظار المندوب' : order.status === 'handed_to_driver' ? '🚚 القطعة مع المندوب وفي الطريق إليك' : order.status === 'delivered' ? '✅ تم التسليم بالكامل' : '⏳ جاري التجهيز'}
                     </span>
                   </div>
 
