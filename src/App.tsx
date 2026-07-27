@@ -31,7 +31,6 @@ export default function App() {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // حالات الشاشات والنوافذ المنبثقة للعميل
   const [selectedPartForCheckout, setSelectedPartForCheckout] = useState<{ part: any; initialStep?: 'inquire' | 'checkout' } | null>(null);
   const [showOrderTracker, setShowOrderTracker] = useState(false);
 
@@ -163,7 +162,6 @@ export default function App() {
           </div>
         )}
 
-        {/* سلة المشتريات */}
         {isCartOpen && (
           <>
             <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100 }} />
@@ -208,7 +206,6 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* زر الانقال للدفع والشراء المباشر من السلة */}
                         <button
                           onClick={() => {
                             setIsCartOpen(false);
@@ -243,7 +240,6 @@ export default function App() {
                   <button 
                     onClick={() => {
                       setIsCartOpen(false);
-                      // الانقال للدفع لأول عنصر بالسلة
                       if (cartItems.length > 0) {
                         setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' });
                       }
@@ -306,7 +302,6 @@ export default function App() {
 
         </main>
 
-        {/* 1️⃣ نافذة فحص التوافق والشراء المباشر للعميل */}
         {selectedPartForCheckout && (
           <CustomerFitmentCheckout
             lang={lang}
@@ -318,7 +313,6 @@ export default function App() {
             session={session}
             onClose={() => setSelectedPartForCheckout(null)}
             onSuccess={() => {
-              // 🔥 تفريغ السلة بعد إتمام الشراء بنجاح
               const purchasedPartId = selectedPartForCheckout.part.id;
               setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
               const userId = session?.phone || session?.email || session?.user?.id;
@@ -327,13 +321,11 @@ export default function App() {
               setSelectedPartForCheckout(null);
               fetchParts();
 
-              // 🔥 فتح صفحة متابعة الطلبات تلقائياً
               setShowOrderTracker(true);
             }}
           />
         )}
 
-        {/* 2️⃣ نافذة تتبع الطلبات وأكواد التسليم للعميل */}
         {showOrderTracker && (
           <CustomerOrderTracker
             lang={lang}
@@ -343,7 +335,6 @@ export default function App() {
             session={session}
             onClose={() => setShowOrderTracker(false)}
             onSelectPartForCheckout={(part) => {
-              // 🔥 عند الضغط على "إتمام الشراء والتوصيل الآن" تحويل العميل مباشرة لصفحة الدفع
               setSelectedPartForCheckout({ part, initialStep: 'checkout' });
             }}
           />
