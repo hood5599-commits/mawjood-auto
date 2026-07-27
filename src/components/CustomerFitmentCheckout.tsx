@@ -22,6 +22,7 @@ interface Props {
   session: any;
   onClose: () => void;
   onSuccess: () => void;
+  initialStep?: 'inquire' | 'checkout'; // 🔥 فتح الشاشة المطلوبة مباشرة
 }
 
 export const CustomerFitmentCheckout: React.FC<Props> = ({
@@ -32,9 +33,10 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
   apiKey,
   session,
   onClose,
-  onSuccess
+  onSuccess,
+  initialStep = 'inquire'
 }) => {
-  const [activeStep, setActiveStep] = useState<'inquire' | 'checkout'>('inquire');
+  const [activeStep, setActiveStep] = useState<'inquire' | 'checkout'>(initialStep);
 
   const [carMake, setCarMake] = useState(part.make || '');
   const [carModel, setCarModel] = useState(part.model || '');
@@ -230,7 +232,7 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
             onClick={() => setActiveStep('checkout')} 
             style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: activeStep === 'checkout' ? '#38a169' : '#f7fafc', color: activeStep === 'checkout' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}
           >
-            🛒 {lang === 'ar' ? 'شراء القطعة فوراً' : 'Buy Now'}
+            🛒 {lang === 'ar' ? 'إتمام الشراء والدفع' : 'Buy Now'}
           </button>
         </div>
 
