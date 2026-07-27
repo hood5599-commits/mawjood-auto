@@ -22,7 +22,7 @@ interface Props {
   session: any;
   onClose: () => void;
   onSuccess: () => void;
-  initialStep?: 'inquire' | 'checkout'; // 🔥 فتح الشاشة المطلوبة مباشرة
+  initialStep?: 'inquire' | 'checkout';
 }
 
 export const CustomerFitmentCheckout: React.FC<Props> = ({
