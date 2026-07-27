@@ -99,11 +99,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
       if (response.ok) {
         const data = await response.json();
-        const pendingCount = data.filter((item: any) => item.status === 'pending_check').length;
-        if (pendingCount > previousInquiriesCount.current && previousInquiriesCount.current !== 0) {
+        // تصفية الاستفسارات التي تم شراؤها مسبقاً من العداد
+        const activePending = data.filter((item: any) => item.status === 'pending_check');
+        if (activePending.length > previousInquiriesCount.current && previousInquiriesCount.current !== 0) {
           playChimeSound();
         }
-        previousInquiriesCount.current = pendingCount;
+        previousInquiriesCount.current = activePending.length;
         setMyInquiries(data);
       }
     } catch (error) {}
@@ -247,7 +248,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); setPartImg(''); setEditingId(null); 
   };
 
-  const pendingInquiries = myInquiries.filter(i => i.status === 'pending_check');
+  // استبعاد الاستفسارات التي تم شراؤها بالكامل من الشاشة الرئيسية
+  const activeInquiriesList = myInquiries.filter(i => i.status !== 'ordered');
+  const pendingInquiriesCount = myInquiries.filter(i => i.status === 'pending_check').length;
 
   return (
     <div style={{ maxWidth: '900px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
@@ -257,8 +260,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
         <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', position: 'relative' }}>
           ❓ {lang === 'ar' ? 'فحص التوافق' : 'Fitment Check'}
-          {pendingInquiries.length > 0 && (
-            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 {pendingInquiries.length}</span>
+          {pendingInquiriesCount > 0 && (
+            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 {pendingInquiriesCount}</span>
           )}
         </button>
 
@@ -305,7 +308,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>صورة القطعة:</label>
               <div style={{ border: '2px dashed #cbd5e0', padding: '20px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f7fafc', position: 'relative' }}>
                 <input type="file" accept="image/*" onChange={handleImageUpload} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} />
-                <p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : '📸 اضغط هنا لاختيار صورة للقطعة'}</p>
+                <p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : '📸 اضغط هنا لااختيار صورة للقطعة'}</p>
               </div>
               {partImg && <div style={{ marginTop: '15px', textAlign: 'center' }}><img src={partImg} alt="Preview" style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
             </div>
@@ -319,11 +322,11 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>❓ استفسارات مطابقة التوافق الواردة</h3>
 
-          {myInquiries.length === 0 ? (
+          {activeInquiriesList.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>لا توجد استفسارات جديدة حالياً.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {myInquiries.map(inquiry => (
+              {activeInquiriesList.map(inquiry => (
                 <div key={inquiry.id} style={{ padding: '20px', border: inquiry.status === 'pending_check' ? '2px solid #805ad5' : '1px solid #e2e8f0', borderRadius: '15px', backgroundColor: inquiry.status === 'pending_check' ? '#faf5ff' : '#f8fafc' }}>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -455,6 +458,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
+      {/* 4. الطلبات الواردة للشحن مع أزرار وشارات التسلسل الذكية */}
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 الطلبات الواردة للشحن والاستلام</h3>
@@ -493,19 +497,36 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   {order.pickup_code && <div style={{ color: '#2f855a', fontWeight: 'bold', marginTop: '6px' }}>🔑 كود تسليم المندوب: {order.pickup_code}</div>}
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    onClick={() => updateOrderStatus(order.id, 'ready_for_pickup')} 
-                    style={{ flex: 1, padding: '9px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}
-                  >
-                    ✅ تأكيد توفر القطعة وتجهيزها
-                  </button>
-                  <button 
-                    onClick={() => updateOrderStatus(order.id, 'handed_to_driver')} 
-                    style={{ flex: 1, padding: '9px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}
-                  >
-                    🚚 تم تسليم القطعة للمندوب
-                  </button>
+                {/* أزرار التسلسل الذكية حسب حالة الطلب */}
+                <div>
+                  {(!order.status || order.status === 'pending') && (
+                    <button 
+                      onClick={() => updateOrderStatus(order.id, 'ready_for_pickup')} 
+                      style={{ width: '100%', padding: '11px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
+                    >
+                      ✅ تأكيد توفر القطعة وتجهيزها
+                    </button>
+                  )}
+
+                  {order.status === 'ready_for_pickup' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ padding: '8px', backgroundColor: '#f0fff4', color: '#276749', borderRadius: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '12.5px', border: '1px solid #c6f6d5' }}>
+                        📦 القطعة جاهزة وفي انتظار وصول المندوب
+                      </div>
+                      <button 
+                        onClick={() => updateOrderStatus(order.id, 'handed_to_driver')} 
+                        style={{ width: '100%', padding: '11px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
+                      >
+                        🚚 تم تسليم القطعة للمندوب الآن
+                      </button>
+                    </div>
+                  )}
+
+                  {(order.status === 'handed_to_driver' || order.status === 'delivered') && (
+                    <div style={{ padding: '10px', backgroundColor: '#ebf8ff', color: '#2b6cb0', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', border: '1px solid #bee3f8' }}>
+                      {order.status === 'delivered' ? '✅ تم التسليم للعميل بالكامل' : '🚚 تم تسليم القطعة للمندوب (قيد التوصيل للعميل)'}
+                    </div>
+                  )}
                 </div>
 
               </div>
