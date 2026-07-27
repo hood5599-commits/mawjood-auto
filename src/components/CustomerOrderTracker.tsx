@@ -99,7 +99,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'My Inquiries & Orders'}
         </h3>
 
-        {/* أزرار التنقل بين الاستفسارات والطلبات */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #edf2f7', paddingBottom: '10px' }}>
           <button 
             onClick={() => setActiveTab('inquiries')}
@@ -151,7 +150,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     🚘 سيارتك: {inq.car_make} {inq.car_model} ({inq.car_year})
                   </div>
 
-                  {/* إذا تم تأكيد التوافق: إظهار الضمان وزر الشراء المباشر للعميل */}
                   {inq.status === 'confirmed_compatible' && (
                     <div style={{ backgroundColor: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #c6f6d5', color: '#22543d', fontSize: '13px', marginTop: '10px' }}>
                       <div style={{ fontWeight: 'bold', color: '#276749', marginBottom: '4px' }}>🎉 الكراج يؤكد: القطعة متوافقة 100% مع سيارتك!</div>
@@ -229,7 +227,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           )
         )}
 
-        {/* مودال التقييم */}
         {selectedOrderForReview && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
             <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '15px', maxWidth: '450px', width: '90%', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
