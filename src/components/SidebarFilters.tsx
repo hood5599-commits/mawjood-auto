@@ -337,60 +337,76 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                         <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                       </div>
 
-                                      {/* 4️⃣ المستوى الرابع: نوع المحرك */}
+                                      {/* 4️⃣ المستوى الرابع: المحركات المتاحة فعلياً التي تمت إضافة قطع لها */}
                                       {isModelOpen && (
                                         <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
-                                          {(carData[make]?.engines && carData[make].engines.length > 0 ? carData[make].engines : ['عام']).map((engine: string) => {
-                                            const engineKey = `eng_${make}_${year}_${model}_${engine}`;
-                                            const isEngineOpen = !!expandedNodes[engineKey] || (filterMake === make && filterYear === year && filterModel === model && filterEngine === engine);
-
-                                            return (
-                                              <li key={engine} style={{ marginBottom: '6px' }}>
-                                                <div onClick={() => toggleNode(engineKey, undefined, undefined, undefined, engine)} style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#ebf8ff' : 'transparent', fontSize: '13px', color: '#2c5282', padding: '6px 10px', fontWeight: '500' }}>
-                                                  <span>⚡ {engine}</span>
-                                                  <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
-                                                </div>
-
-                                                {/* 5️⃣ المستوى الخامس: أقسام قطع الغيار */}
-                                                {isEngineOpen && (
-                                                  <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
-                                                    {categories.map(category => {
-                                                      const categoryKey = `cat_${make}_${year}_${model}_${engine}_${category}`;
-                                                      const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
-                                                      const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
-
-                                                      const filteredParts = inventory.filter(part => 
-                                                        part.make === make && 
-                                                        String(part.year) === String(year) && 
-                                                        part.model === model && 
-                                                        (!part.engine || part.engine === 'عام' || engine === 'عام' || part.engine === engine) &&
-                                                        getPartCategory(part.name) === category
-                                                      );
-
-                                                      if (filteredParts.length === 0) return null;
-
-                                                      return (
-                                                        <li key={category} style={{ marginBottom: '6px' }}>
-                                                          <div onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, undefined, category)} style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}>
-                                                            <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', color: '#3182ce' }}>({filteredParts.length} قطع)</span></span>
-                                                            <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
-                                                          </div>
-
-                                                          {/* 6️⃣ كروت القطع المطابقة */}
-                                                          {isCategoryOpen && (
-                                                            <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px', [isRtl ? 'marginRight' : 'marginLeft']: '10px' }}>
-                                                              {filteredParts.map(part => renderPartCard(part))}
-                                                            </div>
-                                                          )}
-
-                                                        </li>
-                                                      );
-                                                    })}
-                                                  </ul>
-                                                )}
-                                              </li>
+                                          {(() => {
+                                            // جلب جميع قطع الغيار المعروضة لهذه السيارة بالتحديد (الماركة/السنة/الموديل)
+                                            const vehicleParts = inventory.filter(part => 
+                                              part.make === make && 
+                                              String(part.year) === String(year) && 
+                                              part.model === model
                                             );
-                                          })}
+
+                                            if (vehicleParts.length === 0) return null;
+
+                                            // استخراج سعات المحركات التي تم توفير قطع لها من الكراجات فعلياً
+                                            const availableEnginesForParts = Array.from(
+                                              new Set(
+                                                vehicleParts.map(p => p.engine && p.engine.trim() !== '' ? p.engine : 'عام')
+                                              )
+                                            );
+
+                                            return availableEnginesForParts.map((engine: string) => {
+                                              const engineKey = `eng_${make}_${year}_${model}_${engine}`;
+                                              const isEngineOpen = !!expandedNodes[engineKey] || (filterMake === make && filterYear === year && filterModel === model && filterEngine === engine);
+
+                                              return (
+                                                <li key={engine} style={{ marginBottom: '6px' }}>
+                                                  <div onClick={() => toggleNode(engineKey, undefined, undefined, undefined, engine)} style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#ebf8ff' : 'transparent', fontSize: '13px', color: '#2c5282', padding: '6px 10px', fontWeight: '500' }}>
+                                                    <span>⚡ {engine}</span>
+                                                    <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                  </div>
+
+                                                  {/* 5️⃣ المستوى الخامس: أقسام قطع الغيار */}
+                                                  {isEngineOpen && (
+                                                    <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
+                                                      {categories.map(category => {
+                                                        const categoryKey = `cat_${make}_${year}_${model}_${engine}_${category}`;
+                                                        const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
+                                                        const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
+
+                                                        const filteredParts = vehicleParts.filter(part => {
+                                                          const partEngine = part.engine && part.engine.trim() !== '' ? part.engine : 'عام';
+                                                          const matchesEngine = partEngine === engine || partEngine === 'عام' || engine === 'عام';
+                                                          return matchesEngine && getPartCategory(part.name) === category;
+                                                        });
+
+                                                        if (filteredParts.length === 0) return null;
+
+                                                        return (
+                                                          <li key={category} style={{ marginBottom: '6px' }}>
+                                                            <div onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, undefined, category)} style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}>
+                                                              <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', color: '#3182ce' }}>({filteredParts.length} قطع)</span></span>
+                                                              <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                            </div>
+
+                                                            {/* 6️⃣ كروت القطع المطابقة */}
+                                                            {isCategoryOpen && (
+                                                              <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px', [isRtl ? 'marginRight' : 'marginLeft']: '10px' }}>
+                                                                {filteredParts.map(part => renderPartCard(part))}
+                                                              </div>
+                                                            )}
+
+                                                          </li>
+                                                        );
+                                                      })}
+                                                    </ul>
+                                                  )}
+                                                </li>
+                                              );
+                                            });
+                                          })()}
                                         </ul>
                                       )}
                                     </li>
