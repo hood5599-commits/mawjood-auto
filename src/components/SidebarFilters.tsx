@@ -65,21 +65,28 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
 }) => {
   const isRtl = lang === 'ar';
 
-  // تصفية القطع بناءً على شروط البحث والتصنيفات
-  const filteredParts = inventory.filter((part) => {
-    const matchesSearch =
-      !searchTerm ||
-      part.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (part.part_number && part.part_number.toLowerCase().includes(searchTerm.toLowerCase()));
+  // 🔥 التحقق من تفعيل أي خيار بحث أو تصفية
+  const hasActiveFilter = Boolean(
+    searchTerm.trim() || filterMake || filterModel || filterYear || filterEngine || filterCategory
+  );
 
-    const matchesMake = !filterMake || part.make === filterMake;
-    const matchesModel = !filterModel || part.model === filterModel;
-    const matchesYear = !filterYear || part.year === filterYear;
-    const matchesEngine = !filterEngine || part.engine === filterEngine;
-    const matchesCategory = !filterCategory || part.category === filterCategory;
+  // 🔥 تصفية القطع فقط في حال وجود فلتر فعال، وإلا إرجاع مصفوفة فارغة
+  const filteredParts = hasActiveFilter
+    ? inventory.filter((part) => {
+        const matchesSearch =
+          !searchTerm ||
+          part.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (part.part_number && part.part_number.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    return matchesSearch && matchesMake && matchesModel && matchesYear && matchesEngine && matchesCategory;
-  });
+        const matchesMake = !filterMake || part.make === filterMake;
+        const matchesModel = !filterModel || part.model === filterModel;
+        const matchesYear = !filterYear || part.year === filterYear;
+        const matchesEngine = !filterEngine || part.engine === filterEngine;
+        const matchesCategory = !filterCategory || part.category === filterCategory;
+
+        return matchesSearch && matchesMake && matchesModel && matchesYear && matchesEngine && matchesCategory;
+      })
+    : [];
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -99,7 +106,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
           <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--mw-ink, #1a202c)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             🚘 {isRtl ? 'حدد بيانات سيارتك للبحث المباشر' : 'Select Your Vehicle'}
           </h3>
-          {(filterMake || filterModel || filterYear || filterEngine || searchTerm || filterCategory) && (
+          {hasActiveFilter && (
             <button onClick={clearFilters} style={{ background: '#fff5f5', border: '1px solid #fed7d7', color: '#e53e3e', padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
               🔄 {isRtl ? 'إعادة ضبط البحث' : 'Reset Filters'}
             </button>
@@ -248,11 +255,23 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
         <main>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <h2 style={{ margin: 0, fontSize: '18px', color: 'var(--mw-ink)' }}>
-              📦 {isRtl ? `القطع المتاحة (${filteredParts.length})` : `Available Parts (${filteredParts.length})`}
+              📦 {isRtl ? `نتائج البحث (${filteredParts.length})` : `Search Results (${filteredParts.length})`}
             </h2>
           </div>
 
-          {filteredParts.length === 0 ? (
+          {!hasActiveFilter ? (
+            /* 🔥 حالة عدم وجود بحث أو تصفية (قبل قيام العميل بالبحث) */
+            <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: 'var(--mw-surface, #ffffff)', borderRadius: '16px', border: '2px dashed var(--mw-border, #cbd5e0)' }}>
+              <span style={{ fontSize: '52px', display: 'block', marginBottom: '14px' }}>🚘</span>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: 'var(--mw-ink)' }}>
+                {isRtl ? 'اختر سيارتك أو ابحث لرؤية القطع المتاحة' : 'Select vehicle or search to view parts'}
+              </h3>
+              <p style={{ color: 'var(--mw-ink-muted, #718096)', margin: 0, fontSize: '13.5px' }}>
+                {isRtl ? 'حدد الماركة والموديل والسنة أعلاه أو استخدم حقل البحث لعرض القطع المطابقة لسيارتك فقط.' : 'Specify make, model, year above or type in the search bar.'}
+              </p>
+            </div>
+          ) : filteredParts.length === 0 ? (
+            /* حالة القيام بالبحث لكن لا يوجد نتائج مطابقة */
             <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: 'var(--mw-surface, #ffffff)', borderRadius: '16px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
               <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>🔍</span>
               <p style={{ color: 'var(--mw-ink-muted, #718096)', margin: 0 }}>
@@ -260,6 +279,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
               </p>
             </div>
           ) : (
+            /* عرض نتائج البحث المطابقة */
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
               {filteredParts.map((item) => (
                 <div
@@ -277,7 +297,6 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
                   }}
                 >
                   <div>
-                    {/* صورة القطعة مع وضع صورة بديلة أنيقة في حال عدم وجود صورة */}
                     <div style={{ position: 'relative', width: '100%', height: '150px', borderRadius: '10px', overflow: 'hidden', marginBottom: '10px', backgroundColor: '#edf2f7' }}>
                       <img
                         src={item.image_url && item.image_url.trim() !== '' ? item.image_url : 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&q=80'}
@@ -311,7 +330,6 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
                     </div>
                   </div>
 
-                  {/* زر الفحص والشراء المباشر */}
                   <button
                     onClick={() => addToCart(item, 1)}
                     style={{
