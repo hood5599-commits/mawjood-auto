@@ -100,7 +100,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setActiveSearchQuery('');
   };
 
-  // 🔥 التحكم في فتح وإغلاق العقد حسب تسلسل RockAuto (الماركة -> السنة -> الموديل -> المحرك -> القسم)
   const toggleNode = (
     nodeKey: string, 
     make?: string, 
@@ -192,7 +191,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           border: '1px solid #e2e8f0', 
           display: 'flex', 
           flexDirection: 'column',
-          justify: 'space-between', 
+          justifyContent: 'space-between', 
           gap: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
         }}
@@ -287,7 +286,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             )}
           </div>
         ) : (
-          /* 🔥 الهيكلية الشجرية برسم نمط RockAuto (الماركة ⬅️ السنة ⬅️ الموديل ⬅️ المحرك ⬅️ التصنيف) */
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
             {Object.keys(carData).map(make => {
               const makeKey = `make_${make}`;
@@ -310,7 +308,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                     <span style={{ fontSize: '12px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                   </div>
 
-                  {/* 2️⃣ المستوى الثاني: سنة الصنع (مثل RockAuto) */}
+                  {/* 2️⃣ المستوى الثاني: سنة الصنع */}
                   {isMakeOpen && (
                     <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                       {years.map(year => {
@@ -361,7 +359,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                       const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
                                                       const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
 
-                                                      // تصفية القطع حسب الماركة والسن والموديل والمحرك والقسم
                                                       const filteredParts = inventory.filter(part => 
                                                         part.make === make && 
                                                         String(part.year) === String(year) && 
@@ -379,7 +376,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                             <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                           </div>
 
-                                                          {/* 6️⃣ عرض كروت قطع الغيار المطابقة */}
+                                                          {/* 6️⃣ كروت القطع المطابقة */}
                                                           {isCategoryOpen && (
                                                             <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px', [isRtl ? 'marginRight' : 'marginLeft']: '10px' }}>
                                                               {filteredParts.map(part => renderPartCard(part))}
@@ -469,7 +466,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
 const nodeStyle: React.CSSProperties = {
   display: 'flex',
-  justify: 'space-between',
+  justifyContent: 'space-between',
   alignItems: 'center',
   cursor: 'pointer',
   padding: '6px 10px',
