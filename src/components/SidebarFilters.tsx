@@ -66,7 +66,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     lang, carData, years, translateMake, translateModel, categories, inventory, 
     searchTerm, setSearchTerm, 
     filterMake, setFilterMake, filterModel, setFilterModel, filterYear, setFilterYear,
-    filterCategory, setFilterCategory, addToCart 
+    filterCategory, setFilterCategory, filterEngine, setFilterEngine, addToCart 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -100,14 +100,43 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setActiveSearchQuery('');
   };
 
-  const toggleNode = (nodeKey: string, make?: string, model?: string, year?: string, category?: string) => {
+  // 🔥 التحكم في فتح وإغلاق العقد حسب تسلسل RockAuto (الماركة -> السنة -> الموديل -> المحرك -> القسم)
+  const toggleNode = (
+    nodeKey: string, 
+    make?: string, 
+    year?: string, 
+    model?: string, 
+    engine?: string, 
+    category?: string
+  ) => {
     const willBeOpen = !expandedNodes[nodeKey];
     setExpandedNodes(prev => ({ ...prev, [nodeKey]: willBeOpen }));
 
-    if (make !== undefined) { setFilterMake(willBeOpen ? make : ''); setFilterModel(''); setFilterYear(''); setFilterCategory(''); }
-    if (model !== undefined) { setFilterModel(willBeOpen ? model : ''); setFilterYear(''); setFilterCategory(''); }
-    if (year !== undefined) { setFilterYear(willBeOpen ? year : ''); setFilterCategory(''); }
-    if (category !== undefined) { setFilterCategory(willBeOpen ? category : ''); }
+    if (make !== undefined) { 
+      setFilterMake(willBeOpen ? make : ''); 
+      setFilterYear(''); 
+      setFilterModel(''); 
+      if (setFilterEngine) setFilterEngine(''); 
+      setFilterCategory(''); 
+    }
+    if (year !== undefined) { 
+      setFilterYear(willBeOpen ? year : ''); 
+      setFilterModel(''); 
+      if (setFilterEngine) setFilterEngine(''); 
+      setFilterCategory(''); 
+    }
+    if (model !== undefined) { 
+      setFilterModel(willBeOpen ? model : ''); 
+      if (setFilterEngine) setFilterEngine(''); 
+      setFilterCategory(''); 
+    }
+    if (engine !== undefined && setFilterEngine) { 
+      setFilterEngine(willBeOpen ? engine : ''); 
+      setFilterCategory(''); 
+    }
+    if (category !== undefined) { 
+      setFilterCategory(willBeOpen ? category : ''); 
+    }
   };
 
   const isRtl = lang === 'ar';
@@ -163,7 +192,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           border: '1px solid #e2e8f0', 
           display: 'flex', 
           flexDirection: 'column',
-          justifyContent: 'space-between', 
+          justify: 'space-between', 
           gap: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
         }}
@@ -219,9 +248,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             <button 
               onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(part, qty); }}
               disabled={isOutOfStock}
-              style={{ flex: 1, backgroundColor: isOutOfStock ? '#a0aec0' : '#38a169', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ flex: 1, backgroundColor: isOutOfStock ? '#a0aec0' : '#805ad5', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              🛒 {isOutOfStock ? 'غير متوفر' : 'أضف للسلة'}
+              ❓ {isOutOfStock ? 'غير متوفر' : 'أسأل البائع هل تركب؟'}
             </button>
           )}
         </div>
@@ -258,6 +287,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             )}
           </div>
         ) : (
+          /* 🔥 الهيكلية الشجرية برسم نمط RockAuto (الماركة ⬅️ السنة ⬅️ الموديل ⬅️ المحرك ⬅️ التصنيف) */
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
             {Object.keys(carData).map(make => {
               const makeKey = `make_${make}`;
@@ -266,6 +296,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
               return (
                 <li key={make} style={{ marginBottom: '8px' }}>
+                  
+                  {/* 1️⃣ المستوى الأول: الماركة */}
                   <div onClick={() => toggleNode(makeKey, make)} style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold', padding: '10px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       {!imgErrors[make] ? (
@@ -278,62 +310,87 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                     <span style={{ fontSize: '12px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                   </div>
 
+                  {/* 2️⃣ المستوى الثاني: سنة الصنع (مثل RockAuto) */}
                   {isMakeOpen && (
-                    <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '20px', marginTop: '6px' }}>
-                      {carData[make]?.models.map((model: string) => {
-                        const modelKey = `model_${make}_${model}`;
-                        const isModelOpen = !!expandedNodes[modelKey] || (filterMake === make && filterModel === model);
-                        const modelName = isRtl ? model : (translateModel[model] || model);
+                    <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
+                      {years.map(year => {
+                        const yearKey = `year_${make}_${year}`;
+                        const isYearOpen = !!expandedNodes[yearKey] || (filterMake === make && filterYear === year);
 
                         return (
-                          <li key={model} style={{ marginBottom: '6px' }}>
-                            <div onClick={() => toggleNode(modelKey, undefined, model)} style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '14px', padding: '8px 12px' }}>
-                              <span>📂 {modelName}</span>
-                              <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                          <li key={year} style={{ marginBottom: '6px' }}>
+                            <div onClick={() => toggleNode(yearKey, undefined, year)} style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '13.5px', color: '#2b6cb0', padding: '7px 12px', fontWeight: 'bold' }}>
+                              <span>📅 {year}</span>
+                              <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                             </div>
 
-                            {isModelOpen && (
-                              <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '20px', marginTop: '6px' }}>
-                                {years.map(year => {
-                                  const yearKey = `year_${make}_${model}_${year}`;
-                                  const isYearOpen = !!expandedNodes[yearKey] || (filterMake === make && filterModel === model && filterYear === year);
+                            {/* 3️⃣ المستوى الثالث: الموديل */}
+                            {isYearOpen && (
+                              <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
+                                {carData[make]?.models.map((model: string) => {
+                                  const modelKey = `model_${make}_${year}_${model}`;
+                                  const isModelOpen = !!expandedNodes[modelKey] || (filterMake === make && filterYear === year && filterModel === model);
+                                  const modelName = isRtl ? model : (translateModel[model] || model);
 
                                   return (
-                                    <li key={year} style={{ marginBottom: '6px' }}>
-                                      <div onClick={() => toggleNode(yearKey, undefined, undefined, year)} style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '13.5px', color: '#2b6cb0', padding: '7px 12px' }}>
-                                        <span>📅 {year}</span>
-                                        <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                    <li key={model} style={{ marginBottom: '6px' }}>
+                                      <div onClick={() => toggleNode(modelKey, undefined, undefined, model)} style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '13.5px', padding: '7px 12px' }}>
+                                        <span>🚘 {modelName}</span>
+                                        <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                       </div>
 
-                                      {isYearOpen && (
-                                        <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
-                                          {categories.map(category => {
-                                            const categoryKey = `cat_${make}_${model}_${year}_${category}`;
-                                            const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
-                                            const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
-
-                                            const filteredParts = inventory.filter(part =>  
-                                              part.make === make &&  
-                                              part.model === model &&  
-                                              String(part.year) === String(year) &&  
-                                              getPartCategory(part.name) === category
-                                            );
-
-                                            if (filteredParts.length === 0) return null;
+                                      {/* 4️⃣ المستوى الرابع: نوع المحرك */}
+                                      {isModelOpen && (
+                                        <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
+                                          {(carData[make]?.engines && carData[make].engines.length > 0 ? carData[make].engines : ['عام']).map((engine: string) => {
+                                            const engineKey = `eng_${make}_${year}_${model}_${engine}`;
+                                            const isEngineOpen = !!expandedNodes[engineKey] || (filterMake === make && filterYear === year && filterModel === model && filterEngine === engine);
 
                                             return (
-                                              <li key={category} style={{ marginBottom: '6px' }}>
-                                                <div onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, category)} style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}>
-                                                  <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', color: '#3182ce' }}>({filteredParts.length} قطع)</span></span>
-                                                  <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                              <li key={engine} style={{ marginBottom: '6px' }}>
+                                                <div onClick={() => toggleNode(engineKey, undefined, undefined, undefined, engine)} style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#ebf8ff' : 'transparent', fontSize: '13px', color: '#2c5282', padding: '6px 10px', fontWeight: '500' }}>
+                                                  <span>⚡ {engine}</span>
+                                                  <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                 </div>
 
-                                                {isCategoryOpen && (
-                                                  <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px', [isRtl ? 'marginRight' : 'marginLeft']: '10px' }}>
-                                                    {filteredParts.map(part => renderPartCard(part))}
-                                                  </div>
-                                                )}
+                                                {/* 5️⃣ المستوى الخامس: أقسام قطع الغيار */}
+                                                {isEngineOpen && (
+                                                  <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
+                                                    {categories.map(category => {
+                                                      const categoryKey = `cat_${make}_${year}_${model}_${engine}_${category}`;
+                                                      const isCategoryOpen = !!expandedNodes[categoryKey] || filterCategory === category;
+                                                      const translatedCategory = lang === 'ar' ? (CATEGORY_TRANSLATION[category] || category) : category;
 
+                                                      // تصفية القطع حسب الماركة والسن والموديل والمحرك والقسم
+                                                      const filteredParts = inventory.filter(part => 
+                                                        part.make === make && 
+                                                        String(part.year) === String(year) && 
+                                                        part.model === model && 
+                                                        (!part.engine || part.engine === 'عام' || engine === 'عام' || part.engine === engine) &&
+                                                        getPartCategory(part.name) === category
+                                                      );
+
+                                                      if (filteredParts.length === 0) return null;
+
+                                                      return (
+                                                        <li key={category} style={{ marginBottom: '6px' }}>
+                                                          <div onClick={() => toggleNode(categoryKey, undefined, undefined, undefined, undefined, category)} style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}>
+                                                            <span>⚙️ {translatedCategory} <span style={{ fontSize: '11px', color: '#3182ce' }}>({filteredParts.length} قطع)</span></span>
+                                                            <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                          </div>
+
+                                                          {/* 6️⃣ عرض كروت قطع الغيار المطابقة */}
+                                                          {isCategoryOpen && (
+                                                            <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px', [isRtl ? 'marginRight' : 'marginLeft']: '10px' }}>
+                                                              {filteredParts.map(part => renderPartCard(part))}
+                                                            </div>
+                                                          )}
+
+                                                        </li>
+                                                      );
+                                                    })}
+                                                  </ul>
+                                                )}
                                               </li>
                                             );
                                           })}
@@ -412,7 +469,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
 const nodeStyle: React.CSSProperties = {
   display: 'flex',
-  justifyContent: 'space-between',
+  justify: 'space-between',
   alignItems: 'center',
   cursor: 'pointer',
   padding: '6px 10px',
