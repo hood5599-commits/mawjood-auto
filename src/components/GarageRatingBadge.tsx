@@ -39,18 +39,53 @@ export const GarageRatingBadge: React.FC<Props> = ({ garageId, supabaseUrl, apiK
   const isVerifiedSeller = rating !== null && rating >= 4.5;
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-      {/* عدد النجوم */}
-      <span style={{ fontWeight: 'bold', color: '#d69e2e', backgroundColor: '#fefcbf', padding: '2px 6px', borderRadius: '6px' }}>
-        ⭐ {rating !== null ? rating : '5.0'} ({reviewsCount})
-      </span>
+    <>
+      <style>{`
+        .mwj-rb-wrap {
+          display: inline-flex; align-items: center; gap: 7px;
+          font-size: 12px; font-family: 'Cairo', 'Segoe UI', sans-serif;
+        }
 
-      {/* شارة بائع مضمون */}
-      {isVerifiedSeller && (
-        <span style={{ fontWeight: 'bold', color: '#276749', backgroundColor: '#c6f6d5', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          🛡️ بائع مضمون
+        .mwj-rb-stars {
+          font-weight: 800; color: #92620a;
+          background: linear-gradient(135deg, #fff6db 0%, #ffedb0 100%);
+          padding: 4px 9px; border-radius: 8px;
+          border: 1px solid #f6d989;
+          display: inline-flex; align-items: center; gap: 3px;
+          transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+        .mwj-rb-stars:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(214,158,46,0.2); }
+
+        .mwj-rb-verified {
+          font-weight: 800; color: #ffffff;
+          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%);
+          padding: 4px 10px; border-radius: 8px;
+          display: inline-flex; align-items: center; gap: 4px;
+          box-shadow: 0 3px 10px rgba(34,163,90,0.28);
+          transition: transform 0.18s ease, box-shadow 0.18s ease;
+          animation: mwj-rb-pop 0.3s ease;
+        }
+        .mwj-rb-verified:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(34,163,90,0.35); }
+
+        @keyframes mwj-rb-pop {
+          0% { transform: scale(0.85); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
+
+      <div className="mwj-rb-wrap">
+        {/* عدد النجوم */}
+        <span className="mwj-rb-stars">
+          ⭐ {rating !== null ? rating : '5.0'} <span style={{ opacity: 0.75, fontWeight: 700 }}>({reviewsCount})</span>
         </span>
-      )}
-    </div>
+
+        {/* شارة بائع مضمون */}
+        {isVerifiedSeller && (
+          <span className="mwj-rb-verified">
+            🛡️ بائع مضمون
+          </span>
+        )}
+      </div>
+    </>
   );
 };
