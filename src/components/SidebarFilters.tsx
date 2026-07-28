@@ -65,12 +65,12 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
 }) => {
   const isRtl = lang === 'ar';
 
-  // 🔥 التحقق من تفعيل أي خيار بحث أو تصفية
+  // التحقق من وجود أي معيار بحث أو تصفية فعال
   const hasActiveFilter = Boolean(
     searchTerm.trim() || filterMake || filterModel || filterYear || filterEngine || filterCategory
   );
 
-  // 🔥 تصفية القطع فقط في حال وجود فلتر فعال، وإلا إرجاع مصفوفة فارغة
+  // عرض القطع فقط عند قيام العميل بالبحث أو الاختيار
   const filteredParts = hasActiveFilter
     ? inventory.filter((part) => {
         const matchesSearch =
@@ -100,7 +100,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      {/* 1️⃣ شريط اختيار السيارة والبحث السريع العلوي */}
+      {/* 1️⃣ شريط اختيار السيارة والبحث السريع */}
       <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '20px', borderRadius: '16px', border: '1px solid var(--mw-border, #e2e8f0)', boxShadow: 'var(--mw-shadow-sm)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--mw-ink, #1a202c)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -113,7 +113,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
           )}
         </div>
 
-        {/* حقل البحث بالاسم أو الرقم */}
+        {/* حقل البحث */}
         <div style={{ marginBottom: '15px' }}>
           <input
             type="text"
@@ -124,7 +124,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
           />
         </div>
 
-        {/* اختيارات الماركة والموديل والسنة */}
+        {/* خيارات الفلترة السريعة */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: 'var(--mw-ink-muted)' }}>{isRtl ? 'الماركة:' : 'Make:'}</label>
@@ -191,10 +191,10 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
         </div>
       </div>
 
-      {/* 2️⃣ القسم الرئيسي: القائمة الجانبية للتصنيفات + شبكة القطع */}
+      {/* 2️⃣ القسم الرئيسي: التصنيفات + معروضات القطع */}
       <div style={{ display: 'grid', gridTemplateColumns: '270px 1fr', gap: '20px' }}>
         
-        {/* قائمة تصنيفات القطع (Accordion / Tree View) */}
+        {/* قائمة تصنيفات القطع */}
         <aside style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '16px', borderRadius: '16px', border: '1px solid var(--mw-border, #e2e8f0)', height: 'fit-content' }}>
           <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--mw-ink)', borderBottom: '1px solid var(--mw-border)', paddingBottom: '10px' }}>
             ⚙️ {isRtl ? 'أقسام قطع الغيار' : 'Part Categories'}
@@ -231,7 +231,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
                     }}
                     style={{
                       display: 'flex',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '9px 12px',
                       borderRadius: '8px',
@@ -251,7 +251,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
           </div>
         </aside>
 
-        {/* شبكة عرض القطع (Parts Grid) */}
+        {/* شبكة عرض القطع */}
         <main>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <h2 style={{ margin: 0, fontSize: '18px', color: 'var(--mw-ink)' }}>
@@ -260,7 +260,6 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
           </div>
 
           {!hasActiveFilter ? (
-            /* 🔥 حالة عدم وجود بحث أو تصفية (قبل قيام العميل بالبحث) */
             <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: 'var(--mw-surface, #ffffff)', borderRadius: '16px', border: '2px dashed var(--mw-border, #cbd5e0)' }}>
               <span style={{ fontSize: '52px', display: 'block', marginBottom: '14px' }}>🚘</span>
               <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: 'var(--mw-ink)' }}>
@@ -271,7 +270,6 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
               </p>
             </div>
           ) : filteredParts.length === 0 ? (
-            /* حالة القيام بالبحث لكن لا يوجد نتائج مطابقة */
             <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: 'var(--mw-surface, #ffffff)', borderRadius: '16px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
               <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>🔍</span>
               <p style={{ color: 'var(--mw-ink-muted, #718096)', margin: 0 }}>
@@ -279,7 +277,6 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
               </p>
             </div>
           ) : (
-            /* عرض نتائج البحث المطابقة */
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
               {filteredParts.map((item) => (
                 <div
@@ -291,7 +288,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
                     padding: '14px',
                     display: 'flex',
                     flexDirection: 'column',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     boxShadow: 'var(--mw-shadow-sm, 0 4px 12px rgba(0,0,0,0.03))',
                     transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                   }}
@@ -343,7 +340,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
                       fontSize: '13px',
                       cursor: 'pointer',
                       display: 'flex',
-                      justify: 'center',
+                      justifyContent: 'center',
                       alignItems: 'center',
                       gap: '5px'
                     }}
