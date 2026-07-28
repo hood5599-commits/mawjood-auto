@@ -38,6 +38,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const previousInquiriesCount = useRef<number>(0);
 
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || session?.code || 'garage_unknown';
+  const isRtl = lang === 'ar';
 
   const playChimeSound = () => {
     try {
@@ -253,288 +254,554 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const pendingInquiriesCount = myInquiries.filter(i => i.status === 'pending_check').length;
 
   return (
-    <div style={{ maxWidth: '900px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
-      
-      <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-        <button onClick={() => { resetForm(); setActiveTab('add_part'); }} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'add_part' ? '#3182ce' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>➕ {lang === 'ar' ? 'إضافة قطعة غيار' : 'Add New Part'}</button>
+    <>
+      <style>{`
+        .mwj-gd-wrap {
+          max-width: 900px; margin: 30px auto; display: flex; flex-direction: column;
+          gap: 24px; font-family: 'Cairo', 'Segoe UI', sans-serif;
+        }
 
-        <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', position: 'relative' }}>
-          ❓ {lang === 'ar' ? 'فحص التوافق' : 'Fitment Check'}
-          {pendingInquiriesCount > 0 && (
-            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 {pendingInquiriesCount}</span>
-          )}
-        </button>
+        .mwj-gd-tabbar {
+          display: flex; gap: 8px; background: white; padding: 10px;
+          border-radius: 18px; box-shadow: 0 6px 20px rgba(15,23,32,0.06);
+          flex-wrap: wrap;
+        }
+        .mwj-gd-tab {
+          flex: 1; min-width: 130px; padding: 13px; border-radius: 12px; border: none;
+          font-weight: 800; cursor: pointer; font-size: 13.5px; position: relative;
+          background: transparent; color: #4a5568; transition: all 0.2s ease;
+        }
+        .mwj-gd-tab:hover { background: #f7fafc; }
+        .mwj-gd-tab-add-active { background: linear-gradient(135deg, #1F3A5F 0%, #16304f 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(31,58,95,0.28); }
+        .mwj-gd-tab-inquiries-active { background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(107,70,193,0.28); }
+        .mwj-gd-tab-parts-active { background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(34,163,90,0.28); }
+        .mwj-gd-tab-orders-active { background: linear-gradient(135deg, #E0872A 0%, #c9701c 100%) !important; color: #0F1720 !important; box-shadow: 0 6px 16px rgba(224,135,42,0.28); }
 
-        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'my_parts' ? '#38a169' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>📦 {lang === 'ar' ? `إعلاناتي (${myParts.length})` : `My Ads (${myParts.length})`}</button>
+        .mwj-gd-badge {
+          position: absolute; top: 4px; background: #e53e3e; color: white;
+          font-size: 10.5px; padding: 2px 7px; border-radius: 10px; font-weight: 800;
+          animation: mwj-gd-pulse 1.8s infinite;
+        }
+        @keyframes mwj-gd-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(229,62,62,0.5); } 50% { box-shadow: 0 0 0 5px rgba(229,62,62,0); } }
 
-        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>📥 {lang === 'ar' ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}</button>
-      </div>
+        .mwj-gd-panel {
+          background: white; padding: 32px; border-radius: 20px;
+          box-shadow: 0 10px 32px rgba(15,23,32,0.06);
+        }
+        .mwj-gd-panel-title {
+          color: #16304f; margin: 0 0 22px 0; border-bottom: 2px solid #f1f5f9;
+          padding-bottom: 12px; font-size: 19px; font-weight: 800;
+        }
 
-      {activeTab === 'add_part' && (
-        <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h2 style={{ color: '#1a365d', margin: '0 0 20px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>{editingId ? (lang === 'ar' ? '✏️ تعديل بيانات القطعة' : '✏️ Edit Part') : (lang === 'ar' ? '➕ إضافة قطعة غيار جديدة' : '➕ Add New Part')}</h2>
+        .mwj-gd-form { display: flex; flex-direction: column; gap: 20px; }
+        .mwj-gd-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .mwj-gd-label { display: block; margin-bottom: 7px; font-size: 13.5px; font-weight: 700; color: #334155; }
+        .mwj-gd-input, .mwj-gd-select {
+          width: 100%; padding: 12px 13px; border-radius: 10px; border: 1.5px solid #e2e8f0;
+          box-sizing: border-box; font-size: 14px; font-family: inherit; color: #1F3A5F;
+          transition: border-color 0.18s ease, box-shadow 0.18s ease; background: white;
+        }
+        .mwj-gd-input:focus, .mwj-gd-select:focus {
+          outline: none; border-color: #E0872A; box-shadow: 0 0 0 3px rgba(224,135,42,0.14);
+        }
+        .mwj-gd-select:disabled { background: #f8fafc; cursor: not-allowed; }
 
-          <form onSubmit={handlePublishSingle} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>الماركة:</label><select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); setPartEngine(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">اختر الماركة</option>{Object.keys(carData).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>الموديل:</label><select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required disabled={!partMake}><option value="">اختر الموديل</option>{partMake && carData[partMake]?.models.map((m: string) => <option key={m} value={m}>{m}</option>)}</select></div>
-            </div>
+        .mwj-gd-type-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .mwj-gd-type-btn {
+          flex: 1; min-width: 140px; padding: 13px; border-radius: 12px; font-weight: 800;
+          font-size: 13px; cursor: pointer; transition: all 0.2s ease; background: #f7fafc;
+          border: 1.5px solid #e2e8f0; color: #4a5568;
+        }
+        .mwj-gd-type-btn:hover { transform: translateY(-1px); }
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>سنة الصنع:</label><select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required><option value="">اختر السنة</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select></div>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>المحرك (اختياري):</label><select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} disabled={!partMake}><option value="">اختر المحرك</option>{partMake && carData[partMake]?.engines.map((eng: string) => <option key={eng} value={eng}>{eng}</option>)}</select></div>
-            </div>
+        .mwj-gd-dropzone {
+          border: 2px dashed #cbd5e0; padding: 26px; border-radius: 14px; text-align: center;
+          background: #f8fafc; position: relative; transition: all 0.2s ease; overflow: hidden;
+        }
+        .mwj-gd-dropzone:hover { border-color: #E0872A; background: #fffaf3; }
+        .mwj-gd-dropzone input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .mwj-gd-dropzone p { margin: 0; color: #4a5568; font-weight: 700; font-size: 13.5px; }
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>اسم قطعة الغيار:</label><input type="text" placeholder="مثال: دينمو، كمبروسر..." value={partName} onChange={(e) => setPartName(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>رقم القطعة (اختياري):</label><input type="text" placeholder="مثال: 27060-0H110" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} /></div>
-            </div>
+        .mwj-gd-submit {
+          width: 100%; padding: 15px; border: none; border-radius: 13px;
+          font-weight: 800; font-size: 15.5px; cursor: pointer; color: white;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+        }
+        .mwj-gd-submit:hover { transform: translateY(-2px); filter: brightness(1.05); }
+        .mwj-gd-submit-new { background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%); box-shadow: 0 8px 20px rgba(34,163,90,0.3); }
+        .mwj-gd-submit-edit { background: linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%); box-shadow: 0 8px 20px rgba(49,130,206,0.3); }
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>نوع / حالة القطعة:</label>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {[{ label: '🚗 مستعمل أصلي', val: 'مستعمل أصلي', color: '#38a169', bg: '#f0fff4' }, { label: '💎 جديد أصلي (OEM)', val: 'أصلي (OEM)', color: '#2b6cb0', bg: '#ebf8ff' }, { label: '⚙️ تجاري / كوبي', val: 'تجاري / كوبي', color: '#dd6b20', bg: '#fffaf0' }].map(item => (
-                  <button key={item.val} type="button" onClick={() => setPartType(item.val)} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: partType === item.val ? `2px solid ${item.color}` : '1px solid #cbd5e0', backgroundColor: partType === item.val ? item.bg : '#f7fafc', color: partType === item.val ? item.color : '#4a5568', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>{item.label}</button>
-                ))}
-              </div>
-            </div>
+        .mwj-gd-empty { text-align: center; color: #94a3b8; padding: 40px 0; font-size: 14px; }
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>السعر (ر.ق):</label><input type="number" value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
-              <div><label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>الكمية المتوفرة:</label><input type="number" min="1" value={partStock} onChange={(e) => setPartStock(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required /></div>
-            </div>
+        /* Inquiry cards */
+        .mwj-gd-inq-card { padding: 20px; border-radius: 16px; transition: all 0.2s ease; }
+        .mwj-gd-inq-pending { border: 2px solid #7c5fd0; background: linear-gradient(135deg, #faf5ff 0%, #f4ecff 100%); }
+        .mwj-gd-inq-resolved { border: 1px solid #e2e8f0; background: #f8fafc; }
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>صورة القطعة:</label>
-              <div style={{ border: '2px dashed #cbd5e0', padding: '20px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f7fafc', position: 'relative' }}>
-                <input type="file" accept="image/*" onChange={handleImageUpload} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} />
-                <p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : '📸 اضغط هنا لااختيار صورة للقطعة'}</p>
-              </div>
-              {partImg && <div style={{ marginTop: '15px', textAlign: 'center' }}><img src={partImg} alt="Preview" style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
-            </div>
+        .mwj-gd-inq-code {
+          font-size: 11.5px; font-weight: 800; background: #e9d8fd; color: #553c9a;
+          padding: 4px 10px; border-radius: 7px;
+        }
+        .mwj-gd-inq-status { font-size: 13px; font-weight: 800; }
 
-            <button type="submit" style={{ width: '100%', padding: '14px', backgroundColor: editingId ? '#3182ce' : '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}>{editingId ? 'حفظ التعديلات' : '🚀 نشر القطعة للبيع'}</button>
-          </form>
+        .mwj-gd-inq-preview {
+          display: flex; gap: 12px; align-items: center; background: white; padding: 13px;
+          border-radius: 12px; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.2s ease;
+        }
+        .mwj-gd-inq-preview:hover { border-color: #E0872A; box-shadow: 0 4px 14px rgba(224,135,42,0.12); }
+        .mwj-gd-preview-tag { font-size: 11px; color: #3182ce; background: #ebf8ff; padding: 2px 7px; border-radius: 6px; font-weight: 800; }
+
+        .mwj-gd-inq-vehicle { background: white; padding: 13px; border-radius: 12px; border: 1px solid #edf2f7; }
+
+        .mwj-gd-doc-thumb img {
+          width: 82px; height: 82px; object-fit: cover; border-radius: 10px;
+          border: 1px solid #cbd5e0; transition: transform 0.2s ease;
+        }
+        .mwj-gd-doc-thumb:hover img { transform: scale(1.05); }
+
+        .mwj-gd-inq-actions { display: flex; gap: 10px; }
+        .mwj-gd-btn-confirm, .mwj-gd-btn-reject {
+          flex: 1; padding: 11px; border: none; border-radius: 10px; font-weight: 800;
+          cursor: pointer; font-size: 13.5px; color: white; transition: all 0.2s ease;
+        }
+        .mwj-gd-btn-confirm { background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%); box-shadow: 0 6px 14px rgba(34,163,90,0.28); }
+        .mwj-gd-btn-reject { background: linear-gradient(135deg, #e05252 0%, #c53030 100%); box-shadow: 0 6px 14px rgba(229,62,62,0.28); }
+        .mwj-gd-btn-confirm:hover, .mwj-gd-btn-reject:hover { transform: translateY(-2px); filter: brightness(1.05); }
+
+        /* Modals */
+        .mwj-gd-overlay {
+          position: fixed; inset: 0; background: rgba(15,23,32,0.68); backdrop-filter: blur(4px);
+          display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px;
+          animation: mwj-gd-fade 0.18s ease;
+        }
+        @keyframes mwj-gd-fade { from { opacity: 0; } to { opacity: 1; } }
+        .mwj-gd-modal {
+          background: white; padding: 26px; border-radius: 20px; width: 100%;
+          box-shadow: 0 24px 60px rgba(0,0,0,0.3); position: relative;
+          animation: mwj-gd-modal-in 0.2s ease;
+        }
+        @keyframes mwj-gd-modal-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .mwj-gd-modal-close {
+          position: absolute; top: 15px; border: none; background: #f1f5f9; border-radius: 50%;
+          width: 32px; height: 32px; cursor: pointer; font-weight: 800; color: #64748b;
+          transition: all 0.18s ease;
+        }
+        .mwj-gd-modal-close:hover { background: #e2e8f0; color: #1F3A5F; transform: rotate(90deg); }
+
+        .mwj-gd-warranty-btn {
+          flex: 1; padding: 13px; border: none; border-radius: 12px; font-weight: 800;
+          cursor: pointer; font-size: 14px; color: white;
+          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%);
+          box-shadow: 0 8px 20px rgba(34,163,90,0.3); transition: all 0.2s ease;
+        }
+        .mwj-gd-warranty-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
+        .mwj-gd-cancel-btn {
+          padding: 13px 22px; background: #f1f5f9; color: #4a5568; border: none;
+          border-radius: 12px; font-weight: 800; cursor: pointer; transition: all 0.18s ease;
+        }
+        .mwj-gd-cancel-btn:hover { background: #e2e8f0; }
+
+        /* My Parts list */
+        .mwj-gd-part-row {
+          display: flex; justify-content: space-between; align-items: center; padding: 16px;
+          border: 1px solid #eef1f5; border-radius: 14px; margin-bottom: 12px; background: #f8fafc;
+          transition: all 0.2s ease; flex-wrap: wrap; gap: 12px;
+        }
+        .mwj-gd-part-row:hover { border-color: rgba(224,135,42,0.25); box-shadow: 0 6px 18px rgba(15,23,32,0.06); }
+        .mwj-gd-part-row-img { width: 62px; height: 62px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
+        .mwj-gd-part-edit-btn, .mwj-gd-part-del-btn {
+          padding: 9px 15px; border-radius: 9px; cursor: pointer; font-weight: 800; font-size: 13px;
+          transition: all 0.18s ease; border: 1.5px solid transparent;
+        }
+        .mwj-gd-part-edit-btn { background: #ebf8ff; color: #2b6cb0; border-color: #bee3f8; }
+        .mwj-gd-part-edit-btn:hover { background: #dbeefd; transform: translateY(-1px); }
+        .mwj-gd-part-del-btn { background: #fff5f5; color: #e53e3e; border-color: #fed7d7; }
+        .mwj-gd-part-del-btn:hover { background: #fee2e2; transform: translateY(-1px); }
+
+        /* Orders */
+        .mwj-gd-order-card {
+          padding: 20px; border: 1px solid #eef1f5; border-radius: 16px; margin-bottom: 15px;
+          background: #f8fafc; transition: all 0.2s ease;
+        }
+        .mwj-gd-order-card:hover { box-shadow: 0 6px 20px rgba(15,23,32,0.06); }
+        .mwj-gd-order-code { font-size: 11px; font-weight: 800; color: #3182ce; background: #ebf8ff; padding: 3px 9px; border-radius: 6px; display: inline-block; margin-bottom: 7px; }
+        .mwj-gd-order-info { background: white; padding: 13px; border-radius: 10px; border: 1px solid #edf2f7; font-size: 13px; color: #4a5568; margin-bottom: 13px; }
+        .mwj-gd-maps-link {
+          display: inline-block; margin-top: 6px; background: linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%);
+          color: white; padding: 5px 12px; border-radius: 7px; font-size: 11px; font-weight: 800;
+          text-decoration: none; transition: all 0.18s ease;
+        }
+        .mwj-gd-maps-link:hover { transform: translateY(-1px); filter: brightness(1.08); }
+
+        .mwj-gd-status-btn-prep {
+          width: 100%; padding: 12px; border: none; border-radius: 10px; cursor: pointer;
+          font-weight: 800; font-size: 13.5px; color: white;
+          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%);
+          box-shadow: 0 6px 16px rgba(34,163,90,0.28); transition: all 0.2s ease;
+        }
+        .mwj-gd-status-btn-prep:hover { transform: translateY(-2px); filter: brightness(1.05); }
+        .mwj-gd-status-ready { padding: 9px; background: #f0fff4; color: #276749; border-radius: 8px; text-align: center; font-weight: 800; font-size: 12.5px; border: 1px solid #c6f6d5; }
+        .mwj-gd-status-btn-driver {
+          width: 100%; padding: 12px; border: none; border-radius: 10px; cursor: pointer;
+          font-weight: 800; font-size: 13.5px; color: white;
+          background: linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%);
+          box-shadow: 0 6px 16px rgba(49,130,206,0.28); transition: all 0.2s ease;
+        }
+        .mwj-gd-status-btn-driver:hover { transform: translateY(-2px); filter: brightness(1.05); }
+        .mwj-gd-status-done { padding: 11px; background: #ebf8ff; color: #2b6cb0; border-radius: 10px; text-align: center; font-weight: 800; font-size: 13px; border: 1px solid #bee3f8; }
+
+        @media (max-width: 700px) {
+          .mwj-gd-wrap { margin: 16px auto; padding: 0 12px; }
+          .mwj-gd-panel { padding: 20px; border-radius: 16px; }
+          .mwj-gd-grid-2 { grid-template-columns: 1fr; }
+          .mwj-gd-type-row { flex-direction: column; }
+          .mwj-gd-tab { min-width: 100%; }
+          .mwj-gd-inq-actions { flex-direction: column; }
+          .mwj-gd-part-row { flex-direction: column; align-items: flex-start; }
+        }
+      `}</style>
+
+      <div className="mwj-gd-wrap" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+
+        <div className="mwj-gd-tabbar">
+          <button onClick={() => { resetForm(); setActiveTab('add_part'); }} className={`mwj-gd-tab ${activeTab === 'add_part' ? 'mwj-gd-tab-add-active' : ''}`}>
+            ➕ {lang === 'ar' ? 'إضافة قطعة غيار' : 'Add New Part'}
+          </button>
+
+          <button onClick={() => setActiveTab('inquiries')} className={`mwj-gd-tab ${activeTab === 'inquiries' ? 'mwj-gd-tab-inquiries-active' : ''}`}>
+            ❓ {lang === 'ar' ? 'فحص التوافق' : 'Fitment Check'}
+            {pendingInquiriesCount > 0 && (
+              <span className="mwj-gd-badge" style={{ [isRtl ? 'right' : 'left']: '10px' }}>🔴 {pendingInquiriesCount}</span>
+            )}
+          </button>
+
+          <button onClick={() => setActiveTab('my_parts')} className={`mwj-gd-tab ${activeTab === 'my_parts' ? 'mwj-gd-tab-parts-active' : ''}`}>
+            📦 {lang === 'ar' ? `إعلاناتي (${myParts.length})` : `My Ads (${myParts.length})`}
+          </button>
+
+          <button onClick={() => setActiveTab('orders')} className={`mwj-gd-tab ${activeTab === 'orders' ? 'mwj-gd-tab-orders-active' : ''}`}>
+            📥 {lang === 'ar' ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}
+          </button>
         </div>
-      )}
 
-      {activeTab === 'inquiries' && (
-        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>❓ استفسارات مطابقة التوافق الواردة</h3>
+        {activeTab === 'add_part' && (
+          <div className="mwj-gd-panel">
+            <h2 className="mwj-gd-panel-title">
+              {editingId ? (lang === 'ar' ? '✏️ تعديل بيانات القطعة' : '✏️ Edit Part') : (lang === 'ar' ? '➕ إضافة قطعة غيار جديدة' : '➕ Add New Part')}
+            </h2>
 
-          {activeInquiriesList.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>لا توجد استفسارات جديدة حالياً.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {activeInquiriesList.map(inquiry => (
-                <div key={inquiry.id} style={{ padding: '20px', border: inquiry.status === 'pending_check' ? '2px solid #805ad5' : '1px solid #e2e8f0', borderRadius: '15px', backgroundColor: inquiry.status === 'pending_check' ? '#faf5ff' : '#f8fafc' }}>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#e9d8fd', color: '#553c9a', padding: '4px 10px', borderRadius: '6px' }}>كود الاستفسار: {inquiry.inquiry_code || `#INQ-${inquiry.id}`}</span>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: inquiry.status === 'pending_check' ? '#dd6b20' : inquiry.status === 'confirmed_compatible' ? '#38a169' : '#e53e3e' }}>
-                      {inquiry.status === 'pending_check' ? '⏳ بانتظار ردك' : inquiry.status === 'confirmed_compatible' ? '✅ تم تأكيد التوافق' : '❌ لا تركب'}
-                    </span>
-                  </div>
-
-                  <div 
-                    onClick={() => setPreviewPartDetails(inquiry)}
-                    style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', marginBottom: '12px', cursor: 'pointer' }}
-                  >
-                    <img src={inquiry.part_image || 'https://via.placeholder.com/60'} alt={inquiry.part_name} style={{ width: '65px', height: '65px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong style={{ fontSize: '15px', color: '#1a365d' }}>📦 {inquiry.part_name || 'قطعة من معروضاتك'}</strong>
-                        <span style={{ fontSize: '11px', color: '#3182ce', backgroundColor: '#ebf8ff', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>🔍 اضغط للمعاينة</span>
-                      </div>
-                      {inquiry.part_number && <span style={{ fontSize: '12px', color: '#718096', display: 'block' }}>Part #: {inquiry.part_number}</span>}
-                      <span style={{ fontSize: '13.5px', color: '#dd6b20', fontWeight: 'bold' }}>{inquiry.part_price || 0} QAR</span>
-                    </div>
-                  </div>
-
-                  <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '10px', border: '1px solid #edf2f7', marginBottom: '12px' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#2d3748', marginBottom: '6px' }}>🚘 سيارة العميل: {inquiry.car_make} - {inquiry.car_model} ({inquiry.car_year}) {inquiry.car_engine && `[${inquiry.car_engine}]`}</div>
-                    {inquiry.vin_number && <div style={{ fontSize: '13px', color: '#4a5568', fontFamily: 'monospace' }}>🔑 رقم الشاصي (VIN): <strong>{inquiry.vin_number}</strong></div>}
-                    {inquiry.customer_notes && <div style={{ fontSize: '13px', color: '#718096', marginTop: '6px', fontStyle: 'italic' }}>💬 ملاحظات العميل: "{inquiry.customer_notes}"</div>}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-                    {inquiry.car_registration_img && (
-                      <div style={{ textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#718096', marginBottom: '3px' }}>صورة الاستمارة</span>
-                        <a href={inquiry.car_registration_img} target="_blank" rel="noreferrer"><img src={inquiry.car_registration_img} alt="Estimara" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0' }} /></a>
-                      </div>
-                    )}
-                    {inquiry.old_part_img && (
-                      <div style={{ textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#718096', marginBottom: '3px' }}>القطعة القديمة</span>
-                        <a href={inquiry.old_part_img} target="_blank" rel="noreferrer"><img src={inquiry.old_part_img} alt="Old Part" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0' }} /></a>
-                      </div>
-                    )}
-                  </div>
-
-                  {inquiry.status === 'pending_check' && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={() => setSelectedInquiry(inquiry)} style={{ flex: 1, padding: '10px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✅ تركب (تأكيد التوافق والضمان)</button>
-                      <button onClick={() => handleRejectFitment(inquiry.id)} style={{ flex: 1, padding: '10px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>❌ لا تركب (رفض الطلب)</button>
-                    </div>
-                  )}
-
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {previewPartDetails && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
-          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', maxWidth: '500px', width: '90%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
-            <button onClick={() => setPreviewPartDetails(null)} style={{ position: 'absolute', top: '15px', right: '15px', border: 'none', background: '#edf2f7', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
-            <h3 style={{ margin: '0 0 15px 0', color: '#1a365d' }}>🔍 تفاصيل قطعة المعرض</h3>
-            <img src={previewPartDetails.part_image || 'https://via.placeholder.com/300'} alt={previewPartDetails.part_name} style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #cbd5e0', marginBottom: '15px' }} />
-            <h4 style={{ margin: '0 0 6px 0', fontSize: '18px', color: '#2d3748' }}>{previewPartDetails.part_name}</h4>
-            {previewPartDetails.part_number && <div style={{ fontSize: '13px', color: '#718096', marginBottom: '8px' }}>رقم القطعة: <strong>{previewPartDetails.part_number}</strong></div>}
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20', marginBottom: '15px' }}>{previewPartDetails.part_price || 0} QAR</div>
-            <button onClick={() => setPreviewPartDetails(null)} style={{ width: '100%', padding: '10px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>إغلاق المعاينة</button>
-          </div>
-        </div>
-      )}
-
-      {selectedInquiry && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', maxWidth: '500px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#2b6cb0' }}>🛡️ تحديد شروط ضمان القطعة للعميل</h3>
-            <p style={{ fontSize: '13.5px', color: '#4a5568', marginBottom: '20px' }}>أكد أن القطعة <strong>({selectedInquiry.part_name})</strong> تطابق سيارة العميل <strong>({selectedInquiry.car_make} {selectedInquiry.car_model})</strong> وحدد مهلة الضمان:</p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '6px' }}>1️⃣ مهلة الإرجاع قبل/عند التركيب (أيام):</label>
-                <select value={returnDays} onChange={(e) => setReturnDays(Number(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
-                  <option value={1}>يوم واحد</option>
-                  <option value={3}>3 أيام (موصى به)</option>
-                  <option value={5}>5 أيام</option>
-                  <option value={7}>7 أيام</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '6px' }}>2️⃣ فترة ضمان التشغيل بعد التركيب (أيام):</label>
-                <select value={warrantyDays} onChange={(e) => setWarrantyDays(Number(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
-                  <option value={7}>7 أيام</option>
-                  <option value={14}>14 يوماً (موصى به)</option>
-                  <option value={30}>شهر كامل (30 يوماً)</option>
-                  <option value={90}>3 أشهر</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={handleConfirmFitment} style={{ flex: 1, padding: '12px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>🚀 تأكيد وإرسال للعميل</button>
-              <button onClick={() => setSelectedInquiry(null)} style={{ padding: '12px 20px', backgroundColor: '#edf2f7', color: '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>إلغاء</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'my_parts' && (
-        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📦 جميع القطع المعروضة ({myParts.length})</h3>
-          {myParts.map(part => (
-            <div key={part.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '10px', backgroundColor: '#f8fafc' }}>
-              <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                <img src={part.image_url || 'https://via.placeholder.com/60'} alt={part.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
+            <form onSubmit={handlePublishSingle} className="mwj-gd-form">
+              <div className="mwj-gd-grid-2">
                 <div>
-                  <h4 style={{ margin: '0 0 4px 0', color: '#2d3748', fontSize: '16px' }}>{part.name} {part.part_number && <span style={{ fontSize: '12px', color: '#718096' }}>[PN: {part.part_number}]</span>}</h4>
-                  <div style={{ fontSize: '12.5px', color: '#718096', marginBottom: '4px' }}>🚘 {part.make} - {part.model} ({part.year})</div>
-                  <div><span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{part.price} QAR</span> | <span style={{ fontSize: '12px', color: '#2b6cb0', fontWeight: 'bold' }}>{part.part_type || 'مستعمل'}</span></div>
+                  <label className="mwj-gd-label">الماركة:</label>
+                  <select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); setPartEngine(''); }} className="mwj-gd-select" required>
+                    <option value="">اختر الماركة</option>
+                    {Object.keys(carData).map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mwj-gd-label">الموديل:</label>
+                  <select value={partModel} onChange={(e) => setPartModel(e.target.value)} className="mwj-gd-select" required disabled={!partMake}>
+                    <option value="">اختر الموديل</option>
+                    {partMake && carData[partMake]?.models.map((m: string) => <option key={m} value={m}>{m}</option>)}
+                  </select>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => handleEdit(part)} style={{ padding: '8px 14px', backgroundColor: '#ebf8ff', color: '#3182ce', border: '1px solid #bee3f8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>✏️ تعديل</button>
-                <button onClick={() => handleDelete(part.id)} style={{ padding: '8px 14px', backgroundColor: '#fff5f5', color: '#e53e3e', border: '1px solid #fed7d7', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>🗑️ حذف</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* 4. الطلبات الواردة للشحن مع أزرار وشارات التسلسل الذكية */}
-      {activeTab === 'orders' && (
-        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 الطلبات الواردة للشحن والاستلام</h3>
-          {myOrders.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>لا توجد طلبات جديدة حالياً.</p>
-          ) : (
-            myOrders.map(order => (
-              <div key={order.id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', marginBottom: '15px', backgroundColor: '#f8fafc' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div>
-                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#3182ce', backgroundColor: '#ebf8ff', padding: '3px 8px', borderRadius: '4px', display: 'inline-block', marginBottom: '6px' }}>كود الطلب: {order.order_code || `#ORD-${order.id}`}</span>
-                    <h4 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#2d3748' }}>{order.part_name}</h4>
-                  </div>
-                  <span style={{ fontWeight: 'bold', color: '#dd6b20', fontSize: '18px' }}>{order.price} QAR</span>
+              <div className="mwj-gd-grid-2">
+                <div>
+                  <label className="mwj-gd-label">سنة الصنع:</label>
+                  <select value={partYear} onChange={(e) => setPartYear(e.target.value)} className="mwj-gd-select" required>
+                    <option value="">اختر السنة</option>
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
                 </div>
+                <div>
+                  <label className="mwj-gd-label">المحرك (اختياري):</label>
+                  <select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} className="mwj-gd-select" disabled={!partMake}>
+                    <option value="">اختر المحرك</option>
+                    {partMake && carData[partMake]?.engines.map((eng: string) => <option key={eng} value={eng}>{eng}</option>)}
+                  </select>
+                </div>
+              </div>
 
-                <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #edf2f7', fontSize: '13px', color: '#4a5568', marginBottom: '12px' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                    🚚 طريقة التسليم: {order.delivery_type === 'delivery' ? 'توصيل لموقع العميل' : '🏪 استلام من مقر موجود أووتو'}
+              <div className="mwj-gd-grid-2">
+                <div>
+                  <label className="mwj-gd-label">اسم قطعة الغيار:</label>
+                  <input type="text" placeholder="مثال: دينمو، كمبروسر..." value={partName} onChange={(e) => setPartName(e.target.value)} className="mwj-gd-input" required />
+                </div>
+                <div>
+                  <label className="mwj-gd-label">رقم القطعة (اختياري):</label>
+                  <input type="text" placeholder="مثال: 27060-0H110" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} className="mwj-gd-input" />
+                </div>
+              </div>
+
+              <div>
+                <label className="mwj-gd-label" style={{ marginBottom: '10px' }}>نوع / حالة القطعة:</label>
+                <div className="mwj-gd-type-row">
+                  {[
+                    { label: '🚗 مستعمل أصلي', val: 'مستعمل أصلي', color: '#22a35a', bg: '#f0fff4', border: '#22a35a' },
+                    { label: '💎 جديد أصلي (OEM)', val: 'أصلي (OEM)', color: '#2b6cb0', bg: '#ebf8ff', border: '#3182ce' },
+                    { label: '⚙️ تجاري / كوبي', val: 'تجاري / كوبي', color: '#c05621', bg: '#fffaf0', border: '#E0872A' }
+                  ].map(item => (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => setPartType(item.val)}
+                      className="mwj-gd-type-btn"
+                      style={partType === item.val ? { borderColor: item.border, backgroundColor: item.bg, color: item.color, boxShadow: `0 4px 14px ${item.color}22` } : {}}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mwj-gd-grid-2">
+                <div>
+                  <label className="mwj-gd-label">السعر (ر.ق):</label>
+                  <input type="number" value={partPrice} onChange={(e) => setPartPrice(e.target.value)} className="mwj-gd-input" required />
+                </div>
+                <div>
+                  <label className="mwj-gd-label">الكمية المتوفرة:</label>
+                  <input type="number" min="1" value={partStock} onChange={(e) => setPartStock(e.target.value)} className="mwj-gd-input" required />
+                </div>
+              </div>
+
+              <div>
+                <label className="mwj-gd-label">صورة القطعة:</label>
+                <div className="mwj-gd-dropzone">
+                  <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+                  <p>{uploadingImage ? '⏳ جاري الرفع...' : '📸 اضغط هنا لاختيار صورة للقطعة'}</p>
+                </div>
+                {partImg && (
+                  <div style={{ marginTop: '15px', textAlign: 'center' }}>
+                    <img src={partImg} alt="Preview" style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '12px', border: '1px solid #e2e8f0' }} />
                   </div>
-                  {order.delivery_type === 'delivery' && (
-                    <div style={{ marginTop: '6px' }}>
-                      📍 العنوان: <strong>{order.address_details || 'غير محدد'}</strong>
-                      {order.location_lat && order.location_lng && (
-                        <a 
-                          href={`https://www.google.com/maps?q=${order.location_lat},${order.location_lng}`} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          style={{ display: 'inline-block', marginRight: '10px', backgroundColor: '#3182ce', color: 'white', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', textDecoration: 'none' }}
-                        >
-                          🗺️ فتح موقع العميل في Google Maps
-                        </a>
+                )}
+              </div>
+
+              <button type="submit" className={`mwj-gd-submit ${editingId ? 'mwj-gd-submit-edit' : 'mwj-gd-submit-new'}`}>
+                {editingId ? 'حفظ التعديلات' : '🚀 نشر القطعة للبيع'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {activeTab === 'inquiries' && (
+          <div className="mwj-gd-panel">
+            <h3 className="mwj-gd-panel-title">❓ استفسارات مطابقة التوافق الواردة</h3>
+
+            {activeInquiriesList.length === 0 ? (
+              <p className="mwj-gd-empty">لا توجد استفسارات جديدة حالياً.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {activeInquiriesList.map(inquiry => (
+                  <div key={inquiry.id} className={`mwj-gd-inq-card ${inquiry.status === 'pending_check' ? 'mwj-gd-inq-pending' : 'mwj-gd-inq-resolved'}`}>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '13px', flexWrap: 'wrap', gap: '8px' }}>
+                      <span className="mwj-gd-inq-code">كود الاستفسار: {inquiry.inquiry_code || `#INQ-${inquiry.id}`}</span>
+                      <span className="mwj-gd-inq-status" style={{ color: inquiry.status === 'pending_check' ? '#c05621' : inquiry.status === 'confirmed_compatible' ? '#22a35a' : '#e53e3e' }}>
+                        {inquiry.status === 'pending_check' ? '⏳ بانتظار ردك' : inquiry.status === 'confirmed_compatible' ? '✅ تم تأكيد التوافق' : '❌ لا تركب'}
+                      </span>
+                    </div>
+
+                    <div onClick={() => setPreviewPartDetails(inquiry)} className="mwj-gd-inq-preview" style={{ marginBottom: '13px' }}>
+                      <img src={inquiry.part_image || 'https://via.placeholder.com/60'} alt={inquiry.part_name} style={{ width: '66px', height: '66px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0', flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                          <strong style={{ fontSize: '15px', color: '#16304f' }}>📦 {inquiry.part_name || 'قطعة من معروضاتك'}</strong>
+                          <span className="mwj-gd-preview-tag">🔍 اضغط للمعاينة</span>
+                        </div>
+                        {inquiry.part_number && <span style={{ fontSize: '12px', color: '#718096', display: 'block' }}>Part #: {inquiry.part_number}</span>}
+                        <span style={{ fontSize: '13.5px', color: '#E0872A', fontWeight: 800 }}>{inquiry.part_price || 0} QAR</span>
+                      </div>
+                    </div>
+
+                    <div className="mwj-gd-inq-vehicle" style={{ marginBottom: '13px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#2d3748', marginBottom: '6px' }}>
+                        🚘 سيارة العميل: {inquiry.car_make} - {inquiry.car_model} ({inquiry.car_year}) {inquiry.car_engine && `[${inquiry.car_engine}]`}
+                      </div>
+                      {inquiry.vin_number && <div style={{ fontSize: '13px', color: '#4a5568', fontFamily: 'monospace' }}>🔑 رقم الشاصي (VIN): <strong>{inquiry.vin_number}</strong></div>}
+                      {inquiry.customer_notes && <div style={{ fontSize: '13px', color: '#718096', marginTop: '6px', fontStyle: 'italic' }}>💬 ملاحظات العميل: "{inquiry.customer_notes}"</div>}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                      {inquiry.car_registration_img && (
+                        <div className="mwj-gd-doc-thumb" style={{ textAlign: 'center' }}>
+                          <span style={{ display: 'block', fontSize: '11px', color: '#718096', marginBottom: '4px' }}>صورة الاستمارة</span>
+                          <a href={inquiry.car_registration_img} target="_blank" rel="noreferrer"><img src={inquiry.car_registration_img} alt="Estimara" /></a>
+                        </div>
+                      )}
+                      {inquiry.old_part_img && (
+                        <div className="mwj-gd-doc-thumb" style={{ textAlign: 'center' }}>
+                          <span style={{ display: 'block', fontSize: '11px', color: '#718096', marginBottom: '4px' }}>القطعة القديمة</span>
+                          <a href={inquiry.old_part_img} target="_blank" rel="noreferrer"><img src={inquiry.old_part_img} alt="Old Part" /></a>
+                        </div>
                       )}
                     </div>
-                  )}
-                  {order.pickup_code && <div style={{ color: '#2f855a', fontWeight: 'bold', marginTop: '6px' }}>🔑 كود تسليم المندوب: {order.pickup_code}</div>}
-                </div>
 
-                {/* أزرار التسلسل الذكية حسب حالة الطلب */}
-                <div>
-                  {(!order.status || order.status === 'pending') && (
-                    <button 
-                      onClick={() => updateOrderStatus(order.id, 'ready_for_pickup')} 
-                      style={{ width: '100%', padding: '11px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
-                    >
-                      ✅ تأكيد توفر القطعة وتجهيزها
-                    </button>
-                  )}
-
-                  {order.status === 'ready_for_pickup' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ padding: '8px', backgroundColor: '#f0fff4', color: '#276749', borderRadius: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '12.5px', border: '1px solid #c6f6d5' }}>
-                        📦 القطعة جاهزة وفي انتظار وصول المندوب
+                    {inquiry.status === 'pending_check' && (
+                      <div className="mwj-gd-inq-actions">
+                        <button onClick={() => setSelectedInquiry(inquiry)} className="mwj-gd-btn-confirm">✅ تركب (تأكيد التوافق والضمان)</button>
+                        <button onClick={() => handleRejectFitment(inquiry.id)} className="mwj-gd-btn-reject">❌ لا تركب (رفض الطلب)</button>
                       </div>
-                      <button 
-                        onClick={() => updateOrderStatus(order.id, 'handed_to_driver')} 
-                        style={{ width: '100%', padding: '11px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
-                      >
-                        🚚 تم تسليم القطعة للمندوب الآن
-                      </button>
-                    </div>
-                  )}
+                    )}
 
-                  {(order.status === 'handed_to_driver' || order.status === 'delivered') && (
-                    <div style={{ padding: '10px', backgroundColor: '#ebf8ff', color: '#2b6cb0', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', border: '1px solid #bee3f8' }}>
-                      {order.status === 'delivered' ? '✅ تم التسليم للعميل بالكامل' : '🚚 تم تسليم القطعة للمندوب (قيد التوصيل للعميل)'}
-                    </div>
-                  )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {previewPartDetails && (
+          <div className="mwj-gd-overlay">
+            <div className="mwj-gd-modal" style={{ maxWidth: '500px', textAlign: 'center' }}>
+              <button onClick={() => setPreviewPartDetails(null)} className="mwj-gd-modal-close" style={{ [isRtl ? 'left' : 'right']: '15px' }}>✕</button>
+              <h3 style={{ margin: '0 0 15px 0', color: '#16304f', fontWeight: 800 }}>🔍 تفاصيل قطعة المعرض</h3>
+              <img src={previewPartDetails.part_image || 'https://via.placeholder.com/300'} alt={previewPartDetails.part_name} style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '14px', border: '1px solid #cbd5e0', marginBottom: '15px' }} />
+              <h4 style={{ margin: '0 0 6px 0', fontSize: '18px', color: '#2d3748' }}>{previewPartDetails.part_name}</h4>
+              {previewPartDetails.part_number && <div style={{ fontSize: '13px', color: '#718096', marginBottom: '8px' }}>رقم القطعة: <strong>{previewPartDetails.part_number}</strong></div>}
+              <div style={{ fontSize: '19px', fontWeight: 800, color: '#E0872A', marginBottom: '16px' }}>{previewPartDetails.part_price || 0} QAR</div>
+              <button onClick={() => setPreviewPartDetails(null)} className="mwj-gd-status-btn-driver">إغلاق المعاينة</button>
+            </div>
+          </div>
+        )}
+
+        {selectedInquiry && (
+          <div className="mwj-gd-overlay">
+            <div className="mwj-gd-modal" style={{ maxWidth: '500px' }}>
+              <h3 style={{ margin: '0 0 15px 0', color: '#2b6cb0', fontWeight: 800 }}>🛡️ تحديد شروط ضمان القطعة للعميل</h3>
+              <p style={{ fontSize: '13.5px', color: '#4a5568', marginBottom: '20px', lineHeight: 1.6 }}>
+                أكد أن القطعة <strong>({selectedInquiry.part_name})</strong> تطابق سيارة العميل <strong>({selectedInquiry.car_make} {selectedInquiry.car_model})</strong> وحدد مهلة الضمان:
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '25px' }}>
+                <div>
+                  <label className="mwj-gd-label">1️⃣ مهلة الإرجاع قبل/عند التركيب (أيام):</label>
+                  <select value={returnDays} onChange={(e) => setReturnDays(Number(e.target.value))} className="mwj-gd-select">
+                    <option value={1}>يوم واحد</option>
+                    <option value={3}>3 أيام (موصى به)</option>
+                    <option value={5}>5 أيام</option>
+                    <option value={7}>7 أيام</option>
+                  </select>
                 </div>
 
+                <div>
+                  <label className="mwj-gd-label">2️⃣ فترة ضمان التشغيل بعد التركيب (أيام):</label>
+                  <select value={warrantyDays} onChange={(e) => setWarrantyDays(Number(e.target.value))} className="mwj-gd-select">
+                    <option value={7}>7 أيام</option>
+                    <option value={14}>14 يوماً (موصى به)</option>
+                    <option value={30}>شهر كامل (30 يوماً)</option>
+                    <option value={90}>3 أشهر</option>
+                  </select>
+                </div>
               </div>
-            ))
-          )}
-        </div>
-      )}
 
-    </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={handleConfirmFitment} className="mwj-gd-warranty-btn">🚀 تأكيد وإرسال للعميل</button>
+                <button onClick={() => setSelectedInquiry(null)} className="mwj-gd-cancel-btn">إلغاء</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'my_parts' && (
+          <div className="mwj-gd-panel">
+            <h3 className="mwj-gd-panel-title" style={{ borderBottom: 'none', paddingBottom: 0 }}>📦 جميع القطع المعروضة ({myParts.length})</h3>
+            {myParts.map(part => (
+              <div key={part.id} className="mwj-gd-part-row">
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center', minWidth: 0 }}>
+                  <img src={part.image_url || 'https://via.placeholder.com/60'} alt={part.name} className="mwj-gd-part-row-img" />
+                  <div style={{ minWidth: 0 }}>
+                    <h4 style={{ margin: '0 0 4px 0', color: '#2d3748', fontSize: '16px' }}>
+                      {part.name} {part.part_number && <span style={{ fontSize: '12px', color: '#718096', fontWeight: 400 }}>[PN: {part.part_number}]</span>}
+                    </h4>
+                    <div style={{ fontSize: '12.5px', color: '#718096', marginBottom: '4px' }}>🚘 {part.make} - {part.model} ({part.year})</div>
+                    <div><span style={{ color: '#E0872A', fontWeight: 800 }}>{part.price} QAR</span> | <span style={{ fontSize: '12px', color: '#2b6cb0', fontWeight: 700 }}>{part.part_type || 'مستعمل'}</span></div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleEdit(part)} className="mwj-gd-part-edit-btn">✏️ تعديل</button>
+                  <button onClick={() => handleDelete(part.id)} className="mwj-gd-part-del-btn">🗑️ حذف</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 4. الطلبات الواردة للشحن مع أزرار وشارات التسلسل الذكية */}
+        {activeTab === 'orders' && (
+          <div className="mwj-gd-panel">
+            <h3 className="mwj-gd-panel-title" style={{ borderBottom: 'none', paddingBottom: 0 }}>📥 الطلبات الواردة للشحن والاستلام</h3>
+            {myOrders.length === 0 ? (
+              <p className="mwj-gd-empty">لا توجد طلبات جديدة حالياً.</p>
+            ) : (
+              myOrders.map(order => (
+                <div key={order.id} className="mwj-gd-order-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <span className="mwj-gd-order-code">كود الطلب: {order.order_code || `#ORD-${order.id}`}</span>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#2d3748' }}>{order.part_name}</h4>
+                    </div>
+                    <span style={{ fontWeight: 800, color: '#E0872A', fontSize: '18px' }}>{order.price} QAR</span>
+                  </div>
+
+                  <div className="mwj-gd-order-info">
+                    <div style={{ fontWeight: 800, marginBottom: '4px' }}>
+                      🚚 طريقة التسليم: {order.delivery_type === 'delivery' ? 'توصيل لموقع العميل' : '🏪 استلام من مقر موجود أووتو'}
+                    </div>
+                    {order.delivery_type === 'delivery' && (
+                      <div style={{ marginTop: '6px' }}>
+                        📍 العنوان: <strong>{order.address_details || 'غير محدد'}</strong>
+                        {order.location_lat && order.location_lng && (
+                          
+                            href={`https://www.google.com/maps?q=${order.location_lat},${order.location_lng}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mwj-gd-maps-link"
+                            style={{ [isRtl ? 'marginRight' : 'marginLeft']: '10px' }}
+                          >
+                            🗺️ فتح موقع العميل في Google Maps
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    {order.pickup_code && <div style={{ color: '#22a35a', fontWeight: 800, marginTop: '6px' }}>🔑 كود تسليم المندوب: {order.pickup_code}</div>}
+                  </div>
+
+                  {/* أزرار التسلسل الذكية حسب حالة الطلب */}
+                  <div>
+                    {(!order.status || order.status === 'pending') && (
+                      <button onClick={() => updateOrderStatus(order.id, 'ready_for_pickup')} className="mwj-gd-status-btn-prep">
+                        ✅ تأكيد توفر القطعة وتجهيزها
+                      </button>
+                    )}
+
+                    {order.status === 'ready_for_pickup' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div className="mwj-gd-status-ready">📦 القطعة جاهزة وفي انتظار وصول المندوب</div>
+                        <button onClick={() => updateOrderStatus(order.id, 'handed_to_driver')} className="mwj-gd-status-btn-driver">
+                          🚚 تم تسليم القطعة للمندوب الآن
+                        </button>
+                      </div>
+                    )}
+
+                    {(order.status === 'handed_to_driver' || order.status === 'delivered') && (
+                      <div className="mwj-gd-status-done">
+                        {order.status === 'delivered' ? '✅ تم التسليم للعميل بالكامل' : '🚚 تم تسليم القطعة للمندوب (قيد التوصيل للعميل)'}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+      </div>
+    </>
   );
 };
