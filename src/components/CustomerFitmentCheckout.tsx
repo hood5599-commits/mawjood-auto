@@ -55,6 +55,8 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
 
+  const isRtl = lang === 'ar';
+
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>, setImgFn: (url: string) => void) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -215,174 +217,350 @@ export const CustomerFitmentCheckout: React.FC<Props> = ({
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
-      <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '30px', maxWidth: '600px', width: '92%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', position: 'relative' }}>
-        
-        <button onClick={onClose} style={{ position: 'absolute', top: '15px', left: lang === 'ar' ? '15px' : 'auto', right: lang === 'ar' ? 'auto' : '15px', border: 'none', background: '#edf2f7', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+    <>
+      <style>{`
+        .mwj-fc-overlay {
+          position: fixed; inset: 0;
+          background: rgba(15,23,32,0.72);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          display: flex; justify-content: center; align-items: center;
+          z-index: 1000; padding: 20px;
+          animation: mwj-fc-fade 0.18s ease;
+          font-family: 'Cairo', 'Segoe UI', sans-serif;
+        }
+        @keyframes mwj-fc-fade { from { opacity: 0; } to { opacity: 1; } }
 
-        <div style={{ display: 'flex', gap: '15px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px', alignItems: 'center' }}>
-          <img src={part.image_url || 'https://via.placeholder.com/80'} alt={part.name} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '8px' }} />
-          <div style={{ flex: 1 }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#1a365d' }}>{part.name}</h4>
-            <div style={{ fontSize: '12.5px', color: '#718096' }}>🚘 {part.make} {part.model} ({part.year})</div>
-            <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#dd6b20', marginTop: '4px' }}>{part.price} QAR</div>
+        .mwj-fc-modal {
+          background: white; border-radius: 22px; padding: 28px;
+          max-width: 600px; width: 92%; max-height: 90vh; overflow-y: auto;
+          box-shadow: 0 24px 60px rgba(0,0,0,0.32);
+          position: relative;
+          animation: mwj-fc-in 0.22s ease;
+        }
+        @keyframes mwj-fc-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        .mwj-fc-close {
+          position: absolute; top: 16px; border: none;
+          background: #f1f5f9; border-radius: 50%; width: 34px; height: 34px;
+          cursor: pointer; font-weight: 800; color: #64748b;
+          transition: all 0.18s ease;
+        }
+        .mwj-fc-close:hover { background: #e2e8f0; color: #1F3A5F; transform: rotate(90deg); }
+
+        .mwj-fc-part-card {
+          display: flex; gap: 16px; padding: 14px;
+          background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+          border-radius: 14px; border: 1px solid #e2e8f0;
+          margin-bottom: 22px; align-items: center;
+        }
+        .mwj-fc-part-img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
+        .mwj-fc-part-name { margin: 0 0 4px 0; font-size: 16px; color: #16304f; font-weight: 800; }
+        .mwj-fc-part-vehicle { font-size: 12.5px; color: #718096; }
+        .mwj-fc-part-price { font-size: 16px; font-weight: 800; color: #E0872A; margin-top: 5px; }
+
+        .mwj-fc-tabs {
+          display: flex; gap: 8px; margin-bottom: 22px;
+          border-bottom: 2px solid #f1f5f9; padding-bottom: 14px;
+        }
+        .mwj-fc-tab {
+          flex: 1; padding: 12px; border-radius: 12px; border: none;
+          font-weight: 800; cursor: pointer; font-size: 13.5px;
+          transition: all 0.2s ease; background: #f7fafc; color: #4a5568;
+        }
+        .mwj-fc-tab:hover { transform: translateY(-1px); }
+        .mwj-fc-tab-inquire-active {
+          background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%) !important;
+          color: white !important;
+          box-shadow: 0 6px 16px rgba(107,70,193,0.3);
+        }
+        .mwj-fc-tab-checkout-active {
+          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%) !important;
+          color: white !important;
+          box-shadow: 0 6px 16px rgba(34,163,90,0.3);
+        }
+
+        .mwj-fc-intro { margin: 0 0 4px 0; font-size: 13px; color: #64748b; line-height: 1.6; }
+
+        .mwj-fc-form { display: flex; flex-direction: column; gap: 16px; }
+        .mwj-fc-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .mwj-fc-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .mwj-fc-label { display: block; font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 6px; }
+
+        .mwj-fc-input, .mwj-fc-textarea {
+          width: 100%; padding: 10px 12px; border-radius: 9px;
+          border: 1.5px solid #e2e8f0; box-sizing: border-box; font-size: 13.5px;
+          font-family: inherit; transition: border-color 0.18s ease, box-shadow 0.18s ease;
+          color: #1F3A5F;
+        }
+        .mwj-fc-input:focus, .mwj-fc-textarea:focus {
+          outline: none; border-color: #E0872A; box-shadow: 0 0 0 3px rgba(224,135,42,0.14);
+        }
+        .mwj-fc-input-mono { font-family: 'Courier New', monospace; }
+        .mwj-fc-textarea { height: 64px; resize: vertical; }
+
+        .mwj-fc-upload-box {
+          border: 1.5px dashed #cbd5e0; border-radius: 10px; padding: 10px;
+          transition: border-color 0.18s ease, background-color 0.18s ease;
+        }
+        .mwj-fc-upload-box:hover { border-color: #E0872A; background: #fffaf3; }
+        .mwj-fc-upload-ok { color: #22a35a; font-size: 11.5px; font-weight: 700; display: block; margin-top: 5px; }
+
+        .mwj-fc-submit-purple {
+          width: 100%; padding: 13px; border: none; border-radius: 12px;
+          font-weight: 800; font-size: 15px; cursor: pointer; color: white;
+          background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%);
+          box-shadow: 0 8px 20px rgba(107,70,193,0.3);
+          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+        }
+        .mwj-fc-submit-purple:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.05); }
+        .mwj-fc-submit-purple:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .mwj-fc-submit-green {
+          width: 100%; padding: 15px; border: none; border-radius: 13px;
+          font-weight: 800; font-size: 16px; cursor: pointer; color: white;
+          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%);
+          box-shadow: 0 8px 20px rgba(34,163,90,0.32);
+          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+        }
+        .mwj-fc-submit-green:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.05); }
+        .mwj-fc-submit-green:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .mwj-fc-option-row { display: flex; gap: 10px; }
+        .mwj-fc-option-btn {
+          flex: 1; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 13px;
+          cursor: pointer; transition: all 0.2s ease; background: #f7fafc;
+          color: #4a5568; border: 1.5px solid #e2e8f0;
+        }
+        .mwj-fc-option-btn:hover { transform: translateY(-1px); }
+        .mwj-fc-option-blue-active {
+          border-color: #3182ce !important; background: #ebf8ff !important; color: #2b6cb0 !important;
+          box-shadow: 0 4px 14px rgba(49,130,206,0.18);
+        }
+        .mwj-fc-option-green-active {
+          border-color: #22a35a !important; background: #f0fff4 !important; color: #276749 !important;
+          box-shadow: 0 4px 14px rgba(34,163,90,0.18);
+        }
+        .mwj-fc-option-orange-active {
+          border-color: #E0872A !important; background: #fffaf0 !important; color: #c05621 !important;
+          box-shadow: 0 4px 14px rgba(224,135,42,0.18);
+        }
+
+        .mwj-fc-address-panel {
+          background: linear-gradient(135deg, #ebf8ff 0%, #e1f0fc 100%);
+          padding: 14px; border-radius: 12px; border: 1px solid #bee3f8;
+        }
+        .mwj-fc-gps-btn {
+          background: linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%);
+          color: white; border: none; border-radius: 8px; padding: 6px 12px;
+          font-size: 11px; font-weight: 800; cursor: pointer;
+          transition: transform 0.18s ease, filter 0.18s ease;
+        }
+        .mwj-fc-gps-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+        .mwj-fc-gps-ok { color: #2b6cb0; font-size: 11.5px; margin-top: 6px; display: block; font-weight: 700; }
+
+        .mwj-fc-summary {
+          padding: 14px; background: #f7fafc; border-radius: 12px;
+          border: 1px solid #e2e8f0; font-size: 13.5px;
+        }
+        .mwj-fc-summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .mwj-fc-summary-protect { display: flex; justify-content: space-between; color: #22a35a; font-weight: 800; }
+
+        @media (max-width: 560px) {
+          .mwj-fc-modal { padding: 18px; border-radius: 18px; }
+          .mwj-fc-grid-3 { grid-template-columns: 1fr; }
+          .mwj-fc-grid-2 { grid-template-columns: 1fr; }
+          .mwj-fc-tabs { flex-direction: column; }
+          .mwj-fc-option-row { flex-direction: column; }
+        }
+      `}</style>
+
+      <div className="mwj-fc-overlay" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+        <div className="mwj-fc-modal">
+
+          <button
+            onClick={onClose}
+            className="mwj-fc-close"
+            style={{ [isRtl ? 'left' : 'right']: '16px' }}
+          >✕</button>
+
+          <div className="mwj-fc-part-card">
+            <img src={part.image_url || 'https://via.placeholder.com/80'} alt={part.name} className="mwj-fc-part-img" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h4 className="mwj-fc-part-name">{part.name}</h4>
+              <div className="mwj-fc-part-vehicle">🚘 {part.make} {part.model} ({part.year})</div>
+              <div className="mwj-fc-part-price">{part.price} QAR</div>
+            </div>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #edf2f7', paddingBottom: '10px' }}>
-          <button 
-            type="button"
-            onClick={() => setActiveStep('inquire')} 
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: activeStep === 'inquire' ? '#805ad5' : '#f7fafc', color: activeStep === 'inquire' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}
-          >
-            ❓ {lang === 'ar' ? 'أسأل البائع هل تركب؟' : 'Ask Seller Fitment'}
-          </button>
-          <button 
-            type="button"
-            onClick={() => setActiveStep('checkout')} 
-            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: activeStep === 'checkout' ? '#38a169' : '#f7fafc', color: activeStep === 'checkout' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}
-          >
-            🛒 {lang === 'ar' ? 'إتمام الشراء والدفع' : 'Buy Now'}
-          </button>
-        </div>
-
-        {activeStep === 'inquire' && (
-          <form onSubmit={handleSendFitmentInquiry} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <p style={{ margin: 0, fontSize: '13px', color: '#4a5568', lineHeight: '1.5' }}>
-              أرسل تفاصيل سيارتك للكراج. سيفحص الصور ويؤكد لك التوافق مع تحديد فترة الضمان قبل أن تدفع أي ريال!
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>الماركة:</label>
-                <input type="text" value={carMake} onChange={(e) => setCarMake(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>الموديل:</label>
-                <input type="text" value={carModel} onChange={(e) => setCarModel(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>السنة:</label>
-                <input type="text" value={carYear} onChange={(e) => setCarYear(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>رقم الشاصي VIN (اختياري لزيادة الدقة):</label>
-              <input type="text" placeholder="مثال: JTDKN3DU123456789" value={vinNumber} onChange={(e) => setVinNumber(e.target.value.toUpperCase())} style={{ width: '100%', padding: '9px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box', fontFamily: 'monospace' }} />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>📸 صورة استمارة السيارة:</label>
-                <input type="file" accept="image/*" onChange={(e) => handleUploadImage(e, setEstimaraImg)} style={{ width: '100%', fontSize: '11px' }} disabled={uploadingImg} />
-                {estimaraImg && <span style={{ color: '#38a169', fontSize: '11px', display: 'block', marginTop: '2px' }}>✓ تم الرفع</span>}
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>📸 صورة القطعة القديمة:</label>
-                <input type="file" accept="image/*" onChange={(e) => handleUploadImage(e, setOldPartImg)} style={{ width: '100%', fontSize: '11px' }} disabled={uploadingImg} />
-                {oldPartImg && <span style={{ color: '#38a169', fontSize: '11px', display: 'block', marginTop: '2px' }}>✓ تم الرفع</span>}
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>ملاحظات إضافية للبائع (اختياري):</label>
-              <textarea placeholder="مثال: السيارة 4 سلندر وارد الخليج..." value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box', height: '60px' }} />
-            </div>
-
-            <button type="submit" disabled={loading || uploadingImg} style={{ width: '100%', padding: '12px', backgroundColor: '#805ad5', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer' }}>
-              {loading ? 'جاري إرسال الاستفسار...' : '🚀 إرسال طلب التوافق للكراج'}
+          <div className="mwj-fc-tabs">
+            <button
+              type="button"
+              onClick={() => setActiveStep('inquire')}
+              className={`mwj-fc-tab ${activeStep === 'inquire' ? 'mwj-fc-tab-inquire-active' : ''}`}
+            >
+              ❓ {lang === 'ar' ? 'أسأل البائع هل تركب؟' : 'Ask Seller Fitment'}
             </button>
-          </form>
-        )}
+            <button
+              type="button"
+              onClick={() => setActiveStep('checkout')}
+              className={`mwj-fc-tab ${activeStep === 'checkout' ? 'mwj-fc-tab-checkout-active' : ''}`}
+            >
+              🛒 {lang === 'ar' ? 'إتمام الشراء والدفع' : 'Buy Now'}
+            </button>
+          </div>
 
-        {activeStep === 'checkout' && (
-          <form onSubmit={handleCompleteOrder} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            
-            <div>
-              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', color: '#2d3748', marginBottom: '8px' }}>
-                🚚 خيار الاستلام والتوصيل:
-              </label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryType('delivery')}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: deliveryType === 'delivery' ? '2px solid #3182ce' : '1px solid #cbd5e0', backgroundColor: deliveryType === 'delivery' ? '#ebf8ff' : '#f7fafc', color: deliveryType === 'delivery' ? '#2b6cb0' : '#4a5568', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}
-                >
-                  🚚 توصيل لموقعي (مندوب)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryType('pickup_hq')}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: deliveryType === 'pickup_hq' ? '2px solid #38a169' : '1px solid #cbd5e0', backgroundColor: deliveryType === 'pickup_hq' ? '#f0fff4' : '#f7fafc', color: deliveryType === 'pickup_hq' ? '#276749' : '#4a5568', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}
-                >
-                  🏪 استلام من مقر موجود أووتو
-                </button>
+          {activeStep === 'inquire' && (
+            <form onSubmit={handleSendFitmentInquiry} className="mwj-fc-form">
+              <p className="mwj-fc-intro">
+                أرسل تفاصيل سيارتك للكراج. سيفحص الصور ويؤكد لك التوافق مع تحديد فترة الضمان قبل أن تدفع أي ريال!
+              </p>
+
+              <div className="mwj-fc-grid-3">
+                <div>
+                  <label className="mwj-fc-label">الماركة:</label>
+                  <input type="text" value={carMake} onChange={(e) => setCarMake(e.target.value)} className="mwj-fc-input" required />
+                </div>
+                <div>
+                  <label className="mwj-fc-label">الموديل:</label>
+                  <input type="text" value={carModel} onChange={(e) => setCarModel(e.target.value)} className="mwj-fc-input" required />
+                </div>
+                <div>
+                  <label className="mwj-fc-label">السنة:</label>
+                  <input type="text" value={carYear} onChange={(e) => setCarYear(e.target.value)} className="mwj-fc-input" required />
+                </div>
               </div>
-            </div>
 
-            {deliveryType === 'delivery' && (
-              <div style={{ backgroundColor: '#ebf8ff', padding: '12px', borderRadius: '10px', border: '1px solid #bee3f8' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#2b6cb0' }}>تفاصيل عنوانك بالتفصيل:</label>
-                  <button type="button" onClick={handleGetLocation} style={{ backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    📍 تحديد موقعي الحالي GPS
+              <div>
+                <label className="mwj-fc-label">رقم الشاصي VIN (اختياري لزيادة الدقة):</label>
+                <input
+                  type="text"
+                  placeholder="مثال: JTDKN3DU123456789"
+                  value={vinNumber}
+                  onChange={(e) => setVinNumber(e.target.value.toUpperCase())}
+                  className="mwj-fc-input mwj-fc-input-mono"
+                />
+              </div>
+
+              <div className="mwj-fc-grid-2">
+                <div className="mwj-fc-upload-box">
+                  <label className="mwj-fc-label">📸 صورة استمارة السيارة:</label>
+                  <input type="file" accept="image/*" onChange={(e) => handleUploadImage(e, setEstimaraImg)} style={{ width: '100%', fontSize: '11px' }} disabled={uploadingImg} />
+                  {estimaraImg && <span className="mwj-fc-upload-ok">✓ تم الرفع</span>}
+                </div>
+
+                <div className="mwj-fc-upload-box">
+                  <label className="mwj-fc-label">📸 صورة القطعة القديمة:</label>
+                  <input type="file" accept="image/*" onChange={(e) => handleUploadImage(e, setOldPartImg)} style={{ width: '100%', fontSize: '11px' }} disabled={uploadingImg} />
+                  {oldPartImg && <span className="mwj-fc-upload-ok">✓ تم الرفع</span>}
+                </div>
+              </div>
+
+              <div>
+                <label className="mwj-fc-label">ملاحظات إضافية للبائع (اختياري):</label>
+                <textarea
+                  placeholder="مثال: السيارة 4 سلندر وارد الخليج..."
+                  value={customerNotes}
+                  onChange={(e) => setCustomerNotes(e.target.value)}
+                  className="mwj-fc-textarea"
+                />
+              </div>
+
+              <button type="submit" disabled={loading || uploadingImg} className="mwj-fc-submit-purple">
+                {loading ? 'جاري إرسال الاستفسار...' : '🚀 إرسال طلب التوافق للكراج'}
+              </button>
+            </form>
+          )}
+
+          {activeStep === 'checkout' && (
+            <form onSubmit={handleCompleteOrder} className="mwj-fc-form">
+
+              <div>
+                <label className="mwj-fc-label" style={{ fontSize: '13.5px', marginBottom: '10px' }}>
+                  🚚 خيار الاستلام والتوصيل:
+                </label>
+                <div className="mwj-fc-option-row">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType('delivery')}
+                    className={`mwj-fc-option-btn ${deliveryType === 'delivery' ? 'mwj-fc-option-blue-active' : ''}`}
+                  >
+                    🚚 توصيل لموقعي (مندوب)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType('pickup_hq')}
+                    className={`mwj-fc-option-btn ${deliveryType === 'pickup_hq' ? 'mwj-fc-option-green-active' : ''}`}
+                  >
+                    🏪 استلام من مقر موجود أووتو
                   </button>
                 </div>
-                <input 
-                  type="text" 
-                  placeholder="المدينة، المنطقة، الشارع، رقم المبنى..." 
-                  value={addressDetails} 
-                  onChange={(e) => setAddressDetails(e.target.value)} 
-                  style={{ width: '100%', padding: '9px', borderRadius: '6px', border: '1px solid #cbd5e0', boxSizing: 'border-box', fontSize: '13px' }} 
-                  required 
-                />
-                {locationLat && <span style={{ color: '#2b6cb0', fontSize: '11px', marginTop: '4px', display: 'block' }}>✓ تم التقاط إحداثيات الموقع (GPS)</span>}
               </div>
-            )}
 
-            <div>
-              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', color: '#2d3748', marginBottom: '8px' }}>
-                💳 طريقة الدفع:
-              </label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('cash')}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: paymentMethod === 'cash' ? '2px solid #dd6b20' : '1px solid #cbd5e0', backgroundColor: paymentMethod === 'cash' ? '#fffaf0' : '#f7fafc', color: paymentMethod === 'cash' ? '#c05621' : '#4a5568', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}
-                >
-                  💵 كاش عند الاستلام
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('card')}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: paymentMethod === 'card' ? '2px solid #3182ce' : '1px solid #cbd5e0', backgroundColor: paymentMethod === 'card' ? '#ebf8ff' : '#f7fafc', color: paymentMethod === 'card' ? '#2b6cb0' : '#4a5568', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}
-                >
-                  💳 بطاقة بنكية / Apple Pay
-                </button>
+              {deliveryType === 'delivery' && (
+                <div className="mwj-fc-address-panel">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12.5px', fontWeight: 800, color: '#2b6cb0' }}>تفاصيل عنوانك بالتفصيل:</label>
+                    <button type="button" onClick={handleGetLocation} className="mwj-fc-gps-btn">
+                      📍 تحديد موقعي الحالي GPS
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="المدينة، المنطقة، الشارع، رقم المبنى..."
+                    value={addressDetails}
+                    onChange={(e) => setAddressDetails(e.target.value)}
+                    className="mwj-fc-input"
+                    style={{ background: 'white' }}
+                    required
+                  />
+                  {locationLat && <span className="mwj-fc-gps-ok">✓ تم التقاط إحداثيات الموقع (GPS)</span>}
+                </div>
+              )}
+
+              <div>
+                <label className="mwj-fc-label" style={{ fontSize: '13.5px', marginBottom: '10px' }}>
+                  💳 طريقة الدفع:
+                </label>
+                <div className="mwj-fc-option-row">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`mwj-fc-option-btn ${paymentMethod === 'cash' ? 'mwj-fc-option-orange-active' : ''}`}
+                  >
+                    💵 كاش عند الاستلام
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('card')}
+                    className={`mwj-fc-option-btn ${paymentMethod === 'card' ? 'mwj-fc-option-blue-active' : ''}`}
+                  >
+                    💳 بطاقة بنكية / Apple Pay
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div style={{ padding: '12px', backgroundColor: '#f7fafc', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span>سعر القطعة:</span>
-                <strong>{part.price} QAR</strong>
+              <div className="mwj-fc-summary">
+                <div className="mwj-fc-summary-row">
+                  <span>سعر القطعة:</span>
+                  <strong style={{ color: '#16304f' }}>{part.price} QAR</strong>
+                </div>
+                <div className="mwj-fc-summary-protect">
+                  <span>🛡️ حماية العميل (ضمان تجربة واسترجاع):</span>
+                  <span>مشمول مجاناً</span>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#38a169', fontWeight: 'bold' }}>
-                <span>🛡️ حماية العميل (ضمان تجربة واسترجاع):</span>
-                <span>مشمول مجاناً</span>
-              </div>
-            </div>
 
-            <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}>
-              {loading ? 'جاري إتمام الطلب...' : '🚀 تأكيد وإتمام طلب الشراء'}
-            </button>
+              <button type="submit" disabled={loading} className="mwj-fc-submit-green">
+                {loading ? 'جاري إتمام الطلب...' : '🚀 تأكيد وإتمام طلب الشراء'}
+              </button>
 
-          </form>
-        )}
+            </form>
+          )}
 
+        </div>
       </div>
-    </div>
+    </>
   );
 };
