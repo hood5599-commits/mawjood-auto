@@ -229,7 +229,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ lang, authUrl, apiKey, onS
       <div style={{ textAlign: 'center', marginBottom: '18px' }}>
         <h3 style={{ margin: 0, color: '#1a365d', fontSize: '19px', fontWeight: 'bold' }}>
           {tab === 'login' && (isRtl ? 'تسجيل الدخول' : 'Sign In')}
-          {tab === 'register_user' && (isRtl ? 'إنشاء حساب عميل جديد' : 'Create Customer Account')}
+          {tab === 'register_user' && (isRtl ? 'إنشاء حساب جديد' : 'Create Account')}
           {tab === 'register_garage' && (isRtl ? 'تسجيل كراج جديد' : 'Register New Garage')}
         </h3>
       </div>
@@ -323,7 +323,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ lang, authUrl, apiKey, onS
           </div>
 
           <button type="submit" disabled={loading} style={{ width: '100%', padding: '13px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', marginTop: '6px' }}>
-            {loading ? (isRtl ? 'جاري التنسيق والتسجيل...' : 'Creating Account...') : (isRtl ? 'إنشاء حساب العميل 👤' : 'Create Account')}
+            {loading ? (isRtl ? 'جاري التسجيل...' : 'Creating Account...') : (isRtl ? 'إنشاء الحساب 👤' : 'Create Account')}
           </button>
         </form>
       )}
