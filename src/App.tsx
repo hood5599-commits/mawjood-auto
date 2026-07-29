@@ -1,3 +1,4 @@
+import { StaticPages, StaticPageView } from './components/StaticPages';
 import { useState, useEffect } from 'react';
 import { WelcomeModal } from './components/WelcomeModal';
 import { Header } from './components/Header';
