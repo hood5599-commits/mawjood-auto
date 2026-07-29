@@ -37,11 +37,11 @@ export const Header: React.FC<HeaderProps> = ({
         maxWidth: '1240px',
         margin: '0 auto',
         display: 'flex',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         alignItems: 'center'
       }}>
         
-        {/* 1️⃣ الشعار الاحترافي للمنصة (تم حذف إيموجي السيارة) */}
+        {/* 1️⃣ الشعار النصي الفخم (بدون إيموجي السيارة) */}
         <div 
           onClick={() => setView('shop')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
@@ -108,11 +108,10 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* زر الحساب وزر الخروج الواضح */}
+          {/* زر الحساب وزر الخروج الروعة */}
           {session ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               
-              {/* زر دخول اللوحة أو الحساب */}
               <button
                 onClick={() => {
                   if (session.role === 'admin' || session.email?.endsWith('@admin.mawjood.com')) setView('admin');
@@ -137,10 +136,10 @@ export const Header: React.FC<HeaderProps> = ({
                 👤 {isRtl ? 'حسابي' : 'Account'}
               </button>
 
-              {/* 🚪 زر الخروج المحدث بشكل كامل وواضح */}
+              {/* 🚪 زر الخروج الواضح والمرتب */}
               <button
                 onClick={onLogout}
-                title={isRtl ? 'تسجيل الخروج من الحساب' : 'Logout'}
+                title={isRtl ? 'تسجيل الخروج' : 'Logout'}
                 style={{
                   padding: '9px 14px',
                   borderRadius: '10px',
@@ -152,8 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
                   fontSize: '13px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '5px',
-                  transition: 'all 0.2s'
+                  gap: '5px'
                 }}
               >
                 🚪 {isRtl ? 'خروج' : 'Logout'}
