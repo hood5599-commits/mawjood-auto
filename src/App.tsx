@@ -381,17 +381,16 @@ export default function App() {
             />
           )}
 
-          {view === 'dashboard' && session?.role === 'garage' && <GarageDashboard lang={lang} carData={CAR_DATA} years={YEARS} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} onSuccess={() => { fetchParts(); setView('shop'); }} />}
+         {view === 'profile' && session && session.role !== 'garage' && (
+  <CustomerProfile lang={lang} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} />
+)}
 
-          {view === 'profile' && session && session.role !== 'garage' && (
-            <CustomerProfile lang={lang} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} />
-          )}
-
-          {view === 'profile' && session && session.role === 'garage' && (
-            <div className="mw-state-card" style={styles.stateCard}>
-              <span style={{ fontSize: '48px' }}>⚙️</span>
-              <h3>{lang === 'ar' ? 'إعدادات الكراج (قريباً)' : 'Garage Settings (Coming Soon)'}</h3>
-            </div>
+{view === 'profile' && session && session.role === 'garage' && (
+  <div className="mw-state-card" style={styles.stateCard}>
+    <span style={{ fontSize: '48px' }}>⚙️</span>
+    <h3>{lang === 'ar' ? 'إعدادات الكراج (قريباً)' : 'Garage Settings (Coming Soon)'}</h3>
+  </div>
+)}
           )}
 
           {view === 'shop' && (
