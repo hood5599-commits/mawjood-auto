@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 
-interface AuthProps {
+interface AuthModalProps {
   lang: 'ar' | 'en';
-  supabaseUrl: string;
+  authUrl: string;
   apiKey: string;
-  onLoginSuccess: (userSession: any) => void;
+  onSuccess: (newSession: any) => void;
 }
 
-export const Auth: React.FC<AuthProps> = ({ lang, supabaseUrl, apiKey, onLoginSuccess }) => {
-  const [identifier, setIdentifier] = useState(''); // بريد أو رقم
+export const AuthModal: React.FC<AuthModalProps> = ({ lang, authUrl, apiKey, onSuccess }) => {
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -22,13 +22,13 @@ export const Auth: React.FC<AuthProps> = ({ lang, supabaseUrl, apiKey, onLoginSu
 
     let formattedEmail = identifier.trim();
 
-    // 💡 التنسيق الذكي: إذا أدخل المستخدم أرقاماً فقط (رقم هاتف المندوب)، نضيف النطاق أوتوماتيكياً
+    // 💡 التنسيق الذكي: إذا أدخل المستخدم أرقاماً فقط (مثل رقم المندوب)، يضاف النطاق تلقائياً
     if (/^\d+$/.test(formattedEmail)) {
       formattedEmail = `${formattedEmail}@driver.mawjood.com`;
     }
 
     try {
-      const response = await fetch(`${supabaseUrl.replace('/rest/v1', '')}/auth/v1/token?grant_type=password`, {
+      const response = await fetch(`${authUrl}/token?grant_type=password`, {
         method: 'POST',
         headers: {
           'apikey': apiKey,
@@ -43,18 +43,19 @@ export const Auth: React.FC<AuthProps> = ({ lang, supabaseUrl, apiKey, onLoginSu
       const data = await response.json();
 
       if (response.ok) {
-        // جلب بيانات الحساب والدور (Role)
-        const userRole = formattedEmail.endsWith('@driver.mawjood.com') ? 'driver' : (data.user?.user_metadata?.role || 'customer');
+        // تحديد دور المندوب أوتوماتيكياً
+        const userRole = formattedEmail.endsWith('@driver.mawjood.com') 
+          ? 'driver' 
+          : (data.user?.user_metadata?.role || 'customer');
         
         const sessionData = {
           token: data.access_token,
           user: data.user,
-          email: data.user?.email,
+          email: data.user?.email || formattedEmail,
           role: userRole
         };
 
-        localStorage.setItem('mawjood_session', JSON.stringify(sessionData));
-        onLoginSuccess(sessionData);
+        onSuccess(sessionData);
       } else {
         setErrorMsg(isRtl ? 'بيانات الدخول غير صحيحة، يرجى التأكد من الرقم/الإيميل وكلمة المرور' : 'Invalid login credentials');
       }
@@ -74,7 +75,7 @@ export const Auth: React.FC<AuthProps> = ({ lang, supabaseUrl, apiKey, onLoginSu
           {isRtl ? 'تسجيل الدخول' : 'Sign In'}
         </h2>
         <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#718096' }}>
-          {isRtl ? 'أدخل أرقام هاتفك أو البريد الإلكتروني للدخول' : 'Enter phone number or email to login'}
+          {isRtl ? 'أدخل رقم هاتفك أو البريد الإلكتروني للدخول' : 'Enter phone number or email to login'}
         </p>
       </div>
 
