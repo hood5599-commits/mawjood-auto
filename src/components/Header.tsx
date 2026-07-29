@@ -1,6 +1,6 @@
 import React from 'react';
 
-type ViewType = 'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin';
+type ViewType = 'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin' | 'contact' | 'faq' | 'articles' | 'about' | 'privacy' | 'terms' | 'news';
 
 interface HeaderProps {
   lang: 'ar' | 'en';
