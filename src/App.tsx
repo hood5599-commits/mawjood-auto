@@ -420,7 +420,21 @@ export default function App() {
             }}
           />
         )}
+// 1. استيراد المكون في أعلى App.tsx
+import { DeliveryDashboard } from './components/DeliveryDashboard';
 
+// 2. تكييف نوع الـ view State
+const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver'>('shop');
+
+// 3. إضافة شرط العرض في جسم المكون الرئيسي <main>
+{view === 'driver' && (
+  <DeliveryDashboard 
+    lang={lang} 
+    supabaseUrl={SUPABASE_URL} 
+    apiKey={API_KEY} 
+    session={session} 
+  />
+)}
       </div>
     </>
   );
