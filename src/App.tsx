@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { WelcomeModal } from './components/WelcomeModal';
 import { Header } from './components/Header';
 import { AuthModal } from './components/AuthModal';
@@ -22,7 +22,7 @@ const YEARS = Array.from({ length: 2026 - 1970 + 1 }, (_, i) => (2026 - i).toStr
 const PARTS_CATEGORIES = [ "Belt Drive", "Body & Lamp Assembly", "Brake & Wheel Hub", "Cooling System", "Drivetrain", "Electrical", "Electrical-Bulb & Socket", "Electrical-Connector", "Electrical-Switch & Relay", "Engine", "Exhaust & Emission", "Fuel & Air", "Heat & Air Conditioning", "Ignition", "Interior", "Steering", "Suspension", "Transmission-Automatic", "Wheel", "Wiper & Washer" ];
 
 const styles: Record<string, React.CSSProperties> = { 
-  page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink)', transition: 'background-color 0.2s ease, color 0.2s ease' }, 
+  page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg, #F5F7FA)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink, #131C26)' }, 
   main: { maxWidth: '1240px', margin: '28px auto 0', padding: '0 20px' }, 
 };
 
@@ -54,7 +54,7 @@ export default function App() {
   const [filterEngine, setFilterEngine] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
 
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     const hasVisited = localStorage.getItem('hasVisitedMawjood');
@@ -76,11 +76,29 @@ export default function App() {
       } catch (e) {}
     }
 
-    const savedTheme = localStorage.getItem('mawjood_theme');
-    if (savedTheme === 'dark' || savedTheme === 'light') setTheme(savedTheme);
-
     fetchParts();
   }, []);
+
+  useEffect(() => {
+    if (session) {
+      const userId = session.phone || session.email || session.user?.id;
+      if (userId) {
+        const savedCart = localStorage.getItem(`mawjood_cart_${userId}`);
+        if (savedCart) {
+          try { setCartItems(JSON.parse(savedCart)); } catch (e) { setCartItems([]); }
+        } else { setCartItems([]); }
+      }
+    } else { setCartItems([]); }
+  }, [session]);
+
+  useEffect(() => {
+    if (session) {
+      const userId = session.phone || session.email || session.user?.id;
+      if (userId) {
+        localStorage.setItem(`mawjood_cart_${userId}`, JSON.stringify(cartItems));
+      }
+    }
+  }, [cartItems, session]);
 
   const handleUpdateSettings = (newSettings: any) => {
     setSiteSettings(newSettings);
@@ -112,6 +130,16 @@ export default function App() {
 
   return (
     <>
+      {showWelcome && (
+        <WelcomeModal 
+          lang={lang} 
+          onStart={() => { 
+            setShowWelcome(false); 
+            localStorage.setItem('hasVisitedMawjood', 'true'); 
+          }} 
+        />
+      )}
+
       <div className="mw-app-page" data-mw-theme={theme} dir={isRtl ? 'rtl' : 'ltr'} style={{ ...styles.page, direction: isRtl ? 'rtl' : 'ltr' }}>
 
         <Header 
@@ -136,6 +164,47 @@ export default function App() {
               📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
             </button>
           </div>
+        )}
+
+        {/* 🛒 السلة الجانبية Drawer */}
+        {isCartOpen && (
+          <>
+            <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
+            <div style={{ position: 'fixed', top: 0, bottom: 0, [isRtl ? 'left' : 'right']: 0, width: '380px', maxWidth: '100%', backgroundColor: '#ffffff', zIndex: 101, padding: '24px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
+                <h3 style={{ margin: 0 }}>🛒 {lang === 'ar' ? 'سلة المشتريات' : 'Cart'}</h3>
+                <button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✖</button>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
+                {cartItems.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#64748b' }}>{lang === 'ar' ? 'السلة فارغة' : 'Cart is empty'}</p>
+                ) : (
+                  cartItems.map((item, index) => (
+                    <div key={index} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '10px' }}>
+                      <strong>{item.name}</strong>
+                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>{item.price} QAR x {item.quantity || 1}</p>
+                      <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ color: '#d1453b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                        {lang === 'ar' ? 'حذف' : 'Remove'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {cartItems.length > 0 && (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '12px' }}>
+                    <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
+                    <span>{totalCartPrice} QAR</span>
+                  </div>
+                  <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    🚀 {lang === 'ar' ? 'إتمام الشراء' : 'Checkout'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         <main className="mw-main-container" style={styles.main}>
@@ -238,7 +307,43 @@ export default function App() {
 
         </main>
 
-        {/* 🔻 الفوتر الرئيسي الظاهر دائماً بأرقام وروابط الأدمن */}
+        {/* 💳 الشراء المباشر */}
+        {selectedPartForCheckout && (
+          <CustomerFitmentCheckout
+            lang={lang}
+            part={selectedPartForCheckout.part}
+            initialStep={selectedPartForCheckout.initialStep || 'inquire'}
+            customerPhone={session?.phone || session?.email || session?.user?.phone || '55000000'}
+            supabaseUrl={SUPABASE_URL}
+            apiKey={API_KEY}
+            session={session}
+            onClose={() => setSelectedPartForCheckout(null)}
+            onSuccess={() => {
+              const purchasedPartId = selectedPartForCheckout.part.id;
+              setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
+              setSelectedPartForCheckout(null);
+              fetchParts();
+              setShowOrderTracker(true);
+            }}
+          />
+        )}
+
+        {/* 📦 متابعة الطلبات */}
+        {showOrderTracker && (
+          <CustomerOrderTracker
+            lang={lang}
+            customerPhone={session?.phone || session?.email || session?.user?.phone || ''}
+            supabaseUrl={SUPABASE_URL}
+            apiKey={API_KEY}
+            session={session}
+            onClose={() => setShowOrderTracker(false)}
+            onSelectPartForCheckout={(part) => {
+              setSelectedPartForCheckout({ part, initialStep: 'checkout' });
+            }}
+          />
+        )}
+
+        {/* 🔻 الفوتر الرئيسي */}
         <Footer 
           lang={lang} 
           siteSettings={siteSettings} 
