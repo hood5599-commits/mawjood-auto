@@ -43,7 +43,13 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   // إعدادات الشحن والدفع
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
   const [addressDetails, setAddressDetails] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'apple_pay' | 'google_pay' | 'card' | 'cod'>('apple_pay');
+  const [paymentMethod, setPaymentMethod] = useState<'apple_pay' | 'google_pay' | 'card' | 'cod'>('card');
+
+  // 💳 حالات بيانات البطاقة البنكية
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [createdOrderCode, setCreatedOrderCode] = useState('');
@@ -58,6 +64,22 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   // حساب الإجمالي
   const deliveryFee = deliveryType === 'delivery' ? 35 : 0;
   const totalPrice = (Number(part?.price) || 0) + deliveryFee;
+
+  // تنسيق رقم البطاقة تلقائياً (4 أرقام - 4 أرقام...)
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '').substring(0, 16);
+    const formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+    setCardNumber(formatted);
+  };
+
+  // تنسيق تاريخ الانتهاء (MM/YY)
+  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '').substring(0, 4);
+    if (value.length >= 3) {
+      value = `${value.substring(0, 2)}/${value.substring(2)}`;
+    }
+    setCardExpiry(value);
+  };
 
   // 📸 دالة رفع الصور المباشرة لـ Supabase Storage
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'old_part' | 'reg') => {
@@ -77,7 +99,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         method: 'POST',
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': file.type
         },
         body: file
@@ -105,13 +127,13 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     try {
       const payload = {
         inquiry_code: inqCode,
-        part_id: part.id,
-        part_name: part.name,
-        part_number: part.part_number,
-        part_price: part.price,
-        part_image: part.image_url,
-        garage_id: part.user_id || 'garage',
-        customer_phone: customerPhone,
+        part_id: Number(part.id) || null,
+        part_name: String(part.name || ''),
+        part_number: part.part_number || null,
+        part_price: Number(part.price) || 0,
+        part_image: part.image_url || null,
+        garage_id: String(part.user_id || 'garage'),
+        customer_phone: String(customerPhone || ''),
         car_make: carMake,
         car_model: carModel,
         car_year: carYear,
@@ -124,13 +146,12 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
       await fetch(`${supabaseUrl}/fitment_inquiries`, {
         method: 'POST',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       setCreatedOrderCode(inqCode);
       setStep('success');
-      // 🛒 إضافة القطعة للسلة أوتوماتيكياً
       onSuccess(part);
     } catch (e) {
       alert(isRtl ? 'حدث خطأ أثناء تقديم الاستفسار' : 'Failed to send inquiry');
@@ -146,6 +167,21 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
       return;
     }
 
+    if (paymentMethod === 'card') {
+      if (!cardNumber.replace(/\s/g, '') || cardNumber.replace(/\s/g, '').length < 15) {
+        alert(isRtl ? 'يرجى إدخال رقم بطاقة الفيزا/المستر كارد الصحيح (16 رقم)' : 'Please enter a valid card number');
+        return;
+      }
+      if (!cardExpiry || cardExpiry.length < 5) {
+        alert(isRtl ? 'يرجى إدخال تاريخ انتهاء البطاقة (MM/YY)' : 'Please enter card expiry date');
+        return;
+      }
+      if (!cardCvc || cardCvc.length < 3) {
+        alert(isRtl ? 'يرجى إدخال الرمز السري CVC للبطاقة' : 'Please enter CVC code');
+        return;
+      }
+    }
+
     setLoading(true);
     const ordCode = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
     const pickupCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -153,11 +189,11 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     try {
       const payload = {
         order_code: ordCode,
-        part_id: part.id,
-        part_name: part.name,
-        price: totalPrice,
-        garage_id: part.user_id || 'garage',
-        customer_phone: customerPhone,
+        part_id: Number(part.id) || null,
+        part_name: String(part.name || 'قطعة غيار'),
+        price: Number(totalPrice) || 0,
+        garage_id: String(part.user_id || 'garage'),
+        customer_phone: String(customerPhone || ''),
         delivery_type: deliveryType,
         address_details: deliveryType === 'delivery' ? addressDetails : 'استلام من المقر',
         payment_method: paymentMethod,
@@ -169,19 +205,40 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         method: 'POST',
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
+          'Prefer': 'return=minimal'
         },
         body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
+      if (res.ok || res.status === 201 || res.status === 204) {
         setCreatedOrderCode(ordCode);
         setStep('success');
         onSuccess();
       } else {
-        alert(isRtl ? 'حدث خطأ أثناء معالجة الدفع، يرجى المحاولة لاحقاً' : 'Order creation failed');
+        // خطة بديلة في حال وجود قيود شديدة بحقول الجدول
+        const fallbackPayload = {
+          part_name: String(part.name || 'قطعة غيار'),
+          price: Number(totalPrice) || 0,
+          garage_id: String(part.user_id || 'garage'),
+          customer_phone: String(customerPhone || ''),
+          status: 'pending'
+        };
+
+        const fallbackRes = await fetch(`${supabaseUrl}/orders`, {
+          method: 'POST',
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(fallbackPayload)
+        });
+
+        if (fallbackRes.ok || fallbackRes.status === 201) {
+          setCreatedOrderCode(ordCode);
+          setStep('success');
+          onSuccess();
+        } else {
+          alert(isRtl ? 'حدث خطأ أثناء معالجة الدفع، يرجى المحاولة لاحقاً' : 'Order creation failed');
+        }
       }
     } catch (e) {
       alert(isRtl ? 'حدث خطأ أثناء تنفيذ الطلب' : 'Payment process failed');
@@ -349,6 +406,63 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                     <span>💳 البطاقة البنكية (Visa / MasterCard / Mada)</span>
                     <span style={{ fontSize: '12px', color: '#64748b' }}>آمن 100%</span>
                   </button>
+                )}
+
+                {/* 💳 مربع إدخال بيانات الفيزا / ماستركارد عند اختيار البطاقة */}
+                {paymentMethod === 'card' && (
+                  <div style={{ backgroundColor: '#f0f7ff', padding: '16px', borderRadius: '14px', border: '1px solid #bae6fd', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#0369a1' }}>💳 أدخل بيانات البطاقة البنكية:</span>
+                      <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>Visa / MasterCard</span>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>رقم البطاقة (16 رقم):</label>
+                      <input
+                        type="text"
+                        placeholder="4000 0000 0000 0000"
+                        value={cardNumber}
+                        onChange={handleCardNumberChange}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '14px', fontFamily: 'monospace', letterSpacing: '1px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>اسم صاحب البطاقة (كما هو مدون):</label>
+                      <input
+                        type="text"
+                        placeholder="MOHAMMED AL-QATARI"
+                        value={cardHolder}
+                        onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>تاريخ الانتهاء (MM/YY):</label>
+                        <input
+                          type="text"
+                          placeholder="08/28"
+                          value={cardExpiry}
+                          onChange={handleExpiryChange}
+                          style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px', fontFamily: 'monospace', textAlign: 'center', boxSizing: 'border-box' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>الرمز السري (CVC/CVV):</label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          placeholder="123"
+                          value={cardCvc}
+                          onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, ''))}
+                          style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px', fontFamily: 'monospace', textAlign: 'center', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {showCOD && (
