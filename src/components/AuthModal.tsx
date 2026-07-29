@@ -211,7 +211,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ lang, authUrl, apiKey, onS
             color: tab === 'register_user' ? 'white' : '#64748b'
           }}
         >
-          👤 {isRtl ? 'حساب عميل' : 'New User'}
+          👤 {isRtl ? 'انشاء حساب' : 'New User'}
         </button>
 
         <button
