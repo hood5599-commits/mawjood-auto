@@ -1,5 +1,7 @@
 import React from 'react';
 
+type ViewType = 'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin';
+
 interface FooterProps {
   lang: 'ar' | 'en';
   siteSettings: {
@@ -10,7 +12,7 @@ interface FooterProps {
     email?: string;
     phone?: string;
   };
-  onNavigate: (view: any) => void;
+  onNavigate: (view: ViewType) => void;
   session: any;
 }
 
@@ -32,7 +34,7 @@ export const Footer: React.FC<FooterProps> = ({ lang, siteSettings, onNavigate, 
             | {isRtl ? 'خدمة العملاء' : 'Customer Service'}
           </h4>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '11px', fontSize: '13.5px', color: '#94a3b8' }}>
-            <li style={{ cursor: 'pointer', transition: 'color 0.2s' }} onClick={() => alert(isRtl ? 'للتواصل: support@mawjood.com' : 'Contact us at support@mawjood.com')}>
+            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'للتواصل: support@mawjood.com' : 'Contact us at support@mawjood.com')}>
               👤 {isRtl ? 'اتصل بنا' : 'Contact Us'}
             </li>
             <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'الأسئلة الشائعة: كيف تطلب قطعة غيار؟ يمكنك البحث بالماركة والموديل والتواصل مع الكراج مباشرة.' : 'FAQ Section')}>
@@ -56,7 +58,7 @@ export const Footer: React.FC<FooterProps> = ({ lang, siteSettings, onNavigate, 
             <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'سياسة الخصوصية والاسترجاع محفوظة لجميع الأطراف.' : 'Policies')}>
               📑 {isRtl ? 'السياسات والخصوصية' : 'Policies'}
             </li>
-            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'الشروط والأحكام الاستخدام المنصة' : 'Terms & Conditions')}>
+            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'الشروط والأحكام لاستخدام المنصة' : 'Terms & Conditions')}>
               📜 {isRtl ? 'الشروط والأحكام' : 'Terms & Conditions'}
             </li>
             <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'آخر أخبار السيارات والتحديثات' : 'News')}>
