@@ -7,7 +7,7 @@ interface CheckoutProps {
   customerPhone: string;
   supabaseUrl: string;
   apiKey: string;
-  session: any;
+  session?: any;
   siteSettings?: any;
   onClose: () => void;
   onSuccess: (addedToCartPart?: any) => void;
@@ -20,7 +20,6 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   customerPhone,
   supabaseUrl,
   apiKey,
-  session,
   siteSettings,
   onClose,
   onSuccess
@@ -217,7 +216,6 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         setStep('success');
         onSuccess();
       } else {
-        // خطة بديلة في حال وجود قيود شديدة بحقول الجدول
         const fallbackPayload = {
           part_name: String(part.name || 'قطعة غيار'),
           price: Number(totalPrice) || 0,
