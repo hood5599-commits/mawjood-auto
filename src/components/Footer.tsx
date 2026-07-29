@@ -1,6 +1,6 @@
 import React from 'react';
 
-type ViewType = 'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin';
+type ViewType = 'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin' | 'contact' | 'faq' | 'articles' | 'about' | 'privacy' | 'terms' | 'news';
 
 interface FooterProps {
   lang: 'ar' | 'en';
@@ -34,13 +34,13 @@ export const Footer: React.FC<FooterProps> = ({ lang, siteSettings, onNavigate, 
             | {isRtl ? 'خدمة العملاء' : 'Customer Service'}
           </h4>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '11px', fontSize: '13.5px', color: '#94a3b8' }}>
-            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'للتواصل: support@mawjood.com' : 'Contact us at support@mawjood.com')}>
+            <li style={{ cursor: 'pointer', transition: 'color 0.2s' }} onClick={() => onNavigate('contact')}>
               👤 {isRtl ? 'اتصل بنا' : 'Contact Us'}
             </li>
-            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'الأسئلة الشائعة: كيف تطلب قطعة غيار؟ يمكنك البحث بالماركة والموديل والتواصل مع الكراج مباشرة.' : 'FAQ Section')}>
+            <li style={{ cursor: 'pointer' }} onClick={() => onNavigate('faq')}>
               ❓ {isRtl ? 'الأسئلة الشائعة' : 'FAQ'}
             </li>
-            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'المقالات والنصائح الميكانيكية قريباً' : 'Articles Coming Soon')}>
+            <li style={{ cursor: 'pointer' }} onClick={() => onNavigate('articles')}>
               ⚙️ {isRtl ? 'المقالات والنصائح' : 'Articles'}
             </li>
           </ul>
@@ -52,16 +52,16 @@ export const Footer: React.FC<FooterProps> = ({ lang, siteSettings, onNavigate, 
             | {isRtl ? 'عن موجود أوتو' : 'Information'}
           </h4>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '11px', fontSize: '13.5px', color: '#94a3b8' }}>
-            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'موجود أوتو هي المنصة الأولى لربط العملاء بالكراجات والمحلات وتوصيل قطع الغيار.' : 'About Us')}>
+            <li style={{ cursor: 'pointer' }} onClick={() => onNavigate('about')}>
               ℹ️ {isRtl ? 'من نحن' : 'About Us'}
             </li>
-            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'سياسة الخصوصية والاسترجاع محفوظة لجميع الأطراف.' : 'Policies')}>
+            <li style={{ cursor: 'pointer' }} onClick={() => onNavigate('privacy')}>
               📑 {isRtl ? 'السياسات والخصوصية' : 'Policies'}
             </li>
-            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'الشروط والأحكام لاستخدام المنصة' : 'Terms & Conditions')}>
+            <li style={{ cursor: 'pointer' }} onClick={() => onNavigate('terms')}>
               📜 {isRtl ? 'الشروط والأحكام' : 'Terms & Conditions'}
             </li>
-            <li style={{ cursor: 'pointer' }} onClick={() => alert(isRtl ? 'آخر أخبار السيارات والتحديثات' : 'News')}>
+            <li style={{ cursor: 'pointer' }} onClick={() => onNavigate('news')}>
               📰 {isRtl ? 'الأخبار والتحديثات' : 'News'}
             </li>
           </ul>
@@ -88,7 +88,7 @@ export const Footer: React.FC<FooterProps> = ({ lang, siteSettings, onNavigate, 
           </ul>
         </div>
 
-        {/* 🌐 العمود الرابع: السوشل ميديا (مرتبطة بالأدمن) */}
+        {/* 🌐 العمود الرابع: السوشل ميديا (مرتبطة بأرقام ورواط الأدمن) */}
         <div>
           <h4 style={{ color: '#ffffff', fontSize: '16px', fontWeight: 'bold', marginBottom: '18px', borderInlineStart: '3px solid #e0872a', paddingInlineStart: '10px' }}>
             | {isRtl ? 'تواصل معنا' : 'Social Links'}
