@@ -43,14 +43,17 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     }
   };
 
-  // 📸 رفع صورة الإثبات إلى Supabase Storage
+  // 📸 رفع صورة الإثبات المباشر إلى Supabase Storage Bucket
   const handleImageUpload = async (file: File, key: string): Promise<string | null> => {
     setUploadingState(prev => ({ ...prev, [key]: true }));
-    const fileExt = file.name.split('.').pop();
-    const fileName = `delivery-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `proof-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
 
     try {
-      const uploadUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/delivery-proofs/${fileName}`;
+      // استخراج رابط السيرفر الرئيسي
+      const baseUrl = supabaseUrl.replace('/rest/v1', '');
+      const uploadUrl = `${baseUrl}/storage/v1/object/delivery-proofs/${fileName}`;
+
       const response = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
@@ -62,13 +65,18 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       });
 
       if (response.ok) {
-        return `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/delivery-proofs/${fileName}`;
+        // إرجاع رابط الصورة العام الحقيقي من Storage
+        const publicUrl = `${baseUrl}/storage/v1/object/public/delivery-proofs/${fileName}`;
+        return publicUrl;
       } else {
-        alert(isRtl ? 'حدث خطأ في رفع الصورة، يرجى المحاولة مرة أخرى' : 'Failed to upload image');
+        const errData = await response.json().catch(() => ({}));
+        console.error('Storage Upload Error:', errData);
+        alert(isRtl ? 'فشل رفع الصورة إلى Storage، تأكد من إنشاء Bucket باسم delivery-proofs وجعله Public' : 'Failed to upload image to storage bucket');
         return null;
       }
     } catch (e) {
-      alert(isRtl ? 'خطأ في الاتصال بالخادم' : 'Connection error');
+      console.error(e);
+      alert(isRtl ? 'خطأ في الاتصال بالسيرفر' : 'Connection error');
       return null;
     } finally {
       setUploadingState(prev => ({ ...prev, [key]: false }));
@@ -99,7 +107,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       });
 
       if (response.ok) {
-        alert(isRtl ? 'تم استلام القطعة وتوثيق الصورة بنجاح! 🛵' : 'Pickup confirmed with photo proof!');
+        alert(isRtl ? 'تم استلام القطعة وتوثيق الصورة في Supabase Storage بنجاح! 🛵' : 'Pickup confirmed with storage photo proof!');
         fetchOrders();
         setActiveTab('active');
       }
@@ -137,7 +145,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       });
 
       if (response.ok) {
-        alert(isRtl ? '🎉 تم تسليم الطلب للعميل بنجاح وتوثيق صور الإثبات!' : 'Order delivered successfully with proof!');
+        alert(isRtl ? '🎉 تم تسليم الطلب للعميل بنجاح وتوثيق صور الإثبات في Storage!' : 'Order delivered successfully with storage proof!');
         fetchOrders();
       }
     } catch (e) {
@@ -156,7 +164,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       <div style={{ backgroundColor: '#1F3A5F', color: 'white', padding: '20px', borderRadius: '18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>🛵 {isRtl ? 'لوحة المندوب والتوصيل' : 'Driver Dashboard'}</h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#cfe3ff' }}>{isRtl ? 'استلام وتوصيل الطلبات مع توثيق الصور' : 'Manage deliveries with photo proof'}</p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#cfe3ff' }}>{isRtl ? 'استلام وتوصيل الطلبات مع توثيق الصور عبر Supabase Storage' : 'Manage deliveries with Storage photo proof'}</p>
         </div>
         <button onClick={fetchOrders} style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
           🔄 {loading ? (isRtl ? 'جاري التحديث...' : 'Loading...') : (isRtl ? 'تحديث' : 'Refresh')}
@@ -227,7 +235,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                 {/* التقاط صورة الإثبات في الكراج */}
                 <div style={{ marginBottom: '14px', padding: '12px', border: '2px dashed #cbd5e0', borderRadius: '10px', textAlign: 'center', backgroundColor: '#faf5ff' }}>
                   <label style={{ display: 'block', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', color: '#553c9a' }}>
-                    📷 {uploadingState[`pickup_${order.id}`] ? (isRtl ? 'جاري رفع صورة الكراج...' : 'Uploading...') : (isRtl ? 'اضغط لتصوير/رفع صورة القطعة في الكراج' : 'Take Garage Pickup Photo')}
+                    📷 {uploadingState[`pickup_${order.id}`] ? (isRtl ? 'جاري رفع الصورة إلى Storage...' : 'Uploading...') : (isRtl ? 'اضغط لتصوير/رفع صورة القطعة في الكراج' : 'Take Garage Pickup Photo')}
                     <input
                       type="file"
                       accept="image/*"
@@ -244,7 +252,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                   {pickupImages[order.id] && (
                     <div style={{ marginTop: '8px' }}>
                       <img src={pickupImages[order.id]} alt="Pickup Proof" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #38a169' }} />
-                      <span style={{ display: 'block', fontSize: '11px', color: '#38a169', fontWeight: 'bold' }}>✅ تم التوثيق بنجاح</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#38a169', fontWeight: 'bold' }}>✅ تم الرفع على Storage</span>
                     </div>
                   )}
                 </div>
@@ -304,7 +312,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                 {/* تصوير إثبات التسليم للعميل */}
                 <div style={{ marginBottom: '14px', padding: '12px', border: '2px dashed #cbd5e0', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f0fff4' }}>
                   <label style={{ display: 'block', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', color: '#276749' }}>
-                    📷 {uploadingState[`delivery_${order.id}`] ? (isRtl ? 'جاري رفع صورة التسليم...' : 'Uploading...') : (isRtl ? 'اضغط لتصوير/رفع صورة القطعة عند تسليم العميل' : 'Take Delivery Photo Proof')}
+                    📷 {uploadingState[`delivery_${order.id}`] ? (isRtl ? 'جاري رفع الصورة إلى Storage...' : 'Uploading...') : (isRtl ? 'اضغط لتصوير/رفع صورة القطعة عند تسليم العميل' : 'Take Delivery Photo Proof')}
                     <input
                       type="file"
                       accept="image/*"
@@ -321,7 +329,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                   {deliveryImages[order.id] && (
                     <div style={{ marginTop: '8px' }}>
                       <img src={deliveryImages[order.id]} alt="Delivery Proof" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #38a169' }} />
-                      <span style={{ display: 'block', fontSize: '11px', color: '#38a169', fontWeight: 'bold' }}>✅ تم توثيق التسليم</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#38a169', fontWeight: 'bold' }}>✅ تم الرفع على Storage</span>
                     </div>
                   )}
                 </div>
@@ -349,7 +357,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
         </div>
       )}
 
-      {/* 3️⃣ السجل المكتمل مع عرض صور التوثيق الإدارية */}
+      {/* 3️⃣ السجل المكتمل مع روابط صور Storage */}
       {activeTab === 'completed' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {completedOrders.length === 0 ? (
@@ -365,10 +373,10 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                     <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748' }}>{order.part_name}</h4>
                     <span style={{ fontSize: '12px', color: '#718096' }}>كود: {order.order_code || `#ORD-${order.id}`} | 📞 {order.customer_phone}</span>
                   </div>
-                  <span style={{ backgroundColor: '#f0fff4', color: '#2f855a', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}>✅ مكتمل وموثق</span>
+                  <span style={{ backgroundColor: '#f0fff4', color: '#2f855a', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}>✅ مكتمل وموثق في Storage</span>
                 </div>
 
-                {/* عرض مصغرات صور الإثبات */}
+                {/* عرض مصغرات صور Storage */}
                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px', borderTop: '1px dashed #edf2f7', paddingTop: '10px' }}>
                   {order.pickup_image_url && (
                     <div>
