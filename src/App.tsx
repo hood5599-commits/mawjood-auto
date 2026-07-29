@@ -42,7 +42,7 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
-  // إعدادات السوشال ميديا والموقع
+  // إعدادات السوشال ميديا والموقع وبوابة الدفع
   const [siteSettings, setSiteSettings] = useState(() => {
     const saved = localStorage.getItem('mawjood_site_settings');
     return saved ? JSON.parse(saved) : { facebook: 'https://facebook.com', instagram: 'https://instagram.com', twitter: 'https://twitter.com', whatsapp: '97455000000' };
@@ -318,7 +318,7 @@ export default function App() {
 
         </main>
 
-        {/* 💳 الشراء المباشر */}
+        {/* 💳 الشراء المباشر مع تمرير siteSettings لربط بوابات الدفع */}
         {selectedPartForCheckout && (
           <CustomerFitmentCheckout
             lang={lang}
@@ -328,6 +328,7 @@ export default function App() {
             supabaseUrl={SUPABASE_URL}
             apiKey={API_KEY}
             session={session}
+            siteSettings={siteSettings}
             onClose={() => setSelectedPartForCheckout(null)}
             onSuccess={() => {
               const purchasedPartId = selectedPartForCheckout.part.id;
