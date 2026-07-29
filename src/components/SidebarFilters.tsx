@@ -27,6 +27,7 @@ interface SidebarProps {
   filterEngine?: string;
   setFilterEngine?: (engine: string) => void;
   addToCart?: (item: any, quantity: number) => void;
+  onInquire?: (item: any) => void;
 }
 
 const CATEGORY_TRANSLATION: Record<string, string> = {
@@ -61,10 +62,21 @@ const MAKE_DOMAINS: Record<string, string> = {
   "كرايسلر": "chrysler.com"
 };
 
+const nodeStyle: React.CSSProperties = {
+  display: 'flex',
+  justify: 'space-between',
+  alignItems: 'center',
+  cursor: 'pointer',
+  padding: '6px 10px',
+  borderRadius: '8px',
+  transition: 'all 0.15s ease-in-out',
+  userSelect: 'none',
+};
+
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
     lang, carData, translateMake, translateModel, categories, inventory, 
-    searchTerm, setSearchTerm, addToCart 
+    searchTerm, setSearchTerm, addToCart, onInquire 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -81,6 +93,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [custNotes, setCustNotes] = useState('');
   const [isSubmittingReq, setIsSubmittingReq] = useState(false);
   const [reqSubmitted, setReqSubmitted] = useState(false);
+
+  const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
 
   const isRtl = lang === 'ar';
 
@@ -312,15 +326,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           border: '1px solid #e2e8f0', 
           display: 'flex', 
           flexDirection: 'column',
-          justifyContent: 'space-between', 
+          justify: 'space-between', 
           gap: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
         }}
       >
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
           <img 
-            src={part.image_url || 'https://via.placeholder.com/80'} 
+            src={part.image_url || DEFAULT_IMAGE} 
             alt={part.name} 
+            onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }}
             style={{ width: '75px', height: '75px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #edf2f7' }} 
           />
           <div style={{ flex: 1 }}>
@@ -357,22 +372,35 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+        {/* 🔘 أزرار الكمية والإضافة للسلة وفحص التوافق */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', justifyContent: 'center' }}>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '30px', height: '30px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
             <span style={{ width: '30px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px' }}>{isOutOfStock ? 0 : qty}</span>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '30px', height: '30px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
           </div>
 
-          {addToCart && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {/* 🛒 1. زر إضافة مباشرة للسلة */}
+            {addToCart && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(part, qty); }}
+                disabled={isOutOfStock}
+                style={{ flex: 1, backgroundColor: isOutOfStock ? '#a0aec0' : '#dd6b20', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                🛒 {isOutOfStock ? 'غير متوفر' : 'أضف للسلة'}
+              </button>
+            )}
+
+            {/* ❓ 2. زر أسأل البائع فحص التوافق */}
             <button 
-              onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(part, qty); }}
+              onClick={(e) => { e.stopPropagation(); if (onInquire) onInquire(part); else if (addToCart && !isOutOfStock) addToCart(part, qty); }}
               disabled={isOutOfStock}
-              style={{ flex: 1, backgroundColor: isOutOfStock ? '#a0aec0' : '#805ad5', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ flex: 1, backgroundColor: isOutOfStock ? '#a0aec0' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              ❓ {isOutOfStock ? 'غير متوفر' : 'أسأل البائع هل تركب؟'}
+              ❓ أسأل البائع
             </button>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -635,13 +663,4 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   );
 };
 
-const nodeStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  cursor: 'pointer',
-  padding: '6px 10px',
-  borderRadius: '8px',
-  transition: 'all 0.15s ease-in-out',
-  userSelect: 'none',
-};
+export default SidebarFilters;
