@@ -64,7 +64,7 @@ export default function App() {
         const parsed = JSON.parse(savedSession);
         setSession(parsed); 
 
-        // 🚚 التوجيه التلقائي للمندوب إذا كان حسابه مخزناً مسبقاً
+        // 🚚 التوجيه التلقائي للمندوب والكراج عند فتح التطبيق
         if (parsed.role === 'driver' || parsed.email?.endsWith('@driver.mawjood.com')) {
           setView('driver');
         } else if (parsed.role === 'garage') {
@@ -357,7 +357,7 @@ export default function App() {
                 setSession(newSession); 
                 localStorage.setItem('mawjood_session', JSON.stringify(newSession)); 
                 
-                // 🚚 التوجيه التلقائي للمندوب بعد إتمام الدخول
+                // 🚚 التوجيه التلقائي للمندوب والكراج بعد إتمام الدخول
                 if (newSession.role === 'driver' || newSession.email?.endsWith('@driver.mawjood.com')) {
                   setView('driver');
                 } else if (newSession.role === 'garage') {
@@ -371,7 +371,7 @@ export default function App() {
             />
           )}
 
-          {/* 🛵 واجهة لوحة المندوب الجديدة */}
+          {/* 🛵 واجهة لوحة المندوب */}
           {view === 'driver' && (
             <DeliveryDashboard 
               lang={lang} 
@@ -381,16 +381,27 @@ export default function App() {
             />
           )}
 
-         {view === 'profile' && session && session.role !== 'garage' && (
-  <CustomerProfile lang={lang} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} />
-)}
+          {/* ⚙️ واجهة لوحة الكراج */}
+          {view === 'dashboard' && session?.role === 'garage' && (
+            <GarageDashboard 
+              lang={lang} 
+              carData={CAR_DATA} 
+              years={YEARS} 
+              supabaseUrl={SUPABASE_URL} 
+              apiKey={API_KEY} 
+              session={session} 
+              onSuccess={() => { fetchParts(); setView('shop'); }} 
+            />
+          )}
 
-{view === 'profile' && session && session.role === 'garage' && (
-  <div className="mw-state-card" style={styles.stateCard}>
-    <span style={{ fontSize: '48px' }}>⚙️</span>
-    <h3>{lang === 'ar' ? 'إعدادات الكراج (قريباً)' : 'Garage Settings (Coming Soon)'}</h3>
-  </div>
-)}
+          {/* 👤 واجهة الملف الشخصي الموحدة لكل الحسابات (عميل، كراج، ومندوب) */}
+          {view === 'profile' && session && (
+            <CustomerProfile 
+              lang={lang} 
+              supabaseUrl={SUPABASE_URL} 
+              apiKey={API_KEY} 
+              session={session} 
+            />
           )}
 
           {view === 'shop' && (
