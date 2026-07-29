@@ -29,7 +29,7 @@ const styles: Record<string, React.CSSProperties> = {
 
 export default function App() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
-  const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin'>('shop');
+  const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin' | StaticPageView>('shop');
   
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -276,6 +276,15 @@ export default function App() {
               session={session} 
             />
           )}
+
+          {/* 📄 عرض الصفحات التعريفية والمعلومات */}
+{['contact', 'faq', 'articles', 'about', 'privacy', 'terms', 'news'].includes(view) && (
+  <StaticPages 
+    lang={lang} 
+    view={view as StaticPageView} 
+    onNavigate={(v) => setView(v)} 
+  />
+)}
 
           {view === 'shop' && (
             <div style={{ marginTop: '20px', width: '100%' }}>
