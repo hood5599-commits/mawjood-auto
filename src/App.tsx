@@ -22,376 +22,357 @@ const CAR_DATA: Record<string, { models: string[], engines: string[] }> = { "ت�
 const YEARS = Array.from({ length: 2026 - 1970 + 1 }, (_, i) => (2026 - i).toString());
 const PARTS_CATEGORIES = [ "Belt Drive", "Body & Lamp Assembly", "Brake & Wheel Hub", "Cooling System", "Drivetrain", "Electrical", "Electrical-Bulb & Socket", "Electrical-Connector", "Electrical-Switch & Relay", "Engine", "Exhaust & Emission", "Fuel & Air", "Heat & Air Conditioning", "Ignition", "Interior", "Steering", "Suspension", "Transmission-Automatic", "Wheel", "Wiper & Washer" ];
 
-const styles: Record<string, React.CSSProperties> = { 
-  page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg, #F5F7FA)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink, #131C26)' }, 
-  main: { maxWidth: '1240px', margin: '28px auto 0', padding: '0 20px' }, 
+const styles: Record<string, React.CSSProperties> = { 
+  page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg, #F5F7FA)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink, #131C26)' }, 
+  main: { maxWidth: '1240px', margin: '28px auto 0', padding: '0 20px' }, 
 };
 
 export default function App() {
-  const [lang, setLang] = useState<'ar' | 'en'>('ar');
-  const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin' | StaticPageView>('shop');
-  
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin' | StaticPageView>('shop');
+  
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const [selectedPartForCheckout, setSelectedPartForCheckout] = useState<{ part: any; initialStep?: 'inquire' | 'checkout' } | null>(null);
-  const [showOrderTracker, setShowOrderTracker] = useState(false);
+  const [selectedPartForCheckout, setSelectedPartForCheckout] = useState<{ part: any; initialStep?: 'inquire' | 'checkout' } | null>(null);
+  const [showOrderTracker, setShowOrderTracker] = useState(false);
 
-  const [inventory, setInventory] = useState<any[]>([]);
-  const [session, setSession] = useState<any | null>(null);
-  const [showWelcome, setShowWelcome] = useState<boolean>(false);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [session, setSession] = useState<any | null>(null);
+  const [showWelcome, setShowWelcome] = useState<boolean>(false);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
-  // إعدادات السوشال ميديا والموقع وبوابة الدفع
-  const [siteSettings, setSiteSettings] = useState(() => {
-    const saved = localStorage.getItem('mawjood_site_settings');
-    return saved ? JSON.parse(saved) : { facebook: 'https://facebook.com', instagram: 'https://instagram.com', twitter: 'https://twitter.com', whatsapp: '97455000000' };
-  });
+  // إعدادات السوشال ميديا والموقع وبوابة الدفع
+  const [siteSettings, setSiteSettings] = useState(() => {
+    const saved = localStorage.getItem('mawjood_site_settings');
+    return saved ? JSON.parse(saved) : { facebook: 'https://facebook.com', instagram: 'https://instagram.com', twitter: 'https://twitter.com', whatsapp: '97455000000' };
+  });
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterMake, setFilterMake] = useState('');
-  const [filterModel, setFilterModel] = useState('');
-  const [filterYear, setFilterYear] = useState('');
-  const [filterEngine, setFilterEngine] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterMake, setFilterMake] = useState('');
+  const [filterModel, setFilterModel] = useState('');
+  const [filterYear, setFilterYear] = useState('');
+  const [filterEngine, setFilterEngine] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
 
-  const [theme] = useState<'light' | 'dark'>('light');
+  const [theme] = useState<'light' | 'dark'>('light');
 
-  useEffect(() => {
-    const hasVisited = localStorage.getItem('hasVisitedMawjood');
-    if (!hasVisited) setShowWelcome(true);
+  useEffect(() => {
+    const hasVisited = localStorage.getItem('hasVisitedMawjood');
+    if (!hasVisited) setShowWelcome(true);
 
-    const savedSession = localStorage.getItem('mawjood_session');
-    if (savedSession) {
-      try { 
-        const parsed = JSON.parse(savedSession);
-        setSession(parsed); 
+    const savedSession = localStorage.getItem('mawjood_session');
+    if (savedSession) {
+      try { 
+        const parsed = JSON.parse(savedSession);
+        setSession(parsed); 
 
-        if (parsed.role === 'admin' || parsed.email?.endsWith('@admin.mawjood.com')) {
-          setView('admin');
-        } else if (parsed.role === 'driver' || parsed.email?.endsWith('@driver.mawjood.com')) {
-          setView('driver');
-        } else if (parsed.role === 'garage') {
-          setView('dashboard');
-        }
-      } catch (e) {}
-    }
+        if (parsed.role === 'admin' || parsed.email?.endsWith('@admin.mawjood.com')) {
+          setView('admin');
+        } else if (parsed.role === 'driver' || parsed.email?.endsWith('@driver.mawjood.com')) {
+          setView('driver');
+        } else if (parsed.role === 'garage') {
+          setView('dashboard');
+        }
+      } catch (e) {}
+    }
 
-    fetchParts();
-  }, []);
+    fetchParts();
+  }, []);
 
-  useEffect(() => {
-    if (session) {
-      const userId = session.phone || session.email || session.user?.id;
-      if (userId) {
-        const savedCart = localStorage.getItem(`mawjood_cart_${userId}`);
-        if (savedCart) {
-          try { setCartItems(JSON.parse(savedCart)); } catch (e) { setCartItems([]); }
-        } else { setCartItems([]); }
-      }
-    } else { setCartItems([]); }
-  }, [session]);
+  useEffect(() => {
+    if (session) {
+      const userId = session.phone || session.email || session.user?.id;
+      if (userId) {
+        const savedCart = localStorage.getItem(`mawjood_cart_${userId}`);
+        if (savedCart) {
+          try { setCartItems(JSON.parse(savedCart)); } catch (e) { setCartItems([]); }
+        } else { setCartItems([]); }
+      }
+    } else { setCartItems([]); }
+  }, [session]);
 
-  useEffect(() => {
-    if (session) {
-      const userId = session.phone || session.email || session.user?.id;
-      if (userId) {
-        localStorage.setItem(`mawjood_cart_${userId}`, JSON.stringify(cartItems));
-      }
-    }
-  }, [cartItems, session]);
+  useEffect(() => {
+    if (session) {
+      const userId = session.phone || session.email || session.user?.id;
+      if (userId) {
+        localStorage.setItem(`mawjood_cart_${userId}`, JSON.stringify(cartItems));
+      }
+    }
+  }, [cartItems, session]);
 
-  const handleUpdateSettings = (newSettings: any) => {
-    setSiteSettings(newSettings);
-    localStorage.setItem('mawjood_site_settings', JSON.stringify(newSettings));
-  };
+  const handleUpdateSettings = (newSettings: any) => {
+    setSiteSettings(newSettings);
+    localStorage.setItem('mawjood_site_settings', JSON.stringify(newSettings));
+  };
 
-  const fetchParts = async () => {
-    try {
-      const response = await fetch(`${SUPABASE_URL}/parts?select=*`, {
-        headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` }
-      });
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setInventory(data.sort((a, b) => b.id - a.id));
-      }
-    } catch (error) { console.error(error); }
-  };
+  const fetchParts = async () => {
+    try {
+      const response = await fetch(`${SUPABASE_URL}/parts?select=*`, {
+        headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` }
+      });
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setInventory(data.sort((a, b) => b.id - a.id));
+      }
+    } catch (error) { console.error(error); }
+  };
 
-  // 🛒 1. دالة الإضافة المباشرة للسلة فتح السلة فوراً
-  const handleDirectAddToCart = (item: any, quantity: number = 1) => {
-    setCartItems(prev => {
-      const existingIndex = prev.findIndex(i => i.id === item.id);
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex].quantity = (updated[existingIndex].quantity || 1) + quantity;
-        return updated;
-      }
-      return [...prev, { ...item, quantity }];
-    });
-    setIsCartOpen(true);
-  };
+  const handleBuyClick = (item: any) => {
+    setSelectedPartForCheckout({ part: item, initialStep: 'inquire' });
+  };
 
-  // ❓ 2. دالة فتح نافذة فحص التوافق برقم الشاصي (أسأل البائع)
-  const handleInquireClick = (item: any) => {
-    setSelectedPartForCheckout({ part: item, initialStep: 'inquire' });
-  };
+  const toggleCategory = (category: string) => { setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); };
 
-  const toggleCategory = (category: string) => { setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); };
+  const totalCartPrice = cartItems.reduce((total, item) => total + (Number(item.price) * (item.quantity || 1)), 0);
+  const totalCartCount = cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
 
-  const totalCartPrice = cartItems.reduce((total, item) => total + (Number(item.price) * (item.quantity || 1)), 0);
-  const totalCartCount = cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
+  const isRtl = lang === 'ar';
 
-  const isRtl = lang === 'ar';
+  return (
+    <>
+      {showWelcome && (
+        <WelcomeModal 
+          lang={lang} 
+          onStart={() => { 
+            setShowWelcome(false); 
+            localStorage.setItem('hasVisitedMawjood', 'true'); 
+          }} 
+        />
+      )}
 
-  return (
-    <>
-      {showWelcome && (
-        <WelcomeModal 
-          lang={lang} 
-          onStart={() => { 
-            setShowWelcome(false); 
-            localStorage.setItem('hasVisitedMawjood', 'true'); 
-          }} 
-        />
-      )}
+      <div className="mw-app-page" data-mw-theme={theme} dir={isRtl ? 'rtl' : 'ltr'} style={{ ...styles.page, direction: isRtl ? 'rtl' : 'ltr' }}>
 
-      <div className="mw-app-page" data-mw-theme={theme} dir={isRtl ? 'rtl' : 'ltr'} style={{ ...styles.page, direction: isRtl ? 'rtl' : 'ltr' }}>
+        <Header 
+          lang={lang} 
+          setLang={setLang} 
+          view={view as any} 
+          setView={setView as any} 
+          session={session} 
+          cartCount={totalCartCount} 
+          onOpenCart={() => setIsCartOpen(true)} 
+          onLogout={() => { 
+            setSession(null); 
+            setCartItems([]); 
+            localStorage.removeItem('mawjood_session'); 
+            setView('shop'); 
+          }} 
+        />
 
-        <Header 
-          lang={lang} 
-          setLang={setLang} 
-          view={view as any} 
-          setView={setView as any} 
-          session={session} 
-          cartCount={totalCartCount} 
-          onOpenCart={() => setIsCartOpen(true)} 
-          onLogout={() => { 
-            setSession(null); 
-            setCartItems([]); 
-            localStorage.removeItem('mawjood_session'); 
-            setView('shop'); 
-          }} 
-        />
+        {session && session.role !== 'garage' && session.role !== 'driver' && session.role !== 'admin' && (
+          <div style={{ maxWidth: '1240px', margin: '14px auto -10px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={() => setShowOrderTracker(true)} style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
+            </button>
+          </div>
+        )}
 
-        {session && session.role !== 'garage' && session.role !== 'driver' && session.role !== 'admin' && (
-          <div style={{ maxWidth: '1240px', margin: '14px auto -10px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowOrderTracker(true)} style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
-            </button>
-          </div>
-        )}
+        {/* 🛒 السلة الجانبية Drawer */}
+        {isCartOpen && (
+          <>
+            <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
+            <div style={{ position: 'fixed', top: 0, bottom: 0, [isRtl ? 'left' : 'right']: 0, width: '380px', maxWidth: '100%', backgroundColor: '#ffffff', zIndex: 101, padding: '24px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
+                <h3 style={{ margin: 0 }}>🛒 {lang === 'ar' ? 'سلة المشتريات' : 'Cart'}</h3>
+                <button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✖</button>
+              </div>
 
-        {/* 🛒 السلة الجانبية Drawer */}
-        {isCartOpen && (
-          <>
-            <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
-            <div style={{ position: 'fixed', top: 0, bottom: 0, [isRtl ? 'left' : 'right']: 0, width: '380px', maxWidth: '100%', backgroundColor: '#ffffff', zIndex: 101, padding: '24px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
-                <h3 style={{ margin: 0 }}>🛒 {lang === 'ar' ? 'سلة المشتريات' : 'Cart'}</h3>
-                <button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✖</button>
-              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
+                {cartItems.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#64748b' }}>{lang === 'ar' ? 'السلة فارغة' : 'Cart is empty'}</p>
+                ) : (
+                  cartItems.map((item, index) => (
+                    <div key={index} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '10px' }}>
+                      <strong>{item.name}</strong>
+                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>{item.price} QAR x {item.quantity || 1}</p>
+                      <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ color: '#d1453b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                        {lang === 'ar' ? 'حذف' : 'Remove'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
-                {cartItems.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 10px' }}>
-                    <span style={{ fontSize: '42px', display: 'block', marginBottom: '8px' }}>🛒</span>
-                    <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>{lang === 'ar' ? 'السلة فارغة حالياً' : 'Cart is empty'}</p>
-                  </div>
-                ) : (
-                  cartItems.map((item, index) => (
-                    <div key={index} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <strong style={{ fontSize: '14px', color: '#1e293b' }}>{item.name}</strong>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#e0872a', fontWeight: 'bold' }}>{item.price} QAR x {item.quantity || 1}</p>
-                      </div>
-                      <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ color: '#d1453b', backgroundColor: '#fdecec', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
-                        {lang === 'ar' ? 'حذف' : 'Remove'}
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+              {cartItems.length > 0 && (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '12px' }}>
+                    <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
+                    <span>{totalCartPrice} QAR</span>
+                  </div>
+                  <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    🚀 {lang === 'ar' ? 'إتمام الشراء' : 'Checkout'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
-              {cartItems.length > 0 && (
-                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '12px' }}>
-                    <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
-                    <span style={{ color: '#e0872a' }}>{totalCartPrice} QAR</span>
-                  </div>
-                  <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    🚀 {lang === 'ar' ? 'إتمام الشراء والدفع' : 'Checkout'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+        <main className="mw-main-container" style={styles.main}>
 
-        <main className="mw-main-container" style={styles.main}>
+          {view === 'auth' && (
+            <AuthModal 
+              lang={lang} 
+              authUrl={AUTH_URL} 
+              apiKey={API_KEY} 
+              onSuccess={(newSession: any) => { 
+                setSession(newSession); 
+                localStorage.setItem('mawjood_session', JSON.stringify(newSession)); 
+                
+                if (newSession.role === 'admin' || newSession.email?.endsWith('@admin.mawjood.com')) {
+                  setView('admin');
+                } else if (newSession.role === 'driver' || newSession.email?.endsWith('@driver.mawjood.com')) {
+                  setView('driver');
+                } else if (newSession.role === 'garage') {
+                  setView('dashboard');
+                } else {
+                  setView('shop');
+                }
+              }} 
+            />
+          )}
 
-          {view === 'auth' && (
-            <AuthModal 
-              lang={lang} 
-              authUrl={AUTH_URL} 
-              apiKey={API_KEY} 
-              onSuccess={(newSession: any) => { 
-                setSession(newSession); 
-                localStorage.setItem('mawjood_session', JSON.stringify(newSession)); 
-                
-                if (newSession.role === 'admin' || newSession.email?.endsWith('@admin.mawjood.com')) {
-                  setView('admin');
-                } else if (newSession.role === 'driver' || newSession.email?.endsWith('@driver.mawjood.com')) {
-                  setView('driver');
-                } else if (newSession.role === 'garage') {
-                  setView('dashboard');
-                } else {
-                  setView('shop');
-                }
-              }} 
-            />
-          )}
+          {/* 👑 واجهة مدير النظام الأدمن */}
+          {view === 'admin' && (
+            <AdminDashboard 
+              lang={lang} 
+              supabaseUrl={SUPABASE_URL} 
+              apiKey={API_KEY} 
+              session={session} 
+              siteSettings={siteSettings} 
+              onUpdateSettings={handleUpdateSettings} 
+            />
+          )}
 
-          {/* 👑 واجهة مدير النظام الأدمن */}
-          {view === 'admin' && (
-            <AdminDashboard 
-              lang={lang} 
-              supabaseUrl={SUPABASE_URL} 
-              apiKey={API_KEY} 
-              session={session} 
-              siteSettings={siteSettings} 
-              onUpdateSettings={handleUpdateSettings} 
-            />
-          )}
+          {/* 🛵 واجهة لوحة المندوب */}
+          {view === 'driver' && (
+            <DeliveryDashboard 
+              lang={lang} 
+              supabaseUrl={SUPABASE_URL} 
+              apiKey={API_KEY} 
+              session={session} 
+            />
+          )}
 
-          {/* 🛵 واجهة لوحة المندوب */}
-          {view === 'driver' && (
-            <DeliveryDashboard 
-              lang={lang} 
-              supabaseUrl={SUPABASE_URL} 
-              apiKey={API_KEY} 
-              session={session} 
-            />
-          )}
+          {/* ⚙️ واجهة لوحة الكراج */}
+          {view === 'dashboard' && session?.role === 'garage' && (
+            <GarageDashboard 
+              lang={lang} 
+              carData={CAR_DATA} 
+              years={YEARS} 
+              supabaseUrl={SUPABASE_URL} 
+              apiKey={API_KEY} 
+              session={session} 
+              onSuccess={() => { fetchParts(); setView('shop'); }} 
+            />
+          )}
 
-          {/* ⚙️ واجهة لوحة الكراج */}
-          {view === 'dashboard' && session?.role === 'garage' && (
-            <GarageDashboard 
-              lang={lang} 
-              carData={CAR_DATA} 
-              years={YEARS} 
-              supabaseUrl={SUPABASE_URL} 
-              apiKey={API_KEY} 
-              session={session} 
-              onSuccess={() => { fetchParts(); setView('shop'); }} 
-            />
-          )}
+          {/* 👤 واجهة الملف الشخصي */}
+          {view === 'profile' && session && (
+            <CustomerProfile 
+              lang={lang} 
+              supabaseUrl={SUPABASE_URL} 
+              apiKey={API_KEY} 
+              session={session} 
+            />
+          )}
 
-          {/* 👤 واجهة الملف الشخصي */}
-          {view === 'profile' && session && (
-            <CustomerProfile 
-              lang={lang} 
-              supabaseUrl={SUPABASE_URL} 
-              apiKey={API_KEY} 
-              session={session} 
-            />
-          )}
+          {/* 📄 عرض الصفحات التعريفية والمعلومات مع تمرير siteSettings */}
+          {['contact', 'faq', 'articles', 'about', 'privacy', 'terms', 'news'].includes(view) && (
+            <StaticPages 
+              lang={lang} 
+              view={view as StaticPageView} 
+              onNavigate={(v) => setView(v as any)} 
+              siteSettings={siteSettings}
+            />
+          )}
 
-          {/* 📄 عرض الصفحات التعريفية والمعلومات مع تمرير siteSettings */}
-          {['contact', 'faq', 'articles', 'about', 'privacy', 'terms', 'news'].includes(view) && (
-            <StaticPages 
-              lang={lang} 
-              view={view as StaticPageView} 
-              onNavigate={(v) => setView(v as any)} 
-              siteSettings={siteSettings}
-            />
-          )}
+          {view === 'shop' && (
+            <div style={{ marginTop: '20px', width: '100%' }}>
+              <SidebarFilters 
+                lang={lang} 
+                carData={CAR_DATA} 
+                years={YEARS} 
+                translateMake={TRANSLATE_MAKE} 
+                translateModel={TRANSLATE_MODEL} 
+                categories={PARTS_CATEGORIES} 
+                expandedCategories={expandedCategories} 
+                toggleCategory={toggleCategory} 
+                inventory={inventory} 
+                searchTerm={searchTerm} 
+                setSearchTerm={setSearchTerm} 
+                filterMake={filterMake} 
+                setFilterMake={setFilterMake} 
+                filterModel={filterModel} 
+                setFilterModel={setFilterModel} 
+                filterYear={filterYear} 
+                setFilterYear={setFilterYear} 
+                filterEngine={filterEngine} 
+                setFilterEngine={setFilterEngine} 
+                filterCategory={filterCategory}
+                setFilterCategory={setFilterCategory}
+                addToCart={handleBuyClick}
+              />
+            </div>
+          )}
 
-          {view === 'shop' && (
-            <div style={{ marginTop: '20px', width: '100%' }}>
-              <SidebarFilters 
-                lang={lang} 
-                carData={CAR_DATA} 
-                years={YEARS} 
-                translateMake={TRANSLATE_MAKE} 
-                translateModel={TRANSLATE_MODEL} 
-                categories={PARTS_CATEGORIES} 
-                expandedCategories={expandedCategories} 
-                toggleCategory={toggleCategory} 
-                inventory={inventory} 
-                searchTerm={searchTerm} 
-                setSearchTerm={setSearchTerm} 
-                filterMake={filterMake} 
-                setFilterMake={setFilterMake} 
-                filterModel={filterModel} 
-                setFilterModel={setFilterModel} 
-                filterYear={filterYear} 
-                setFilterYear={setFilterYear} 
-                filterEngine={filterEngine} 
-                setFilterEngine={setFilterEngine} 
-                filterCategory={filterCategory}
-                setFilterCategory={setFilterCategory}
-                addToCart={handleDirectAddToCart}
-                onInquire={handleInquireClick}
-              />
-            </div>
-          )}
+        </main>
 
-        </main>
+        {/* 💳 الشراء المباشر مع ربط إضافة السلة المباشرة وتمرير siteSettings */}
+        {selectedPartForCheckout && (
+          <CustomerFitmentCheckout
+            lang={lang}
+            part={selectedPartForCheckout.part}
+            initialStep={selectedPartForCheckout.initialStep || 'inquire'}
+            customerPhone={session?.phone || session?.email || session?.user?.phone || '55000000'}
+            supabaseUrl={SUPABASE_URL}
+            apiKey={API_KEY}
+            session={session}
+            siteSettings={siteSettings}
+            onClose={() => setSelectedPartForCheckout(null)}
+            onSuccess={(addedPart?: any) => {
+              // 🛒 إذا تم إرسال استفسار، تضاف القطعة مباشرة لسلة المشتريات
+              if (addedPart) {
+                setCartItems(prev => {
+                  if (prev.some(item => item.id === addedPart.id)) return prev;
+                  return [...prev, { ...addedPart, quantity: 1 }];
+                });
+              } else {
+                // عند الشراء والدفع النهائي، يتم إزالتها من السلة
+                const purchasedPartId = selectedPartForCheckout.part.id;
+                setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
+              }
+              setSelectedPartForCheckout(null);
+              fetchParts();
+              setShowOrderTracker(true);
+            }}
+          />
+        )}
 
-        {/* 💳 الشراء المباشر مع ربط إضافة السلة المباشرة وتمرير siteSettings */}
-        {selectedPartForCheckout && (
-          <CustomerFitmentCheckout
-            lang={lang}
-            part={selectedPartForCheckout.part}
-            initialStep={selectedPartForCheckout.initialStep || 'inquire'}
-            customerPhone={session?.phone || session?.email || session?.user?.phone || '55000000'}
-            supabaseUrl={SUPABASE_URL}
-            apiKey={API_KEY}
-            session={session}
-            siteSettings={siteSettings}
-            onClose={() => setSelectedPartForCheckout(null)}
-            onSuccess={(addedPart?: any) => {
-              if (addedPart) {
-                setCartItems(prev => {
-                  if (prev.some(item => item.id === addedPart.id)) return prev;
-                  return [...prev, { ...addedPart, quantity: 1 }];
-                });
-              } else {
-                const purchasedPartId = selectedPartForCheckout.part.id;
-                setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
-              }
-              setSelectedPartForCheckout(null);
-              fetchParts();
-              setShowOrderTracker(true);
-            }}
-          />
-        )}
+        {/* 📦 متابعة الطلبات */}
+        {showOrderTracker && (
+          <CustomerOrderTracker
+            lang={lang}
+            customerPhone={session?.phone || session?.email || session?.user?.phone || ''}
+            supabaseUrl={SUPABASE_URL}
+            apiKey={API_KEY}
+            session={session}
+            onClose={() => setShowOrderTracker(false)}
+            onSelectPartForCheckout={(part) => {
+              setSelectedPartForCheckout({ part, initialStep: 'checkout' });
+            }}
+          />
+        )}
 
-        {/* 📦 متابعة الطلبات */}
-        {showOrderTracker && (
-          <CustomerOrderTracker
-            lang={lang}
-            customerPhone={session?.phone || session?.email || session?.user?.phone || ''}
-            supabaseUrl={SUPABASE_URL}
-            apiKey={API_KEY}
-            session={session}
-            onClose={() => setShowOrderTracker(false)}
-            onSelectPartForCheckout={(part) => {
-              setSelectedPartForCheckout({ part, initialStep: 'checkout' });
-            }}
-          />
-        )}
+        {/* 🔻 الفوتر الرئيسي */}
+        <Footer 
+          lang={lang} 
+          siteSettings={siteSettings} 
+          onNavigate={(v) => setView(v as any)} 
+          session={session} 
+        />
 
-        {/* 🔻 الفوتر الرئيسي */}
-        <Footer 
-          lang={lang} 
-          siteSettings={siteSettings} 
-          onNavigate={(v) => setView(v as any)} 
-          session={session} 
-        />
-
-      </div>
-    </>
-  );
+      </div>
+    </>
+  );
 }
