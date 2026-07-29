@@ -19,7 +19,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const isRtl = lang === 'ar';
   
   // التبويب النشط
-  const [tab, setTab] = useState<'users' | 'orders' | 'parts' | 'policies' | 'social'>('users');
+  const [tab, setTab] = useState<'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment'>('users');
 
   // 🔍 متغيرات البحث بطلبات المباشرة (Search-On-Demand)
   const [userQuery, setUserQuery] = useState('');
@@ -44,6 +44,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [privacyContent, setPrivacyContent] = useState(siteSettings?.privacy || '');
   const [aboutContent, setAboutContent] = useState(siteSettings?.about || '');
 
+  // 💳 حالات إعدادات بوابة الدفع
+  const [enableOnlinePayment, setEnableOnlinePayment] = useState<boolean>(siteSettings?.enableOnlinePayment ?? true);
+  const [paymentProvider, setPaymentProvider] = useState<string>(siteSettings?.paymentProvider || 'skipcash');
+  const [merchantId, setMerchantId] = useState<string>(siteSettings?.merchantId || '');
+  const [paymentApiKey, setPaymentApiKey] = useState<string>(siteSettings?.paymentApiKey || '');
+  const [paymentMode, setPaymentMode] = useState<'sandbox' | 'live'>(siteSettings?.paymentMode || 'sandbox');
+  const [enableApplePay, setEnableApplePay] = useState<boolean>(siteSettings?.enableApplePay ?? true);
+  const [enableGooglePay, setEnableGooglePay] = useState<boolean>(siteSettings?.enableGooglePay ?? true);
+  const [enableCards, setEnableCards] = useState<boolean>(siteSettings?.enableCards ?? true);
+  const [enableCOD, setEnableCOD] = useState<boolean>(siteSettings?.enableCOD ?? true);
+
   const [searching, setSearching] = useState(false);
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -55,7 +66,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setSearching(true);
     setMsg(null);
     try {
-      // بحث موجه مباشرة لداتابيز Supabase لتقليل الضغط
       const res = await fetch(`${supabaseUrl}/profiles?or=(phone.ilike.*${userQuery}*,email.ilike.*${userQuery}*,full_name.ilike.*${userQuery}*)`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
       });
@@ -64,7 +74,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (Array.isArray(data) && data.length > 0) {
         setSearchResultsUser(data);
       } else {
-        // في حال عدم وجود الجدول البديل، سنظهر نتائج تطابق محلي سريع للتوضيح
         setSearchResultsUser([
           { id: 101, name: 'حساب النتيجة للمبحث عنه', role: 'garage', phone: userQuery, status: 'pending', cr_image: 'https://via.placeholder.com/300x180?text=CR+Document' }
         ]);
@@ -86,7 +95,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setSearching(true);
     setMsg(null);
     try {
-      // استعلام دقيق عن المعرف أو رقم القطعة فقط
       let url = `${supabaseUrl}/parts?or=(id.eq.${isNaN(Number(partQuery)) ? 0 : Number(partQuery)},part_number.ilike.*${partQuery}*,name.ilike.*${partQuery}*)`;
       
       const res = await fetch(url, {
@@ -159,7 +167,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // 💾 حفظ إعدادات السوشال ميديا والسياسات
+  // 💾 حفظ كافة الإعدادات (السوشال ميديا، السياسات، وبوابات الدفع)
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     const updated = {
@@ -170,10 +178,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       whatsapp,
       terms: termsContent,
       privacy: privacyContent,
-      about: aboutContent
+      about: aboutContent,
+      enableOnlinePayment,
+      paymentProvider,
+      merchantId,
+      paymentApiKey,
+      paymentMode,
+      enableApplePay,
+      enableGooglePay,
+      enableCards,
+      enableCOD
     };
     onUpdateSettings(updated);
-    setMsg({ text: isRtl ? 'تم حفظ التحديثات والسياسات بنجاح 🎉' : 'Settings saved successfully!', type: 'success' });
+    setMsg({ text: isRtl ? 'تم حفظ التحديثات والإعدادات بنجاح 🎉' : 'Settings saved successfully!', type: 'success' });
     setTimeout(() => setMsg(null), 3000);
   };
 
@@ -191,7 +208,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {isRtl ? 'لوحة تحكم مدير النظام (Super Admin)' : 'Super Admin Dashboard'}
             </h2>
             <span style={{ fontSize: '13px', color: '#64748b' }}>
-              {isRtl ? 'البحث السريع والتنفيذي للحسابات، القطع، والطلبات' : 'Fast On-Demand Search'}
+              {isRtl ? 'البحث السريع والتنفيذي للحسابات، القطع، السياسات، وبوابات الدفع' : 'Fast On-Demand Search & Config'}
             </span>
           </div>
         </div>
@@ -203,6 +220,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           { id: 'users', label: isRtl ? '🔍 بحث واستعلام الحسابات' : 'Search Users' },
           { id: 'parts', label: isRtl ? '🔎 بحث قطع الغيار بالإعلان/الرمز' : 'Search Parts' },
           { id: 'orders', label: isRtl ? '📦 بحث الطلبات والمشاكل' : 'Search Orders' },
+          { id: 'payment', label: isRtl ? '💳 إعدادات بوابة الدفع' : 'Payment Settings' },
           { id: 'policies', label: isRtl ? '📜 تعديل السياسات والشروط' : 'Edit Policies' },
           { id: 'social', label: isRtl ? '🌐 السوشال ميديا والموقع' : 'Site Settings' },
         ].map(item => (
@@ -230,8 +248,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* 1️⃣ تبويب البحث عن الحسابات وتعديلها */}
       {tab === 'users' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* 🔍 محرك بحث الحسابات */}
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
             <h3 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#1f3a5f' }}>🔍 {isRtl ? 'البحث عن حساب (برقم الجوال أو البريد)' : 'Search User Account'}</h3>
             <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
@@ -253,7 +269,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </form>
           </div>
 
-          {/* عرض نتائج بحث الحسابات */}
           {searchResultsUser && (
             <div>
               <h4 style={{ margin: '0 0 14px 0', color: '#1e293b' }}>📋 {isRtl ? 'نتائج البحث:' : 'Search Results:'}</h4>
@@ -276,7 +291,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* 🔑 نموذج تغيير كلمة السر */}
           {selectedUserPhone && (
             <div style={{ backgroundColor: '#fffbe3', padding: '20px', borderRadius: '16px', border: '1px solid #fef08a' }}>
               <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#92400e' }}>🔑 {isRtl ? `تغيير كلمة المرور للحساب: ${selectedUserPhone}` : 'Reset Password'}</h3>
@@ -302,7 +316,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* 2️⃣ تبويب البحث عن القطع بالإعلان أو رقم القطعة */}
       {tab === 'parts' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#1f3a5f' }}>🔎 {isRtl ? 'البحث عن قطعة غيار (برمز الإعلان ID أو رقم القطعة Part #)' : 'Search Part by ID / SKU'}</h3>
             <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
@@ -324,7 +337,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </form>
           </div>
 
-          {/* عرض نتائج القطعة المبحوث عنها */}
           {searchResultsParts && (
             <div>
               <h4 style={{ margin: '0 0 14px 0', color: '#1e293b' }}>📦 {isRtl ? `النتائج المطابقة (${searchResultsParts.length}):` : 'Matching Parts:'}</h4>
@@ -355,7 +367,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
             </div>
           )}
-
         </div>
       )}
 
@@ -398,7 +409,115 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 4️⃣ تبويب تعديل السياسات */}
+      {/* 4️⃣ 💳 تبويب إعدادات بوابة الدفع والربط البنكي */}
+      {tab === 'payment' && (
+        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px' }}>
+          <div>
+            <h3 style={{ margin: '0 0 6px 0', color: '#1f3a5f' }}>💳 {isRtl ? 'إعدادات بوابات الدفع الإلكتروني (Apple Pay / Google Pay / Cards)' : 'Payment Gateway Settings'}</h3>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+              {isRtl ? 'يمكنك التحكم بجميع خيارات الدفع الإلكتروني وتغذيتها بمفاتيح الربط (API Keys) فور التعاقد مع الشركة أو البنك.' : 'Configure online payment methods and API keys.'}
+            </p>
+          </div>
+
+          {/* تفعيل / تعطيل الدفع الإلكتروني */}
+          <div style={{ backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <strong style={{ fontSize: '14.5px', color: '#1e293b', display: 'block' }}>{isRtl ? 'تفعيل الدفع الإلكتروني المباشر' : 'Enable Online Payment'}</strong>
+              <span style={{ fontSize: '12.5px', color: '#64748b' }}>{isRtl ? 'إظهار خيارات الدفع أونلاين للعملاء أثناء إتمام الطلب' : 'Show online payment options during checkout'}</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={enableOnlinePayment}
+              onChange={(e) => setEnableOnlinePayment(e.target.checked)}
+              style={{ width: '22px', height: '22px', cursor: 'pointer' }}
+            />
+          </div>
+
+          {/* اختيار شركة الدفع */}
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>{isRtl ? 'شركة / بوابة الدفع المتعاقد معها:' : 'Payment Gateway Provider:'}</label>
+            <select
+              value={paymentProvider}
+              onChange={(e) => setPaymentProvider(e.target.value)}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', backgroundColor: '#ffffff' }}
+            >
+              <option value="skipcash">SkipCash (قطر)</option>
+              <option value="myfatoorah">MyFatoorah (المعيار الخليجي)</option>
+              <option value="tap">Tap Payments</option>
+              <option value="sadad">Sadad QA (سداد قطر)</option>
+              <option value="custom">بوابة دفع مخصصة (Custom API)</option>
+            </select>
+          </div>
+
+          {/* إدخال المفاتيح البنكية */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>{isRtl ? 'معرّف التاجر (Merchant ID):' : 'Merchant ID:'}</label>
+              <input
+                type="text"
+                placeholder="مثال: MER-974-8849"
+                value={merchantId}
+                onChange={(e) => setMerchantId(e.target.value)}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>{isRtl ? 'مفتاح الربط السرّي (Secret API Key):' : 'Secret API Key:'}</label>
+              <input
+                type="password"
+                placeholder="sk_live_xxxxxxxxxxxx"
+                value={paymentApiKey}
+                onChange={(e) => setPaymentApiKey(e.target.value)}
+                style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+
+          {/* طرق الدفع المفعلة للعميل */}
+          <div style={{ backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+            <label style={{ display: 'block', marginBottom: '12px', fontSize: '13.5px', fontWeight: 'bold' }}>{isRtl ? 'طرق الدفع المسموح بها للعميل:' : 'Allowed Payment Options:'}</label>
+            
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
+                <input type="checkbox" checked={enableApplePay} onChange={(e) => setEnableApplePay(e.target.checked)} /> 🍏 Apple Pay
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
+                <input type="checkbox" checked={enableGooglePay} onChange={(e) => setEnableGooglePay(e.target.checked)} /> 🌐 Google Pay
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
+                <input type="checkbox" checked={enableCards} onChange={(e) => setEnableCards(e.target.checked)} /> 💳 بطاقة ائتمان / مدى
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
+                <input type="checkbox" checked={enableCOD} onChange={(e) => setEnableCOD(e.target.checked)} /> 💵 الدفع نقداً عند الاستلام (COD)
+              </label>
+            </div>
+          </div>
+
+          {/* وضع الاختبار أم المباشر */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#fffbe3', padding: '16px', borderRadius: '14px', border: '1px solid #fef08a' }}>
+            <span style={{ fontSize: '24px' }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <strong style={{ fontSize: '14px', color: '#92400e', display: 'block' }}>{isRtl ? 'وضع التشغيل (Environment Mode)' : 'Environment Mode'}</strong>
+              <span style={{ fontSize: '12.5px', color: '#78350f' }}>{isRtl ? 'اختر البيئة التجريبية (Sandbox) حتى يتم توقيع العقد الرسمي وتأكيد المفاتيح البنكية.' : 'Use Sandbox mode for testing before official launch.'}</span>
+            </div>
+            <select
+              value={paymentMode}
+              onChange={(e) => setPaymentMode(e.target.value as any)}
+              style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #d97706', fontWeight: 'bold', fontSize: '13px', backgroundColor: '#ffffff', cursor: 'pointer' }}
+            >
+              <option value="sandbox">🧪 تجريبي (Sandbox)</option>
+              <option value="live">🚀 بيئة مباشرة (Live)</option>
+            </select>
+          </div>
+
+          <button type="submit" style={{ padding: '14px 28px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', width: 'fit-content' }}>
+            💾 {isRtl ? 'حفظ إعدادات بوابة الدفع' : 'Save Payment Config'}
+          </button>
+        </form>
+      )}
+
+      {/* 5️⃣ تبويب تعديل السياسات */}
       {tab === 'policies' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h3>📜 {isRtl ? 'تعديل الشروط والأحكام والسياسات المباشرة للموقع' : 'Edit Policies & Content'}</h3>
@@ -439,7 +558,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </form>
       )}
 
-      {/* 5️⃣ تبويب السوشال ميديا */}
+      {/* 6️⃣ تبويب السوشال ميديا */}
       {tab === 'social' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
           <h3>🌐 {isRtl ? 'روابط شبكات التواصل ورقم التواصل' : 'Social & Contact Details'}</h3>
