@@ -8,6 +8,8 @@ import { CustomerProfile } from './components/CustomerProfile';
 import { CustomerFitmentCheckout } from './components/CustomerFitmentCheckout';
 import { CustomerOrderTracker } from './components/CustomerOrderTracker';
 import { DeliveryDashboard } from './components/DeliveryDashboard';
+import { Footer } from './components/Footer';
+import { AdminDashboard } from './components/AdminDashboard';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -22,12 +24,11 @@ const PARTS_CATEGORIES = [ "Belt Drive", "Body & Lamp Assembly", "Brake & Wheel 
 const styles: Record<string, React.CSSProperties> = { 
   page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink)', transition: 'background-color 0.2s ease, color 0.2s ease' }, 
   main: { maxWidth: '1240px', margin: '28px auto 0', padding: '0 20px' }, 
-  stateCard: { textAlign: 'center', padding: '64px 20px', backgroundColor: 'var(--mw-surface)', borderRadius: '20px', boxShadow: 'var(--mw-shadow-sm)' }, 
 };
 
 export default function App() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
-  const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver'>('shop');
+  const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin'>('shop');
   
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -40,6 +41,12 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
+  // إعدادات السوشال ميديا والموقع
+  const [siteSettings, setSiteSettings] = useState(() => {
+    const saved = localStorage.getItem('mawjood_site_settings');
+    return saved ? JSON.parse(saved) : { facebook: 'https://facebook.com', instagram: 'https://instagram.com', twitter: 'https://twitter.com', whatsapp: '97455000000' };
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMake, setFilterMake] = useState('');
   const [filterModel, setFilterModel] = useState('');
@@ -48,11 +55,6 @@ export default function App() {
   const [filterCategory, setFilterCategory] = useState('');
 
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const toastCounter = useRef(0);
-
-  const showToast = (_message: string, _type: 'success' | 'error' = 'success') => {
-    toastCounter.current += 1;
-  };
 
   useEffect(() => {
     const hasVisited = localStorage.getItem('hasVisitedMawjood');
@@ -64,8 +66,9 @@ export default function App() {
         const parsed = JSON.parse(savedSession);
         setSession(parsed); 
 
-        // 🚚 التوجيه التلقائي للمندوب والكراج عند فتح التطبيق
-        if (parsed.role === 'driver' || parsed.email?.endsWith('@driver.mawjood.com')) {
+        if (parsed.role === 'admin' || parsed.email?.endsWith('@admin.mawjood.com')) {
+          setView('admin');
+        } else if (parsed.role === 'driver' || parsed.email?.endsWith('@driver.mawjood.com')) {
           setView('driver');
         } else if (parsed.role === 'garage') {
           setView('dashboard');
@@ -79,26 +82,10 @@ export default function App() {
     fetchParts();
   }, []);
 
-  useEffect(() => {
-    if (session) {
-      const userId = session.phone || session.email || session.user?.id;
-      if (userId) {
-        const savedCart = localStorage.getItem(`mawjood_cart_${userId}`);
-        if (savedCart) {
-          try { setCartItems(JSON.parse(savedCart)); } catch (e) { setCartItems([]); }
-        } else { setCartItems([]); }
-      }
-    } else { setCartItems([]); }
-  }, [session]);
-
-  useEffect(() => {
-    if (session) {
-      const userId = session.phone || session.email || session.user?.id;
-      if (userId) {
-        localStorage.setItem(`mawjood_cart_${userId}`, JSON.stringify(cartItems));
-      }
-    }
-  }, [cartItems, session]);
+  const handleUpdateSettings = (newSettings: any) => {
+    setSiteSettings(newSettings);
+    localStorage.setItem('mawjood_site_settings', JSON.stringify(newSettings));
+  };
 
   const fetchParts = async () => {
     try {
@@ -112,7 +99,7 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
-  const handleBuyClick = (item: any, _quantity: number = 1) => {
+  const handleBuyClick = (item: any) => {
     setSelectedPartForCheckout({ part: item, initialStep: 'inquire' });
   };
 
@@ -125,111 +112,7 @@ export default function App() {
 
   return (
     <>
-      <style>{`
-        [data-mw-theme="light"] {
-          --mw-bg: #F5F7FA; --mw-surface: #FFFFFF; --mw-ink: #131C26; --mw-ink-muted: #5B6B7C;
-          --mw-border: #E4E9EF; --mw-primary: #1F3A5F; --mw-primary-dark: #16304f;
-          --mw-accent: #E0872A; --mw-accent-dark: #C56E17; --mw-accent-bg: #FDF1E3;
-          --mw-success: #1E9D6B; --mw-success-bg: #E8F9F1; --mw-danger: #D1453B; --mw-danger-bg: #FDECEC;
-          --mw-shadow-sm: 0 4px 14px rgba(19,28,38,0.05);
-          --mw-shadow-md: 0 8px 24px rgba(19,28,38,0.06);
-          --mw-shadow-lg: 0 20px 50px rgba(19,28,38,0.14);
-          --mw-glass-bg: rgba(255,255,255,0.85);
-        }
-        [data-mw-theme="dark"] {
-          --mw-bg: #0F1720; --mw-surface: #17212C; --mw-ink: #EBF1F6; --mw-ink-muted: #92A2B3;
-          --mw-border: #263241; --mw-primary: #6C9BD1; --mw-primary-dark: #4a7ab0;
-          --mw-accent: #F2A24E; --mw-accent-dark: #FFC170; --mw-accent-bg: rgba(242,162,78,0.14);
-          --mw-success: #3FCB93; --mw-success-bg: rgba(63,203,147,0.14); --mw-danger: #FF6B61; --mw-danger-bg: rgba(255,107,97,0.14);
-          --mw-shadow-sm: 0 4px 14px rgba(0,0,0,0.3);
-          --mw-shadow-md: 0 8px 24px rgba(0,0,0,0.35);
-          --mw-shadow-lg: 0 20px 50px rgba(0,0,0,0.5);
-          --mw-glass-bg: rgba(23,33,44,0.85);
-        }
-
-        .mw-app-page { font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif; }
-
-        .mw-track-btn {
-          background: linear-gradient(135deg, var(--mw-primary) 0%, var(--mw-primary-dark) 100%);
-          color: white; border: none; padding: 10px 18px; border-radius: 12px;
-          font-weight: 800; font-size: 13px; cursor: pointer; display: flex;
-          align-items: center; gap: 7px; box-shadow: var(--mw-shadow-sm);
-          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-        }
-        .mw-track-btn:hover { transform: translateY(-2px); box-shadow: var(--mw-shadow-md); filter: brightness(1.06); }
-
-        .mw-cart-backdrop {
-          position: fixed; inset: 0; background: rgba(15,23,32,0.65); backdrop-filter: blur(3px);
-          z-index: 100; animation: mw-fade 0.18s ease;
-        }
-        @keyframes mw-fade { from { opacity: 0; } to { opacity: 1; } }
-
-        .mw-cart-drawer {
-          position: fixed; top: 0; bottom: 0; width: 390px; max-width: 100%;
-          background: var(--mw-surface); z-index: 101; box-shadow: -8px 0 40px rgba(0,0,0,0.25);
-          display: flex; flex-direction: column; padding: 26px; box-sizing: border-box;
-          animation: mw-drawer-in 0.25s ease;
-        }
-        @keyframes mw-drawer-in { from { transform: translateX(var(--mw-drawer-from)); } to { transform: translateX(0); } }
-
-        .mw-cart-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--mw-border); padding-bottom: 16px; }
-        .mw-cart-close { background: var(--mw-bg); border: none; font-size: 17px; cursor: pointer; color: var(--mw-ink-muted); width: 32px; height: 32px; border-radius: 10px; transition: all 0.18s ease; }
-        .mw-cart-close:hover { color: var(--mw-ink); }
-
-        .mw-cart-empty { text-align: center; color: var(--mw-ink-muted); margin-top: 70px; }
-
-        .mw-cart-item {
-          display: flex; flex-direction: column; gap: 11px; margin-bottom: 16px;
-          padding: 14px; border-radius: 14px; border: 1px solid var(--mw-border);
-          background: var(--mw-bg); transition: all 0.2s ease;
-        }
-        .mw-cart-item:hover { border-color: var(--mw-accent); box-shadow: var(--mw-shadow-sm); }
-        .mw-cart-item-img { width: 68px; height: 68px; object-fit: cover; border-radius: 11px; flex-shrink: 0; }
-        .mw-cart-remove-btn {
-          background: var(--mw-danger-bg); border: 1px solid transparent; color: var(--mw-danger);
-          cursor: pointer; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 8px;
-          transition: all 0.18s ease;
-        }
-        .mw-cart-remove-btn:hover { transform: translateY(-1px); filter: brightness(0.97); }
-
-        .mw-cart-item-checkout-btn {
-          width: 100%; padding: 9px; border: none; border-radius: 10px; font-weight: 800;
-          font-size: 12.5px; cursor: pointer; color: white;
-          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%);
-          box-shadow: 0 4px 12px rgba(34,163,90,0.25);
-          transition: transform 0.18s ease, filter 0.18s ease;
-        }
-        .mw-cart-item-checkout-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
-
-        .mw-cart-footer { border-top: 1px solid var(--mw-border); padding-top: 20px; }
-        .mw-cart-checkout-main {
-          width: 100%; padding: 16px; border: none; border-radius: 13px; font-weight: 800;
-          font-size: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
-          color: white; background: linear-gradient(135deg, var(--mw-accent) 0%, var(--mw-accent-dark) 100%);
-          box-shadow: 0 10px 24px rgba(224,135,42,0.32);
-          transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-        }
-        .mw-cart-checkout-main:hover { transform: translateY(-2px); filter: brightness(1.05); }
-
-        .mw-state-card {
-          text-align: center; padding: 70px 20px; background: var(--mw-surface);
-          border-radius: 22px; box-shadow: var(--mw-shadow-md); border: 1px solid var(--mw-border);
-        }
-        .mw-state-card h3 { color: var(--mw-ink); margin: 12px 0 0 0; }
-
-        @media (max-width: 640px) {
-          .mw-cart-drawer { width: 100%; padding: 18px; }
-        }
-      `}</style>
-
-      {showWelcome && <WelcomeModal lang={lang} onStart={() => { setShowWelcome(false); localStorage.setItem('hasVisitedMawjood', 'true'); }} />}
-
-      <div
-        className="mw-app-page"
-        data-mw-theme={theme}
-        dir={isRtl ? 'rtl' : 'ltr'}
-        style={{ ...styles.page, direction: isRtl ? 'rtl' : 'ltr', textAlign: isRtl ? 'right' : 'left' }}
-      >
+      <div className="mw-app-page" data-mw-theme={theme} dir={isRtl ? 'rtl' : 'ltr'} style={{ ...styles.page, direction: isRtl ? 'rtl' : 'ltr' }}>
 
         <Header 
           lang={lang} 
@@ -244,106 +127,15 @@ export default function App() {
             setCartItems([]); 
             localStorage.removeItem('mawjood_session'); 
             setView('shop'); 
-            showToast(lang === 'ar' ? 'تم تسجيل الخروج بنجاح' : 'Logged out', 'success'); 
           }} 
         />
 
-        {session && session.role !== 'garage' && session.role !== 'driver' && (
+        {session && session.role !== 'garage' && session.role !== 'driver' && session.role !== 'admin' && (
           <div style={{ maxWidth: '1240px', margin: '14px auto -10px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowOrderTracker(true)} className="mw-track-btn">
+            <button onClick={() => setShowOrderTracker(true)} style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
               📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
             </button>
           </div>
-        )}
-
-        {isCartOpen && (
-          <>
-            <div onClick={() => setIsCartOpen(false)} className="mw-cart-backdrop" />
-            <div
-              className="mw-cart-drawer"
-              style={{
-                [isRtl ? 'left' : 'right']: 0,
-                ['--mw-drawer-from' as any]: isRtl ? '-100%' : '100%',
-              }}
-            >
-              
-              <div className="mw-cart-header">
-                <h2 style={{ margin: 0, color: 'var(--mw-ink)', fontSize: '20px', fontWeight: 800 }}>
-                  🛒 {lang === 'ar' ? 'سلة المشتريات' : 'Shopping Cart'}
-                </h2>
-                <button onClick={() => setIsCartOpen(false)} className="mw-cart-close">✖</button>
-              </div>
-              
-              <div style={{ flex: 1, overflowY: 'auto', padding: '20px 0' }}>
-                {cartItems.length === 0 ? (
-                  <div className="mw-cart-empty">
-                    <span style={{ fontSize: '52px', display: 'block', marginBottom: '15px' }}>🛍️</span>
-                    {lang === 'ar' ? 'السلة فارغة حالياً.' : 'Your cart is currently empty.'}
-                  </div>
-                ) : (
-                  cartItems.map((item, index) => {
-                    const itemQty = item.quantity || 1;
-                    const itemTotal = Number(item.price) * itemQty;
-                    const partNo = item.part_number || item.code || item.sku;
-
-                    return (
-                      <div key={index} className="mw-cart-item">
-                        <div style={{ display: 'flex', gap: '14px' }}>
-                          <img src={item.image_url || 'https://via.placeholder.com/70'} alt={item.name} className="mw-cart-item-img" />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <h4 style={{ margin: '0 0 4px 0', color: 'var(--mw-ink)', fontSize: '15px', fontWeight: 800 }}>{item.name}</h4>
-                            
-                            {partNo && <span style={{ fontSize: '11px', color: 'var(--mw-ink-muted)', display: 'block', marginBottom: '4px' }}>Part #: {partNo}</span>}
-                            
-                            <p style={{ margin: '0 0 8px 0', color: 'var(--mw-ink-muted)', fontSize: '12px' }}>
-                              {item.make} - {item.model} | <strong style={{ color: 'var(--mw-primary)' }}>العدد: {itemQty}</strong>
-                            </p>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ color: 'var(--mw-accent-dark)', fontWeight: 800, fontSize: '15px' }}>{itemTotal} QAR</span>
-                              <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} className="mw-cart-remove-btn">
-                                {lang === 'ar' ? 'حذف 🗑️' : 'Remove 🗑️'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            setIsCartOpen(false);
-                            setSelectedPartForCheckout({ part: item, initialStep: 'checkout' });
-                          }}
-                          className="mw-cart-item-checkout-btn"
-                        >
-                          💳 {lang === 'ar' ? 'إتمام الدفع لهذه القطعة' : 'Checkout This Part'}
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              
-              {cartItems.length > 0 && (
-                <div className="mw-cart-footer">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '18px', fontWeight: 800, color: 'var(--mw-ink)' }}>
-                    <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
-                    <span style={{ color: 'var(--mw-primary)' }}>{totalCartPrice} QAR</span>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setIsCartOpen(false);
-                      if (cartItems.length > 0) {
-                        setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' });
-                      }
-                    }} 
-                    className="mw-cart-checkout-main"
-                  >
-                    🚀 {lang === 'ar' ? 'إتمام الشراء والدفع الآن' : 'Checkout Now'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </>
         )}
 
         <main className="mw-main-container" style={styles.main}>
@@ -357,17 +149,28 @@ export default function App() {
                 setSession(newSession); 
                 localStorage.setItem('mawjood_session', JSON.stringify(newSession)); 
                 
-                // 🚚 التوجيه التلقائي للمندوب والكراج بعد إتمام الدخول
-                if (newSession.role === 'driver' || newSession.email?.endsWith('@driver.mawjood.com')) {
+                if (newSession.role === 'admin' || newSession.email?.endsWith('@admin.mawjood.com')) {
+                  setView('admin');
+                } else if (newSession.role === 'driver' || newSession.email?.endsWith('@driver.mawjood.com')) {
                   setView('driver');
                 } else if (newSession.role === 'garage') {
                   setView('dashboard');
                 } else {
                   setView('shop');
                 }
-                
-                showToast('مرحباً بك'); 
               }} 
+            />
+          )}
+
+          {/* 👑 واجهة مدير النظام الأدمن */}
+          {view === 'admin' && (
+            <AdminDashboard 
+              lang={lang} 
+              supabaseUrl={SUPABASE_URL} 
+              apiKey={API_KEY} 
+              session={session} 
+              siteSettings={siteSettings} 
+              onUpdateSettings={handleUpdateSettings} 
             />
           )}
 
@@ -394,7 +197,7 @@ export default function App() {
             />
           )}
 
-          {/* 👤 واجهة الملف الشخصي الموحدة لكل الحسابات (عميل، كراج، ومندوب) */}
+          {/* 👤 واجهة الملف الشخصي */}
           {view === 'profile' && session && (
             <CustomerProfile 
               lang={lang} 
@@ -435,43 +238,13 @@ export default function App() {
 
         </main>
 
-        {selectedPartForCheckout && (
-          <CustomerFitmentCheckout
-            lang={lang}
-            part={selectedPartForCheckout.part}
-            initialStep={selectedPartForCheckout.initialStep || 'inquire'}
-            customerPhone={session?.phone || session?.email || session?.user?.phone || '55000000'}
-            supabaseUrl={SUPABASE_URL}
-            apiKey={API_KEY}
-            session={session}
-            onClose={() => setSelectedPartForCheckout(null)}
-            onSuccess={() => {
-              const purchasedPartId = selectedPartForCheckout.part.id;
-              setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
-              const userId = session?.phone || session?.email || session?.user?.id;
-              if (userId) localStorage.removeItem(`mawjood_cart_${userId}`);
-
-              setSelectedPartForCheckout(null);
-              fetchParts();
-
-              setShowOrderTracker(true);
-            }}
-          />
-        )}
-
-        {showOrderTracker && (
-          <CustomerOrderTracker
-            lang={lang}
-            customerPhone={session?.phone || session?.email || session?.user?.phone || ''}
-            supabaseUrl={SUPABASE_URL}
-            apiKey={API_KEY}
-            session={session}
-            onClose={() => setShowOrderTracker(false)}
-            onSelectPartForCheckout={(part) => {
-              setSelectedPartForCheckout({ part, initialStep: 'checkout' });
-            }}
-          />
-        )}
+        {/* 🔻 الفوتر الرئيسي الظاهر دائماً بأرقام وروابط الأدمن */}
+        <Footer 
+          lang={lang} 
+          siteSettings={siteSettings} 
+          onNavigate={(v) => setView(v)} 
+          session={session} 
+        />
 
       </div>
     </>
