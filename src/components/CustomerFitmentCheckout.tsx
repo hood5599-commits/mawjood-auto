@@ -28,9 +28,9 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   const isRtl = lang === 'ar';
 
   const [step, setStep] = useState<'inquire' | 'checkout' | 'success'>(initialStep);
-  const [carMake, setCarMake] = useState(part?.make || '');
-  const [carModel, setCarModel] = useState(part?.model || '');
-  const [carYear, setCarYear] = useState(part?.year || '');
+  const [carMake] = useState(part?.make || '');
+  const [carModel] = useState(part?.model || '');
+  const [carYear] = useState(part?.year || '');
   const [vinNumber, setVinNumber] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -223,7 +223,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               </div>
             )}
 
-            {/* 💳 خيارات وسائل الدفع الإلكتروني المصممة بأناقة */}
+            {/* 💳 خيارات وسائل الدفع الإلكتروني */}
             <div>
               <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>💳 طريقة الدفع الأنسب لك:</label>
               
