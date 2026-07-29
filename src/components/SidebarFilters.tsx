@@ -64,7 +64,7 @@ const MAKE_DOMAINS: Record<string, string> = {
 
 const nodeStyle: React.CSSProperties = {
   display: 'flex',
-  justify: 'space-between',
+  justifyContent: 'space-between',
   alignItems: 'center',
   cursor: 'pointer',
   padding: '6px 10px',
@@ -117,7 +117,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setActiveSearchQuery('');
   };
 
-  // 1️⃣ جلب السنوات المتوفر لها قطع فقط للماركة المحددة
   const fetchYearsForMake = async (make: string) => {
     const cacheKey = `years_${make}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -140,7 +139,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [];
   };
 
-  // 2️⃣ جلب الموديلات المتوفر بها قطع فقط لسنة محددة
   const fetchModelsForYear = async (make: string, year: string) => {
     const cacheKey = `models_${make}_${year}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -162,7 +160,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [];
   };
 
-  // 3️⃣ جلب المحركات المتوفر لها قطع فقط
   const fetchEnginesForVehicle = async (make: string, year: string, model: string) => {
     const cacheKey = `engines_${make}_${year}_${model}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -184,7 +181,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return ['عام'];
   };
 
-  // 4️⃣ جلب الأقسام التي تحتوي على قطع غيار فعلياً فقط
   const fetchCategoriesForEngine = async (make: string, year: string, model: string, engine: string) => {
     const cacheKey = `categories_${make}_${year}_${model}_${engine}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -214,7 +210,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [];
   };
 
-  // 5️⃣ جلب كروت القطع والصور بالكامل
   const fetchPartsForLeafNode = async (make: string, year: string, model: string, engine: string, category: string) => {
     const cacheKey = `parts_${make}_${year}_${model}_${engine}_${category}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -241,7 +236,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [];
   };
 
-  // 🔥 فتح وإغلاق الشجرة + تفريغ الذاكرة فور الإغلاق
   const toggleNode = async (nodeKey: string, fetchAction?: () => Promise<any>) => {
     const isCurrentlyOpen = !!expandedNodes[nodeKey];
 
@@ -326,7 +320,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           border: '1px solid #e2e8f0', 
           display: 'flex', 
           flexDirection: 'column',
-          justify: 'space-between', 
+          justifyContent: 'space-between', 
           gap: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
         }}
@@ -372,7 +366,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         </div>
 
-        {/* 🔘 أزرار الكمية والإضافة للسلة وفحص التوافق */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', justifyContent: 'center' }}>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '30px', height: '30px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
@@ -381,7 +374,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            {/* 🛒 1. زر إضافة مباشرة للسلة */}
             {addToCart && (
               <button 
                 onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(part, qty); }}
@@ -392,7 +384,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </button>
             )}
 
-            {/* ❓ 2. زر أسأل البائع فحص التوافق */}
             <button 
               onClick={(e) => { e.stopPropagation(); if (onInquire) onInquire(part); else if (addToCart && !isOutOfStock) addToCart(part, qty); }}
               disabled={isOutOfStock}
@@ -447,7 +438,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               return (
                 <li key={make} style={{ marginBottom: '8px' }}>
                   
-                  {/* 1️⃣ المستوى الأول: الماركة */}
                   <div 
                     onClick={() => toggleNode(makeKey, () => fetchYearsForMake(make))} 
                     style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e2e8f0' : '#f7fafc', fontWeight: 'bold', padding: '10px 14px' }}
@@ -463,7 +453,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                     <span style={{ fontSize: '12px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                   </div>
 
-                  {/* 2️⃣ المستوى الثاني: السنوات التي تحتوي على قطع فقط */}
                   {isMakeOpen && (
                     <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                       {isYearsLoading ? (
@@ -488,7 +477,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                 <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                               </div>
 
-                              {/* 3️⃣ المستوى الثالث: الموديلات المتاحة فقط */}
                               {isYearOpen && (
                                 <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                   {isModelsLoading ? (
@@ -514,7 +502,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                             <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                           </div>
 
-                                          {/* 4️⃣ المستوى الرابع: المحركات المتاحة فقط */}
                                           {isModelOpen && (
                                             <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                               {isEnginesLoading ? (
@@ -537,7 +524,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                         <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                       </div>
 
-                                                      {/* 5️⃣ المستوى الخامس: الأقسام المتاحة فقط */}
                                                       {isEngineOpen && (
                                                         <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
                                                           {isCategoriesLoading ? (
@@ -563,7 +549,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                     <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                                   </div>
 
-                                                                  {/* 6️⃣ كروت القطع المباشرة (تفقد الذاكرة وتُحذف فور إغلاق القائمة) */}
                                                                   {isCategoryOpen && (
                                                                     <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px' }}>
                                                                       {isPartsLoading ? (
@@ -610,7 +595,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
       </div>
 
-      {/* نافذة طلب قطعة غير متوفرة */}
       {showRequestModal && (
         <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '460px', width: '100%', direction: isRtl ? 'rtl' : 'ltr' }}>
@@ -638,7 +622,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         </div>
       )}
 
-      {/* نافذة التوافق */}
       {fitmentModalPart && (
         <div onClick={() => setFitmentModalPart(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '80vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr' }}>
