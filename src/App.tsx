@@ -7,6 +7,7 @@ import { SidebarFilters } from './components/SidebarFilters';
 import { CustomerProfile } from './components/CustomerProfile';
 import { CustomerFitmentCheckout } from './components/CustomerFitmentCheckout';
 import { CustomerOrderTracker } from './components/CustomerOrderTracker';
+import { DeliveryDashboard } from './components/DeliveryDashboard';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -26,7 +27,7 @@ const styles: Record<string, React.CSSProperties> = {
 
 export default function App() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
-  const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile'>('shop');
+  const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver'>('shop');
   
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -59,7 +60,17 @@ export default function App() {
 
     const savedSession = localStorage.getItem('mawjood_session');
     if (savedSession) {
-      try { setSession(JSON.parse(savedSession)); } catch (e) {}
+      try { 
+        const parsed = JSON.parse(savedSession);
+        setSession(parsed); 
+
+        // 🚚 التوجيه التلقائي للمندوب إذا كان حسابه مخزناً مسبقاً
+        if (parsed.role === 'driver' || parsed.email?.endsWith('@driver.mawjood.com')) {
+          setView('driver');
+        } else if (parsed.role === 'garage') {
+          setView('dashboard');
+        }
+      } catch (e) {}
     }
 
     const savedTheme = localStorage.getItem('mawjood_theme');
@@ -237,7 +248,7 @@ export default function App() {
           }} 
         />
 
-        {session && session.role !== 'garage' && (
+        {session && session.role !== 'garage' && session.role !== 'driver' && (
           <div style={{ maxWidth: '1240px', margin: '14px auto -10px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={() => setShowOrderTracker(true)} className="mw-track-btn">
               📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
@@ -337,7 +348,38 @@ export default function App() {
 
         <main className="mw-main-container" style={styles.main}>
 
-          {view === 'auth' && <AuthModal lang={lang} authUrl={AUTH_URL} apiKey={API_KEY} onSuccess={(newSession: any) => { setSession(newSession); localStorage.setItem('mawjood_session', JSON.stringify(newSession)); setView(newSession.role === 'garage' ? 'dashboard' : 'shop'); showToast('مرحباً بك'); }} />}
+          {view === 'auth' && (
+            <AuthModal 
+              lang={lang} 
+              authUrl={AUTH_URL} 
+              apiKey={API_KEY} 
+              onSuccess={(newSession: any) => { 
+                setSession(newSession); 
+                localStorage.setItem('mawjood_session', JSON.stringify(newSession)); 
+                
+                // 🚚 التوجيه التلقائي للمندوب بعد إتمام الدخول
+                if (newSession.role === 'driver' || newSession.email?.endsWith('@driver.mawjood.com')) {
+                  setView('driver');
+                } else if (newSession.role === 'garage') {
+                  setView('dashboard');
+                } else {
+                  setView('shop');
+                }
+                
+                showToast('مرحباً بك'); 
+              }} 
+            />
+          )}
+
+          {/* 🛵 واجهة لوحة المندوب الجديدة */}
+          {view === 'driver' && (
+            <DeliveryDashboard 
+              lang={lang} 
+              supabaseUrl={SUPABASE_URL} 
+              apiKey={API_KEY} 
+              session={session} 
+            />
+          )}
 
           {view === 'dashboard' && session?.role === 'garage' && <GarageDashboard lang={lang} carData={CAR_DATA} years={YEARS} supabaseUrl={SUPABASE_URL} apiKey={API_KEY} session={session} onSuccess={() => { fetchParts(); setView('shop'); }} />}
 
@@ -420,21 +462,7 @@ export default function App() {
             }}
           />
         )}
-// 1. استيراد المكون في أعلى App.tsx
-import { DeliveryDashboard } from './components/DeliveryDashboard';
 
-// 2. تكييف نوع الـ view State
-const [view, setView] = useState<'shop' | 'dashboard' | 'auth' | 'profile' | 'driver'>('shop');
-
-// 3. إضافة شرط العرض في جسم المكون الرئيسي <main>
-{view === 'driver' && (
-  <DeliveryDashboard 
-    lang={lang} 
-    supabaseUrl={SUPABASE_URL} 
-    apiKey={API_KEY} 
-    session={session} 
-  />
-)}
       </div>
     </>
   );
