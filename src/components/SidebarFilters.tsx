@@ -4,11 +4,11 @@ interface SidebarFiltersProps {
   lang: 'ar' | 'en';
   carData: any;
   years: string[];
-  translateMake: Record<string, string>;
-  translateModel: Record<string, string>;
-  categories: string[];
-  expandedCategories: string[];
-  toggleCategory: (category: string) => void;
+  translateMake?: Record<string, string>;
+  translateModel?: Record<string, string>;
+  categories?: string[];
+  expandedCategories?: string[];
+  toggleCategory?: (category: string) => void;
   inventory: any[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
@@ -48,6 +48,9 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
 }) => {
   const isRtl = lang === 'ar';
   const [quantities, setQuantities] = useState<Record<number, number>>({});
+
+  // صورة افتراضية في حال كانت صورة القطعة مفقودة أو رابطها مكسور
+  const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
 
   const handleQtyChange = (partId: number, delta: number) => {
     setQuantities(prev => {
@@ -92,22 +95,22 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
 
       {/* 🏎️ فلترة الماركة والموديل والسنة */}
       <div style={{ backgroundColor: '#ffffff', padding: '16px 20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.04)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
-        <select value={filterMake} onChange={(e) => { setFilterMake(e.target.value); setFilterModel(''); setFilterEngine(''); }} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}>
+        <select value={filterMake} onChange={(e) => { setFilterMake(e.target.value); setFilterModel(''); setFilterEngine(''); }} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', backgroundColor: '#ffffff' }}>
           <option value="">{isRtl ? '🚗 كل الماركات' : 'All Makes'}</option>
           {Object.keys(carData).map(m => <option key={m} value={m}>{m}</option>)}
         </select>
 
-        <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)} disabled={!filterMake} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}>
+        <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)} disabled={!filterMake} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', backgroundColor: '#ffffff' }}>
           <option value="">{isRtl ? '🚘 كل الموديلات' : 'All Models'}</option>
           {filterMake && carData[filterMake]?.models.map((m: string) => <option key={m} value={m}>{m}</option>)}
         </select>
 
-        <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}>
+        <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} style={{ padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', backgroundColor: '#ffffff' }}>
           <option value="">{isRtl ? '📅 كل السنوات' : 'All Years'}</option>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
 
-        {(filterMake || filterModel || filterYear || filterCategory || searchTerm) && (
+        {(filterMake || filterModel || filterYear || filterCategory || filterEngine || searchTerm) && (
           <button onClick={() => { setFilterMake(''); setFilterModel(''); setFilterYear(''); setFilterEngine(''); setFilterCategory(''); setSearchTerm(''); }} style={{ padding: '10px', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12.5px' }}>
             🔄 {isRtl ? 'إعادة ضبط الفلاتر' : 'Reset Filters'}
           </button>
@@ -115,7 +118,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
       </div>
 
       {/* 📦 قائمة عرض قطع الغيار */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', marginTop: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '20px', marginTop: '10px' }}>
         {filteredParts.length === 0 ? (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '50px 20px', backgroundColor: '#ffffff', borderRadius: '20px' }}>
             <span style={{ fontSize: '48px' }}>📦</span>
@@ -128,14 +131,20 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
             return (
               <div key={item.id} style={{ backgroundColor: '#ffffff', borderRadius: '20px', padding: '18px', boxShadow: '0 6px 20px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: 'all 0.2s' }}>
                 <div>
-                  <div style={{ position: 'relative', height: '180px', borderRadius: '14px', overflow: 'hidden', backgroundColor: '#f8fafc', marginBottom: '14px' }}>
-                    <img src={item.image_url || 'https://via.placeholder.com/300'} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(31, 58, 95, 0.85)', color: 'white', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold' }}>
-                      {item.part_type || 'مستعمل'}
+                  {/* صورة القطعة مع المعالجة التلقائية للصور المفقودة أو التالفة */}
+                  <div style={{ position: 'relative', height: '170px', borderRadius: '14px', overflow: 'hidden', backgroundColor: '#f8fafc', marginBottom: '14px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img 
+                      src={item.image_url || DEFAULT_IMAGE} 
+                      alt={item.name} 
+                      onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                    <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(31, 58, 95, 0.88)', color: 'white', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold' }}>
+                      {item.part_type || 'مستعمل أصلي'}
                     </span>
                   </div>
 
-                  <h3 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#1e293b', fontWeight: 'bold' }}>{item.name}</h3>
+                  <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>{item.name}</h3>
                   <div style={{ fontSize: '12.5px', color: '#64748b', marginBottom: '10px' }}>
                     🚘 {item.make} - {item.model} ({item.year})
                   </div>
@@ -151,23 +160,24 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '18px', fontWeight: '900', color: '#e0872a', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '19px', fontWeight: '900', color: '#e0872a', marginBottom: '14px' }}>
                     QAR {item.price}
                   </div>
                 </div>
 
-                {/* 🔘 أزرار التحكم وإضافة للسلة */}
+                {/* 🔘 أزرار التحكم وإضافة للسلة والفحص */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   
-                  {/* أزرار زيادة ونقصان الكمية */}
+                  {/* أزرار اختيار الكمية */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#f8fafc', padding: '6px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                    <button onClick={() => handleQtyChange(item.id, -1)} style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#ffffff', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>-</button>
+                    <button type="button" onClick={() => handleQtyChange(item.id, -1)} style={{ width: '30px', height: '32px', border: 'none', backgroundColor: '#ffffff', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', fontSize: '15px' }}>-</button>
                     <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{qty}</span>
-                    <button onClick={() => handleQtyChange(item.id, 1)} style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#ffffff', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>+</button>
+                    <button type="button" onClick={() => handleQtyChange(item.id, 1)} style={{ width: '30px', height: '32px', border: 'none', backgroundColor: '#ffffff', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', fontSize: '15px' }}>+</button>
                   </div>
 
-                  {/* 🛒 1. زر إضافة للسلة المباشر */}
+                  {/* 🛒 1. زر أضف إلى السلة (برتقالي) */}
                   <button
+                    type="button"
                     onClick={() => addToCart(item, qty)}
                     style={{
                       width: '100%',
@@ -188,8 +198,9 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
                     🛒 {isRtl ? 'أضف إلى السلة' : 'Add to Cart'}
                   </button>
 
-                  {/* ❓ 2. زر أسأل البائع فحص التوافق */}
+                  {/* ❓ 2. زر أسأل البائع هل تركب؟ (كحلي) */}
                   <button
+                    type="button"
                     onClick={() => onInquire ? onInquire(item) : addToCart(item, qty)}
                     style={{
                       width: '100%',
