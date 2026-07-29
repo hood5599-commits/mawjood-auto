@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ExcelPartUploader } from './ExcelPartUploader';
 
 interface GarageProps {
   lang: 'ar' | 'en';
@@ -24,6 +25,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [partEngine, setPartEngine] = useState('');
   const [partImg, setPartImg] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // 📊 حالة نافذة الرفع بالإكسل
+  const [showExcelModal, setShowExcelModal] = useState(false);
 
   const [myParts, setMyParts] = useState<any[]>([]);
   const [myOrders, setMyOrders] = useState<any[]>([]);
@@ -253,24 +257,43 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   return (
     <div style={{ maxWidth: '900px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
       
-      <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-        <button onClick={() => { resetForm(); setActiveTab('add_part'); }} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'add_part' ? '#3182ce' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>➕ {lang === 'ar' ? 'إضافة قطعة غيار' : 'Add New Part'}</button>
+      {/* 🔄 أزرار التنقل الرئيسية مع زر الإكسل */}
+      <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', flexWrap: 'wrap' }}>
+        <button onClick={() => { resetForm(); setActiveTab('add_part'); }} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'add_part' ? '#3182ce' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
+          ➕ {lang === 'ar' ? 'إضافة قطعة' : 'Add Part'}
+        </button>
 
-        <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', position: 'relative' }}>
+        <button onClick={() => setShowExcelModal(true)} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#38a169', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          📊 {lang === 'ar' ? 'رفع قطع بالإكسل' : 'Excel Bulk'}
+        </button>
+
+        <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', position: 'relative' }}>
           ❓ {lang === 'ar' ? 'فحص التوافق' : 'Fitment Check'}
           {pendingInquiriesCount > 0 && (
             <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 {pendingInquiriesCount}</span>
           )}
         </button>
 
-        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'my_parts' ? '#38a169' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>📦 {lang === 'ar' ? `إعلاناتي (${myParts.length})` : `My Ads (${myParts.length})`}</button>
+        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'my_parts' ? '#2b6cb0' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
+          📦 {lang === 'ar' ? `إعلاناتي (${myParts.length})` : `My Ads (${myParts.length})`}
+        </button>
 
-        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>📥 {lang === 'ar' ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}</button>
+        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
+          📥 {lang === 'ar' ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}
+        </button>
       </div>
 
       {activeTab === 'add_part' && (
         <div style={{ backgroundColor: 'white', padding: '35px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h2 style={{ color: '#1a365d', margin: '0 0 20px 0', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>{editingId ? (lang === 'ar' ? '✏️ تعديل بيانات القطعة' : '✏️ Edit Part') : (lang === 'ar' ? '➕ إضافة قطعة غيار جديدة' : '➕ Add New Part')}</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
+            <h2 style={{ color: '#1a365d', margin: 0, fontSize: '20px' }}>
+              {editingId ? (lang === 'ar' ? '✏️ تعديل بيانات القطعة' : '✏️ Edit Part') : (lang === 'ar' ? '➕ إضافة قطعة غيار جديدة' : '➕ Add New Part')}
+            </h2>
+            
+            <button type="button" onClick={() => setShowExcelModal(true)} style={{ padding: '8px 16px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              📊 {lang === 'ar' ? 'رفع قطع بالإكسل (دفعة واحدة)' : 'Bulk Upload Excel'}
+            </button>
+          </div>
 
           <form onSubmit={handlePublishSingle} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
@@ -306,7 +329,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600' }}>صورة القطعة:</label>
               <div style={{ border: '2px dashed #cbd5e0', padding: '20px', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f7fafc', position: 'relative' }}>
                 <input type="file" accept="image/*" onChange={handleImageUpload} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImage} />
-                <p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : '📸 اضغط هنا لاختيار صورة للقطعة'}</p>
+                <p style={{ margin: 0, color: '#4a5568', fontWeight: '600' }}>{uploadingImage ? 'جاري الرفع...' : '📸 اضغط هنا لااختيار صورة للقطعة'}</p>
               </div>
               {partImg && <div style={{ marginTop: '15px', textAlign: 'center' }}><img src={partImg} alt="Preview" style={{ maxWidth: '100%', maxHeight: '180px', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
             </div>
@@ -436,7 +459,14 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
       {activeTab === 'my_parts' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📦 جميع القطع المعروضة ({myParts.length})</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{ margin: 0, color: '#1a365d' }}>📦 جميع القطع المعروضة ({myParts.length})</h3>
+            
+            <button onClick={() => setShowExcelModal(true)} style={{ padding: '8px 16px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              📊 {lang === 'ar' ? 'رفع المزيد بالإكسل' : 'Bulk Upload Excel'}
+            </button>
+          </div>
+
           {myParts.map(part => (
             <div key={part.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '10px', backgroundColor: '#f8fafc' }}>
               <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
@@ -529,6 +559,22 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             ))
           )}
         </div>
+      )}
+
+      {/* 📊 النافذة المنبثقة لرفع ملفات الإكسل */}
+      {showExcelModal && (
+        <ExcelPartUploader
+          lang={lang}
+          supabaseUrl={supabaseUrl}
+          apiKey={apiKey}
+          session={session}
+          onClose={() => setShowExcelModal(false)}
+          onSuccess={() => {
+            setShowExcelModal(false);
+            fetchMyParts();
+            if (onSuccess) onSuccess();
+          }}
+        />
       )}
 
     </div>
