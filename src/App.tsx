@@ -118,7 +118,22 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
-  const handleBuyClick = (item: any) => {
+  // 🛒 1. دالة الإضافة المباشرة للسلة فتح السلة فوراً
+  const handleDirectAddToCart = (item: any, quantity: number = 1) => {
+    setCartItems(prev => {
+      const existingIndex = prev.findIndex(i => i.id === item.id);
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        updated[existingIndex].quantity = (updated[existingIndex].quantity || 1) + quantity;
+        return updated;
+      }
+      return [...prev, { ...item, quantity }];
+    });
+    setIsCartOpen(true);
+  };
+
+  // ❓ 2. دالة فتح نافذة فحص التوافق برقم الشاصي (أسأل البائع)
+  const handleInquireClick = (item: any) => {
     setSelectedPartForCheckout({ part: item, initialStep: 'inquire' });
   };
 
@@ -179,13 +194,18 @@ export default function App() {
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
                 {cartItems.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#64748b' }}>{lang === 'ar' ? 'السلة فارغة' : 'Cart is empty'}</p>
+                  <div style={{ textAlign: 'center', padding: '40px 10px' }}>
+                    <span style={{ fontSize: '42px', display: 'block', marginBottom: '8px' }}>🛒</span>
+                    <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>{lang === 'ar' ? 'السلة فارغة حالياً' : 'Cart is empty'}</p>
+                  </div>
                 ) : (
                   cartItems.map((item, index) => (
-                    <div key={index} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '10px' }}>
-                      <strong>{item.name}</strong>
-                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>{item.price} QAR x {item.quantity || 1}</p>
-                      <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ color: '#d1453b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
+                    <div key={index} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong style={{ fontSize: '14px', color: '#1e293b' }}>{item.name}</strong>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#e0872a', fontWeight: 'bold' }}>{item.price} QAR x {item.quantity || 1}</p>
+                      </div>
+                      <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ color: '#d1453b', backgroundColor: '#fdecec', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
                         {lang === 'ar' ? 'حذف' : 'Remove'}
                       </button>
                     </div>
@@ -197,10 +217,10 @@ export default function App() {
                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '12px' }}>
                     <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
-                    <span>{totalCartPrice} QAR</span>
+                    <span style={{ color: '#e0872a' }}>{totalCartPrice} QAR</span>
                   </div>
                   <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    🚀 {lang === 'ar' ? 'إتمام الشراء' : 'Checkout'}
+                    🚀 {lang === 'ar' ? 'إتمام الشراء والدفع' : 'Checkout'}
                   </button>
                 </div>
               )}
@@ -311,7 +331,8 @@ export default function App() {
                 setFilterEngine={setFilterEngine} 
                 filterCategory={filterCategory}
                 setFilterCategory={setFilterCategory}
-                addToCart={handleBuyClick}
+                addToCart={handleDirectAddToCart}
+                onInquire={handleInquireClick}
               />
             </div>
           )}
@@ -331,14 +352,12 @@ export default function App() {
             siteSettings={siteSettings}
             onClose={() => setSelectedPartForCheckout(null)}
             onSuccess={(addedPart?: any) => {
-              // 🛒 إذا تم إرسال استفسار، تضاف القطعة مباشرة لسلة المشتريات
               if (addedPart) {
                 setCartItems(prev => {
                   if (prev.some(item => item.id === addedPart.id)) return prev;
                   return [...prev, { ...addedPart, quantity: 1 }];
                 });
               } else {
-                // عند الشراء والدفع النهائي، يتم إزالتها من السلة
                 const purchasedPartId = selectedPartForCheckout.part.id;
                 setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
               }
