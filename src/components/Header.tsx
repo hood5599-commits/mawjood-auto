@@ -1,12 +1,10 @@
 import React from 'react';
 
-type ViewType = 'shop' | 'dashboard' | 'auth' | 'profile' | 'driver' | 'admin' | 'contact' | 'faq' | 'articles' | 'about' | 'privacy' | 'terms' | 'news';
-
 interface HeaderProps {
   lang: 'ar' | 'en';
   setLang: (lang: 'ar' | 'en') => void;
-  view: ViewType;
-  setView: (view: ViewType) => void;
+  view: string;
+  setView: (view: any) => void;
   session: any;
   cartCount: number;
   onOpenCart: () => void;
@@ -25,96 +23,158 @@ export const Header: React.FC<HeaderProps> = ({
   const isRtl = lang === 'ar';
 
   return (
-    <header style={{ backgroundColor: 'var(--mw-surface, #ffffff)', borderBottom: '1px solid var(--mw-border, #e2e8f0)', padding: '14px 20px', position: 'sticky', top: 0, zIndex: 90 }}>
-      <div style={{ maxWidth: '1240px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <header style={{
+      backgroundColor: '#ffffff',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+      padding: '14px 24px',
+      position: 'sticky',
+      top: 0,
+      zIndex: 90,
+      direction: isRtl ? 'rtl' : 'ltr',
+      fontFamily: 'Cairo, sans-serif'
+    }}>
+      <div style={{
+        maxWidth: '1240px',
+        margin: '0 auto',
+        display: 'flex',
+        justify: 'space-between',
+        alignItems: 'center'
+      }}>
         
-        {/* اللوجو */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => setView('shop')}>
-          <span style={{ fontSize: '26px' }}>🚗</span>
-          <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: 'var(--mw-primary, #1f3a5f)' }}>
-            موجود أوتو <span style={{ fontSize: '12px', color: '#e0872a' }}>MAWJOOD</span>
-          </h1>
+        {/* 1️⃣ الشعار الاحترافي للمنصة (تم حذف إيموجي السيارة) */}
+        <div 
+          onClick={() => setView('shop')}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '24px', fontWeight: '900', color: '#1f3a5f', letterSpacing: '-0.5px', lineHeight: '1.1' }}>
+              موجود <span style={{ color: '#e0872a' }}>أوتو</span>
+            </span>
+            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold', letterSpacing: '1.5px', marginTop: '2px' }}>
+              MAWJOOD AUTO
+            </span>
+          </div>
         </div>
 
-        {/* أزرار التنقل بالهيدر */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* 2️⃣ عناصر التحكم والأزرار */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           
+          {/* زر تغيير اللغة */}
           <button
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
-            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e0', background: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              color: '#475569'
+            }}
           >
             🌐 {lang === 'ar' ? 'English' : 'عربي'}
           </button>
 
-          {/* زر السلة */}
+          {/* زر السلة الجانبية */}
           <button
             onClick={onOpenCart}
-            style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', backgroundColor: '#f1f5f9', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              color: '#475569',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
           >
             🛒 {isRtl ? 'السلة' : 'Cart'}
             {cartCount > 0 && (
-              <span style={{ backgroundColor: '#e0872a', color: 'white', borderRadius: '50%', padding: '2px 7px', fontSize: '11px' }}>
+              <span style={{
+                backgroundColor: '#e0872a',
+                color: '#ffffff',
+                borderRadius: '50%',
+                padding: '2px 7px',
+                fontSize: '11px',
+                fontWeight: 'bold'
+              }}>
                 {cartCount}
               </span>
             )}
           </button>
 
-          {/* حالة الحساب والزر المناسب لكل دور */}
+          {/* زر الحساب وزر الخروج الواضح */}
           {session ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               
-              {/* إذا كان الحساب أدمن */}
-              {(session.role === 'admin' || session.email?.endsWith('@admin.mawjood.com')) && (
-                <button
-                  onClick={() => setView('admin')}
-                  style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', backgroundColor: '#1f3a5f', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}
-                >
-                  👑 {isRtl ? 'لوحة الأدمن' : 'Admin'}
-                </button>
-              )}
-
-              {/* إذا كان الحساب كراج */}
-              {session.role === 'garage' && (
-                <button
-                  onClick={() => setView('dashboard')}
-                  style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', backgroundColor: '#e0872a', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}
-                >
-                  ⚙️ {isRtl ? 'لوحة الكراج' : 'Dashboard'}
-                </button>
-              )}
-
-              {/* إذا كان الحساب مندوب */}
-              {(session.role === 'driver' || session.email?.endsWith('@driver.mawjood.com')) && (
-                <button
-                  onClick={() => setView('driver')}
-                  style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', backgroundColor: '#3182ce', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}
-                >
-                  🛵 {isRtl ? 'لوحة التوصيل' : 'Delivery'}
-                </button>
-              )}
-
-              {/* زر الملف الشخصي للجميع */}
+              {/* زر دخول اللوحة أو الحساب */}
               <button
-                onClick={() => setView('profile')}
-                style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', background: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}
+                onClick={() => {
+                  if (session.role === 'admin' || session.email?.endsWith('@admin.mawjood.com')) setView('admin');
+                  else if (session.role === 'driver' || session.email?.endsWith('@driver.mawjood.com')) setView('driver');
+                  else if (session.role === 'garage') setView('dashboard');
+                  else setView('profile');
+                }}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#1f3a5f',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
               >
-                👤 {isRtl ? 'حسابي' : 'Profile'}
+                👤 {isRtl ? 'حسابي' : 'Account'}
               </button>
 
-              {/* زر خروج */}
+              {/* 🚪 زر الخروج المحدث بشكل كامل وواضح */}
               <button
                 onClick={onLogout}
-                style={{ padding: '8px 12px', borderRadius: '10px', border: 'none', backgroundColor: '#fdecec', color: '#d1453b', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+                title={isRtl ? 'تسجيل الخروج من الحساب' : 'Logout'}
+                style={{
+                  padding: '9px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid #fecaca',
+                  backgroundColor: '#fef2f2',
+                  color: '#dc2626',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'all 0.2s'
+                }}
               >
-                🚪
+                🚪 {isRtl ? 'خروج' : 'Logout'}
               </button>
+
             </div>
           ) : (
             <button
               onClick={() => setView('auth')}
-              style={{ padding: '9px 18px', borderRadius: '10px', border: 'none', backgroundColor: '#1f3a5f', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
+              style={{
+                padding: '9px 18px',
+                borderRadius: '10px',
+                border: 'none',
+                backgroundColor: '#1f3a5f',
+                color: '#ffffff',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}
             >
-              🔑 {isRtl ? 'دخول / تسجيل' : 'Login / Register'}
+              🔑 {isRtl ? 'دخول / تسجيل' : 'Login'}
             </button>
           )}
 
@@ -124,3 +184,5 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+
+export default Header;
