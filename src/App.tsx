@@ -1,4 +1,3 @@
-import { StaticPages, StaticPageView } from './components/StaticPages';
 import { useState, useEffect } from 'react';
 import { WelcomeModal } from './components/WelcomeModal';
 import { Header } from './components/Header';
@@ -11,6 +10,7 @@ import { CustomerOrderTracker } from './components/CustomerOrderTracker';
 import { DeliveryDashboard } from './components/DeliveryDashboard';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
+import { StaticPages, type StaticPageView } from './components/StaticPages';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -146,8 +146,8 @@ export default function App() {
         <Header 
           lang={lang} 
           setLang={setLang} 
-          view={view} 
-          setView={setView} 
+          view={view as any} 
+          setView={setView as any} 
           session={session} 
           cartCount={totalCartCount} 
           onOpenCart={() => setIsCartOpen(true)} 
@@ -278,13 +278,13 @@ export default function App() {
           )}
 
           {/* 📄 عرض الصفحات التعريفية والمعلومات */}
-{['contact', 'faq', 'articles', 'about', 'privacy', 'terms', 'news'].includes(view) && (
-  <StaticPages 
-    lang={lang} 
-    view={view as StaticPageView} 
-    onNavigate={(v) => setView(v)} 
-  />
-)}
+          {['contact', 'faq', 'articles', 'about', 'privacy', 'terms', 'news'].includes(view) && (
+            <StaticPages 
+              lang={lang} 
+              view={view as StaticPageView} 
+              onNavigate={(v) => setView(v as any)} 
+            />
+          )}
 
           {view === 'shop' && (
             <div style={{ marginTop: '20px', width: '100%' }}>
@@ -357,7 +357,7 @@ export default function App() {
         <Footer 
           lang={lang} 
           siteSettings={siteSettings} 
-          onNavigate={(v) => setView(v)} 
+          onNavigate={(v) => setView(v as any)} 
           session={session} 
         />
 
