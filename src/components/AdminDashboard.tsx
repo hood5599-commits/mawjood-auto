@@ -11,7 +11,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, supabaseUrl, apiKey, siteSettings, onUpdateSettings }) => {
   const isRtl = lang === 'ar';
-  const [activeTab, setActiveTab] = useState<'social' | 'parts' | 'users'>('social');
+  const [activeTab, setActiveTab] = useState<'social' | 'parts'>('social');
 
   // بيانات السوشيال ميديا والإعدادات
   const [facebook, setFacebook] = useState(siteSettings?.facebook || '');
@@ -19,7 +19,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, supabaseUr
   const [twitter, setTwitter] = useState(siteSettings?.twitter || '');
   const [whatsapp, setWhatsapp] = useState(siteSettings?.whatsapp || '');
 
-  // قوائم القطع والمستخدمين
+  // قوائم القطع
   const [parts, setParts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
@@ -29,13 +29,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, supabaseUr
   }, []);
 
   const fetchParts = async () => {
+    setLoading(true);
     try {
       const res = await fetch(`${supabaseUrl}/parts?select=*`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
       });
       const data = await res.json();
       if (Array.isArray(data)) setParts(data);
-    } catch (e) {}
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeletePart = async (id: number) => {
@@ -47,7 +52,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, supabaseUr
       });
       setParts(parts.filter(p => p.id !== id));
       alert(isRtl ? 'تم حذف القطعة بنجاح' : 'Part deleted');
-    } catch (e) {}
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSaveSocial = (e: React.FormEvent) => {
@@ -134,19 +141,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, supabaseUr
       {activeTab === 'parts' && (
         <div>
           <h3>📦 {isRtl ? 'جميع قطع الغيار المعروضة بالموقع' : 'All Listed Parts'}</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
-            {parts.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
-                <div>
-                  <strong style={{ fontSize: '14px', color: '#1e293b' }}>{p.name}</strong>
-                  <span style={{ fontSize: '12px', color: '#64748b', display: 'block' }}>{p.make} - {p.model} | السعر: {p.price} QAR</span>
+          {loading ? (
+            <p style={{ color: '#64748b' }}>{isRtl ? 'جاري تحميل البيانات...' : 'Loading parts...'}</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+              {parts.map(p => (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: '#f8fafc' }}>
+                  <div>
+                    <strong style={{ fontSize: '14px', color: '#1e293b' }}>{p.name}</strong>
+                    <span style={{ fontSize: '12px', color: '#64748b', display: 'block' }}>{p.make} - {p.model} | السعر: {p.price} QAR</span>
+                  </div>
+                  <button onClick={() => handleDeletePart(p.id)} style={{ backgroundColor: '#fdecec', color: '#d1453b', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
+                    🗑️ {isRtl ? 'حذف القطعة' : 'Delete'}
+                  </button>
                 </div>
-                <button onClick={() => handleDeletePart(p.id)} style={{ backgroundColor: '#fdecec', color: '#d1453b', border: 'none', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
-                  🗑️ {isRtl ? 'حذف القطعة' : 'Delete'}
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
