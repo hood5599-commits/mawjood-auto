@@ -277,12 +277,13 @@ export default function App() {
             />
           )}
 
-          {/* 📄 عرض الصفحات التعريفية والمعلومات */}
+          {/* 📄 عرض الصفحات التعريفية والمعلومات مع تمرير siteSettings */}
           {['contact', 'faq', 'articles', 'about', 'privacy', 'terms', 'news'].includes(view) && (
             <StaticPages 
               lang={lang} 
               view={view as StaticPageView} 
               onNavigate={(v) => setView(v as any)} 
+              siteSettings={siteSettings}
             />
           )}
 
