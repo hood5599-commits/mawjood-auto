@@ -10,7 +10,7 @@ interface CheckoutProps {
   session: any;
   siteSettings?: any;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (addedToCartPart?: any) => void;
 }
 
 export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
@@ -34,6 +34,12 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   const [vinNumber, setVinNumber] = useState('');
   const [notes, setNotes] = useState('');
 
+  // 📸 حالات رفع الصور (القطعة القديمة + الاستمارة)
+  const [oldPartImg, setOldPartImg] = useState('');
+  const [carRegistrationImg, setCarRegistrationImg] = useState('');
+  const [uploadingOldPart, setUploadingOldPart] = useState(false);
+  const [uploadingReg, setUploadingReg] = useState(false);
+
   // إعدادات الشحن والدفع
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
   const [addressDetails, setAddressDetails] = useState('');
@@ -53,7 +59,44 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   const deliveryFee = deliveryType === 'delivery' ? 35 : 0;
   const totalPrice = (Number(part?.price) || 0) + deliveryFee;
 
-  // 1️⃣ إرسال استفسار فحص التوافق للكراج
+  // 📸 دالة رفع الصور المباشرة لـ Supabase Storage
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'old_part' | 'reg') => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    if (target === 'old_part') setUploadingOldPart(true);
+    else setUploadingReg(true);
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+
+    try {
+      const uploadUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/part-images/${fileName}`;
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': file.type
+        },
+        body: file
+      });
+
+      if (response.ok) {
+        const publicUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/part-images/${fileName}`;
+        if (target === 'old_part') setOldPartImg(publicUrl);
+        else setCarRegistrationImg(publicUrl);
+      }
+    } catch (err) {
+      alert(isRtl ? 'حدث خطأ أثناء رفع الصورة' : 'Image upload failed');
+    } finally {
+      if (target === 'old_part') setUploadingOldPart(false);
+      else setUploadingReg(false);
+    }
+  };
+
+  // 1️⃣ إرسال استفسار فحص التوافق + إضافة أوتوماتيكية للسلة
   const handleSendInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -74,6 +117,8 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         car_year: carYear,
         vin_number: vinNumber.trim().toUpperCase() || null,
         customer_notes: notes || null,
+        old_part_img: oldPartImg || null,
+        car_registration_img: carRegistrationImg || null,
         status: 'pending_check'
       };
 
@@ -85,6 +130,8 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
       setCreatedOrderCode(inqCode);
       setStep('success');
+      // 🛒 إضافة القطعة للسلة أوتوماتيكياً
+      onSuccess(part);
     } catch (e) {
       alert(isRtl ? 'حدث خطأ أثناء تقديم الاستفسار' : 'Failed to send inquiry');
     } finally {
@@ -92,8 +139,13 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     }
   };
 
-  // 2️⃣ إتمام الدفع وإنشاء الطلب النهائي
+  // 2️⃣ إتمام الدفع التنفيذي وإرسال الطلب للكراج
   const handleFinalCheckout = async () => {
+    if (deliveryType === 'delivery' && !addressDetails.trim()) {
+      alert(isRtl ? 'يرجى إدخال عنوان التوصيل بالتفصيل' : 'Please enter delivery address');
+      return;
+    }
+
     setLoading(true);
     const ordCode = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
     const pickupCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -113,17 +165,26 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         status: 'pending'
       };
 
-      await fetch(`${supabaseUrl}/orders`, {
+      const res = await fetch(`${supabaseUrl}/orders`, {
         method: 'POST',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
         body: JSON.stringify(payload)
       });
 
-      setCreatedOrderCode(ordCode);
-      setStep('success');
-      onSuccess();
+      if (res.ok) {
+        setCreatedOrderCode(ordCode);
+        setStep('success');
+        onSuccess();
+      } else {
+        alert(isRtl ? 'حدث خطأ أثناء معالجة الدفع، يرجى المحاولة لاحقاً' : 'Order creation failed');
+      }
     } catch (e) {
-      alert(isRtl ? 'حدث خطأ أثناء تنفيذ الدفع' : 'Payment process failed');
+      alert(isRtl ? 'حدث خطأ أثناء تنفيذ الطلب' : 'Payment process failed');
     } finally {
       setLoading(false);
     }
@@ -164,6 +225,25 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               />
             </div>
 
+            {/* 📸 رفع صورة القطعة القديمة وصورة الاستمارة */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>📸 صورة القطعة القديمة:</label>
+                <div style={{ border: '1px dashed #cbd5e0', padding: '10px', borderRadius: '8px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
+                  <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'old_part')} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingOldPart} />
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>{uploadingOldPart ? 'جاري الرفع...' : oldPartImg ? '✅ تم الرفع' : 'اختر صورة 📷'}</span>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>📄 صورة الاستمارة:</label>
+                <div style={{ border: '1px dashed #cbd5e0', padding: '10px', borderRadius: '8px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
+                  <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'reg')} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingReg} />
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>{uploadingReg ? 'جاري الرفع...' : carRegistrationImg ? '✅ تم الرفع' : 'اختر صورة 📄'}</span>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>💬 ملاحظات إضافية للكراج (اختياري):</label>
               <textarea
@@ -177,7 +257,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button type="submit" disabled={loading} style={{ flex: 1, padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {loading ? '...' : (isRtl ? '🔍 إرسال فحص التوافق للكراج' : 'Send Fitment Check')}
+                {loading ? '...' : (isRtl ? '🔍 إرسال وإضافة للسلة' : 'Send & Add to Cart')}
               </button>
               <button type="button" onClick={() => setStep('checkout')} style={{ padding: '12px 18px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
                 🚀 {isRtl ? 'تخطي والدفع فوراً' : 'Direct Pay'}
@@ -195,12 +275,14 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>🚚 طريقة استلام القطعة:</label>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
+                  type="button"
                   onClick={() => setDeliveryType('delivery')}
                   style={{ flex: 1, padding: '12px', borderRadius: '10px', border: deliveryType === 'delivery' ? '2px solid #1f3a5f' : '1px solid #cbd5e0', backgroundColor: deliveryType === 'delivery' ? '#e8f2fc' : '#ffffff', color: '#1f3a5f', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
                 >
                   🚚 توصيل لموقعي (35 QAR)
                 </button>
                 <button
+                  type="button"
                   onClick={() => setDeliveryType('pickup')}
                   style={{ flex: 1, padding: '12px', borderRadius: '10px', border: deliveryType === 'pickup' ? '2px solid #1f3a5f' : '1px solid #cbd5e0', backgroundColor: deliveryType === 'pickup' ? '#e8f2fc' : '#ffffff', color: '#1f3a5f', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
                 >
@@ -229,9 +311,9 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 
-                {/* 🍏 Apple Pay */}
                 {isOnlinePaymentEnabled && showApplePay && (
                   <button
+                    type="button"
                     onClick={() => setPaymentMethod('apple_pay')}
                     style={{
                       padding: '14px', borderRadius: '12px', border: paymentMethod === 'apple_pay' ? '2px solid #000000' : '1px solid #cbd5e0',
@@ -242,9 +324,9 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                   </button>
                 )}
 
-                {/* 🌐 Google Pay */}
                 {isOnlinePaymentEnabled && showGooglePay && (
                   <button
+                    type="button"
                     onClick={() => setPaymentMethod('google_pay')}
                     style={{
                       padding: '13px', borderRadius: '12px', border: paymentMethod === 'google_pay' ? '2px solid #4285F4' : '1px solid #cbd5e0',
@@ -255,9 +337,9 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                   </button>
                 )}
 
-                {/* 💳 بطاقة ائتمانية / مدى */}
                 {isOnlinePaymentEnabled && showCards && (
                   <button
+                    type="button"
                     onClick={() => setPaymentMethod('card')}
                     style={{
                       padding: '12px 16px', borderRadius: '12px', border: paymentMethod === 'card' ? '2px solid #1f3a5f' : '1px solid #cbd5e0',
@@ -269,9 +351,9 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                   </button>
                 )}
 
-                {/* 💵 الدفع عند الاستلام */}
                 {showCOD && (
                   <button
+                    type="button"
                     onClick={() => setPaymentMethod('cod')}
                     style={{
                       padding: '12px 16px', borderRadius: '12px', border: paymentMethod === 'cod' ? '2px solid #e0872a' : '1px solid #cbd5e0',
@@ -304,12 +386,14 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               </div>
             </div>
 
+            {/* 🚀 زر تنفيذ وتأكيد الطلب */}
             <button
+              type="button"
               onClick={handleFinalCheckout}
               disabled={loading}
               style={{ padding: '14px', backgroundColor: '#1e9d6b', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', width: '100%' }}
             >
-              {loading ? 'جاري تنفيذ العملية...' : `🚀 تأكيد وإتمام الشراء (${totalPrice} QAR)`}
+              {loading ? 'جاري تنفيذ الطلب وتنبيه الكراج...' : `🚀 تأكيد وإتمام الشراء (${totalPrice} QAR)`}
             </button>
 
           </div>
@@ -320,14 +404,14 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
           <div style={{ textAlign: 'center', padding: '20px 10px' }}>
             <span style={{ fontSize: '54px' }}>🎉</span>
             <h3 style={{ color: '#1e9d6b', margin: '10px 0 6px 0' }}>
-              {isRtl ? 'تم تسجيل الطلب بنجاح!' : 'Order Placed Successfully!'}
+              {isRtl ? 'تم إرسال طلبك للكراج بنجاح!' : 'Order Placed Successfully!'}
             </h3>
             <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '16px' }}>
-              {isRtl ? `رمز العملية الخاص بك هو: ` : `Your order code is: `}
+              {isRtl ? `كود العملية الخاص بك هو: ` : `Your order code is: `}
               <strong style={{ color: '#1f3a5f' }}>{createdOrderCode}</strong>
             </p>
             <p style={{ fontSize: '12.5px', color: '#94a3b8', marginBottom: '24px' }}>
-              يمكنك متابعة حالة الطلب أو استفسار التوافق في أي وقت من زر "متابعة طلباتي" بالأعلى.
+              تم حفظ القطعة بداخل سلتك وتنبيه الكراج فوراً لتجهيزها للشحن.
             </p>
 
             <button onClick={onClose} style={{ padding: '12px 32px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
