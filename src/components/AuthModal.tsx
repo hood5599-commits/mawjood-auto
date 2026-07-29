@@ -92,7 +92,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ lang, authUrl, apiKey, onS
           </label>
           <input
             type="text"
-            placeholder={isRtl ? 'مثال: 60065058' : 'e.g., 60065058'}
+            placeholder={isRtl ? 'مثال: رقم الهاتف او الايميل' : 'e.g., 00000000'}
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }}
