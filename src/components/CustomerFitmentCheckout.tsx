@@ -1,566 +1,344 @@
 import React, { useState } from 'react';
 
-interface PartItem {
-  id: number;
-  inquiry_id?: number;
-  name: string;
-  price: number;
-  make: string;
-  model: string;
-  year: string;
-  engine?: string;
-  image_url?: string;
-  user_id: string;
-  part_number?: string;
-}
-
-interface Props {
+interface CheckoutProps {
   lang: 'ar' | 'en';
-  part: PartItem;
+  part: any;
+  initialStep?: 'inquire' | 'checkout';
   customerPhone: string;
   supabaseUrl: string;
   apiKey: string;
   session: any;
+  siteSettings?: any;
   onClose: () => void;
   onSuccess: () => void;
-  initialStep?: 'inquire' | 'checkout';
 }
 
-export const CustomerFitmentCheckout: React.FC<Props> = ({
+export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   lang,
   part,
+  initialStep = 'inquire',
   customerPhone,
   supabaseUrl,
   apiKey,
   session,
+  siteSettings,
   onClose,
-  onSuccess,
-  initialStep = 'inquire'
+  onSuccess
 }) => {
-  const [activeStep, setActiveStep] = useState<'inquire' | 'checkout'>(initialStep);
-
-  const [carMake, setCarMake] = useState(part.make || '');
-  const [carModel, setCarModel] = useState(part.model || '');
-  const [carYear, setCarYear] = useState(part.year || '');
-  const [vinNumber, setVinNumber] = useState('');
-  const [customerNotes, setCustomerNotes] = useState('');
-  const [estimaraImg, setEstimaraImg] = useState('');
-  const [oldPartImg, setOldPartImg] = useState('');
-  const [uploadingImg, setUploadingImg] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup_hq'>('delivery');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
-  const [addressDetails, setAddressDetails] = useState('');
-  const [locationLat, setLocationLat] = useState<number | null>(null);
-  const [locationLng, setLocationLng] = useState<number | null>(null);
-
   const isRtl = lang === 'ar';
 
-  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>, setImgFn: (url: string) => void) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    setUploadingImg(true);
+  const [step, setStep] = useState<'inquire' | 'checkout' | 'success'>(initialStep);
+  const [carMake, setCarMake] = useState(part?.make || '');
+  const [carModel, setCarModel] = useState(part?.model || '');
+  const [carYear, setCarYear] = useState(part?.year || '');
+  const [vinNumber, setVinNumber] = useState('');
+  const [notes, setNotes] = useState('');
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `fitment-${Date.now()}-${Math.random().toString(36).substring(2, 6)}.${fileExt}`;
-    try {
-      const uploadUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/part-images/${fileName}`;
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': file.type },
-        body: file
-      });
-      if (response.ok) {
-        setImgFn(`${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/part-images/${fileName}`);
-        alert(lang === 'ar' ? 'تم رفع الصورة بنجاح!' : 'Image uploaded!');
-      }
-    } catch (err) {
-      alert('Error uploading image');
-    } finally {
-      setUploadingImg(false);
-    }
-  };
+  // إعدادات الشحن والدفع
+  const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
+  const [addressDetails, setAddressDetails] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'apple_pay' | 'google_pay' | 'card' | 'cod'>('apple_pay');
 
-  const handleGetLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocationLat(position.coords.latitude);
-          setLocationLng(position.coords.longitude);
-          alert(lang === 'ar' ? 'تم تحديد موقعك الجغرافي بنجاح! 📍' : 'Location captured!');
-        },
-        () => {
-          alert(lang === 'ar' ? 'تعذر الحصول على الموقع أوتوماتيكياً، يرجى كتابة العنوان نصياً' : 'Please type address details');
-        }
-      );
-    }
-  };
+  const [loading, setLoading] = useState(false);
+  const [createdOrderCode, setCreatedOrderCode] = useState('');
 
-  const handleSendFitmentInquiry = async (e: React.FormEvent) => {
+  // قراءة صلاحيات الدفع المفعلة من الأدمن
+  const isOnlinePaymentEnabled = siteSettings?.enableOnlinePayment ?? true;
+  const showApplePay = siteSettings?.enableApplePay ?? true;
+  const showGooglePay = siteSettings?.enableGooglePay ?? true;
+  const showCards = siteSettings?.enableCards ?? true;
+  const showCOD = siteSettings?.enableCOD ?? true;
+
+  // حساب الإجمالي
+  const deliveryFee = deliveryType === 'delivery' ? 35 : 0;
+  const totalPrice = (Number(part?.price) || 0) + deliveryFee;
+
+  // 1️⃣ إرسال استفسار فحص التوافق للكراج
+  const handleSendInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    const inquiryCode = `INQ-${Math.floor(1000 + Math.random() * 9000)}`;
+    const inqCode = `INQ-${Math.floor(100000 + Math.random() * 900000)}`;
 
     try {
       const payload = {
-        inquiry_code: inquiryCode,
-        part_id: Number(part.id),
-        garage_id: String(part.user_id || 'unknown_garage'),
-        customer_phone: customerPhone || '55000000',
+        inquiry_code: inqCode,
+        part_id: part.id,
         part_name: part.name,
-        part_image: part.image_url || '',
-        part_price: part.price || 0,
-        part_number: part.part_number || '',
+        part_number: part.part_number,
+        part_price: part.price,
+        part_image: part.image_url,
+        garage_id: part.user_id || 'garage',
+        customer_phone: customerPhone,
         car_make: carMake,
         car_model: carModel,
         car_year: carYear,
-        vin_number: vinNumber.trim() || null,
-        car_registration_img: estimaraImg || null,
-        old_part_img: oldPartImg || null,
-        customer_notes: customerNotes.trim() || null,
+        vin_number: vinNumber.trim().toUpperCase() || null,
+        customer_notes: notes || null,
         status: 'pending_check'
       };
 
-      const response = await fetch(`${supabaseUrl}/fitment_inquiries`, {
+      await fetch(`${supabaseUrl}/fitment_inquiries`, {
         method: 'POST',
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
-        alert(lang === 'ar' ? `تم إرسال طلب التوافق للبائع بنجاح! 🚀\nكود الاستفسار: ${inquiryCode}\nتجد استفسارك في "متابعة طلباتي"` : 'Inquiry sent successfully!');
-        onSuccess();
-        onClose();
-      } else {
-        const errJson = await response.json().catch(() => ({}));
-        alert(`خطأ: ${errJson.message || 'فشل الإرسال'}`);
-      }
-    } catch (err: any) {
-      alert('خطأ في الاتصال');
+      setCreatedOrderCode(inqCode);
+      setStep('success');
+    } catch (e) {
+      alert(isRtl ? 'حدث خطأ أثناء تقديم الاستفسار' : 'Failed to send inquiry');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCompleteOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 2️⃣ إتمام الدفع وإنشاء الطلب النهائي
+  const handleFinalCheckout = async () => {
     setLoading(true);
-
-    const orderCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-    const pickupCode = `PK-${Math.floor(100 + Math.random() * 900)}`;
-    const deliveryCode = `DEL-${Math.floor(100 + Math.random() * 900)}`;
+    const ordCode = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+    const pickupCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     try {
       const payload = {
-        order_code: orderCode,
-        pickup_code: pickupCode,
-        delivery_code: deliveryCode,
+        order_code: ordCode,
+        part_id: part.id,
         part_name: part.name,
-        price: part.price,
-        garage_id: part.user_id,
+        price: totalPrice,
+        garage_id: part.user_id || 'garage',
         customer_phone: customerPhone,
         delivery_type: deliveryType,
+        address_details: deliveryType === 'delivery' ? addressDetails : 'استلام من المقر',
         payment_method: paymentMethod,
-        payment_status: paymentMethod === 'cash' ? 'pending' : 'paid',
-        escrow_status: 'held',
-        location_lat: locationLat,
-        location_lng: locationLng,
-        address_details: addressDetails || (deliveryType === 'pickup_hq' ? 'استلام من مقر موجود أووتو' : 'توصيل للموقع'),
+        pickup_code: pickupCode,
         status: 'pending'
       };
 
-      const response = await fetch(`${supabaseUrl}/orders`, {
+      await fetch(`${supabaseUrl}/orders`, {
         method: 'POST',
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
-        // 🔥 تحويل حالة الاستفسار إلى تم الشراء ليختفي تلقائياً من قائمة الاستفسارات المعلقة
-        if (part.inquiry_id) {
-          await fetch(`${supabaseUrl}/fitment_inquiries?id=eq.${part.inquiry_id}`, {
-            method: 'PATCH',
-            headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'ordered' })
-          }).catch(() => {});
-        }
-
-        alert(
-          lang === 'ar' 
-            ? `مبروك! تم إتمام طلبك بنجاح 🎉\nرمز الطلب: ${orderCode}\nرمز كود التسليم الخاص بك: ${deliveryCode}` 
-            : 'Order placed successfully!'
-        );
-        onSuccess();
-        onClose();
-      } else {
-        const errJson = await response.json().catch(() => ({}));
-        alert(`خطأ: ${errJson.message || 'فشل إتمام الطلب'}`);
-      }
-    } catch (err) {
-      alert('Error placing order');
+      setCreatedOrderCode(ordCode);
+      setStep('success');
+      onSuccess();
+    } catch (e) {
+      alert(isRtl ? 'حدث خطأ أثناء تنفيذ الدفع' : 'Payment process failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <style>{`
-        .mwj-fc-overlay {
-          position: fixed; inset: 0;
-          background: rgba(15,23,32,0.72);
-          backdrop-filter: blur(4px);
-          -webkit-backdrop-filter: blur(4px);
-          display: flex; justify-content: center; align-items: center;
-          z-index: 1000; padding: 20px;
-          animation: mwj-fc-fade 0.18s ease;
-          font-family: 'Cairo', 'Segoe UI', sans-serif;
-        }
-        @keyframes mwj-fc-fade { from { opacity: 0; } to { opacity: 1; } }
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Cairo, sans-serif' }}>
+      <div style={{ width: '100%', maxWidth: '580px', backgroundColor: '#ffffff', borderRadius: '24px', padding: '26px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', direction: isRtl ? 'rtl' : 'ltr', maxHeight: '90vh', overflowY: 'auto' }}>
+        
+        {/* هيدر المودال */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px', marginBottom: '20px' }}>
+          <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
+            {step === 'inquire' ? (isRtl ? '🔍 فحص مطابقة القطعة مع رقم الشاصي' : 'Check Fitment & VIN') : (isRtl ? '💳 إتمام الشراء والدفع الإلكتروني' : 'Checkout & Payment')}
+          </h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
+        </div>
 
-        .mwj-fc-modal {
-          background: white; border-radius: 22px; padding: 28px;
-          max-width: 600px; width: 92%; max-height: 90vh; overflow-y: auto;
-          box-shadow: 0 24px 60px rgba(0,0,0,0.32);
-          position: relative;
-          animation: mwj-fc-in 0.22s ease;
-        }
-        @keyframes mwj-fc-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-
-        .mwj-fc-close {
-          position: absolute; top: 16px; border: none;
-          background: #f1f5f9; border-radius: 50%; width: 34px; height: 34px;
-          cursor: pointer; font-weight: 800; color: #64748b;
-          transition: all 0.18s ease;
-        }
-        .mwj-fc-close:hover { background: #e2e8f0; color: #1F3A5F; transform: rotate(90deg); }
-
-        .mwj-fc-part-card {
-          display: flex; gap: 16px; padding: 14px;
-          background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
-          border-radius: 14px; border: 1px solid #e2e8f0;
-          margin-bottom: 22px; align-items: center;
-        }
-        .mwj-fc-part-img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
-        .mwj-fc-part-name { margin: 0 0 4px 0; font-size: 16px; color: #16304f; font-weight: 800; }
-        .mwj-fc-part-vehicle { font-size: 12.5px; color: #718096; }
-        .mwj-fc-part-price { font-size: 16px; font-weight: 800; color: #E0872A; margin-top: 5px; }
-
-        .mwj-fc-tabs {
-          display: flex; gap: 8px; margin-bottom: 22px;
-          border-bottom: 2px solid #f1f5f9; padding-bottom: 14px;
-        }
-        .mwj-fc-tab {
-          flex: 1; padding: 12px; border-radius: 12px; border: none;
-          font-weight: 800; cursor: pointer; font-size: 13.5px;
-          transition: all 0.2s ease; background: #f7fafc; color: #4a5568;
-        }
-        .mwj-fc-tab:hover { transform: translateY(-1px); }
-        .mwj-fc-tab-inquire-active {
-          background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%) !important;
-          color: white !important;
-          box-shadow: 0 6px 16px rgba(107,70,193,0.3);
-        }
-        .mwj-fc-tab-checkout-active {
-          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%) !important;
-          color: white !important;
-          box-shadow: 0 6px 16px rgba(34,163,90,0.3);
-        }
-
-        .mwj-fc-intro { margin: 0 0 4px 0; font-size: 13px; color: #64748b; line-height: 1.6; }
-
-        .mwj-fc-form { display: flex; flex-direction: column; gap: 16px; }
-        .mwj-fc-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        .mwj-fc-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-        .mwj-fc-label { display: block; font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 6px; }
-
-        .mwj-fc-input, .mwj-fc-textarea {
-          width: 100%; padding: 10px 12px; border-radius: 9px;
-          border: 1.5px solid #e2e8f0; box-sizing: border-box; font-size: 13.5px;
-          font-family: inherit; transition: border-color 0.18s ease, box-shadow 0.18s ease;
-          color: #1F3A5F;
-        }
-        .mwj-fc-input:focus, .mwj-fc-textarea:focus {
-          outline: none; border-color: #E0872A; box-shadow: 0 0 0 3px rgba(224,135,42,0.14);
-        }
-        .mwj-fc-input-mono { font-family: 'Courier New', monospace; }
-        .mwj-fc-textarea { height: 64px; resize: vertical; }
-
-        .mwj-fc-upload-box {
-          border: 1.5px dashed #cbd5e0; border-radius: 10px; padding: 10px;
-          transition: border-color 0.18s ease, background-color 0.18s ease;
-        }
-        .mwj-fc-upload-box:hover { border-color: #E0872A; background: #fffaf3; }
-        .mwj-fc-upload-ok { color: #22a35a; font-size: 11.5px; font-weight: 700; display: block; margin-top: 5px; }
-
-        .mwj-fc-submit-purple {
-          width: 100%; padding: 13px; border: none; border-radius: 12px;
-          font-weight: 800; font-size: 15px; cursor: pointer; color: white;
-          background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%);
-          box-shadow: 0 8px 20px rgba(107,70,193,0.3);
-          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-        }
-        .mwj-fc-submit-purple:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.05); }
-        .mwj-fc-submit-purple:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
-        .mwj-fc-submit-green {
-          width: 100%; padding: 15px; border: none; border-radius: 13px;
-          font-weight: 800; font-size: 16px; cursor: pointer; color: white;
-          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%);
-          box-shadow: 0 8px 20px rgba(34,163,90,0.32);
-          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-        }
-        .mwj-fc-submit-green:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.05); }
-        .mwj-fc-submit-green:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
-        .mwj-fc-option-row { display: flex; gap: 10px; }
-        .mwj-fc-option-btn {
-          flex: 1; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 13px;
-          cursor: pointer; transition: all 0.2s ease; background: #f7fafc;
-          color: #4a5568; border: 1.5px solid #e2e8f0;
-        }
-        .mwj-fc-option-btn:hover { transform: translateY(-1px); }
-        .mwj-fc-option-blue-active {
-          border-color: #3182ce !important; background: #ebf8ff !important; color: #2b6cb0 !important;
-          box-shadow: 0 4px 14px rgba(49,130,206,0.18);
-        }
-        .mwj-fc-option-green-active {
-          border-color: #22a35a !important; background: #f0fff4 !important; color: #276749 !important;
-          box-shadow: 0 4px 14px rgba(34,163,90,0.18);
-        }
-        .mwj-fc-option-orange-active {
-          border-color: #E0872A !important; background: #fffaf0 !important; color: #c05621 !important;
-          box-shadow: 0 4px 14px rgba(224,135,42,0.18);
-        }
-
-        .mwj-fc-address-panel {
-          background: linear-gradient(135deg, #ebf8ff 0%, #e1f0fc 100%);
-          padding: 14px; border-radius: 12px; border: 1px solid #bee3f8;
-        }
-        .mwj-fc-gps-btn {
-          background: linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%);
-          color: white; border: none; border-radius: 8px; padding: 6px 12px;
-          font-size: 11px; font-weight: 800; cursor: pointer;
-          transition: transform 0.18s ease, filter 0.18s ease;
-        }
-        .mwj-fc-gps-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
-        .mwj-fc-gps-ok { color: #2b6cb0; font-size: 11.5px; margin-top: 6px; display: block; font-weight: 700; }
-
-        .mwj-fc-summary {
-          padding: 14px; background: #f7fafc; border-radius: 12px;
-          border: 1px solid #e2e8f0; font-size: 13.5px;
-        }
-        .mwj-fc-summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-        .mwj-fc-summary-protect { display: flex; justify-content: space-between; color: #22a35a; font-weight: 800; }
-
-        @media (max-width: 560px) {
-          .mwj-fc-modal { padding: 18px; border-radius: 18px; }
-          .mwj-fc-grid-3 { grid-template-columns: 1fr; }
-          .mwj-fc-grid-2 { grid-template-columns: 1fr; }
-          .mwj-fc-tabs { flex-direction: column; }
-          .mwj-fc-option-row { flex-direction: column; }
-        }
-      `}</style>
-
-      <div className="mwj-fc-overlay" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
-        <div className="mwj-fc-modal">
-
-          <button
-            onClick={onClose}
-            className="mwj-fc-close"
-            style={{ [isRtl ? 'left' : 'right']: '16px' }}
-          >✕</button>
-
-          <div className="mwj-fc-part-card">
-            <img src={part.image_url || 'https://via.placeholder.com/80'} alt={part.name} className="mwj-fc-part-img" />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h4 className="mwj-fc-part-name">{part.name}</h4>
-              <div className="mwj-fc-part-vehicle">🚘 {part.make} {part.model} ({part.year})</div>
-              <div className="mwj-fc-part-price">{part.price} QAR</div>
-            </div>
-          </div>
-
-          <div className="mwj-fc-tabs">
-            <button
-              type="button"
-              onClick={() => setActiveStep('inquire')}
-              className={`mwj-fc-tab ${activeStep === 'inquire' ? 'mwj-fc-tab-inquire-active' : ''}`}
-            >
-              ❓ {lang === 'ar' ? 'أسأل البائع هل تركب؟' : 'Ask Seller Fitment'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveStep('checkout')}
-              className={`mwj-fc-tab ${activeStep === 'checkout' ? 'mwj-fc-tab-checkout-active' : ''}`}
-            >
-              🛒 {lang === 'ar' ? 'إتمام الشراء والدفع' : 'Buy Now'}
-            </button>
-          </div>
-
-          {activeStep === 'inquire' && (
-            <form onSubmit={handleSendFitmentInquiry} className="mwj-fc-form">
-              <p className="mwj-fc-intro">
-                أرسل تفاصيل سيارتك للكراج. سيفحص الصور ويؤكد لك التوافق مع تحديد فترة الضمان قبل أن تدفع أي ريال!
-              </p>
-
-              <div className="mwj-fc-grid-3">
-                <div>
-                  <label className="mwj-fc-label">الماركة:</label>
-                  <input type="text" value={carMake} onChange={(e) => setCarMake(e.target.value)} className="mwj-fc-input" required />
-                </div>
-                <div>
-                  <label className="mwj-fc-label">الموديل:</label>
-                  <input type="text" value={carModel} onChange={(e) => setCarModel(e.target.value)} className="mwj-fc-input" required />
-                </div>
-                <div>
-                  <label className="mwj-fc-label">السنة:</label>
-                  <input type="text" value={carYear} onChange={(e) => setCarYear(e.target.value)} className="mwj-fc-input" required />
-                </div>
-              </div>
-
+        {/* 1️⃣ مرحلة الاستفسار وفحص التوافق */}
+        {step === 'inquire' && (
+          <form onSubmit={handleSendInquiry} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <img src={part?.image_url || 'https://via.placeholder.com/60'} alt={part?.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
               <div>
-                <label className="mwj-fc-label">رقم الشاصي VIN (اختياري لزيادة الدقة):</label>
+                <strong style={{ fontSize: '15px', color: '#1e293b' }}>{part?.name}</strong>
+                <span style={{ fontSize: '12.5px', color: '#64748b', display: 'block' }}>{part?.make} - {part?.model} ({part?.year})</span>
+                <span style={{ fontSize: '14px', color: '#e0872a', fontWeight: 'bold' }}>{part?.price} QAR</span>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>🔑 رقم الشاسي (VIN) لمطابقة القطعة 100%:</label>
+              <input
+                type="text"
+                placeholder="أدخل 17 حرفاً ورقماً الموجودة في استمارة السيارة..."
+                value={vinNumber}
+                onChange={(e) => setVinNumber(e.target.value)}
+                style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>💬 ملاحظات إضافية للكراج (اختياري):</label>
+              <textarea
+                rows={2}
+                placeholder="مثلاً: هل توجد فتحات حساسات؟ هل هي الجهة اليمين أم اليسار؟"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button type="submit" disabled={loading} style={{ flex: 1, padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {loading ? '...' : (isRtl ? '🔍 إرسال فحص التوافق للكراج' : 'Send Fitment Check')}
+              </button>
+              <button type="button" onClick={() => setStep('checkout')} style={{ padding: '12px 18px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                🚀 {isRtl ? 'تخطي والدفع فوراً' : 'Direct Pay'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* 2️⃣ مرحلة الشراء والدفع أونلاين */}
+        {step === 'checkout' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            
+            {/* خيارات الشحن والتوصيل */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>🚚 طريقة استلام القطعة:</label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => setDeliveryType('delivery')}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: deliveryType === 'delivery' ? '2px solid #1f3a5f' : '1px solid #cbd5e0', backgroundColor: deliveryType === 'delivery' ? '#e8f2fc' : '#ffffff', color: '#1f3a5f', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  🚚 توصيل لموقعي (35 QAR)
+                </button>
+                <button
+                  onClick={() => setDeliveryType('pickup')}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: deliveryType === 'pickup' ? '2px solid #1f3a5f' : '1px solid #cbd5e0', backgroundColor: deliveryType === 'pickup' ? '#e8f2fc' : '#ffffff', color: '#1f3a5f', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  🏪 استلام من مقر المعرض (مجاناً)
+                </button>
+              </div>
+            </div>
+
+            {deliveryType === 'delivery' && (
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>📍 عنوان التوصيل بالتفصيل (المنطقة / الشارع / المبنى):</label>
                 <input
                   type="text"
-                  placeholder="مثال: JTDKN3DU123456789"
-                  value={vinNumber}
-                  onChange={(e) => setVinNumber(e.target.value.toUpperCase())}
-                  className="mwj-fc-input mwj-fc-input-mono"
+                  placeholder="مثال: الدوحة، منطقة السد، شارع 840، مبنى 12"
+                  value={addressDetails}
+                  onChange={(e) => setAddressDetails(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', boxSizing: 'border-box' }}
+                  required
                 />
               </div>
+            )}
 
-              <div className="mwj-fc-grid-2">
-                <div className="mwj-fc-upload-box">
-                  <label className="mwj-fc-label">📸 صورة استمارة السيارة:</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleUploadImage(e, setEstimaraImg)} style={{ width: '100%', fontSize: '11px' }} disabled={uploadingImg} />
-                  {estimaraImg && <span className="mwj-fc-upload-ok">✓ تم الرفع</span>}
-                </div>
-
-                <div className="mwj-fc-upload-box">
-                  <label className="mwj-fc-label">📸 صورة القطعة القديمة:</label>
-                  <input type="file" accept="image/*" onChange={(e) => handleUploadImage(e, setOldPartImg)} style={{ width: '100%', fontSize: '11px' }} disabled={uploadingImg} />
-                  {oldPartImg && <span className="mwj-fc-upload-ok">✓ تم الرفع</span>}
-                </div>
-              </div>
-
-              <div>
-                <label className="mwj-fc-label">ملاحظات إضافية للبائع (اختياري):</label>
-                <textarea
-                  placeholder="مثال: السيارة 4 سلندر وارد الخليج..."
-                  value={customerNotes}
-                  onChange={(e) => setCustomerNotes(e.target.value)}
-                  className="mwj-fc-textarea"
-                />
-              </div>
-
-              <button type="submit" disabled={loading || uploadingImg} className="mwj-fc-submit-purple">
-                {loading ? 'جاري إرسال الاستفسار...' : '🚀 إرسال طلب التوافق للكراج'}
-              </button>
-            </form>
-          )}
-
-          {activeStep === 'checkout' && (
-            <form onSubmit={handleCompleteOrder} className="mwj-fc-form">
-
-              <div>
-                <label className="mwj-fc-label" style={{ fontSize: '13.5px', marginBottom: '10px' }}>
-                  🚚 خيار الاستلام والتوصيل:
-                </label>
-                <div className="mwj-fc-option-row">
+            {/* 💳 خيارات وسائل الدفع الإلكتروني المصممة بأناقة */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>💳 طريقة الدفع الأنسب لك:</label>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                
+                {/* 🍏 Apple Pay */}
+                {isOnlinePaymentEnabled && showApplePay && (
                   <button
-                    type="button"
-                    onClick={() => setDeliveryType('delivery')}
-                    className={`mwj-fc-option-btn ${deliveryType === 'delivery' ? 'mwj-fc-option-blue-active' : ''}`}
+                    onClick={() => setPaymentMethod('apple_pay')}
+                    style={{
+                      padding: '14px', borderRadius: '12px', border: paymentMethod === 'apple_pay' ? '2px solid #000000' : '1px solid #cbd5e0',
+                      backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                    }}
                   >
-                    🚚 توصيل لموقعي (مندوب)
+                    <span>🍏 الدفع السريع بـ</span> <strong>Apple Pay</strong>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeliveryType('pickup_hq')}
-                    className={`mwj-fc-option-btn ${deliveryType === 'pickup_hq' ? 'mwj-fc-option-green-active' : ''}`}
-                  >
-                    🏪 استلام من مقر موجود أووتو
-                  </button>
-                </div>
-              </div>
+                )}
 
+                {/* 🌐 Google Pay */}
+                {isOnlinePaymentEnabled && showGooglePay && (
+                  <button
+                    onClick={() => setPaymentMethod('google_pay')}
+                    style={{
+                      padding: '13px', borderRadius: '12px', border: paymentMethod === 'google_pay' ? '2px solid #4285F4' : '1px solid #cbd5e0',
+                      backgroundColor: '#ffffff', color: '#3c4043', fontWeight: 'bold', fontSize: '14.5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                    }}
+                  >
+                    <span>🌐 الدفع بـ</span> <strong>Google Pay</strong>
+                  </button>
+                )}
+
+                {/* 💳 بطاقة ائتمانية / مدى */}
+                {isOnlinePaymentEnabled && showCards && (
+                  <button
+                    onClick={() => setPaymentMethod('card')}
+                    style={{
+                      padding: '12px 16px', borderRadius: '12px', border: paymentMethod === 'card' ? '2px solid #1f3a5f' : '1px solid #cbd5e0',
+                      backgroundColor: paymentMethod === 'card' ? '#f0f7ff' : '#ffffff', color: '#1f3a5f', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                    }}
+                  >
+                    <span>💳 البطاقة البنكية (Visa / MasterCard / Mada)</span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>آمن 100%</span>
+                  </button>
+                )}
+
+                {/* 💵 الدفع عند الاستلام */}
+                {showCOD && (
+                  <button
+                    onClick={() => setPaymentMethod('cod')}
+                    style={{
+                      padding: '12px 16px', borderRadius: '12px', border: paymentMethod === 'cod' ? '2px solid #e0872a' : '1px solid #cbd5e0',
+                      backgroundColor: paymentMethod === 'cod' ? '#fffdf5' : '#ffffff', color: '#92400e', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                    }}
+                  >
+                    <span>💵 الدفع نقداً عند استلام القطعة (COD)</span>
+                    <span style={{ fontSize: '12px', color: '#e0872a' }}>نقدي</span>
+                  </button>
+                )}
+
+              </div>
+            </div>
+
+            {/* تفاصيل الحساب والإجمالي */}
+            <div style={{ backgroundColor: '#f8fafc', padding: '14px 18px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', color: '#64748b', marginBottom: '6px' }}>
+                <span>قيمة القطعة:</span>
+                <span>{part?.price} QAR</span>
+              </div>
               {deliveryType === 'delivery' && (
-                <div className="mwj-fc-address-panel">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ fontSize: '12.5px', fontWeight: 800, color: '#2b6cb0' }}>تفاصيل عنوانك بالتفصيل:</label>
-                    <button type="button" onClick={handleGetLocation} className="mwj-fc-gps-btn">
-                      📍 تحديد موقعي الحالي GPS
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="المدينة، المنطقة، الشارع، رقم المبنى..."
-                    value={addressDetails}
-                    onChange={(e) => setAddressDetails(e.target.value)}
-                    className="mwj-fc-input"
-                    style={{ background: 'white' }}
-                    required
-                  />
-                  {locationLat && <span className="mwj-fc-gps-ok">✓ تم التقاط إحداثيات الموقع (GPS)</span>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', color: '#64748b', marginBottom: '6px' }}>
+                  <span>رسوم التوصيل:</span>
+                  <span>35 QAR</span>
                 </div>
               )}
-
-              <div>
-                <label className="mwj-fc-label" style={{ fontSize: '13.5px', marginBottom: '10px' }}>
-                  💳 طريقة الدفع:
-                </label>
-                <div className="mwj-fc-option-row">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('cash')}
-                    className={`mwj-fc-option-btn ${paymentMethod === 'cash' ? 'mwj-fc-option-orange-active' : ''}`}
-                  >
-                    💵 كاش عند الاستلام
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('card')}
-                    className={`mwj-fc-option-btn ${paymentMethod === 'card' ? 'mwj-fc-option-blue-active' : ''}`}
-                  >
-                    💳 بطاقة بنكية / Apple Pay
-                  </button>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', color: '#1f3a5f', borderTop: '1px dashed #cbd5e0', paddingTop: '8px', marginTop: '6px' }}>
+                <span>المبلغ الإجمالي المستحق:</span>
+                <span style={{ color: '#e0872a' }}>{totalPrice} QAR</span>
               </div>
+            </div>
 
-              <div className="mwj-fc-summary">
-                <div className="mwj-fc-summary-row">
-                  <span>سعر القطعة:</span>
-                  <strong style={{ color: '#16304f' }}>{part.price} QAR</strong>
-                </div>
-                <div className="mwj-fc-summary-protect">
-                  <span>🛡️ حماية العميل (ضمان تجربة واسترجاع):</span>
-                  <span>مشمول مجاناً</span>
-                </div>
-              </div>
+            <button
+              onClick={handleFinalCheckout}
+              disabled={loading}
+              style={{ padding: '14px', backgroundColor: '#1e9d6b', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', width: '100%' }}
+            >
+              {loading ? 'جاري تنفيذ العملية...' : `🚀 تأكيد وإتمام الشراء (${totalPrice} QAR)`}
+            </button>
 
-              <button type="submit" disabled={loading} className="mwj-fc-submit-green">
-                {loading ? 'جاري إتمام الطلب...' : '🚀 تأكيد وإتمام طلب الشراء'}
-              </button>
+          </div>
+        )}
 
-            </form>
-          )}
+        {/* 3️⃣ مرحلة النجاح وتأكيد الطلب */}
+        {step === 'success' && (
+          <div style={{ textAlign: 'center', padding: '20px 10px' }}>
+            <span style={{ fontSize: '54px' }}>🎉</span>
+            <h3 style={{ color: '#1e9d6b', margin: '10px 0 6px 0' }}>
+              {isRtl ? 'تم تسجيل الطلب بنجاح!' : 'Order Placed Successfully!'}
+            </h3>
+            <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '16px' }}>
+              {isRtl ? `رمز العملية الخاص بك هو: ` : `Your order code is: `}
+              <strong style={{ color: '#1f3a5f' }}>{createdOrderCode}</strong>
+            </p>
+            <p style={{ fontSize: '12.5px', color: '#94a3b8', marginBottom: '24px' }}>
+              يمكنك متابعة حالة الطلب أو استفسار التوافق في أي وقت من زر "متابعة طلباتي" بالأعلى.
+            </p>
 
-        </div>
+            <button onClick={onClose} style={{ padding: '12px 32px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              {isRtl ? 'العودة للمتجر 🛒' : 'Back to Shop'}
+            </button>
+          </div>
+        )}
+
       </div>
-    </>
+    </div>
   );
 };
+
+export default CustomerFitmentCheckout;
