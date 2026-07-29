@@ -5,12 +5,12 @@ import { Logo } from './Logo';
 interface HeaderProps {
   lang: 'ar' | 'en';
   setLang: (lang: 'ar' | 'en') => void;
-  view: 'shop' | 'dashboard' | 'auth' | 'profile';
-  setView: (view: 'shop' | 'dashboard' | 'auth' | 'profile') => void;
+  view: 'shop' | 'dashboard' | 'auth' | 'profile' | 'driver';
+  setView: (view: 'shop' | 'dashboard' | 'auth' | 'profile' | 'driver') => void;
   session: any;
   onLogout: () => void;
-  cartCount: number;      // 👈 جديد: لمعرفة عدد القطع في السلة
-  onOpenCart: () => void; // 👈 جديد: لفتح نافذة السلة
+  cartCount: number;
+  onOpenCart: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ lang, setLang, view, setView, session, onLogout, cartCount, onOpenCart }) => {
@@ -48,6 +48,13 @@ export const Header: React.FC<HeaderProps> = ({ lang, setLang, view, setView, se
         {session && session.role === 'garage' && (
           <button onClick={() => setView('dashboard')} style={{ padding: '8px 15px', backgroundColor: view === 'dashboard' ? '#dd6b20' : 'transparent', color: 'white', border: view === 'dashboard' ? 'none' : '1px solid #4a5568', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>
             {t[lang]?.garagePanel || (lang === 'ar' ? 'لوحة الكراج' : 'Garage Panel')}
+          </button>
+        )}
+
+        {/* 🛵 زر لوحة المندوب */}
+        {session && (session.role === 'driver' || session.role === 'courier') && (
+          <button onClick={() => setView('driver')} style={{ padding: '8px 15px', backgroundColor: view === 'driver' ? '#805ad5' : 'transparent', color: 'white', border: view === 'driver' ? 'none' : '1px solid #4a5568', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>
+            🛵 {lang === 'ar' ? 'لوحة المندوب' : 'Driver Panel'}
           </button>
         )}
 
