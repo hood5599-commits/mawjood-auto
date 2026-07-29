@@ -318,7 +318,7 @@ export default function App() {
 
         </main>
 
-        {/* 💳 الشراء المباشر مع تمرير siteSettings لربط بوابات الدفع */}
+        {/* 💳 الشراء المباشر مع ربط إضافة السلة المباشرة وتمرير siteSettings */}
         {selectedPartForCheckout && (
           <CustomerFitmentCheckout
             lang={lang}
@@ -330,9 +330,18 @@ export default function App() {
             session={session}
             siteSettings={siteSettings}
             onClose={() => setSelectedPartForCheckout(null)}
-            onSuccess={() => {
-              const purchasedPartId = selectedPartForCheckout.part.id;
-              setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
+            onSuccess={(addedPart?: any) => {
+              // 🛒 إذا تم إرسال استفسار، تضاف القطعة مباشرة لسلة المشتريات
+              if (addedPart) {
+                setCartItems(prev => {
+                  if (prev.some(item => item.id === addedPart.id)) return prev;
+                  return [...prev, { ...addedPart, quantity: 1 }];
+                });
+              } else {
+                // عند الشراء والدفع النهائي، يتم إزالتها من السلة
+                const purchasedPartId = selectedPartForCheckout.part.id;
+                setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
+              }
               setSelectedPartForCheckout(null);
               fetchParts();
               setShowOrderTracker(true);
