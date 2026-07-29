@@ -8,92 +8,506 @@ interface CustomerProfileProps {
 }
 
 export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabaseUrl, apiKey, session }) => {
-  const [myOrders, setMyOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const isRtl = lang === 'ar';
+  const role = session?.role || session?.user?.user_metadata?.role || 'customer';
 
-  const customerId = session?.phone || session?.email || session?.user?.email || null;
+  // 1. البيانات الشخصية العامة
+  const [fullName, setFullName] = useState(session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.garage_name || '');
+  const [phone, setPhone] = useState(session?.phone || session?.user?.user_metadata?.phone || '');
+  const [garageName, setGarageName] = useState(session?.user?.user_metadata?.garage_name || '');
+  const [address, setAddress] = useState(session?.user?.user_metadata?.address || '');
+
+  // 2. بيانات المندوب الخاصة
+  const [vehicleType, setVehicleType] = useState(session?.user?.user_metadata?.vehicle_type || '');
+  const [plateNumber, setPlateNumber] = useState(session?.user?.user_metadata?.plate_number || '');
+  const [isDriverOnline, setIsDriverOnline] = useState<boolean>(session?.user?.user_metadata?.is_online ?? true);
+
+  // 3. الصور والتوثيق (السجل التجاري / البطاقة الشخصية)
+  const [documentImage, setDocumentImage] = useState<string>(
+    session?.user?.user_metadata?.cr_image || session?.user?.user_metadata?.id_card_image || ''
+  );
+
+  // 4. سيارات العميل (خاصة بالعملاء)
+  const [cars, setCars] = useState<any[]>(session?.user?.user_metadata?.cars || []);
+  const [newCarMake, setNewCarMake] = useState('');
+  const [newCarModel, setNewCarModel] = useState('');
+  const [newCarYear, setNewCarYear] = useState('');
+
+  // 5. كلمة المرور
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // 6. حالات الواجهة
+  const [loading, setLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    const fetchMyOrders = async () => {
-      if (!customerId) return;
-      try {
-        const response = await fetch(`${supabaseUrl}/orders?customer_phone=eq.${customerId}&order=id.desc`, {
-          headers: {
-            'apikey': apiKey,
-            'Authorization': `Bearer ${session?.token || apiKey}`
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setMyOrders(data);
-        }
-      } catch (error) {
-        console.error("Error fetching customer orders", error);
-      } finally {
-        setLoading(false);
+    if (session?.user?.user_metadata) {
+      const meta = session.user.user_metadata;
+      if (meta.full_name) setFullName(meta.full_name);
+      if (meta.garage_name) setGarageName(meta.garage_name);
+      if (meta.phone) setPhone(meta.phone);
+      if (meta.address) setAddress(meta.address);
+      if (meta.vehicle_type) setVehicleType(meta.vehicle_type);
+      if (meta.plate_number) setPlateNumber(meta.plate_number);
+      if (meta.cars) setCars(meta.cars);
+      if (meta.cr_image || meta.id_card_image) setDocumentImage(meta.cr_image || meta.id_card_image);
+    }
+  }, [session]);
+
+  // 📸 معالجة رفع الصور بتحويلها لـ Base64 للمعاينة والحفظ التلقائي
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        return setMsg({ text: isRtl ? 'حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 5 ميجابايت' : 'Image size exceeds 5MB', type: 'error' });
       }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDocumentImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 🚗 إضافة سيارة جديدة للعميل
+  const handleAddCar = () => {
+    if (!newCarMake || !newCarModel || !newCarYear) {
+      return setMsg({ text: isRtl ? 'يرجى تعبئة كافة بيانات السيارة' : 'Please fill all car details', type: 'error' });
+    }
+    const updatedCars = [...cars, { id: Date.now(), make: newCarMake, model: newCarModel, year: newCarYear }];
+    setCars(updatedCars);
+    setNewCarMake('');
+    setNewCarModel('');
+    setNewCarYear('');
+    setMsg({ text: isRtl ? 'تم إضافة السيارة للقائمة، احفظ التغييرات لتأكيدها' : 'Car added to list', type: 'success' });
+  };
+
+  // 🗑️ حذف سيارة من القائمة
+  const handleRemoveCar = (carId: number) => {
+    setCars(cars.filter(c => c.id !== carId));
+  };
+
+  // 💾 حفظ تحديثات البيانات الشخصية والملف
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMsg(null);
+
+    const updatedData: any = {
+      full_name: fullName,
+      phone: phone,
+      address: address,
+      updated_at: new Date().toISOString()
     };
 
-    fetchMyOrders();
-  }, [session, customerId, supabaseUrl, apiKey]);
+    if (role === 'customer') {
+      updatedData.cars = cars;
+    } else if (role === 'garage') {
+      updatedData.garage_name = garageName;
+      updatedData.cr_image = documentImage;
+    } else if (role === 'driver') {
+      updatedData.vehicle_type = vehicleType;
+      updatedData.plate_number = plateNumber;
+      updatedData.is_online = isDriverOnline;
+      updatedData.id_card_image = documentImage;
+    }
 
-  if (!session || session.role === 'garage') return null;
+    try {
+      const authEndpoint = `${supabaseUrl.replace('/rest/v1', '')}/auth/v1/user`;
+      const response = await fetch(authEndpoint, {
+        method: 'PUT',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session.token || apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ data: updatedData })
+      });
+
+      if (response.ok) {
+        setMsg({ text: isRtl ? 'تم حفظ التحديثات بنجاح 🎉' : 'Profile updated successfully!', type: 'success' });
+        
+        // تحديث الجلسة المحلية
+        const savedSession = JSON.parse(localStorage.getItem('mawjood_session') || '{}');
+        if (savedSession.user) {
+          savedSession.user.user_metadata = { ...savedSession.user.user_metadata, ...updatedData };
+          localStorage.setItem('mawjood_session', JSON.stringify(savedSession));
+        }
+      } else {
+        const errorData = await response.json();
+        setMsg({ text: errorData.msg || (isRtl ? 'حدث خطأ أثناء حفظ البيانات' : 'Failed to save changes'), type: 'error' });
+      }
+    } catch (err) {
+      setMsg({ text: isRtl ? 'خطأ في الاتصال بالخادم' : 'Connection error', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔐 تغيير كلمة المرور
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+
+    if (!newPassword || newPassword.length < 6) {
+      return setMsg({ text: isRtl ? 'كلمة المرور الجديدة يجب أن لا تقل عن 6 أحرف' : 'Password must be at least 6 chars', type: 'error' });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return setMsg({ text: isRtl ? 'كلمة المرور الجديدة وغير متطابقة' : 'Passwords do not match', type: 'error' });
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      const authEndpoint = `${supabaseUrl.replace('/rest/v1', '')}/auth/v1/user`;
+      const response = await fetch(authEndpoint, {
+        method: 'PUT',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: newPassword })
+      });
+
+      if (response.ok) {
+        setMsg({ text: isRtl ? 'تم تغيير كلمة المرور بنجاح! 🔐' : 'Password updated successfully!', type: 'success' });
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        const errData = await response.json();
+        setMsg({ text: errData.msg || (isRtl ? 'تعذر تغيير كلمة المرور' : 'Failed to update password'), type: 'error' });
+      }
+    } catch (err) {
+      setMsg({ text: isRtl ? 'حدث خطأ في الاتصال' : 'Connection error', type: 'error' });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '40px auto', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
+    <div style={{ maxWidth: '820px', margin: '20px auto', padding: '0 15px', fontFamily: 'Cairo, sans-serif', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '20px' }}>
-        <div style={{ fontSize: '50px', backgroundColor: '#edf2f7', borderRadius: '50%', width: '80px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          👤
+      {/* 👤 الهيدر الرئيسي مع الشارة */}
+      <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '24px', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px', marginBottom: '24px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '18px', backgroundColor: '#1f3a5f', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', fontWeight: 'bold' }}>
+            {role === 'garage' ? '⚙️' : role === 'driver' ? '🛵' : '👤'}
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold', color: 'var(--mw-ink, #131c26)' }}>
+              {fullName || garageName || (isRtl ? 'المستخدم' : 'User')}
+            </h2>
+            <span style={{ fontSize: '13px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+              {session?.email || phone}
+            </span>
+          </div>
         </div>
-        <div>
-          <h2 style={{ margin: '0 0 5px 0', color: '#1a365d' }}>{lang === 'ar' ? 'مرحباً بك' : 'Welcome'}</h2>
-          <p style={{ margin: 0, color: '#718096', fontSize: '18px', fontWeight: 'bold', direction: 'ltr' }}>{customerId}</p>
+
+        {/* شارة نوع الحساب والحالة للمندوب */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {role === 'driver' && (
+            <button
+              onClick={() => setIsDriverOnline(!isDriverOnline)}
+              style={{
+                padding: '8px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px',
+                backgroundColor: isDriverOnline ? '#e8f9f1' : '#fdecec',
+                color: isDriverOnline ? '#1e9d6b' : '#d1453b',
+                display: 'flex', alignItems: 'center', gap: '6px'
+              }}
+            >
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isDriverOnline ? '#1e9d6b' : '#d1453b' }} />
+              {isDriverOnline ? (isRtl ? 'متاح للطلبات 🟢' : 'Online 🟢') : (isRtl ? 'غير متاح 🔴' : 'Offline 🔴')}
+            </button>
+          )}
+
+          <span style={{ padding: '8px 16px', borderRadius: '12px', fontSize: '12.5px', fontWeight: 'bold', backgroundColor: role === 'garage' ? '#fdf1e3' : role === 'driver' ? '#e8f2fc' : '#f1f5f9', color: role === 'garage' ? '#e0872a' : role === 'driver' ? '#1f3a5f' : '#475569' }}>
+            {role === 'garage' && (isRtl ? '⚙️ كراج معتمد' : '⚙️ Garage')}
+            {role === 'driver' && (isRtl ? '🛵 مندوب توصيل' : '🛵 Driver')}
+            {role === 'customer' && (isRtl ? '👤 عميل مميز' : '👤 Customer')}
+          </span>
         </div>
       </div>
 
-      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-        <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #edf2f7', paddingBottom: '15px' }}>
-          🛍️ {lang === 'ar' ? 'طلباتي السابقة' : 'My Orders'} <span style={{ fontSize: '14px', color: '#718096' }}>({myOrders.length})</span>
+      {msg && (
+        <div style={{ padding: '12px 18px', borderRadius: '12px', marginBottom: '20px', fontWeight: 'bold', fontSize: '13.5px', textAlign: 'center', backgroundColor: msg.type === 'success' ? '#e8f9f1' : '#fdecec', color: msg.type === 'success' ? '#1e9d6b' : '#d1453b', border: `1px solid ${msg.type === 'success' ? '#a3e6cd' : '#f8b4b4'}` }}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* 📝 1. نموذج تعديل البيانات الشخصية */}
+      <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '26px', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: '24px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
+        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 'bold', color: 'var(--mw-ink, #131c26)', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+          📝 {isRtl ? 'تعديل البيانات الأساسية' : 'Edit Personal Details'}
         </h3>
 
-        {loading ? (
-          <p style={{ textAlign: 'center', color: '#a0aec0' }}>{lang === 'ar' ? 'جاري تحميل الطلبات...' : 'Loading orders...'}</p>
-        ) : myOrders.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <span style={{ fontSize: '40px', display: 'block', marginBottom: '10px' }}>🛒</span>
-            <p style={{ color: '#a0aec0', margin: 0 }}>{lang === 'ar' ? 'لم تقم بإجراء أي طلبات حتى الآن.' : 'You have no orders yet.'}</p>
+        <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
+          
+          {role === 'garage' ? (
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+                {isRtl ? 'اسم الكراج / المحل' : 'Garage Name'}
+              </label>
+              <input
+                type="text"
+                value={garageName}
+                onChange={(e) => setGarageName(e.target.value)}
+                style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+                required
+              />
+            </div>
+          ) : (
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+                {isRtl ? 'الاسم الكامل' : 'Full Name'}
+              </label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+                required
+              />
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+              {isRtl ? 'رقم الهاتف / التواصل' : 'Phone Number'}
+            </label>
+            <input
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+              required
+            />
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {myOrders.map(order => (
-              <div key={order.id} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px', backgroundColor: '#f8fafc' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
-                  
-                  <div>
-                    <span style={{ fontSize: '12px', color: '#a0aec0', fontWeight: 'bold' }}>رقم الطلب: #{order.id}</span>
-                    <h4 style={{ margin: '5px 0', fontSize: '18px', color: '#2d3748' }}>{order.part_name}</h4>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20' }}>{order.price} QAR</span>
-                  </div>
 
-                  <div style={{ textAlign: lang === 'ar' ? 'left' : 'right' }}>
-                    {order.status === 'pending' && <span style={{ backgroundColor: '#fefcbf', color: '#b7791f', padding: '6px 15px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', display: 'inline-block' }}>{lang === 'ar' ? 'قيد المراجعة من الكراج ⏳' : 'Pending ⏳'}</span>}
-                    {order.status === 'confirmed' && <span style={{ backgroundColor: '#c6f6d5', color: '#2f855a', padding: '6px 15px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', display: 'inline-block' }}>{lang === 'ar' ? 'تم التأكيد (جاري التجهيز) ✅' : 'Confirmed ✅'}</span>}
-                    {order.status === 'rejected' && <span style={{ backgroundColor: '#fed7d7', color: '#c53030', padding: '6px 15px', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold', display: 'inline-block' }}>{lang === 'ar' ? 'نعتذر، القطعة غير متوفرة ❌' : 'Rejected ❌'}</span>}
-                  </div>
-                </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+              {isRtl ? 'العنوان / المنطقة' : 'Address / Location'}
+            </label>
+            <input
+              type="text"
+              placeholder={isRtl ? 'مثال: الدوحة - الصناعية شارع 10' : 'e.g., Doha, Industrial Area'}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+          </div>
 
-                {order.notes && (
-                  <div style={{ marginTop: '15px', backgroundColor: '#edf2f7', padding: '12px', borderRadius: '10px', borderRight: '4px solid #3182ce' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#4a5568', display: 'block', marginBottom: '4px' }}>💬 {lang === 'ar' ? 'رسالة من الكراج:' : 'Message from Garage:'}</span>
-                    <p style={{ margin: 0, fontSize: '14px', color: '#2d3748' }}>{order.notes}</p>
-                  </div>
-                )}
+          {/* حقول المندوب الخاصة */}
+          {role === 'driver' && (
+            <>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+                  {isRtl ? 'نوع المركبة' : 'Vehicle Type'}
+                </label>
+                <input
+                  type="text"
+                  placeholder={isRtl ? 'مثال: تويوتا هايس / بيك أب' : 'Vehicle type'}
+                  value={vehicleType}
+                  onChange={(e) => setVehicleType(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+                />
               </div>
-            ))}
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+                  {isRtl ? 'رقم اللوحة' : 'Plate Number'}
+                </label>
+                <input
+                  type="text"
+                  placeholder="مثال: 123456"
+                  value={plateNumber}
+                  onChange={(e) => setPlateNumber(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+            </>
+          )}
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ padding: '12px 28px', backgroundColor: '#1f3a5f', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '14.5px', cursor: 'pointer' }}
+            >
+              {loading ? (isRtl ? 'جاري الحفظ...' : 'Saving...') : (isRtl ? 'حفظ التحديثات 💾' : 'Save Changes')}
+            </button>
           </div>
-        )}
+        </form>
       </div>
+
+      {/* 📄 2. قسم التوثيق والوثائق (خاص بالكراج والمندوب) */}
+      {(role === 'garage' || role === 'driver') && (
+        <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '26px', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: '24px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 'bold', color: 'var(--mw-ink, #131c26)', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+            📄 {role === 'garage' ? (isRtl ? 'صورة السجل التجاري' : 'Commercial Registration (CR)') : (isRtl ? 'صورة البطاقة الشخصية' : 'Civil ID Card')}
+          </h3>
+
+          <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0' }}>
+            {role === 'garage'
+              ? (isRtl ? 'يرجى إرفاق صورة واضحة من السجل التجاري للكراج لتوثيق الحساب' : 'Upload a clear image of your Commercial Registration')
+              : (isRtl ? 'يرجى إرفاق صورة من البطاقة الشخصية القطرية لتأكيد هوية المندوب' : 'Upload a clear image of your Qatar Civil ID')}
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              style={{ padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+            />
+
+            {documentImage && (
+              <div style={{ marginTop: '10px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '8px', color: '#1e9d6b' }}>
+                  ✅ {isRtl ? 'تم رفع المستند المعاين:' : 'Uploaded Document Preview:'}
+                </span>
+                <img
+                  src={documentImage}
+                  alt="Document"
+                  style={{ maxWidth: '100%', maxHeight: '220px', borderRadius: '14px', border: '2px dashed #cbd5e0', objectFit: 'contain' }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 🚗 3. قسم إدارة السيارات (خاص بالعميل) */}
+      {role === 'customer' && (
+        <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '26px', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: '24px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 'bold', color: 'var(--mw-ink, #131c26)', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+            🚗 {isRtl ? 'سياراتي المحفوظة' : 'My Saved Cars'}
+          </h3>
+
+          {/* إضافة سيارة جديدة */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', marginBottom: '20px' }}>
+            <input
+              type="text"
+              placeholder={isRtl ? 'الماركة (تويوتا)' : 'Make (e.g. Toyota)'}
+              value={newCarMake}
+              onChange={(e) => setNewCarMake(e.target.value)}
+              style={{ padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+            />
+            <input
+              type="text"
+              placeholder={isRtl ? 'الموديل (كامري)' : 'Model (e.g. Camry)'}
+              value={newCarModel}
+              onChange={(e) => setNewCarModel(e.target.value)}
+              style={{ padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+            />
+            <input
+              type="text"
+              placeholder={isRtl ? 'السنة (2022)' : 'Year (e.g. 2022)'}
+              value={newCarYear}
+              onChange={(e) => setNewCarYear(e.target.value)}
+              style={{ padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+            />
+            <button
+              type="button"
+              onClick={handleAddCar}
+              style={{ padding: '9px 16px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+            >
+              ➕ {isRtl ? 'إضافة سيارة' : 'Add Car'}
+            </button>
+          </div>
+
+          {/* عرض السيارات الحالية */}
+          {cars.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13.5px', margin: '10px 0' }}>
+              {isRtl ? 'لم تقم بإضافة أية سيارات لملفك بعد.' : 'No saved cars yet.'}
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {cars.map((car) => (
+                <div key={car.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: '10px', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b' }}>
+                    🚘 {car.make} - {car.model} ({car.year})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCar(car.id)}
+                    style={{ backgroundColor: '#fdecec', color: '#d1453b', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    🗑️ {isRtl ? 'حذف' : 'Remove'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 🔐 4. قسم تغيير كلمة المرور */}
+      <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '26px', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: '30px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 'bold', color: 'var(--mw-ink, #131c26)', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+          🔐 {isRtl ? 'تغيير كلمة المرور' : 'Change Password'}
+        </h3>
+
+        <form onSubmit={handleChangePassword} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+              {isRtl ? 'كلمة المرور الحالية' : 'Current Password'}
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+              {isRtl ? 'كلمة المرور الجديدة' : 'New Password'}
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+              {isRtl ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password'}
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
+              required
+            />
+          </div>
+
+          <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              style={{ padding: '12px 28px', backgroundColor: '#e0872a', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '14.5px', cursor: 'pointer' }}
+            >
+              {passwordLoading ? (isRtl ? 'جاري التحديث...' : 'Updating...') : (isRtl ? 'تحديث كلمة المرور 🔐' : 'Update Password')}
+            </button>
+          </div>
+        </form>
+      </div>
+
     </div>
   );
 };
