@@ -1,6 +1,7 @@
 // 🤖 خدمة الترجمة الفورية الاحترافية باستخدام الذكاء الاصطناعي (Gemini API)
 
-const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "ضع_مفتاح_GEMINI_هنا";
+// @ts-ignore
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "";
 
 // ذاكرة تخزين مؤقتة (Cache) لكي لا نكرر طلب ترجمة الكلمة نفسها أكثر من مرة
 const translationCache: Record<string, string> = {};
