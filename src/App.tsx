@@ -12,6 +12,7 @@ import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
 import { StaticPages, type StaticPageView } from './components/StaticPages';
 import { AITranslatedText } from './components/AITranslatedText'; // 👈 استيراد مكون الترجمة الذكي
+import { AIChatbot } from './components/AIChatbot'; // 👈 1. استيراد مكون المساعد الذكي
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -431,6 +432,9 @@ export default function App() {
           onNavigate={(v) => setView(v as any)} 
           session={session} 
         />
+
+        {/* 🤖 المساعد الذكي للعملاء */}
+        <AIChatbot lang={lang} />
 
       </div>
     </>
