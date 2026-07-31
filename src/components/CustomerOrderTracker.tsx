@@ -19,13 +19,16 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   onClose,
   onSelectPartForCheckout
 }) => {
-  const [activeTab, setActiveTab] = useState<'inquiries' | 'orders'>('inquiries');
+  const [activeTab, setActiveTab] = useState<'inquiries' | 'orders'>('orders');
   const [orders, setOrders] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ⭐️ حالات التقييم الثلاثي (الكراج + المندوب والتوصيل + الموقع)
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<any | null>(null);
-  const [starRating, setStarRating] = useState(5);
+  const [garageRating, setGarageRating] = useState(5);
+  const [deliveryRating, setDeliveryRating] = useState(5);
+  const [websiteRating, setWebsiteRating] = useState(5);
   const [asDescribed, setAsDescribed] = useState(true);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -63,7 +66,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         garage_id: selectedOrderForReview.garage_id,
         order_id: selectedOrderForReview.id,
         customer_phone: customerPhone,
-        rating: starRating,
+        garage_rating: garageRating,
+        delivery_rating: deliveryRating,
+        website_rating: websiteRating,
         as_described: asDescribed,
         comment: reviewComment.trim() || null
       };
@@ -79,7 +84,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       });
 
       if (response.ok) {
-        alert(lang === 'ar' ? 'شكراً لك! تم تسجيل تقييمك بنجاح ⭐' : 'Thank you for your review!');
+        alert(lang === 'ar' ? 'شكراً لك! تم تسجيل تقييمك بنجاح للخدمة والكراج والمندوب ⭐' : 'Thank you! Your feedback has been submitted successfully.');
         setSelectedOrderForReview(null);
         fetchData();
       }
@@ -89,7 +94,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
-  // إخفاء الاستفسارات التي تم إتمام شرائها من قائمة الاستفسارات النشطة
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
   const confirmedInquiries = activeInquiries.filter(i => i.status === 'confirmed_compatible');
 
@@ -198,21 +202,22 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         }
         .mwj-ot-review-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
 
-        /* Review modal */
+        /* نافذة التقييم المنبثقة الشاملة */
         .mwj-ot-review-overlay {
           position: fixed; inset: 0; background: rgba(15,23,32,0.65); backdrop-filter: blur(3px);
           display: flex; justify-content: center; align-items: center; z-index: 1100; padding: 20px;
           animation: mwj-ot-fade 0.18s ease;
         }
         .mwj-ot-review-modal {
-          background: white; padding: 26px; border-radius: 18px; max-width: 450px; width: 90%;
+          background: white; padding: 26px; border-radius: 18px; max-width: 480px; width: 92%;
           box-shadow: 0 20px 50px rgba(0,0,0,0.28); animation: mwj-ot-in 0.2s ease;
+          max-height: 85vh; overflow-y: auto;
         }
         .mwj-ot-star {
-          font-size: 24px; background: none; border: none; cursor: pointer;
-          transition: transform 0.15s ease, opacity 0.15s ease;
+          font-size: 22px; background: none; border: none; cursor: pointer;
+          transition: transform 0.15s ease, opacity 0.15s ease; padding: 2px;
         }
-        .mwj-ot-star:hover { transform: scale(1.15); }
+        .mwj-ot-star:hover { transform: scale(1.2); }
 
         .mwj-ot-choice-row { display: flex; gap: 10px; }
         .mwj-ot-choice-btn {
@@ -318,7 +323,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                             if (onSelectPartForCheckout) {
                               onSelectPartForCheckout({
                                 id: inq.part_id,
-                                inquiry_id: inq.id, // 🔥 ربط كود الاستفسار لإلغائه بعد الشراء
+                                inquiry_id: inq.id,
                                 name: inq.part_name,
                                 price: inq.part_price,
                                 image_url: inq.part_image,
@@ -371,7 +376,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
                     {order.status === 'delivered' && (
                       <button onClick={() => setSelectedOrderForReview(order)} className="mwj-ot-review-btn">
-                        ⭐ تقييم جودة القطعة والبائع
+                        ⭐ تقييم الكراج والتوصيل والخدمة
                       </button>
                     )}
 
@@ -381,21 +386,51 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             )
           )}
 
+          {/* ⭐️ شاشة التقييم المنبثقة المحسنة */}
           {selectedOrderForReview && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal">
-                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight: 800 }}>⭐ تقييم طلب: {selectedOrderForReview.part_name}</h4>
+                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight: 800 }}>⭐ تقييم التجربة لطلب: {selectedOrderForReview.part_name}</h4>
 
                 <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
+                  {/* 1. تقييم الكراج والجودة */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>عدد النجوم:</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
+                      🏪 تقييم جودة القطعة وتجاوب الكراج:
+                    </label>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {[1, 2, 3, 4, 5].map(star => (
-                        <button key={star} type="button" onClick={() => setStarRating(star)} className="mwj-ot-star" style={{ opacity: star <= starRating ? 1 : 0.3 }}>⭐</button>
+                        <button key={star} type="button" onClick={() => setGarageRating(star)} className="mwj-ot-star" style={{ opacity: star <= garageRating ? 1 : 0.3 }}>⭐</button>
                       ))}
                     </div>
                   </div>
 
+                  {/* 2. تقييم المندوب والتوصيل */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight 700, marginBottom: '5px', color: '#334155' }}>
+                      🚚 تقييم سرعة وأسلوب مندوب التوصيل:
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} type="button" onClick={() => setDeliveryRating(star)} className="mwj-ot-star" style={{ opacity: star <= deliveryRating ? 1 : 0.3 }}>⭐</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3. تقييم تجربة الموقع ورضا العميل */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight 700, marginBottom: '5px', color: '#334155' }}>
+                      🌐 تقييم موقع موجود أوتو وسهولة الطلب:
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} type="button" onClick={() => setWebsiteRating(star)} className="mwj-ot-star" style={{ opacity: star <= websiteRating ? 1 : 0.3 }}>⭐</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* مطابقة الوصف */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>هل طابقت القطعة الوصف تماماً؟</label>
                     <div className="mwj-ot-choice-row">
@@ -404,14 +439,15 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     </div>
                   </div>
 
+                  {/* تعليق إضافي */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>تعليق إضافي (اختياري):</label>
-                    <textarea placeholder="اكتب رأيك بالقطعة والتعامل..." value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mwj-ot-review-textarea" />
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>ملاحظات أو تعليق إضافي (اختياري):</label>
+                    <textarea placeholder="اكتب رأيك لتطوير خدمتنا..." value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mwj-ot-review-textarea" />
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button type="submit" disabled={submittingReview} className="mwj-ot-review-save">
-                      {submittingReview ? 'جاري الحفظ...' : 'حفظ التقييم'}
+                      {submittingReview ? 'جاري الحفظ...' : 'حفظ التقييم 🚀'}
                     </button>
                     <button type="button" onClick={() => setSelectedOrderForReview(null)} className="mwj-ot-review-cancel">إلغاء</button>
                   </div>
