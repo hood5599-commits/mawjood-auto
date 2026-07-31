@@ -434,7 +434,12 @@ export default function App() {
         />
 
         {/* 🤖 المساعد الذكي للعملاء */}
-        <AIChatbot lang={lang} />
+        <AIChatbot 
+  lang={lang} 
+  supabaseUrl={SUPABASE_URL} 
+  supabaseKey={API_KEY} 
+  session={session} 
+/>
 
       </div>
     </>
