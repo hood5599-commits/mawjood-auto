@@ -2,6 +2,55 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { ExcelPartUploader } from './ExcelPartUploader';
 
+// 🔔 مكون Toast المنبثق للإشعارات الفورية
+interface ToastProps {
+  message: string;
+  type?: 'success' | 'info' | 'error';
+  onClose: () => void;
+}
+
+const Toast: React.FC<ToastProps> = ({ message, type = 'success', onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [message, onClose]);
+
+  const bgColors = {
+    success: '#38a169',
+    info: '#3182ce',
+    error: '#e53e3e'
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: '25px',
+      left: '25px',
+      backgroundColor: bgColors[type],
+      color: '#ffffff',
+      padding: '14px 22px',
+      borderRadius: '12px',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+      fontWeight: 'bold',
+      fontSize: '14px',
+      zIndex: 99999,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px'
+    }}>
+      <span>{message}</span>
+      <button 
+        onClick={onClose} 
+        style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+};
+
 interface GarageProps {
   lang: 'ar' | 'en';
   carData: any;
@@ -29,6 +78,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   // 📊 حالة نافذة الرفع بالإكسل
   const [showExcelModal, setShowExcelModal] = useState(false);
+
+  // 🔔 حالة الإشعار المنبثق
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [myParts, setMyParts] = useState<any[]>([]);
   const [myOrders, setMyOrders] = useState<any[]>([]);
@@ -72,14 +124,15 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
     if (!userId || userId === 'garage_unknown') return;
 
-    // 🚀 تفعيل Supabase Realtime الاستماع الفوري بدلاً من الـ setInterval
+    // 🚀 تفعيل Supabase Realtime الاستماع الفوري مع التنبيه الصوتي والإشعار المنبثق
     const channel = supabase
       .channel(`garage-channel-${userId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'fitment_inquiries', filter: `garage_id=eq.${userId}` },
         (payload) => {
-          playChimeSound(); // تنبيه صوتي فوري عند وصول استفسار جديد
+          playChimeSound(); 
+          setToastMessage(lang === 'ar' ? '🔔 وصلك استفسار مطابقة توافق جديد!' : '🔔 New fitment inquiry received!');
           fetchMyInquiries();
         }
       )
@@ -87,7 +140,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders', filter: `garage_id=eq.${userId}` },
         (payload) => {
-          playChimeSound(); // تنبيه صوتي فوري عند وصول طلب جديد
+          playChimeSound(); 
+          setToastMessage(lang === 'ar' ? '📦 وصلك طلب شراء جديد لشحنة!' : '📦 New part order received!');
           fetchMyOrders();
         }
       )
@@ -592,6 +646,15 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             fetchMyParts();
             if (onSuccess) onSuccess();
           }}
+        />
+      )}
+
+      {/* 🔔 نظام الإشعارات المنبثقة */}
+      {toastMessage && (
+        <Toast 
+          message={toastMessage} 
+          type="success" 
+          onClose={() => setToastMessage(null)} 
         />
       )}
 
