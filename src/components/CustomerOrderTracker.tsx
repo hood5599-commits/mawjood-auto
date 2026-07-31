@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AITranslatedText } from './AITranslatedText'; // 👈 1. استيراد مكون الترجمة الذكي
 
 interface Props {
   lang: 'ar' | 'en';
@@ -270,7 +271,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
               onClick={() => setActiveTab('inquiries')}
               className={`mwj-ot-tab ${activeTab === 'inquiries' ? 'mwj-ot-tab-inq-active' : ''}`}
             >
-              ❓ استفسارات التوافق ({activeInquiries.length})
+              ❓ {lang === 'ar' ? 'استفسارات التوافق' : 'Fitment Inquiries'} ({activeInquiries.length})
               {confirmedInquiries.length > 0 && (
                 <span className="mwj-ot-tab-count" style={{ [isRtl ? 'left' : 'right']: '-4px' }}>{confirmedInquiries.length}</span>
               )}
@@ -279,43 +280,52 @@ export const CustomerOrderTracker: React.FC<Props> = ({
               onClick={() => setActiveTab('orders')}
               className={`mwj-ot-tab ${activeTab === 'orders' ? 'mwj-ot-tab-ord-active' : ''}`}
             >
-              🛒 طلباتي الشراء ({orders.length})
+              🛒 {lang === 'ar' ? 'طلباتي الشراء' : 'My Orders'} ({orders.length})
             </button>
           </div>
 
           {loading ? (
-            <p className="mwj-ot-loading">⏳ جاري التحميل...</p>
+            <p className="mwj-ot-loading">⏳ {lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p>
           ) : activeTab === 'inquiries' ? (
             activeInquiries.length === 0 ? (
-              <p className="mwj-ot-empty">لا توجد استفسارات متوافقة حالياً.</p>
+              <p className="mwj-ot-empty">{lang === 'ar' ? 'لا توجد استفسارات متوافقة حالياً.' : 'No active inquiries found.'}</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 {activeInquiries.map(inq => (
                   <div key={inq.id} className={`mwj-ot-inq-card ${inq.status === 'confirmed_compatible' ? 'mwj-ot-inq-confirmed' : 'mwj-ot-inq-default'}`}>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '11px', flexWrap: 'wrap', gap: '8px' }}>
-                      <span className="mwj-ot-inq-code">كود الاستفسار: {inq.inquiry_code || `#INQ-${inq.id}`}</span>
+                      <span className="mwj-ot-inq-code">{lang === 'ar' ? 'كود الاستفسار:' : 'Inquiry Code:'} {inq.inquiry_code || `#INQ-${inq.id}`}</span>
                       <span className="mwj-ot-inq-status" style={{ color: inq.status === 'pending_check' ? '#c05621' : inq.status === 'confirmed_compatible' ? '#22a35a' : '#e53e3e' }}>
-                        {inq.status === 'pending_check' ? '⏳ بانتظار فحص الكراج' : inq.status === 'confirmed_compatible' ? '✅ تم تأكيد التوافق!' : '❌ لا تركب'}
+                        {inq.status === 'pending_check' ? (lang === 'ar' ? '⏳ بانتظار فحص الكراج' : '⏳ Pending Check') : 
+                         inq.status === 'confirmed_compatible' ? (lang === 'ar' ? '✅ تم تأكيد التوافق!' : '✅ Compatible!') : 
+                         (lang === 'ar' ? '❌ لا تركب' : '❌ Not Compatible')}
                       </span>
                     </div>
 
                     <div className="mwj-ot-part-row">
                       <img src={inq.part_image || 'https://via.placeholder.com/60'} alt={inq.part_name} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ fontSize: '15px', color: '#16304f' }}>{inq.part_name}</strong>
-                        <div style={{ fontSize: '13px', color: '#E0872A', fontWeight: 800 }}>{inq.part_price || 0} QAR</div>
+                        {/* 👇 2. ترجمة اسم القطعة في قسم الاستفسارات */}
+                        <strong style={{ fontSize: '15px', color: '#16304f' }}>
+                          <AITranslatedText text={inq.part_name} lang={lang} />
+                        </strong>
+                        <div style={{ fontSize: '13px', color: '#E0872A', fontWeight: 800 }}>{inq.part_price || 0} {lang === 'ar' ? 'ر.ق' : 'QAR'}</div>
                       </div>
                     </div>
 
                     <div className="mwj-ot-vehicle-line">
-                      🚘 سيارتك: {inq.car_make} {inq.car_model} ({inq.car_year})
+                      🚘 {lang === 'ar' ? 'سيارتك:' : 'Your Car:'} {inq.car_make} {inq.car_model} ({inq.car_year})
                     </div>
 
                     {inq.status === 'confirmed_compatible' && (
                       <div className="mwj-ot-confirmed-box">
-                        <div style={{ fontWeight: 800, color: '#276749', marginBottom: '4px' }}>🎉 الكراج يؤكد: القطعة متوافقة 100% مع سيارتك!</div>
-                        <div style={{ fontSize: '12px', color: '#4a5568', marginBottom: '4px' }}>🛡️ مهلة الإرجاع: {inq.return_days || 3} أيام | ضمان التشغيل: {inq.warranty_days || 14} يوماً</div>
+                        <div style={{ fontWeight: 800, color: '#276749', marginBottom: '4px' }}>
+                          {lang === 'ar' ? '🎉 الكراج يؤكد: القطعة متوافقة 100% مع سيارتك!' : '🎉 Garage confirms: Part is 100% compatible!'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#4a5568', marginBottom: '4px' }}>
+                          {lang === 'ar' ? `🛡️ مهلة الإرجاع: ${inq.return_days || 3} أيام | ضمان التشغيل: ${inq.warranty_days || 14} يوماً` : `🛡️ Return Window: ${inq.return_days || 3} days | Warranty: ${inq.warranty_days || 14} days`}
+                        </div>
 
                         <button
                           onClick={() => {
@@ -336,7 +346,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                           }}
                           className="mwj-ot-checkout-btn"
                         >
-                          🛒 إتمام الشراء والتوصيل الآن
+                          🛒 {lang === 'ar' ? 'إتمام الشراء والتوصيل الآن' : 'Complete Checkout & Delivery Now'}
                         </button>
                       </div>
                     )}
@@ -347,36 +357,42 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             )
           ) : (
             orders.length === 0 ? (
-              <p className="mwj-ot-empty">لا توجد لديك طلبات سابقة.</p>
+              <p className="mwj-ot-empty">{lang === 'ar' ? 'لا توجد لديك طلبات سابقة.' : 'No previous orders found.'}</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 {orders.map(order => (
                   <div key={order.id} className="mwj-ot-order-card">
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                      <span className="mwj-ot-order-code">رمز الطلب: {order.order_code || `#ORD-${order.id}`}</span>
+                      <span className="mwj-ot-order-code">{lang === 'ar' ? 'رمز الطلب:' : 'Order Code:'} {order.order_code || `#ORD-${order.id}`}</span>
                       <span className="mwj-ot-order-status" style={{ color: order.status === 'delivered' ? '#22a35a' : '#c05621' }}>
-                        {order.status === 'ready_for_pickup' ? '📦 القطعة جاهزة وفي انتظار المندوب' : order.status === 'handed_to_driver' ? '🚚 القطعة مع المندوب وفي الطريق إليك' : order.status === 'delivered' ? '✅ تم التسليم بالكامل' : '⏳ جاري التجهيز'}
+                        {order.status === 'ready_for_pickup' ? (lang === 'ar' ? '📦 القطعة جاهزة وفي انتظار المندوب' : '📦 Ready, waiting for driver') : 
+                         order.status === 'handed_to_driver' ? (lang === 'ar' ? '🚚 القطعة مع المندوب وفي الطريق إليك' : '🚚 Out for delivery') : 
+                         order.status === 'delivered' ? (lang === 'ar' ? '✅ تم التسليم بالكامل' : '✅ Delivered') : 
+                         (lang === 'ar' ? '⏳ جاري التجهيز' : '⏳ Processing')}
                       </span>
                     </div>
 
+                    {/* 👇 3. ترجمة اسم القطعة في قسم الطلبات */}
                     <div style={{ fontSize: '16px', fontWeight: 800, color: '#2d3748', marginBottom: '10px' }}>
-                      {order.part_name}
+                      <AITranslatedText text={order.part_name} lang={lang} />
                     </div>
 
                     <div className="mwj-ot-delivery-code-box">
                       <div>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#c05621', fontWeight: 800 }}>🔑 كود التسليم الخاص بك:</span>
+                        <span style={{ display: 'block', fontSize: '11px', color: '#c05621', fontWeight: 800 }}>
+                          {lang === 'ar' ? '🔑 كود التسليم الخاص بك:' : '🔑 Your Delivery Code:'}
+                        </span>
                         <span className="mwj-ot-delivery-code">{order.delivery_code || 'DEL-882'}</span>
                       </div>
                       <span style={{ fontSize: '11px', color: '#718096', maxWidth: '180px' }}>
-                        أبرز هذا الكود للمندوب أو موظف المقر عند استلام القطعة.
+                        {lang === 'ar' ? 'أبرز هذا الكود للمندوب أو موظف المقر عند استلام القطعة.' : 'Show this code to the driver upon receiving.'}
                       </span>
                     </div>
 
                     {order.status === 'delivered' && (
                       <button onClick={() => setSelectedOrderForReview(order)} className="mwj-ot-review-btn">
-                        ⭐ تقييم الكراج والتوصيل والخدمة
+                        ⭐ {lang === 'ar' ? 'تقييم الكراج والتوصيل والخدمة' : 'Rate Garage, Delivery & Service'}
                       </button>
                     )}
 
@@ -390,14 +406,17 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           {selectedOrderForReview && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal">
-                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight: 800 }}>⭐ تقييم التجربة لطلب: {selectedOrderForReview.part_name}</h4>
+                {/* 👇 4. ترجمة اسم القطعة في نافذة التقييم */}
+                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight: 800 }}>
+                  ⭐ {lang === 'ar' ? 'تقييم التجربة لطلب:' : 'Rate Experience for:'} <AITranslatedText text={selectedOrderForReview.part_name} lang={lang} />
+                </h4>
 
                 <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   
                   {/* 1. تقييم الكراج والجودة */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
-                      🏪 تقييم جودة القطعة وتجاوب الكراج:
+                      🏪 {lang === 'ar' ? 'تقييم جودة القطعة وتجاوب الكراج:' : 'Rate part quality & garage response:'}
                     </label>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {[1, 2, 3, 4, 5].map(star => (
@@ -409,7 +428,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                   {/* 2. تقييم المندوب والتوصيل */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
-                      🚚 تقييم سرعة وأسلوب مندوب التوصيل:
+                      🚚 {lang === 'ar' ? 'تقييم سرعة وأسلوب مندوب التوصيل:' : 'Rate delivery speed & driver behavior:'}
                     </label>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {[1, 2, 3, 4, 5].map(star => (
@@ -421,7 +440,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                   {/* 3. تقييم تجربة الموقع ورضا العميل */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
-                      🌐 تقييم موقع موجود أوتو وسهولة الطلب:
+                      🌐 {lang === 'ar' ? 'تقييم موقع موجود أوتو وسهولة الطلب:' : 'Rate Mawjood Auto & ordering ease:'}
                     </label>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       {[1, 2, 3, 4, 5].map(star => (
@@ -432,24 +451,30 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
                   {/* مطابقة الوصف */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>هل طابقت القطعة الوصف تماماً؟</label>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>
+                      {lang === 'ar' ? 'هل طابقت القطعة الوصف تماماً؟' : 'Did the part perfectly match the description?'}
+                    </label>
                     <div className="mwj-ot-choice-row">
-                      <button type="button" onClick={() => setAsDescribed(true)} className={`mwj-ot-choice-btn ${asDescribed ? 'mwj-ot-choice-yes-active' : ''}`}>✅ نعم، مطابقة</button>
-                      <button type="button" onClick={() => setAsDescribed(false)} className={`mwj-ot-choice-btn ${!asDescribed ? 'mwj-ot-choice-no-active' : ''}`}>❌ بها اختلاف</button>
+                      <button type="button" onClick={() => setAsDescribed(true)} className={`mwj-ot-choice-btn ${asDescribed ? 'mwj-ot-choice-yes-active' : ''}`}>✅ {lang === 'ar' ? 'نعم، مطابقة' : 'Yes, matches'}</button>
+                      <button type="button" onClick={() => setAsDescribed(false)} className={`mwj-ot-choice-btn ${!asDescribed ? 'mwj-ot-choice-no-active' : ''}`}>❌ {lang === 'ar' ? 'بها اختلاف' : 'No, different'}</button>
                     </div>
                   </div>
 
                   {/* تعليق إضافي */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>ملاحظات أو تعليق إضافي (اختياري):</label>
-                    <textarea placeholder="اكتب رأيك لتطوير خدمتنا..." value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mwj-ot-review-textarea" />
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>
+                      {lang === 'ar' ? 'ملاحظات أو تعليق إضافي (اختياري):' : 'Additional comments (Optional):'}
+                    </label>
+                    <textarea placeholder={lang === 'ar' ? 'اكتب رأيك لتطوير خدمتنا...' : 'Write your feedback...'} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mwj-ot-review-textarea" />
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button type="submit" disabled={submittingReview} className="mwj-ot-review-save">
-                      {submittingReview ? 'جاري الحفظ...' : 'حفظ التقييم 🚀'}
+                      {submittingReview ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التقييم 🚀' : 'Submit Review 🚀')}
                     </button>
-                    <button type="button" onClick={() => setSelectedOrderForReview(null)} className="mwj-ot-review-cancel">إلغاء</button>
+                    <button type="button" onClick={() => setSelectedOrderForReview(null)} className="mwj-ot-review-cancel">
+                      {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                    </button>
                   </div>
                 </form>
 
