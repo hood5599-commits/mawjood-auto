@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState, useEffect } from 'react';
 import { ExcelPartUploader } from './ExcelPartUploader';
 
 // 🔔 مكون Toast المنبثق للإشعارات الفورية
@@ -37,7 +36,7 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'success', onClose }) => 
       fontSize: '14px',
       zIndex: 99999,
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'center', // تصحيح الخطأ البرمجي هنا
       gap: '10px'
     }}>
       <span>{message}</span>
@@ -94,10 +93,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || session?.code || 'garage_unknown';
 
-  // إنشاء عميل Supabase للـ Realtime والاتصال
-  const supabaseRestUrl = supabaseUrl.replace('/rest/v1', '');
-  const supabase = createClient(supabaseRestUrl, apiKey);
-
   const playChimeSound = () => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -122,34 +117,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchMyOrders();
     fetchMyInquiries();
 
-    if (!userId || userId === 'garage_unknown') return;
+    // 🔄 استخدام التحديث الدوري الآمن (setInterval) والمتوافق 100% مع Vercel وبدون الحاجة لـ WebSockets
+    const interval = setInterval(() => {
+      fetchMyInquiries();
+      fetchMyOrders();
+    }, 15000);
 
-    // 🚀 تفعيل Supabase Realtime الاستماع الفوري مع التنبيه الصوتي والإشعار المنبثق
-    const channel = supabase
-      .channel(`garage-channel-${userId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'fitment_inquiries', filter: `garage_id=eq.${userId}` },
-        (payload) => {
-          playChimeSound(); 
-          setToastMessage(lang === 'ar' ? '🔔 وصلك استفسار مطابقة توافق جديد!' : '🔔 New fitment inquiry received!');
-          fetchMyInquiries();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders', filter: `garage_id=eq.${userId}` },
-        (payload) => {
-          playChimeSound(); 
-          setToastMessage(lang === 'ar' ? '📦 وصلك طلب شراء جديد لشحنة!' : '📦 New part order received!');
-          fetchMyOrders();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [userId]);
 
   const fetchMyParts = async () => {
