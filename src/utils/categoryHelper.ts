@@ -1,8 +1,24 @@
-// القاموس الذكي الشامل لقطع الغيار (RockAuto Taxonomy & Arabic Slang Dictionary)
+// القاموس الذكي الشامل لقطع الغيار (RockAuto Taxonomy & Arabic Slang Dictionary + Auto-Matching Engine)
+
 export interface PartDictItem {
   category: string;
   arabicName: string;
   synonyms: string[];
+}
+
+export interface PartItem {
+  id: number;
+  name: string;
+  part_number?: string;
+  code?: string;
+  sku?: string;
+  oem_reference?: string;
+  part_type?: string;
+  price: number;
+  make: string;
+  model: string;
+  year: string;
+  [key: string]: any;
 }
 
 export const PARTS_DICTIONARY: Record<string, PartDictItem> = {
@@ -585,7 +601,60 @@ export const PARTS_DICTIONARY: Record<string, PartDictItem> = {
   }
 };
 
-// دالة لمعرفة القسم الرئيسي تلقائياً من اسم القطعة
+// 1️⃣ توحيد وتنظيف البارت نمبر من المسافات والرموز المتباينة
+export const normalizePartNumber = (pn?: string | number): string => {
+  if (!pn) return '';
+  return pn.toString().toUpperCase().replace(/[\s\-_/\\.]/g, '');
+};
+
+// 2️⃣ التعرف التلقائي على تصنيف الجودة والدرجة للقطعة
+export const classifyPartTier = (part: PartItem): { tier: 'oem' | 'premium' | 'commercial'; label: string; badgeColor: string } => {
+  const pType = (part.part_type || '').toLowerCase();
+  const name = (part.name || '').toLowerCase();
+
+  if (pType.includes('أصلي') || pType.includes('oem') || pType.includes('genuine') || name.includes('أصلي')) {
+    return { tier: 'oem', label: '💎 أصلي OEM', badgeColor: '#ebf8ff' };
+  }
+
+  const premiumBrands = ['denso', 'bosch', 'brembo', '555', 'aisin', 'kyb', 'ngk', 'sachs', 'valeo', 'درجة أولى'];
+  const isPremium = premiumBrands.some(brand => pType.includes(brand) || name.includes(brand));
+
+  if (isPremium) {
+    return { tier: 'premium', label: '⚙️ بديل درجة أولى', badgeColor: '#f0fff4' };
+  }
+
+  return { tier: 'commercial', label: '🪙 بديل اقتصادي', badgeColor: '#fffaf0' };
+};
+
+// 3️⃣ محرك البحث المباشر للبدائل المتقاطعة (Smart Interchange Finder)
+export const findSmartInterchangeParts = (targetPart: PartItem, inventory: PartItem[]): {
+  oemPart?: PartItem;
+  alternatives: PartItem[];
+} => {
+  const targetPN = normalizePartNumber(targetPart.part_number || targetPart.code || targetPart.sku || targetPart.oem_reference);
+
+  if (!targetPN) {
+    return { alternatives: [] };
+  }
+
+  const matchingGroup = inventory.filter(item => {
+    if (item.id === targetPart.id) return false;
+
+    const itemPN = normalizePartNumber(item.part_number || item.code || item.sku);
+    const itemOEMRef = normalizePartNumber(item.oem_reference);
+
+    return itemPN === targetPN || itemOEMRef === targetPN || (targetPart.oem_reference && itemPN === normalizePartNumber(targetPart.oem_reference));
+  });
+
+  const oemPart = matchingGroup.find(p => classifyPartTier(p).tier === 'oem');
+
+  return {
+    oemPart,
+    alternatives: matchingGroup
+  };
+};
+
+// 4️⃣ دالة لمعرفة القسم الرئيسي تلقائياً من اسم القطعة والقاموس
 export const getPartCategory = (partName: string): string => {
   if (!partName) return "Engine";
   
@@ -600,7 +669,6 @@ export const getPartCategory = (partName: string): string => {
     }
   }
 
-  // تصنيف احترافي احتياطي عند كتابة مصطلحات عامة
   if (lowerName.includes("شمعة") || lowerName.includes("إسطب") || lowerName.includes("ضوء") || lowerName.includes("lamp") || lowerName.includes("صدام") || lowerName.includes("كبوت")) return "Body & Lamp Assembly";
   if (lowerName.includes("فرامل") || lowerName.includes("فحمات") || lowerName.includes("قماشات") || lowerName.includes("هوب") || lowerName.includes("brake")) return "Brake & Wheel Hub";
   if (lowerName.includes("راديتر") || lowerName.includes("حرارة") || lowerName.includes("مروحة") || lowerName.includes("coolant")) return "Cooling System";
@@ -614,23 +682,25 @@ export const getPartCategory = (partName: string): string => {
   return "Engine";
 };
 
-// دالة فحص مطابقة البحث الذكية (تنظر في الأسماء، الأرقام، الماركة، والاختصارات الهندسية مثل ECM, BCM, ABS)
+// 5️⃣ دالة فحص مطابقة البحث الذكية الشاملة
 export const matchesSmartSearch = (part: any, searchQuery: string): boolean => {
   if (!searchQuery) return true;
   const q = searchQuery.toLowerCase().trim();
+  const cleanQ = normalizePartNumber(q);
 
   const name = (part.name || '').toLowerCase();
-  const partNo = (part.part_number || part.code || part.sku || '').toLowerCase();
+  const partNo = normalizePartNumber(part.part_number || part.code || part.sku);
+  const oemRef = normalizePartNumber(part.oem_reference);
   const make = (part.make || '').toLowerCase();
   const model = (part.model || '').toLowerCase();
   const year = String(part.year || '').toLowerCase();
 
-  // 1. مطابقة مباشرة
-  if (name.includes(q) || partNo.includes(q) || make.includes(q) || model.includes(q) || year.includes(q)) {
+  // 1. مطابقة مباشرة بالأرقام أو النصوص
+  if (name.includes(q) || (cleanQ.length > 2 && (partNo.includes(cleanQ) || oemRef.includes(cleanQ))) || make.includes(q) || model.includes(q) || year.includes(q)) {
     return true;
   }
 
-  // 2. البحث الذكي داخل قاموس الكلمات والمرادفات
+  // 2. البحث الذكي داخل قاموس الكلمات والمرادفات العامية
   for (const [key, item] of Object.entries(PARTS_DICTIONARY)) {
     const isQueryInDict = key.toLowerCase().includes(q) || 
                           item.arabicName.toLowerCase().includes(q) || 
