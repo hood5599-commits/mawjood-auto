@@ -408,7 +408,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
                   {/* 2. تقييم المندوب والتوصيل */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight 700, marginBottom: '5px', color: '#334155' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
                       🚚 تقييم سرعة وأسلوب مندوب التوصيل:
                     </label>
                     <div style={{ display: 'flex', gap: '6px' }}>
@@ -420,7 +420,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
                   {/* 3. تقييم تجربة الموقع ورضا العميل */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight 700, marginBottom: '5px', color: '#334155' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
                       🌐 تقييم موقع موجود أوتو وسهولة الطلب:
                     </label>
                     <div style={{ display: 'flex', gap: '6px' }}>
