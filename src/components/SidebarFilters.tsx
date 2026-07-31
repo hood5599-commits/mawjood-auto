@@ -5,6 +5,7 @@ import {
   findSmartInterchangeParts, 
   classifyPartTier 
 } from '../utils/categoryHelper';
+import { AITranslatedText } from './AITranslatedText'; // 👈 1. استيراد مكون الترجمة الذكي
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
@@ -175,7 +176,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const uniqueEngines = Array.from(new Set(data.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : 'عام'))) as string[];
+        const uniqueEngines = Array.from(new Set(data.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (lang === 'ar' ? 'عام' : 'General')))) as string[];
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: uniqueEngines }));
         return uniqueEngines;
       }
@@ -183,7 +184,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } finally {
       setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
     }
-    return ['عام'];
+    return [lang === 'ar' ? 'عام' : 'General'];
   };
 
   const fetchCategoriesForEngine = async (make: string, year: string, model: string, engine: string) => {
@@ -197,8 +198,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       if (res.ok) {
         const data = await res.json();
         const filteredParts = data.filter((p: any) => {
-          const pEng = p.engine && p.engine.trim() !== '' ? p.engine : 'عام';
-          return pEng === engine || pEng === 'عام' || engine === 'عام';
+          const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
+          return pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
         });
 
         const activeCategories = categories.filter(cat => {
@@ -227,8 +228,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       if (res.ok) {
         const data = await res.json();
         const filtered = data.filter((p: any) => {
-          const pEng = p.engine && p.engine.trim() !== '' ? p.engine : 'عام';
-          const matchEngine = pEng === engine || pEng === 'عام' || engine === 'عام';
+          const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
+          const matchEngine = pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
           return matchEngine && (getPartCategory(p.name) === category || p.category === category || CATEGORY_TRANSLATION[category] === p.category);
         });
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: filtered }));
@@ -296,11 +297,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         method: 'POST',
         headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify([{
-          part_name: `طلب خاص: ${activeSearchQuery}`,
+          part_name: lang === 'ar' ? `طلب خاص: ${activeSearchQuery}` : `Special Request: ${activeSearchQuery}`,
           price: 0,
           customer_phone: custPhone,
           status: 'pending',
-          notes: custNotes || 'طلب قطعة غير متوفرة'
+          notes: custNotes || (lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Requested unavailable part')
         }])
       });
 
@@ -340,9 +341,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             style={{ width: '75px', height: '75px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #edf2f7' }} 
           />
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748', fontWeight: 'bold' }}>{part.name}</h4>
+            {/* 👇 2. ترجمة اسم القطعة في الكرت */}
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748', fontWeight: 'bold' }}>
+              <AITranslatedText text={part.name} lang={lang} />
+            </h4>
             <div style={{ fontSize: '12px', color: '#718096', marginBottom: '4px' }}>
-              🚘 {part.make} - {part.model} ({part.year})
+              🚘 {translateMake[part.make] || part.make} - {translateModel[part.model] || part.model} ({part.year})
             </div>
             
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' }}>
@@ -360,14 +364,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 padding: '2px 6px', borderRadius: '5px',
                 border: tierInfo.tier === 'oem' ? '1px solid #bee3f8' : '1px solid #feebc8'
               }}>
-                {tierInfo.label}
+                {tierInfo.tier === 'oem' ? (lang === 'ar' ? 'أصلي' : 'OEM') : (lang === 'ar' ? tierInfo.label : 'Aftermarket')}
               </span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16.5px' }}>{part.price} QAR</span>
+              <span style={{ color: '#dd6b20', fontWeight: 'bold', fontSize: '16.5px' }}>{part.price} {lang === 'ar' ? 'ر.ق' : 'QAR'}</span>
               <span style={{ fontSize: '11px', fontWeight: 'bold', color: isOutOfStock ? '#e53e3e' : '#2f855a', backgroundColor: isOutOfStock ? '#fff5f5' : '#f0fff4', padding: '2px 6px', borderRadius: '5px' }}>
-                {isOutOfStock ? 'نفدت' : `المتوفر: ${maxStock}`}
+                {isOutOfStock ? (lang === 'ar' ? 'نفدت' : 'Out of Stock') : (lang === 'ar' ? `المتوفر: ${maxStock}` : `In Stock: ${maxStock}`)}
               </span>
             </div>
           </div>
@@ -376,13 +380,15 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         {alternatives.length > 0 && (
           <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '10px', border: '1px dashed #cbd5e0' }}>
             <strong style={{ fontSize: '11.5px', color: '#0369a1', display: 'block', marginBottom: '6px' }}>
-              💡 متوفر ({alternatives.length}) بدائل متوافقة مع هذا البارت نمبر:
+              💡 {lang === 'ar' ? `متوفر (${alternatives.length}) بدائل متوافقة مع هذا البارت نمبر:` : `Available (${alternatives.length}) compatible alternatives for this PN:`}
             </strong>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {alternatives.slice(0, 2).map((alt) => (
                 <div key={alt.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#334155' }}>
-                  <span>{alt.name} ({classifyPartTier(alt).tier === 'oem' ? 'أصلي' : 'بديل'})</span>
-                  <strong style={{ color: '#e0872a' }}>{alt.price} QAR</strong>
+                  <span>
+                    <AITranslatedText text={alt.name} lang={lang} /> ({classifyPartTier(alt).tier === 'oem' ? (lang === 'ar' ? 'أصلي' : 'OEM') : (lang === 'ar' ? 'بديل' : 'Aftermarket')})
+                  </span>
+                  <strong style={{ color: '#e0872a' }}>{alt.price} {lang === 'ar' ? 'ر.ق' : 'QAR'}</strong>
                 </div>
               ))}
             </div>
@@ -403,7 +409,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 disabled={isOutOfStock}
                 style={{ flex: 1, backgroundColor: isOutOfStock ? '#a0aec0' : '#dd6b20', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
               >
-                🛒 {isOutOfStock ? 'غير متوفر' : 'أضف للسلة'}
+                🛒 {isOutOfStock ? (lang === 'ar' ? 'غير متوفر' : 'Unavailable') : (lang === 'ar' ? 'أضف للسلة' : 'Add to Cart')}
               </button>
             )}
 
@@ -412,7 +418,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               disabled={isOutOfStock}
               style={{ flex: 1, backgroundColor: isOutOfStock ? '#a0aec0' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              ❓ أسأل البائع
+              ❓ {lang === 'ar' ? 'أسأل البائع' : 'Ask Seller'}
             </button>
           </div>
         </div>
@@ -425,21 +431,31 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.05)', border: '1px solid #edf2f7', direction: isRtl ? 'rtl' : 'ltr' }}>
         
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-          <input type="text" placeholder="ابحث برقم القطعة (PN)، الكود، أو المصطلح (مثل: دينمو، سلف، كمبيوتر)..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '2px solid #3182ce', outline: 'none' }} />
-          <button type="submit" style={{ padding: '0 24px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>🔍 بحث</button>
+          <input 
+            type="text" 
+            placeholder={lang === 'ar' ? "ابحث برقم القطعة (PN)، الكود، أو المصطلح (مثل: دينمو، سلف، كمبيوتر)..." : "Search by PN, Code, or Term (e.g., Alternator, Starter)..."} 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+            style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '2px solid #3182ce', outline: 'none' }} 
+          />
+          <button type="submit" style={{ padding: '0 24px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+            🔍 {lang === 'ar' ? 'بحث' : 'Search'}
+          </button>
         </form>
 
         {activeSearchQuery ? (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3>🔎 نتائج البحث عن: "{activeSearchQuery}"</h3>
-              <button onClick={clearSearch} style={{ padding: '8px 16px', borderRadius: '10px', cursor: 'pointer' }}>↩️ العودة للكتالوج</button>
+              <h3>🔎 {lang === 'ar' ? 'نتائج البحث عن:' : 'Search results for:'} "{activeSearchQuery}"</h3>
+              <button onClick={clearSearch} style={{ padding: '8px 16px', borderRadius: '10px', cursor: 'pointer' }}>
+                ↩️ {lang === 'ar' ? 'العودة للكتالوج' : 'Back to Catalog'}
+              </button>
             </div>
             {searchResults.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
-                <p>عفواً، لا توجد قطع متوفرة لهذا البحث.</p>
+                <p>{lang === 'ar' ? 'عفواً، لا توجد قطع متوفرة لهذا البحث.' : 'Sorry, no parts found for this search.'}</p>
                 <button onClick={() => { setReqSubmitted(false); setShowRequestModal(true); }} style={{ padding: '10px 20px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                  📩 إرسال طلب قطعة داخل البرنامج
+                  📩 {lang === 'ar' ? 'إرسال طلب قطعة داخل البرنامج' : 'Request a part in-app'}
                 </button>
               </div>
             ) : (
@@ -471,7 +487,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                       ) : (
                         <span style={{ fontSize: '18px' }}>🚗</span>
                       )}
-                      <span style={{ fontSize: '15px' }}>{makeName} {isYearsLoading && <small style={{ color: '#dd6b20' }}>(فحص السنوات...)</small>}</span>
+                      <span style={{ fontSize: '15px' }}>{makeName} {isYearsLoading && <small style={{ color: '#dd6b20' }}>{lang === 'ar' ? '(فحص السنوات...)' : '(Checking years...)'}</small>}</span>
                     </div>
                     <span style={{ fontSize: '12px', color: '#4a5568' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                   </div>
@@ -479,9 +495,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   {isMakeOpen && (
                     <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                       {isYearsLoading ? (
-                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#718096' }}>🔄 جاري فحص السنوات المتاحة...</li>
+                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#718096' }}>🔄 {lang === 'ar' ? 'جاري فحص السنوات المتاحة...' : 'Checking available years...'}</li>
                       ) : availableYears.length === 0 ? (
-                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#a0aec0' }}>لا توجد معروضات لهذه الماركة حالياً.</li>
+                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#a0aec0' }}>{lang === 'ar' ? 'لا توجد معروضات لهذه الماركة حالياً.' : 'No items available for this make.'}</li>
                       ) : (
                         availableYears.map((year: string) => {
                           const yearKey = `year_${make}_${year}`;
@@ -496,16 +512,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                 onClick={() => toggleNode(yearKey, () => fetchModelsForYear(make, year))} 
                                 style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#ebf8ff' : 'transparent', fontSize: '13.5px', color: '#2b6cb0', padding: '7px 12px', fontWeight: 'bold' }}
                               >
-                                <span>📅 {year} {isModelsLoading && <small style={{ color: '#dd6b20' }}>(فحص الموديلات...)</small>}</span>
+                                <span>📅 {year} {isModelsLoading && <small style={{ color: '#dd6b20' }}>{lang === 'ar' ? '(فحص الموديلات...)' : '(Checking models...)'}</small>}</span>
                                 <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                               </div>
 
                               {isYearOpen && (
                                 <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                   {isModelsLoading ? (
-                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#718096' }}>🔄 جاري البحث عن الموديلات المتاحة...</li>
+                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#718096' }}>🔄 {lang === 'ar' ? 'جاري البحث عن الموديلات المتاحة...' : 'Checking available models...'}</li>
                                   ) : availableModels.length === 0 ? (
-                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#a0aec0' }}>لا توجد معروضات لموديلات هذه السنة.</li>
+                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#a0aec0' }}>{lang === 'ar' ? 'لا توجد معروضات لموديلات هذه السنة.' : 'No items available for this year.'}</li>
                                   ) : (
                                     availableModels.map((model: string) => {
                                       const modelKey = `model_${make}_${year}_${model}`;
@@ -521,14 +537,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                             onClick={() => toggleNode(modelKey, () => fetchEnginesForVehicle(make, year, model))} 
                                             style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#edf2f7' : 'transparent', fontSize: '13.5px', padding: '7px 12px' }}
                                           >
-                                            <span>🚘 {modelName} {isEnginesLoading && <small style={{ color: '#dd6b20' }}>(فحص المحركات...)</small>}</span>
+                                            <span>🚘 {modelName} {isEnginesLoading && <small style={{ color: '#dd6b20' }}>{lang === 'ar' ? '(فحص المحركات...)' : '(Checking engines...)'}</small>}</span>
                                             <span style={{ fontSize: '10px', color: '#718096' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                           </div>
 
                                           {isModelOpen && (
                                             <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                               {isEnginesLoading ? (
-                                                <li style={{ padding: '6px 12px', fontSize: '12px', color: '#718096' }}>🔄 جاري الفحص...</li>
+                                                <li style={{ padding: '6px 12px', fontSize: '12px', color: '#718096' }}>🔄 {lang === 'ar' ? 'جاري الفحص...' : 'Checking...'}</li>
                                               ) : (
                                                 availableEngines.map((engine: string) => {
                                                   const engineKey = `eng_${make}_${year}_${model}_${engine}`;
@@ -543,16 +559,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                         onClick={() => toggleNode(engineKey, () => fetchCategoriesForEngine(make, year, model, engine))} 
                                                         style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#ebf8ff' : 'transparent', fontSize: '13px', color: '#2c5282', padding: '6px 10px', fontWeight: '500' }}
                                                       >
-                                                        <span>⚡ {engine} {isCategoriesLoading && <small style={{ color: '#dd6b20' }}>(فحص الأقسام...)</small>}</span>
+                                                        <span>⚡ {engine} {isCategoriesLoading && <small style={{ color: '#dd6b20' }}>{lang === 'ar' ? '(فحص الأقسام...)' : '(Checking categories...)'}</small>}</span>
                                                         <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                       </div>
 
                                                       {isEngineOpen && (
                                                         <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
                                                           {isCategoriesLoading ? (
-                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#718096' }}>🔄 جاري فحص الأقسام...</li>
+                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#718096' }}>🔄 {lang === 'ar' ? 'جاري فحص الأقسام...' : 'Checking categories...'}</li>
                                                           ) : availableCategories.length === 0 ? (
-                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#a0aec0' }}>لا توجد أقسام متوفرة لهذا المحرك.</li>
+                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#a0aec0' }}>{lang === 'ar' ? 'لا توجد أقسام متوفرة لهذا المحرك.' : 'No categories available for this engine.'}</li>
                                                           ) : (
                                                             availableCategories.map((category: string) => {
                                                               const categoryKey = `cat_${make}_${year}_${model}_${engine}_${category}`;
@@ -568,16 +584,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                     onClick={() => toggleNode(categoryKey, () => fetchPartsForLeafNode(make, year, model, engine, category))} 
                                                                     style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fffaf0' : 'transparent', fontSize: '13px', color: '#2d3748', padding: '6px 10px', fontWeight: 'bold' }}
                                                                   >
-                                                                    <span>⚙️ {translatedCategory} {isPartsLoading && <small style={{ color: '#dd6b20' }}>(جاري جلب القطع...)</small>}</span>
+                                                                    <span>⚙️ {translatedCategory} {isPartsLoading && <small style={{ color: '#dd6b20' }}>{lang === 'ar' ? '(جاري جلب القطع...)' : '(Fetching parts...)'}</small>}</span>
                                                                     <span style={{ fontSize: '10px', color: '#a0aec0' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                                   </div>
 
                                                                   {isCategoryOpen && (
                                                                     <div style={{ padding: '16px', backgroundColor: '#fffaf0', borderRadius: '14px', border: '1px solid #feebc8', marginTop: '8px', marginBottom: '12px' }}>
                                                                       {isPartsLoading ? (
-                                                                        <p style={{ textAlign: 'center', color: '#718096', margin: 0 }}>🔄 جاري تحميل القطع المتاحة...</p>
+                                                                        <p style={{ textAlign: 'center', color: '#718096', margin: 0 }}>🔄 {lang === 'ar' ? 'جاري تحميل القطع المتاحة...' : 'Loading available parts...'}</p>
                                                                       ) : categoryParts.length === 0 ? (
-                                                                        <p style={{ textAlign: 'center', color: '#a0aec0', margin: 0 }}>لا توجد قطع معروضة حالياً.</p>
+                                                                        <p style={{ textAlign: 'center', color: '#a0aec0', margin: 0 }}>{lang === 'ar' ? 'لا توجد قطع معروضة حالياً.' : 'No parts available currently.'}</p>
                                                                       ) : (
                                                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px' }}>
                                                                           {categoryParts.map((part: any) => renderPartCard(part))}
@@ -622,22 +638,24 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '460px', width: '100%', direction: isRtl ? 'rtl' : 'ltr' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>📩 طلب قطعة غير متوفرة</h3>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>📩 {lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}</h3>
               <button onClick={() => setShowRequestModal(false)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}>✖</button>
             </div>
 
             {reqSubmitted ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <span style={{ fontSize: '50px', display: 'block', marginBottom: '10px' }}>✅</span>
-                <h4 style={{ margin: '0 0 8px 0', color: '#2f855a' }}>تم إرسال طلبك بنجاح!</h4>
-                <button onClick={() => setShowRequestModal(false)} style={{ width: '100%', padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>تم</button>
+                <h4 style={{ margin: '0 0 8px 0', color: '#2f855a' }}>{lang === 'ar' ? 'تم إرسال طلبك بنجاح!' : 'Your request was sent successfully!'}</h4>
+                <button onClick={() => setShowRequestModal(false)} style={{ width: '100%', padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {lang === 'ar' ? 'تم' : 'Done'}
+                </button>
               </div>
             ) : (
               <form onSubmit={handleInAppRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <input type="tel" placeholder="رقم الهاتف للتواصل" value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
-                <textarea placeholder="ملاحظات إضافية..." value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+                <input type="tel" placeholder={lang === 'ar' ? 'رقم الهاتف للتواصل' : 'Contact Phone Number'} value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
+                <textarea placeholder={lang === 'ar' ? 'ملاحظات إضافية...' : 'Additional Notes...'} value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
                 <button type="submit" disabled={isSubmittingReq} style={{ width: '100%', padding: '13px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {isSubmittingReq ? 'جاري الإرسال...' : 'إرسال الطلب الآن 🚀'}
+                  {isSubmittingReq ? (lang === 'ar' ? 'جاري الإرسال...' : 'Sending...') : (lang === 'ar' ? 'إرسال الطلب الآن 🚀' : 'Submit Request 🚀')}
                 </button>
               </form>
             )}
@@ -649,18 +667,20 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         <div onClick={() => setFitmentModalPart(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '80vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>🚘 دليل توافق القطعة مع السيارات</h3>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1a365d', fontWeight: 'bold' }}>🚘 {lang === 'ar' ? 'دليل توافق القطعة مع السيارات' : 'Part Compatibility Guide'}</h3>
               <button onClick={() => setFitmentModalPart(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#a0aec0' }}>✖</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {compatibleVehicles.map((v, idx) => (
                 <div key={idx} style={{ padding: '10px 14px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong>{v.make} - {v.model || 'عام'}</strong>
+                  <strong>{v.make} - {v.model || (lang === 'ar' ? 'عام' : 'General')}</strong>
                   <span style={{ backgroundColor: '#ebf8ff', color: '#2b6cb0', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold' }}>📅 {v.year}</span>
                 </div>
               ))}
             </div>
-            <button onClick={() => setFitmentModalPart(null)} style={{ width: '100%', marginTop: '20px', padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>إغلاق</button>
+            <button onClick={() => setFitmentModalPart(null)} style={{ width: '100%', marginTop: '20px', padding: '12px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+              {lang === 'ar' ? 'إغلاق' : 'Close'}
+            </button>
           </div>
         </div>
       )}
