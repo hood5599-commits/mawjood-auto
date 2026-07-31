@@ -48,7 +48,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     '💬 Contact Support'
   ];
 
-  // جلب الطلبات الحية للعميل من Supabase لإرسالها للـ API الآمن
+  // جلب طلبات العميل الحالية من Supabase
   const fetchUserContext = async () => {
     let contextStr = "Customer is a guest. No active orders.";
     if (session) {
@@ -91,10 +91,8 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
       return;
     }
 
-    // جلب طلبات العميل الحالية من Supabase
     const userContext = await fetchUserContext();
 
-    // 🔑 قراءة المفتاح بأكثر من مسار متوافق مع React / Vercel
     // @ts-ignore
     const apiKey = (typeof process !== 'undefined' && (process.env?.REACT_APP_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) || "";
 
@@ -104,11 +102,10 @@ User Context & Active Orders: ${userContext}
 
 Instructions:
 1. ORDER TRACKING: If user asks about their order/tracking, check 'Recent Orders' in Context and give a clear update.
-2. SEARCH: If asking for parts (e.g. mروحه كامري 2006), tell them to use top search bar or send VIN to garage via Fitment inquiry.
+2. SEARCH: If asking for parts, tell them to use top search bar or send VIN to garage via Fitment inquiry.
 3. Be helpful, concise, and friendly. No code blocks.`;
 
     try {
-      // 1️⃣ تجربة الطلب عبر الخادم الداخلي أولاً
       let response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,7 +119,6 @@ Instructions:
         reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       }
 
-      // 2️⃣ إذا لم يستجب خادم Vercel، يتصل المساعد بالذكاء الاصطناعي مباشرة بالمفتاح
       if (!reply && apiKey) {
         const directRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -147,7 +143,6 @@ Instructions:
       if (reply) {
         setMessages((prev) => [...prev, { sender: 'ai', text: reply }]);
       } else {
-        // 🛡️ رد ذكي مخصص في حال عدم توفر الاتصال بدلاً من الرسالة العابرة
         let smartFallback = "";
         if (userMsg.includes("تتبع") || userMsg.includes("طلبي")) {
           smartFallback = lang === 'ar' 
@@ -164,48 +159,6 @@ Instructions:
       setMessages((prev) => [...prev, { 
         sender: 'ai', 
         text: lang === 'ar' ? 'يمكنك تصفح القطع مباشرة عبر شريط البحث العلوي! 🚘' : 'Browse parts via the search bar above! 🚘' 
-      }]);
-    } finally {
-      setLoading(false);
-    }
-  };
-    }
-
-    // جلب سياق العميل (طلباته الحالية)
-    const userContext = await fetchUserContext();
-
-    try {
-      // 🛡️ الاتصال بـ API Vercel الآمن الذي أنشأناه للتو
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMsg: userMsg,
-          previousMessages: messages,
-          lang: lang,
-          userContext: userContext
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        
-        if (reply) {
-          setMessages((prev) => [...prev, { sender: 'ai', text: reply }]);
-        } else {
-          throw new Error("Empty response from AI");
-        }
-      } else {
-        throw new Error("Server Error");
-      }
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [...prev, { 
-        sender: 'ai', 
-        text: lang === 'ar' 
-          ? 'عذراً، الخادم الذكي يتحدث مع قاعدة البيانات حالياً. يمكنك استخدام شريط البحث العلوي مباشرة لمشاهدة القطع! 🚘' 
-          : 'AI Server is checking... Please use the top search bar to view parts directly! 🚘' 
       }]);
     } finally {
       setLoading(false);
