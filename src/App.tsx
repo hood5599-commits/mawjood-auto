@@ -11,6 +11,7 @@ import { DeliveryDashboard } from './components/DeliveryDashboard';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
 import { StaticPages, type StaticPageView } from './components/StaticPages';
+import { AITranslatedText } from './components/AITranslatedText'; // 👈 استيراد مكون الترجمة الذكي
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -64,6 +65,14 @@ export default function App() {
   const [filterCategory, setFilterCategory] = useState('');
 
   const [theme] = useState<'light' | 'dark'>('light');
+
+  const isRtl = lang === 'ar';
+
+  // 🌍 تغيير اتجاه الصفحة HTML بناءً على اللغة المختارة
+  useEffect(() => {
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   useEffect(() => {
     const hasVisited = localStorage.getItem('hasVisitedMawjood');
@@ -135,8 +144,6 @@ export default function App() {
   const totalCartPrice = cartItems.reduce((total, item) => total + (Number(item.price) * (item.quantity || 1)), 0);
   const totalCartCount = cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
 
-  const isRtl = lang === 'ar';
-
   // 📊 حساب الأرقام الواقعية والحقيقية 100% من قاعدة البيانات
   const realPartsCount = inventory.length;
 
@@ -176,7 +183,7 @@ export default function App() {
         {session && session.role !== 'garage' && session.role !== 'driver' && session.role !== 'admin' && (
           <div style={{ maxWidth: '1240px', margin: '14px auto -10px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={() => setShowOrderTracker(true)} style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              📦 {lang === 'ar' ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
+              📦 {isRtl ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
             </button>
           </div>
         )}
@@ -187,20 +194,21 @@ export default function App() {
             <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
             <div style={{ position: 'fixed', top: 0, bottom: 0, [isRtl ? 'left' : 'right']: 0, width: '380px', maxWidth: '100%', backgroundColor: '#ffffff', zIndex: 101, padding: '24px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
-                <h3 style={{ margin: 0 }}>🛒 {lang === 'ar' ? 'سلة المشتريات' : 'Cart'}</h3>
+                <h3 style={{ margin: 0 }}>🛒 {isRtl ? 'سلة المشتريات' : 'Your Cart'}</h3>
                 <button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✖</button>
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
                 {cartItems.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#64748b' }}>{lang === 'ar' ? 'السلة فارغة' : 'Cart is empty'}</p>
+                  <p style={{ textAlign: 'center', color: '#64748b' }}>{isRtl ? 'السلة فارغة' : 'Your cart is currently empty'}</p>
                 ) : (
                   cartItems.map((item, index) => (
                     <div key={index} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '10px' }}>
-                      <strong>{item.name}</strong>
-                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>{item.price} QAR x {item.quantity || 1}</p>
+                      {/* 👇 ترجمة أسماء القطع بداخل السلة */}
+                      <strong><AITranslatedText text={item.name} lang={lang} /></strong>
+                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>{item.price} {isRtl ? 'ر.ق' : 'QAR'} x {item.quantity || 1}</p>
                       <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ color: '#d1453b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
-                        {lang === 'ar' ? 'حذف' : 'Remove'}
+                        {isRtl ? 'حذف' : 'Remove'}
                       </button>
                     </div>
                   ))
@@ -210,11 +218,11 @@ export default function App() {
               {cartItems.length > 0 && (
                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '12px' }}>
-                    <span>{lang === 'ar' ? 'الإجمالي:' : 'Total:'}</span>
-                    <span>{totalCartPrice} QAR</span>
+                    <span>{isRtl ? 'الإجمالي:' : 'Total:'}</span>
+                    <span>{totalCartPrice} {isRtl ? 'ر.ق' : 'QAR'}</span>
                   </div>
                   <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    🚀 {lang === 'ar' ? 'إتمام الشراء' : 'Checkout'}
+                    🚀 {isRtl ? 'إتمام الشراء' : 'Checkout'}
                   </button>
                 </div>
               )}
@@ -309,7 +317,9 @@ export default function App() {
                 
                 {/* 1️⃣ متوسط وقت التوصيل */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#1f3a5f' }}>{siteSettings?.deliveryTimeText || 'ساعتان - 24 ساعة'}</h2>
+                  <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#1f3a5f' }}>
+                    {isRtl ? (siteSettings?.deliveryTimeText || 'ساعتان - 24 ساعة') : (siteSettings?.deliveryTimeText === 'ساعتان - 24 ساعة' ? '2 - 24 Hours' : siteSettings?.deliveryTimeText)}
+                  </h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '⏱️ متوسط وقت التوصيل' : '⏱️ Avg. Delivery Time'}
                   </p>
