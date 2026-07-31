@@ -1,5 +1,6 @@
 import React from 'react';
 import { t } from '../utils/translations';
+import { AITranslatedText } from './AITranslatedText'; // 👈 1. استيراد مكون الترجمة بالذكاء الاصطناعي
 
 interface PartCardProps {
   lang: 'ar' | 'en';
@@ -8,7 +9,6 @@ interface PartCardProps {
   onBuy?: (item: any) => void;
   onBuyClick?: (item: any) => void;
   onShare?: (item: any) => void;
-  // 👈 إضافة دعم Promise<void> لحل مشكلة Vercel بشكل نهائي
   onShareClick?: (item: any) => Promise<void> | void; 
 }
 
@@ -70,7 +70,10 @@ export const PartCard: React.FC<PartCardProps> = ({
       </div>
 
       <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h4 style={{ margin: 0, fontSize: '16px', color: '#1a365d', fontWeight: 'bold', lineHeight: '1.4' }}>{item.name}</h4>
+        {/* 👇 2. هنا التعديل السحري: تمرير اسم القطعة للذكاء الاصطناعي لترجمته إذا لزم الأمر */}
+        <h4 style={{ margin: 0, fontSize: '16px', color: '#1a365d', fontWeight: 'bold', lineHeight: '1.4' }}>
+          <AITranslatedText text={item.name} lang={lang} />
+        </h4>
         
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           <span style={{ backgroundColor: '#ebf8ff', color: '#2b6cb0', fontSize: '11px', fontWeight: 'bold', padding: '3px 8px', borderRadius: '6px' }}>
