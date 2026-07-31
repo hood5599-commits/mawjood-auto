@@ -15,8 +15,8 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang }) => {
     {
       sender: 'ai',
       text: lang === 'ar' 
-        ? 'أهلاً بك في موجود أوتو! 🏎️ أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم في اختيار قطع الغيار أو الطلب؟' 
-        : 'Welcome to Mawjood Auto! 🏎️ I am your AI assistant. How can I help you find parts or place an order today?'
+        ? 'أهلاً بك في موجود أوتو! 🏎️ أنا خبير القطع الذكي. كيف يمكنني إرشادك اليوم لتجد قطع سيارتك أو تطلبها؟' 
+        : 'Welcome to Mawjood Auto! 🏎️ I am your smart parts expert. How can I guide you today?'
     }
   ]);
   const [input, setInput] = useState('');
@@ -29,38 +29,64 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang }) => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
+  // أزرار اقتراحات سريعة لراحة العميل
+  const quickQuestions = lang === 'ar' ? [
+    '🔍 كيف أبحث عن قطعة؟',
+    '🔑 أين أجد رقم الشاصي (VIN)؟',
+    '🚚 كم يستغرق التوصيل؟',
+    '💬 التواصل مع الدعم الفني'
+  ] : [
+    '🔍 How to search?',
+    '🔑 Where is the VIN?',
+    '🚚 Delivery time?',
+    '💬 Contact Support'
+  ];
 
-    const userMsg = input.trim();
+  const sendMessage = async (textToSend: string) => {
+    if (!textToSend.trim() || loading) return;
+
+    const userMsg = textToSend.trim();
     setInput('');
     setMessages((prev: Message[]) => [...prev, { sender: 'user', text: userMsg }]);
     setLoading(true);
 
-    // 🔑 جلب المفتاح بشكل آمن لتفادي أخطاء TypeScript و Vercel
+    // 🔑 محاولة جلب المفتاح بأكثر من طريقة لضمان معالجة بيئة React
     // @ts-ignore
-    const apiKey = (typeof process !== 'undefined' && process.env?.REACT_APP_GEMINI_API_KEY) || "";
+    const apiKey = (typeof process !== 'undefined' && process.env?.REACT_APP_GEMINI_API_KEY) 
+      // @ts-ignore
+      || (window.REACT_APP_GEMINI_API_KEY) 
+      || "";
 
-    if (!apiKey) {
+    // رد تلقائي لوست الواتساب والدعم
+    if (userMsg.includes('الدعم') || userMsg.includes('Support')) {
       setMessages((prev: Message[]) => [...prev, { 
         sender: 'ai', 
         text: lang === 'ar' 
-          ? 'عفواً، مفتاح الذكاء الاصطناعي غير معرف بشكل صحيح في النظام.' 
-          : 'Gemini API key is not configured.' 
+          ? 'يمكنك التواصل المباشر مع خدمة العملاء عبر الواتساب على الرقم: 97455000000+ 📱' 
+          : 'You can contact customer support directly on WhatsApp: +97455000000 📱' 
       }]);
       setLoading(false);
       return;
     }
 
-    const systemPrompt = `You are a helpful customer service AI Assistant for "Mawjood Auto" (موجود أوتو), an online auto parts marketplace in Qatar.
-Your goal is to assist customers who don't know how to search or order parts.
-Key instructions to guide users:
-1. To search: Users can use the search bar by Part Number (PN) or part name (e.g., Alternator, Starter, Brake Pads).
-2. To check fitment: Tell them to click on the part, enter their car's VIN (رقم الشاصي) from the registration (الاستمارة), upload an old part photo, and send it to the garage for a 100% compatibility check.
-3. Delivery: Delivery takes 2 to 24 hours across Qatar, or free pickup from the store.
-4. Payment: Supports Apple Pay, Google Pay, Cards (Visa/MasterCard), or Cash on Delivery (COD).
-Answer clearly, concisely, and politely in the same language as the user (${lang === 'ar' ? 'Arabic' : 'English'}).`;
+    if (!apiKey) {
+      setMessages((prev: Message[]) => [...prev, { 
+        sender: 'ai', 
+        text: lang === 'ar' 
+          ? 'عفواً، جاري ربط مفتاح الخدمة الذكية بالتحديث الأخير. يمكنك استخدام شريط البحث العلوي مباشرة أو إرسال استفسار رقم الشاصي للكراج!' 
+          : 'Connecting AI service... Please use the top search bar or send a VIN inquiry to the garage!' 
+      }]);
+      setLoading(false);
+      return;
+    }
+
+    const systemPrompt = `You are an expert automotive parts AI consultant for "Mawjood Auto" (موجود أوتو) in Qatar.
+Help customers who don't know how to search or order:
+1. Searching: Advise them to type Part Number (PN) or part name in the top search bar (e.g. Camry 2006 alternator -> اكتب دينمو كامري).
+2. Fitment & Ordering: Tell them to open any part, enter 17-digit VIN (رقم الشاصي من استمارة السيارة), and attach an old part photo so the garage verifies 100% compatibility before shipping.
+3. Delivery: Delivery takes 2 to 24 hours across Qatar, or free pickup.
+4. Payment: Supports Apple Pay, Google Pay, Visa/MasterCard, Cash on Delivery (COD).
+Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
 
     try {
       const response = await fetch(
@@ -71,8 +97,6 @@ Answer clearly, concisely, and politely in the same language as the user (${lang
           body: JSON.stringify({
             contents: [
               { parts: [{ text: systemPrompt }] },
-              // تمرير سجل المحادثة السابق ليفهم السياق
-              ...messages.map(m => ({ parts: [{ text: `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}` }] })),
               { parts: [{ text: `User Question: ${userMsg}` }] }
             ]
           })
@@ -82,13 +106,21 @@ Answer clearly, concisely, and politely in the same language as the user (${lang
       if (response.ok) {
         const data = await response.json();
         const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() 
-          || (lang === 'ar' ? 'عفواً، لم أستطع فهم الطلب، حاول مرة أخرى.' : 'Sorry, I could not process that.');
+          || (lang === 'ar' ? 'يمكنك البحث عن هذه القطعة في شريط البحث العلوي مباشرة!' : 'Search for this part in the main search bar!');
         setMessages((prev: Message[]) => [...prev, { sender: 'ai', text: reply }]);
       } else {
-        setMessages((prev: Message[]) => [...prev, { sender: 'ai', text: lang === 'ar' ? 'حدث خطأ في استجابة الذكاء الاصطناعي، يرجى المحاولة لاحقاً.' : 'Error in AI response.' }]);
+        setMessages((prev: Message[]) => [...prev, { 
+          sender: 'ai', 
+          text: lang === 'ar' 
+            ? 'للحصول على أفضل نتيجة فوراً، اكتب اسم القطعة (مثل: كمبروسر كامري) في خانة البحث العلوية!' 
+            : 'For best results, type the part name directly in the main top search bar!' 
+        }]);
       }
     } catch (err) {
-      setMessages((prev: Message[]) => [...prev, { sender: 'ai', text: lang === 'ar' ? 'تعذر الاتصال بالمساعد الذكي حالياً.' : 'Connection error.' }]);
+      setMessages((prev: Message[]) => [...prev, { 
+        sender: 'ai', 
+        text: lang === 'ar' ? 'يمكنك تصفح الكتالوج مباشرة من القائمة الجانبية!' : 'You can browse the catalog directly from the sidebar!' 
+      }]);
     } finally {
       setLoading(false);
     }
@@ -97,61 +129,60 @@ Answer clearly, concisely, and politely in the same language as the user (${lang
   return (
     <div style={{ position: 'fixed', bottom: '20px', [isRtl ? 'left' : 'right']: '20px', zIndex: 1000, fontFamily: 'Cairo, sans-serif' }}>
       
-      {/* 🔘 زر فتح المساعد المنبثق */}
+      {/* 🔘 زر التفعيل الجذاب */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
           style={{
             backgroundColor: '#1f3a5f',
             color: 'white',
-            border: 'none',
+            border: '2px solid #e0872a',
             borderRadius: '50px',
-            padding: '12px 20px',
+            padding: '12px 22px',
             boxShadow: '0 8px 24px rgba(31,58,95,0.35)',
             cursor: 'pointer',
             fontWeight: 'bold',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            fontSize: '14px',
-            transition: 'transform 0.2s ease'
+            fontSize: '14px'
           }}
         >
           <span style={{ fontSize: '18px' }}>🤖</span>
-          <span>{lang === 'ar' ? 'المساعد الذكي' : 'AI Assistant'}</span>
+          <span>{lang === 'ar' ? 'مساعد القطع الذكي' : 'AI Parts Helper'}</span>
         </button>
       )}
 
-      {/* 💬 نافذة المحادثة */}
+      {/* 💬 نافذة المحادثة المجهزة */}
       {isOpen && (
         <div
           style={{
-            width: '350px',
+            width: '360px',
             maxWidth: '90vw',
-            height: '460px',
+            height: '490px',
             backgroundColor: '#ffffff',
-            borderRadius: '18px',
-            boxShadow: '0 12px 36px rgba(0,0,0,0.22)',
+            borderRadius: '20px',
+            boxShadow: '0 16px 40px rgba(0,0,0,0.22)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            border: '1px solid #e2e8f0',
+            border: '1px solid #cbd5e0',
             direction: isRtl ? 'rtl' : 'ltr'
           }}
         >
-          {/* هيدر الشات */}
+          {/* هيدر النافذة */}
           <div style={{ backgroundColor: '#1f3a5f', color: 'white', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '20px' }}>🤖</span>
+              <span style={{ fontSize: '22px' }}>🤖</span>
               <div>
-                <strong style={{ fontSize: '14px', display: 'block' }}>{lang === 'ar' ? 'مساعد موجود أوتو' : 'Mawjood AI Helper'}</strong>
-                <span style={{ fontSize: '11px', opacity: 0.8 }}>🟢 {lang === 'ar' ? 'متصل الآن' : 'Online'}</span>
+                <strong style={{ fontSize: '14.5px', display: 'block' }}>{lang === 'ar' ? 'خبير موجود أوتو' : 'Mawjood Auto Expert'}</strong>
+                <span style={{ fontSize: '11px', opacity: 0.85, color: '#4ade80' }}>🟢 {lang === 'ar' ? 'متصل وجاهز للمساعدة' : 'Online & Ready'}</span>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>✖</button>
           </div>
 
-          {/* قائمة الرسائل */}
+          {/* الرسائل ومساحة العرض */}
           <div style={{ flex: 1, padding: '14px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {messages.map((m, idx) => (
               <div
@@ -163,27 +194,52 @@ Answer clearly, concisely, and politely in the same language as the user (${lang
                   padding: '10px 14px',
                   borderRadius: m.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
                   fontSize: '13px',
-                  lineHeight: '1.4',
+                  lineHeight: '1.45',
                   boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
-                  maxWidth: '82%'
+                  maxWidth: '85%'
                 }}
               >
                 {m.text}
               </div>
             ))}
+
+            {/* أزرار الأسئلة الشائعة للعميل */}
+            {messages.length === 1 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                {quickQuestions.map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(q)}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #1f3a5f',
+                      color: '#1f3a5f',
+                      borderRadius: '12px',
+                      padding: '6px 10px',
+                      fontSize: '11.5px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {loading && (
               <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '12px', fontSize: '12px', color: '#64748b' }}>
-                ⏳ {lang === 'ar' ? 'جاري التفكير...' : 'Thinking...'}
+                ⏳ {lang === 'ar' ? 'جاري التحقق والمساعدة...' : 'Checking...'}
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
-          {/* حقل الإدخال */}
-          <form onSubmit={handleSend} style={{ display: 'flex', gap: '8px', padding: '10px', borderTop: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
+          {/* الإدخال والإرسال */}
+          <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ display: 'flex', gap: '8px', padding: '10px', borderTop: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
             <input
               type="text"
-              placeholder={lang === 'ar' ? 'اسأل المساعد الذكي أي سؤال...' : 'Ask AI anything...'}
+              placeholder={lang === 'ar' ? 'اسأل المساعد (مثال: قطع كامري 2006)...' : 'Ask AI (e.g. Camry 2006 parts)...'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', outline: 'none' }}
