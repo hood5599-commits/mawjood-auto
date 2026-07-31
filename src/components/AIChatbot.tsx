@@ -47,12 +47,10 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     '💬 Contact Support'
   ];
 
-  // 🛡️ دالة محمية لجلب سياق العميل دون إيقاف المساعد إذا حدث خطأ
   const fetchUserContext = async () => {
     if (!session) return "Customer is a guest. No active logged-in session.";
-
     const phone = session.phone || session.email || '';
-    if (!phone) return "Customer is logged in, but no phone/email identifier found.";
+    if (!phone) return "Customer is logged in, but no phone/email found.";
 
     try {
       const [ordersRes, inqRes] = await Promise.all([
@@ -63,12 +61,9 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
       const orders = ordersRes && ordersRes.ok ? await ordersRes.json() : [];
       const inquiries = inqRes && inqRes.ok ? await inqRes.json() : [];
 
-      return `Customer is Logged In (${phone}). 
-      Recent Orders: ${JSON.stringify(orders)}. 
-      Recent Fitment Inquiries: ${JSON.stringify(inquiries)}.`;
+      return `Customer Phone/ID: ${phone}. Active Orders: ${JSON.stringify(orders)}. Inquiries: ${JSON.stringify(inquiries)}.`;
     } catch (e) {
-      console.warn("Could not fetch user order context, proceeding without it.", e);
-      return "Customer is Logged In, but order history fetch failed.";
+      return "Logged in user, context unavailable.";
     }
   };
 
@@ -93,28 +88,61 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
 
     const userContext = await fetchUserContext();
 
-    try {
-      // 🛡️ الاتصال بالدالة السحابية الآمنة
-      const response = await fetch(`${supabaseUrl}/functions/v1/chat_assistant`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`
-        },
-        body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext })
-      });
+    // 🔑 جلب المفتاح المباشر المضمون
+    // @ts-ignore
+    const apiKey = (typeof process !== 'undefined' && (process.env?.REACT_APP_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) || import.meta.env?.VITE_GEMINI_API_KEY || "";
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.reply) {
-          setMessages((prev) => [...prev, { sender: 'ai', text: data.reply }]);
-          return;
+    const systemPrompt = `You are "Mawjood Auto AI", an expert automotive assistant in Qatar.
+Language: ${lang === 'ar' ? 'Arabic' : 'English'}.
+Context: ${userContext}
+
+Instructions:
+1. ORDER TRACKING: If user asks "تتبع طلبي" or "هل لدي طلبات", read Context and give order details clearly.
+2. PARTS SEARCH: If asking for parts (e.g., مروحه كامري 2006, كم قطعة في تويوتا), tell them politely to use the top search bar or upload VIN (رقم الشاصي).
+3. Always answer friendly, concisely, directly, and as a human car expert. NO code blocks.`;
+
+    try {
+      // 1️⃣ تجربة الاتصال المباشر أولاً بـ Supabase Function
+      let aiReply = "";
+      const edgeRes = await fetch(`${supabaseUrl}/functions/v1/chat_assistant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey },
+        body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext })
+      }).catch(() => null);
+
+      if (edgeRes && edgeRes.ok) {
+        const edgeData = await edgeRes.json();
+        if (edgeData.reply) aiReply = edgeData.reply;
+      }
+
+      // 2️⃣ إذا فشل Edge Function، يتصل تلقائياً بـ Gemini API المباشر
+      if (!aiReply && apiKey) {
+        const directRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                { parts: [{ text: systemPrompt }] },
+                ...messages.map(m => ({ parts: [{ text: `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}` }] })),
+                { parts: [{ text: `User: ${userMsg}` }] }
+              ]
+            })
+          }
+        );
+
+        if (directRes.ok) {
+          const directData = await directRes.json();
+          aiReply = directData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
         }
       }
 
-      // إذا لم تنجح الاستجابة، اركب خطأ ينقل للرد الاحتياطي
-      throw new Error(`Edge function returned status: ${response.status}`);
+      if (aiReply) {
+        setMessages((prev) => [...prev, { sender: 'ai', text: aiReply }]);
+      } else {
+        throw new Error("No response generated");
+      }
 
     } catch (err) {
       console.error("Chatbot Error:", err);
