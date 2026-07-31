@@ -42,7 +42,7 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
-  // إعدادات السوشال ميديا والموقع وبوابة الدفع والأرقام الحقيقية
+  // إعدادات السوشال ميديا والموقع والأرقام الحقيقية
   const [siteSettings, setSiteSettings] = useState(() => {
     const saved = localStorage.getItem('mawjood_site_settings');
     return saved ? JSON.parse(saved) : { 
@@ -51,8 +51,8 @@ export default function App() {
       twitter: 'https://twitter.com', 
       whatsapp: '97455000000',
       deliveryTimeText: 'ساعتان - 24 ساعة',
-      happyCustomersCount: 1200,
-      garagesCount: 25
+      happyCustomersCount: 15,
+      garagesCount: 5
     };
   });
 
@@ -137,8 +137,11 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
-  // 📊 حساب عدد إجمالي القطع المضافة في Supabase حقيقياً
+  // 📊 حساب الأرقام الواقعية والحقيقية 100% من قاعدة البيانات
   const realPartsCount = inventory.length;
+
+  // جلب عدد الكراجات والمحلات ذات المعروضات الحقيقية في القاعدة
+  const realGaragesCount = Array.from(new Set(inventory.map(p => p.garage_id || p.garage_name || 'عام').filter(Boolean))).length;
 
   return (
     <>
@@ -301,37 +304,37 @@ export default function App() {
           {view === 'shop' && (
             <div style={{ marginTop: '20px', width: '100%' }}>
 
-              {/* 📊 شريط الإحصائيات والأرقام الواقعية الحقيقية */}
+              {/* 📊 شريط الإحصائيات والأرقام الحقيقية المنسقة بدقة بدون مشاكل اتجاه الخط */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '25px' }}>
                 
-                {/* 1️⃣ متوسط وقت التوصيل (محدث ديناميكياً من الإعدادات) */}
+                {/* 1️⃣ متوسط وقت التوصيل */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#1f3a5f' }}>{siteSettings?.deliveryTimeText || 'ساعتان - 24 ساعة'}</h2>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>
+                  <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#1f3a5f' }}>{siteSettings?.deliveryTimeText || 'ساعتان - 24 ساعة'}</h2>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '⏱️ متوسط وقت التوصيل' : '⏱️ Avg. Delivery Time'}
                   </p>
                 </div>
 
-                {/* 2️⃣ القطع في قاعدة البيانات (عدد حي وحقيقي من جدول Supabase) */}
+                {/* 2️⃣ القطع الحقيقية في قاعدة البيانات */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
                   <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#e0872a' }}>{realPartsCount.toLocaleString()}</h2>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '📦 القطع في قاعدة البيانات' : '📦 Parts in Database'}
                   </p>
                 </div>
 
-                {/* 3️⃣ كراج ومعرض قطع غيار معتمد (واقعي ومحدث من الأدمن) */}
+                {/* 3️⃣ كراج ومعرض قطع غيار حقيقي */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1f3a5f' }}>+{siteSettings?.garagesCount || 10}</h2>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>
+                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1f3a5f', direction: 'ltr', display: 'inline-block' }}>+{realGaragesCount || siteSettings?.garagesCount || 1}</h2>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '🏬 كراج ومعرض قطع غيار' : '🏬 Verified Garages & Stores'}
                   </p>
                 </div>
 
-                {/* 4️⃣ عملاء راضون (واقعي ومحدث من الأدمن) */}
+                {/* 4️⃣ عملاء راضون مع تنسيق اتجاه الرقم */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#16a34a' }}>+{siteSettings?.happyCustomersCount || 100}</h2>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>
+                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#16a34a', direction: 'ltr', display: 'inline-block' }}>+{siteSettings?.happyCustomersCount || 10}</h2>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '😊 عملاء راضون' : '😊 Happy Customers'}
                   </p>
                 </div>
