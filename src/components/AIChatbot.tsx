@@ -91,6 +91,86 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
       return;
     }
 
+    // جلب طلبات العميل الحالية من Supabase
+    const userContext = await fetchUserContext();
+
+    // 🔑 قراءة المفتاح بأكثر من مسار متوافق مع React / Vercel
+    // @ts-ignore
+    const apiKey = (typeof process !== 'undefined' && (process.env?.REACT_APP_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) || "";
+
+    const systemPrompt = `You are "Mawjood Auto AI", a legendary auto parts expert in Qatar.
+User language: ${lang === 'ar' ? 'Arabic' : 'English'}.
+User Context & Active Orders: ${userContext}
+
+Instructions:
+1. ORDER TRACKING: If user asks about their order/tracking, check 'Recent Orders' in Context and give a clear update.
+2. SEARCH: If asking for parts (e.g. mروحه كامري 2006), tell them to use top search bar or send VIN to garage via Fitment inquiry.
+3. Be helpful, concise, and friendly. No code blocks.`;
+
+    try {
+      // 1️⃣ تجربة الطلب عبر الخادم الداخلي أولاً
+      let response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext })
+      }).catch(() => null);
+
+      let reply = "";
+
+      if (response && response.ok) {
+        const data = await response.json();
+        reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      }
+
+      // 2️⃣ إذا لم يستجب خادم Vercel، يتصل المساعد بالذكاء الاصطناعي مباشرة بالمفتاح
+      if (!reply && apiKey) {
+        const directRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                { parts: [{ text: systemPrompt }] },
+                { parts: [{ text: `User Question: ${userMsg}` }] }
+              ]
+            })
+          }
+        );
+
+        if (directRes.ok) {
+          const directData = await directRes.json();
+          reply = directData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        }
+      }
+
+      if (reply) {
+        setMessages((prev) => [...prev, { sender: 'ai', text: reply }]);
+      } else {
+        // 🛡️ رد ذكي مخصص في حال عدم توفر الاتصال بدلاً من الرسالة العابرة
+        let smartFallback = "";
+        if (userMsg.includes("تتبع") || userMsg.includes("طلبي")) {
+          smartFallback = lang === 'ar' 
+            ? "لمتابعة طلباتك واستفساراتك، يرجى الضغط على زر **'📦 متابعة استفساراتي وطلباتي'** الموجود في أعلى الصفحة لمشاهدة الحالة الحية! 🚚"
+            : "To track your orders, please click the **'📦 Track Inquiries & Orders'** button at the top of the page! 🚚";
+        } else {
+          smartFallback = lang === 'ar'
+            ? `للبحث عن **"${userMsg}"**: اكتب اسم القطعة في خانة البحث العلوية، أو اختر أي قطعة وأرسل رقم الشاصي (VIN) للكراج لتأكيد التوافق 100%! 🚘`
+            : `To find **"${userMsg}"**: Type the part name in the search bar above or submit your VIN for a fitment check! 🚘`;
+        }
+        setMessages((prev) => [...prev, { sender: 'ai', text: smartFallback }]);
+      }
+    } catch (err) {
+      setMessages((prev) => [...prev, { 
+        sender: 'ai', 
+        text: lang === 'ar' ? 'يمكنك تصفح القطع مباشرة عبر شريط البحث العلوي! 🚘' : 'Browse parts via the search bar above! 🚘' 
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+    }
+
     // جلب سياق العميل (طلباته الحالية)
     const userContext = await fetchUserContext();
 
