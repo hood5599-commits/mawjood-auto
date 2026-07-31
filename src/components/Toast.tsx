@@ -34,7 +34,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type = 'success', onClose
       fontSize: '14px',
       zIndex: 99999,
       display: 'flex',
-      alignItem: 'center',
+      alignItems: 'center', // ✅ تم تصحيح الخطأ هنا (alignItems)
       gap: '10px',
       animation: 'slideUp 0.3s ease-out'
     }}>
