@@ -42,10 +42,18 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
-  // إعدادات السوشال ميديا والموقع وبوابة الدفع
+  // إعدادات السوشال ميديا والموقع وبوابة الدفع والأرقام الحقيقية
   const [siteSettings, setSiteSettings] = useState(() => {
     const saved = localStorage.getItem('mawjood_site_settings');
-    return saved ? JSON.parse(saved) : { facebook: 'https://facebook.com', instagram: 'https://instagram.com', twitter: 'https://twitter.com', whatsapp: '97455000000' };
+    return saved ? JSON.parse(saved) : { 
+      facebook: 'https://facebook.com', 
+      instagram: 'https://instagram.com', 
+      twitter: 'https://twitter.com', 
+      whatsapp: '97455000000',
+      deliveryTimeText: 'ساعتان - 24 ساعة',
+      happyCustomersCount: 1200,
+      garagesCount: 25
+    };
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,8 +137,8 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
-  // 📊 حساب عدد إجمالي القطع في القاعدة بشكل ديناميكي وجذاب
-  const totalPartsInDb = (inventory.length + 150000).toLocaleString();
+  // 📊 حساب عدد إجمالي القطع المضافة في Supabase حقيقياً
+  const realPartsCount = inventory.length;
 
   return (
     <>
@@ -293,36 +301,36 @@ export default function App() {
           {view === 'shop' && (
             <div style={{ marginTop: '20px', width: '100%' }}>
 
-              {/* 📊 شريط الإحصائيات والأرقام الرئيسية المحدث (Stats Counter Grid) */}
+              {/* 📊 شريط الإحصائيات والأرقام الواقعية الحقيقية */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '25px' }}>
                 
-                {/* 1️⃣ متوسط وقت التوصيل */}
+                {/* 1️⃣ متوسط وقت التوصيل (محدث ديناميكياً من الإعدادات) */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1f3a5f' }}>ساعتان - 24 ساعة</h2>
+                  <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#1f3a5f' }}>{siteSettings?.deliveryTimeText || 'ساعتان - 24 ساعة'}</h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '⏱️ متوسط وقت التوصيل' : '⏱️ Avg. Delivery Time'}
                   </p>
                 </div>
 
-                {/* 2️⃣ القطع في قاعدة البيانات (حساب حقيقي وحي) */}
+                {/* 2️⃣ القطع في قاعدة البيانات (عدد حي وحقيقي من جدول Supabase) */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#e0872a' }}>{totalPartsInDb}</h2>
+                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#e0872a' }}>{realPartsCount.toLocaleString()}</h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '📦 القطع في قاعدة البيانات' : '📦 Parts in Database'}
                   </p>
                 </div>
 
-                {/* 3️⃣ كراج ومعرض قطع غيار معتمد */}
+                {/* 3️⃣ كراج ومعرض قطع غيار معتمد (واقعي ومحدث من الأدمن) */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1f3a5f' }}>+85</h2>
+                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1f3a5f' }}>+{siteSettings?.garagesCount || 10}</h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '🏬 كراج ومعرض قطع غيار' : '🏬 Verified Garages & Stores'}
                   </p>
                 </div>
 
-                {/* 4️⃣ عملاء راضون */}
+                {/* 4️⃣ عملاء راضون (واقعي ومحدث من الأدمن) */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#16a34a' }}>+15,000</h2>
+                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#16a34a' }}>+{siteSettings?.happyCustomersCount || 100}</h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>
                     {isRtl ? '😊 عملاء راضون' : '😊 Happy Customers'}
                   </p>
@@ -372,14 +380,12 @@ export default function App() {
             siteSettings={siteSettings}
             onClose={() => setSelectedPartForCheckout(null)}
             onSuccess={(addedPart?: any) => {
-              // 🛒 إذا تم إرسال استفسار، تضاف القطعة مباشرة لسلة المشتريات
               if (addedPart) {
                 setCartItems(prev => {
                   if (prev.some(item => item.id === addedPart.id)) return prev;
                   return [...prev, { ...addedPart, quantity: 1 }];
                 });
               } else {
-                // عند الشراء والدفع النهائي، يتم إزالتها من السلة
                 const purchasedPartId = selectedPartForCheckout.part.id;
                 setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
               }
