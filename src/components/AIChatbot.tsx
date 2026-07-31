@@ -47,6 +47,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     debugLog.push(`🔍 **بداية التست:**`);
     debugLog.push(`- URL: ${baseUrl}`);
     debugLog.push(`- Key Present: ${!!supabaseKey}`);
+    debugLog.push(`- Session Active: ${!!session}`);
 
     try {
       // 🧪 1. اختبار الاتصال بـ Supabase Edge Function
@@ -60,7 +61,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
           'apikey': supabaseKey || '',
           'Authorization': `Bearer ${supabaseKey || ''}`
         },
-        body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext: "Test Context" })
+        body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext: `Test Context (User: ${session?.user?.id || 'Guest'})` })
       }).catch((err) => {
         debugLog.push(`❌ فشل شبكة (Fetch Failed): ${err.message}`);
         return null;
@@ -74,7 +75,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
           try {
             const parsed = JSON.parse(textBody);
             if (parsed.reply) {
-              // 🟢 نجاح كامل!
               setMessages((prev) => [...prev, { sender: 'ai', text: parsed.reply }]);
               setLoading(false);
               return;
@@ -127,7 +127,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
         }
       }
 
-      // 🔴 إظهار تقرير التست الكامل داخل الشات للمستخدم
       setMessages((prev) => [...prev, { 
         sender: 'ai', 
         text: debugLog.join('\n') 
