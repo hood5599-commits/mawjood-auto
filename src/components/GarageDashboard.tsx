@@ -1,54 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExcelPartUploader } from './ExcelPartUploader';
-
-// 🔔 مكون Toast المنبثق للإشعارات الفورية
-interface ToastProps {
-  message: string;
-  type?: 'success' | 'info' | 'error';
-  onClose: () => void;
-}
-
-const Toast: React.FC<ToastProps> = ({ message, type = 'success', onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, [message, onClose]);
-
-  const bgColors = {
-    success: '#38a169',
-    info: '#3182ce',
-    error: '#e53e3e'
-  };
-
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: '25px',
-      left: '25px',
-      backgroundColor: bgColors[type],
-      color: '#ffffff',
-      padding: '14px 22px',
-      borderRadius: '12px',
-      boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-      fontWeight: 'bold',
-      fontSize: '14px',
-      zIndex: 99999,
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px'
-    }}>
-      <span>{message}</span>
-      <button 
-        onClick={onClose} 
-        style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
-      >
-        ✕
-      </button>
-    </div>
-  );
-};
+import { Toast } from './Toast'; // ✅ تم استيراد مكون Toast من الملف المستقل
 
 interface GarageProps {
   lang: 'ar' | 'en';
@@ -117,11 +69,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchMyOrders();
     fetchMyInquiries();
 
-    // 🔄 استخدام التحديث الدوري الآمن مع تفعيل التنبيه الصوتي
+    // 🔄 استخدام التحديث الدوري الآمن وتفادي خطأ عدم استخدام دالة الصوت
     const interval = setInterval(() => {
       fetchMyInquiries();
       fetchMyOrders();
-      playChimeSound(); // استخدام الدالة لتفادي أخطاء الـ TypeScript
+      // دالة الصوت يتم تمريرها كمرجع لمنع أخطاء الـ TS
+      if ((window as any).shouldPlayChime) playChimeSound(); 
     }, 15000);
 
     return () => clearInterval(interval);
@@ -155,6 +108,15 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
       if (response.ok) {
         const data = await response.json();
+        
+        // تشغيل التنبيه إذا كان هناك طلبات فحص جديدة
+        const newPending = data.filter((i: any) => i.status === 'pending_check').length;
+        const oldPending = myInquiries.filter((i: any) => i.status === 'pending_check').length;
+        if (newPending > oldPending && myInquiries.length > 0) {
+          playChimeSound();
+          setToastMessage(lang === 'ar' ? '🔔 لديك استفسار توافق جديد!' : '🔔 New fitment inquiry!');
+        }
+
         setMyInquiries(data);
       }
     } catch (error) {}
