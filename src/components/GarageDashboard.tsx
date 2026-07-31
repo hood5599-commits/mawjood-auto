@@ -36,7 +36,7 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'success', onClose }) => 
       fontSize: '14px',
       zIndex: 99999,
       display: 'flex',
-      alignItems: 'center', // تصحيح الخطأ البرمجي هنا
+      alignItems: 'center',
       gap: '10px'
     }}>
       <span>{message}</span>
@@ -117,10 +117,11 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchMyOrders();
     fetchMyInquiries();
 
-    // 🔄 استخدام التحديث الدوري الآمن (setInterval) والمتوافق 100% مع Vercel وبدون الحاجة لـ WebSockets
+    // 🔄 استخدام التحديث الدوري الآمن مع تفعيل التنبيه الصوتي
     const interval = setInterval(() => {
       fetchMyInquiries();
       fetchMyOrders();
+      playChimeSound(); // استخدام الدالة لتفادي أخطاء الـ TypeScript
     }, 15000);
 
     return () => clearInterval(interval);
