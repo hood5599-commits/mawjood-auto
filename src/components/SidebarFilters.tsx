@@ -314,7 +314,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     const maxStock = typeof part.stock !== 'undefined' && part.stock !== null ? Number(part.stock) : 5;
     const isOutOfStock = maxStock <= 0;
 
-    // 🧠 فحص البدائل المطابقة وتصنيف الجودة آلياً عبر محرك categoryHelper
     const { alternatives } = findSmartInterchangeParts(part, inventory);
     const tierInfo = classifyPartTier(part);
 
@@ -328,7 +327,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           border: '1px solid #e2e8f0', 
           display: 'flex', 
           flexDirection: 'column',
-          justify: 'space-between', 
+          justifyContent: 'space-between', 
           gap: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
         }}
@@ -354,7 +353,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 🔍 PN: {partNo}
               </div>
 
-              {/* الشارة المحدثة آلياً بحسب درجة الجودة */}
               <span style={{ 
                 fontSize: '11px', fontWeight: 'bold', 
                 color: tierInfo.tier === 'oem' ? '#2b6cb0' : '#c05621', 
@@ -375,7 +373,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         </div>
 
-        {/* 💡 عرض البدائل المطابقة المكتشفة أوتوماتيكياً */}
         {alternatives.length > 0 && (
           <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '10px', border: '1px dashed #cbd5e0' }}>
             <strong style={{ fontSize: '11.5px', color: '#0369a1', display: 'block', marginBottom: '6px' }}>
@@ -392,7 +389,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         )}
 
-        {/* أزرار التحكم والعمليات */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', justifyContent: 'center' }}>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '30px', height: '30px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
