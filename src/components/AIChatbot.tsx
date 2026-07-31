@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 
+// 🔑 نستخدم نفس طريقة الاستدعاء التي نجحت معك في aiTranslator.ts
+// @ts-ignore
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "ضع_المفتاح_هنا_إن_أردت_أو_اتركه_ليقرأ_من_البيئة";
+
 interface AIChatbotProps {
   lang: 'ar' | 'en';
 }
@@ -29,7 +33,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang }) => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
 
-  // أزرار اقتراحات سريعة لراحة العميل
   const quickQuestions = lang === 'ar' ? [
     '🔍 كيف أبحث عن قطعة؟',
     '🔑 أين أجد رقم الشاصي (VIN)؟',
@@ -50,14 +53,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang }) => {
     setMessages((prev: Message[]) => [...prev, { sender: 'user', text: userMsg }]);
     setLoading(true);
 
-    // 🔑 محاولة جلب المفتاح بأكثر من طريقة لضمان معالجة بيئة React
-    // @ts-ignore
-    const apiKey = (typeof process !== 'undefined' && process.env?.REACT_APP_GEMINI_API_KEY) 
-      // @ts-ignore
-      || (window.REACT_APP_GEMINI_API_KEY) 
-      || "";
-
-    // رد تلقائي لوست الواتساب والدعم
+    // 💬 الرد السريع على الدعم الفني
     if (userMsg.includes('الدعم') || userMsg.includes('Support')) {
       setMessages((prev: Message[]) => [...prev, { 
         sender: 'ai', 
@@ -69,58 +65,45 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang }) => {
       return;
     }
 
-    if (!apiKey) {
-      setMessages((prev: Message[]) => [...prev, { 
-        sender: 'ai', 
-        text: lang === 'ar' 
-          ? 'عفواً، جاري ربط مفتاح الخدمة الذكية بالتحديث الأخير. يمكنك استخدام شريط البحث العلوي مباشرة أو إرسال استفسار رقم الشاصي للكراج!' 
-          : 'Connecting AI service... Please use the top search bar or send a VIN inquiry to the garage!' 
-      }]);
-      setLoading(false);
-      return;
-    }
-
     const systemPrompt = `You are an expert automotive parts AI consultant for "Mawjood Auto" (موجود أوتو) in Qatar.
 Help customers who don't know how to search or order:
-1. Searching: Advise them to type Part Number (PN) or part name in the top search bar (e.g. Camry 2006 alternator -> اكتب دينمو كامري).
+1. Searching: Advise them to type Part Number (PN) or part name in the top search bar (e.g., Camry 2006 alternator -> اكتب دينمو كامري 2006).
 2. Fitment & Ordering: Tell them to open any part, enter 17-digit VIN (رقم الشاصي من استمارة السيارة), and attach an old part photo so the garage verifies 100% compatibility before shipping.
-3. Delivery: Delivery takes 2 to 24 hours across Qatar, or free pickup.
+3. Delivery: Delivery takes 2 to 24 hours across Qatar, or free store pickup.
 4. Payment: Supports Apple Pay, Google Pay, Visa/MasterCard, Cash on Delivery (COD).
-Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
+Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.
+User Question: "${userMsg}"`;
 
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [
-              { parts: [{ text: systemPrompt }] },
-              { parts: [{ text: `User Question: ${userMsg}` }] }
-            ]
+            contents: [{ parts: [{ text: systemPrompt }] }]
           })
         }
       );
 
       if (response.ok) {
         const data = await response.json();
-        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() 
-          || (lang === 'ar' ? 'يمكنك البحث عن هذه القطعة في شريط البحث العلوي مباشرة!' : 'Search for this part in the main search bar!');
-        setMessages((prev: Message[]) => [...prev, { sender: 'ai', text: reply }]);
+        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (reply) {
+          setMessages((prev: Message[]) => [...prev, { sender: 'ai', text: reply }]);
+        } else {
+          throw new Error("No response text");
+        }
       } else {
-        setMessages((prev: Message[]) => [...prev, { 
-          sender: 'ai', 
-          text: lang === 'ar' 
-            ? 'للحصول على أفضل نتيجة فوراً، اكتب اسم القطعة (مثل: كمبروسر كامري) في خانة البحث العلوية!' 
-            : 'For best results, type the part name directly in the main top search bar!' 
-        }]);
+        throw new Error("API Response Error");
       }
     } catch (err) {
-      setMessages((prev: Message[]) => [...prev, { 
-        sender: 'ai', 
-        text: lang === 'ar' ? 'يمكنك تصفح الكتالوج مباشرة من القائمة الجانبية!' : 'You can browse the catalog directly from the sidebar!' 
-      }]);
+      // 🛡️ إجابة ذكية بديلة متجاوبة مع العميل حتى عند تعذر الخدمة
+      let fallbackText = lang === 'ar'
+        ? `للبحث عن "${userMsg}": اكتب الكلمة في خانة البحث العلوية مباشرة، أو اضغط على أي قطعة وأدخل رقم الشاصي لتأكيد التوافق مع الكراج! 🚘`
+        : `To find "${userMsg}": Type it directly in the top search bar, or select a part and enter your VIN for garage compatibility check! 🚘`;
+        
+      setMessages((prev: Message[]) => [...prev, { sender: 'ai', text: fallbackText }]);
     } finally {
       setLoading(false);
     }
@@ -129,7 +112,6 @@ Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
   return (
     <div style={{ position: 'fixed', bottom: '20px', [isRtl ? 'left' : 'right']: '20px', zIndex: 1000, fontFamily: 'Cairo, sans-serif' }}>
       
-      {/* 🔘 زر التفعيل الجذاب */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -153,7 +135,6 @@ Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
         </button>
       )}
 
-      {/* 💬 نافذة المحادثة المجهزة */}
       {isOpen && (
         <div
           style={{
@@ -170,7 +151,6 @@ Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
             direction: isRtl ? 'rtl' : 'ltr'
           }}
         >
-          {/* هيدر النافذة */}
           <div style={{ backgroundColor: '#1f3a5f', color: 'white', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '22px' }}>🤖</span>
@@ -182,7 +162,6 @@ Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
             <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>✖</button>
           </div>
 
-          {/* الرسائل ومساحة العرض */}
           <div style={{ flex: 1, padding: '14px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {messages.map((m, idx) => (
               <div
@@ -203,7 +182,6 @@ Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
               </div>
             ))}
 
-            {/* أزرار الأسئلة الشائعة للعميل */}
             {messages.length === 1 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
                 {quickQuestions.map((q, i) => (
@@ -235,7 +213,6 @@ Answer clearly and concisely in ${lang === 'ar' ? 'Arabic' : 'English'}.`;
             <div ref={chatEndRef} />
           </div>
 
-          {/* الإدخال والإرسال */}
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ display: 'flex', gap: '8px', padding: '10px', borderTop: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
             <input
               type="text"
