@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { getPartCategory, matchesSmartSearch } from '../utils/categoryHelper';
+import { 
+  getPartCategory, 
+  matchesSmartSearch, 
+  findSmartInterchangeParts, 
+  classifyPartTier 
+} from '../utils/categoryHelper';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
@@ -308,7 +313,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     const qty = getQty(part.id);
     const maxStock = typeof part.stock !== 'undefined' && part.stock !== null ? Number(part.stock) : 5;
     const isOutOfStock = maxStock <= 0;
-    const pType = part.part_type || 'أصلي (OEM)';
+
+    // 🧠 فحص البدائل المطابقة وتصنيف الجودة آلياً عبر محرك categoryHelper
+    const { alternatives } = findSmartInterchangeParts(part, inventory);
+    const tierInfo = classifyPartTier(part);
 
     return (
       <div 
@@ -320,7 +328,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           border: '1px solid #e2e8f0', 
           display: 'flex', 
           flexDirection: 'column',
-          justifyContent: 'space-between', 
+          justify: 'space-between', 
           gap: '12px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.04)'
         }}
@@ -346,14 +354,15 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 🔍 PN: {partNo}
               </div>
 
+              {/* الشارة المحدثة آلياً بحسب درجة الجودة */}
               <span style={{ 
                 fontSize: '11px', fontWeight: 'bold', 
-                color: pType.includes('تجاري') ? '#c05621' : '#2b6cb0', 
-                backgroundColor: pType.includes('تجاري') ? '#fffaf0' : '#ebf8ff', 
+                color: tierInfo.tier === 'oem' ? '#2b6cb0' : '#c05621', 
+                backgroundColor: tierInfo.badgeColor, 
                 padding: '2px 6px', borderRadius: '5px',
-                border: pType.includes('تجاري') ? '1px solid #feebc8' : '1px solid #bee3f8'
+                border: tierInfo.tier === 'oem' ? '1px solid #bee3f8' : '1px solid #feebc8'
               }}>
-                {pType.includes('تجاري') ? '⚙️ تجاري/كوبي' : '💎 أصلي OEM'}
+                {tierInfo.label}
               </span>
             </div>
 
@@ -366,6 +375,24 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         </div>
 
+        {/* 💡 عرض البدائل المطابقة المكتشفة أوتوماتيكياً */}
+        {alternatives.length > 0 && (
+          <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '10px', border: '1px dashed #cbd5e0' }}>
+            <strong style={{ fontSize: '11.5px', color: '#0369a1', display: 'block', marginBottom: '6px' }}>
+              💡 متوفر ({alternatives.length}) بدائل متوافقة مع هذا البارت نمبر:
+            </strong>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {alternatives.slice(0, 2).map((alt) => (
+                <div key={alt.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#334155' }}>
+                  <span>{alt.name} ({classifyPartTier(alt).tier === 'oem' ? 'أصلي' : 'بديل'})</span>
+                  <strong style={{ color: '#e0872a' }}>{alt.price} QAR</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* أزرار التحكم والعمليات */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', justifyContent: 'center' }}>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '30px', height: '30px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
