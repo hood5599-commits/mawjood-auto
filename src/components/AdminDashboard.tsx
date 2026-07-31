@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface AdminDashboardProps {
   lang: 'ar' | 'en';
@@ -18,8 +18,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const isRtl = lang === 'ar';
   
-  // التبويب النشط
-  const [tab, setTab] = useState<'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment'>('users');
+  // 📌 التبويب النشط (تم إضافة تبويب الحسابات والعمولات payouts)
+  const [tab, setTab] = useState<'payouts' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment'>('payouts');
 
   // 🔍 متغيرات البحث بطلبات المباشرة (Search-On-Demand)
   const [userQuery, setUserQuery] = useState('');
@@ -30,6 +30,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [orderQuery, setOrderQuery] = useState('');
   const [searchResultsOrders, setSearchResultsOrders] = useState<any[] | null>(null);
+
+  // 💰 متغيرات حسابات ومستحقات الكراجات
+  const [ordersList, setOrdersList] = useState<any[]>([]);
+  const [commissionRate, setCommissionRate] = useState<number>(siteSettings?.commissionRate || 10);
+  const [settledGarages, setSettledGarages] = useState<Record<string, boolean>>({});
 
   // حالات تغيير كلمة المرور والسياسات
   const [selectedUserPhone, setSelectedUserPhone] = useState('');
@@ -57,6 +62,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [searching, setSearching] = useState(false);
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    fetchAllOrdersForPayouts();
+  }, []);
+
+  // جلب الطلبات الخاصة بجدول الحسابات
+  const fetchAllOrdersForPayouts = async () => {
+    try {
+      const res = await fetch(`${supabaseUrl}/orders?select=*`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setOrdersList(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // 📊 حساب العمولات والمستحقات المباشرة لكل كراج
+  const calculateFinancials = () => {
+    const validOrders = ordersList.filter(o => o.status !== 'cancelled');
+    const totalRevenue = validOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+    const totalPlatformCommission = (totalRevenue * commissionRate) / 100;
+    const totalGaragesNet = totalRevenue - totalPlatformCommission;
+
+    const garageMap: Record<string, { garageId: string; totalSales: number; orderCount: number }> = {};
+
+    validOrders.forEach(o => {
+      const gId = o.garage_id || 'كراج عام';
+      if (!garageMap[gId]) {
+        garageMap[gId] = { garageId: gId, totalSales: 0, orderCount: 0 };
+      }
+      garageMap[gId].totalSales += Number(o.price) || 0;
+      garageMap[gId].orderCount += 1;
+    });
+
+    return {
+      totalRevenue,
+      totalPlatformCommission,
+      totalGaragesNet,
+      garageBreakdown: Object.values(garageMap)
+    };
+  };
+
+  const financials = calculateFinancials();
 
   // 1️⃣ البحث السريع عن مستخدم برقم الجوال أو البريد
   const handleSearchUser = async (e: React.FormEvent) => {
@@ -121,7 +171,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     setSearching(true);
     try {
-      const res = await fetch(`${supabaseUrl}/inquiries?or=(id.eq.${isNaN(Number(orderQuery)) ? 0 : Number(orderQuery)},customer_phone.ilike.*${orderQuery}*)`, {
+      const res = await fetch(`${supabaseUrl}/orders?or=(id.eq.${isNaN(Number(orderQuery)) ? 0 : Number(orderQuery)},customer_phone.ilike.*${orderQuery}*)`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
       });
       const data = await res.json();
@@ -167,11 +217,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // 💾 حفظ كافة الإعدادات (السوشال ميديا، السياسات، وبوابات الدفع)
+  // 💾 حفظ كافة الإعدادات (السوشال ميديا، السياسات، العمولات، وبوابات الدفع)
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     const updated = {
       ...siteSettings,
+      commissionRate,
       facebook,
       instagram,
       twitter,
@@ -208,7 +259,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {isRtl ? 'لوحة تحكم مدير النظام (Super Admin)' : 'Super Admin Dashboard'}
             </h2>
             <span style={{ fontSize: '13px', color: '#64748b' }}>
-              {isRtl ? 'البحث السريع والتنفيذي للحسابات، القطع، السياسات، وبوابات الدفع' : 'Fast On-Demand Search & Config'}
+              {isRtl ? 'إدارة المستحقات المالية، الحسابات، القطع، السياسات، وبوابات الدفع' : 'Manage Vendor Payouts, Accounts & Settings'}
             </span>
           </div>
         </div>
@@ -217,6 +268,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* 🔄 القائمة والتبويبات الرئيسية */}
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
         {[
+          { id: 'payouts', label: isRtl ? '💰 حسابات ومستحقات الكراجات' : 'Vendor Payouts' },
           { id: 'users', label: isRtl ? '🔍 بحث واستعلام الحسابات' : 'Search Users' },
           { id: 'parts', label: isRtl ? '🔎 بحث قطع الغيار بالإعلان/الرمز' : 'Search Parts' },
           { id: 'orders', label: isRtl ? '📦 بحث الطلبات والمشاكل' : 'Search Orders' },
@@ -245,7 +297,127 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 1️⃣ تبويب البحث عن الحسابات وتعديلها */}
+      {/* 💰 1️⃣ تبويب حسابات ومستحقات الكراجات (Vendor Payouts) */}
+      {tab === 'payouts' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          {/* مؤشرات الأرقام المالية */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '18px', borderRadius: '16px' }}>
+              <span style={{ fontSize: '13px', color: '#166534', fontWeight: 'bold' }}>💵 إجمالي مبيعات المتجر:</span>
+              <h3 style={{ margin: '6px 0 0 0', color: '#15803d', fontSize: '24px' }}>{financials.totalRevenue.toLocaleString()} QAR</h3>
+            </div>
+
+            <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', padding: '18px', borderRadius: '16px' }}>
+              <span style={{ fontSize: '13px', color: '#1e40af', fontWeight: 'bold' }}>🏛️ صافي عمولة المنصة ({commissionRate}%):</span>
+              <h3 style={{ margin: '6px 0 0 0', color: '#1d4ed8', fontSize: '24px' }}>{financials.totalPlatformCommission.toLocaleString()} QAR</h3>
+            </div>
+
+            <div style={{ backgroundColor: '#fffdf5', border: '1px solid #fef08a', padding: '18px', borderRadius: '16px' }}>
+              <span style={{ fontSize: '13px', color: '#854d0e', fontWeight: 'bold' }}>🏬 إجمالي مستحقات الكراجات:</span>
+              <h3 style={{ margin: '6px 0 0 0', color: '#a16207', fontSize: '24px' }}>{financials.totalGaragesNet.toLocaleString()} QAR</h3>
+            </div>
+          </div>
+
+          {/* شريط التحكم بالعمولة وطباعة الكشف */}
+          <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: '280px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b' }}>
+                ⚙️ نسبة عمولة المنصة: <span style={{ color: '#e0872a', fontSize: '16px' }}>{commissionRate}%</span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="30"
+                step="0.5"
+                value={commissionRate}
+                onChange={(e) => {
+                  const newRate = parseFloat(e.target.value);
+                  setCommissionRate(newRate);
+                  onUpdateSettings({ ...siteSettings, commissionRate: newRate });
+                }}
+                style={{ flex: 1, cursor: 'pointer' }}
+              />
+            </div>
+
+            <button
+              onClick={() => window.print()}
+              style={{ padding: '10px 20px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+            >
+              📄 طباعة كشف الحسابات (PDF)
+            </button>
+          </div>
+
+          {/* جدول تفاصيل مستحقات الكراجات */}
+          <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f1f5f9', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
+                  <th style={{ padding: '14px' }}>اسم / معرف الكراج</th>
+                  <th style={{ padding: '14px' }}>عدد الطلبات</th>
+                  <th style={{ padding: '14px' }}>إجمالي المبيعات</th>
+                  <th style={{ padding: '14px' }}>عمولة المنصة ({commissionRate}%)</th>
+                  <th style={{ padding: '14px' }}>صافي المستحق للكراج</th>
+                  <th style={{ padding: '14px' }}>حالة التسوية</th>
+                  <th style={{ padding: '14px', textAlign: 'center' }}>إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {financials.garageBreakdown.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>لا توجد مبيعات مسجلة للكراجات حتى الآن</td>
+                  </tr>
+                ) : (
+                  financials.garageBreakdown.map((g) => {
+                    const garageCommission = (g.totalSales * commissionRate) / 100;
+                    const garageNet = g.totalSales - garageCommission;
+                    const isSettled = settledGarages[g.garageId];
+
+                    return (
+                      <tr key={g.garageId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '14px', fontWeight: 'bold', color: '#1e293b' }}>🏬 {g.garageId}</td>
+                        <td style={{ padding: '14px' }}>{g.orderCount} طلبات</td>
+                        <td style={{ padding: '14px', fontWeight: 'bold' }}>{g.totalSales.toLocaleString()} QAR</td>
+                        <td style={{ padding: '14px', color: '#1d4ed8' }}>{garageCommission.toLocaleString()} QAR</td>
+                        <td style={{ padding: '14px', fontWeight: 'bold', color: '#15803d', fontSize: '15px' }}>{garageNet.toLocaleString()} QAR</td>
+                        <td style={{ padding: '14px' }}>
+                          <span style={{
+                            padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold',
+                            backgroundColor: isSettled ? '#dcfce7' : '#fef3c7',
+                            color: isSettled ? '#15803d' : '#92400e'
+                          }}>
+                            {isSettled ? '✅ تم التسوية' : '⏳ معلق برسم التحويل'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => {
+                              setSettledGarages(prev => ({ ...prev, [g.garageId]: true }));
+                              setMsg({ text: `تم تسوية حساب الكراج (${g.garageId}) بنجاح!`, type: 'success' });
+                              setTimeout(() => setMsg(null), 3000);
+                            }}
+                            disabled={isSettled}
+                            style={{
+                              padding: '8px 14px', borderRadius: '8px', border: 'none',
+                              backgroundColor: isSettled ? '#cbd5e0' : '#e0872a',
+                              color: '#ffffff', fontWeight: 'bold', cursor: isSettled ? 'not-allowed' : 'pointer', fontSize: '12.5px'
+                            }}
+                          >
+                            💳 {isSettled ? 'مسوى' : 'تسوية وتحويل'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      )}
+
+      {/* 2️⃣ تبويب البحث عن الحسابات وتعديلها */}
       {tab === 'users' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
@@ -313,7 +485,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 2️⃣ تبويب البحث عن القطع بالإعلان أو رقم القطعة */}
+      {/* 3️⃣ تبويب البحث عن القطع بالإعلان أو رقم القطعة */}
       {tab === 'parts' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
@@ -370,7 +542,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 3️⃣ تبويب البحث عن الطلبات */}
+      {/* 4️⃣ تبويب البحث عن الطلبات */}
       {tab === 'orders' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
@@ -409,7 +581,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 4️⃣ 💳 تبويب إعدادات بوابة الدفع والربط البنكي */}
+      {/* 5️⃣ 💳 تبويب إعدادات بوابة الدفع والربط البنكي */}
       {tab === 'payment' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px' }}>
           <div>
@@ -419,7 +591,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
           </div>
 
-          {/* تفعيل / تعطيل الدفع الإلكتروني */}
           <div style={{ backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <strong style={{ fontSize: '14.5px', color: '#1e293b', display: 'block' }}>{isRtl ? 'تفعيل الدفع الإلكتروني المباشر' : 'Enable Online Payment'}</strong>
@@ -433,7 +604,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           </div>
 
-          {/* اختيار شركة الدفع */}
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>{isRtl ? 'شركة / بوابة الدفع المتعاقد معها:' : 'Payment Gateway Provider:'}</label>
             <select
@@ -449,7 +619,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </select>
           </div>
 
-          {/* إدخال المفاتيح البنكية */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>{isRtl ? 'معرّف التاجر (Merchant ID):' : 'Merchant ID:'}</label>
@@ -474,7 +643,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          {/* طرق الدفع المفعلة للعميل */}
           <div style={{ backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
             <label style={{ display: 'block', marginBottom: '12px', fontSize: '13.5px', fontWeight: 'bold' }}>{isRtl ? 'طرق الدفع المسموح بها للعميل:' : 'Allowed Payment Options:'}</label>
             
@@ -494,7 +662,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          {/* وضع الاختبار أم المباشر */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#fffbe3', padding: '16px', borderRadius: '14px', border: '1px solid #fef08a' }}>
             <span style={{ fontSize: '24px' }}>⚠️</span>
             <div style={{ flex: 1 }}>
@@ -517,7 +684,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </form>
       )}
 
-      {/* 5️⃣ تبويب تعديل السياسات */}
+      {/* 6️⃣ تبويب تعديل السياسات */}
       {tab === 'policies' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h3>📜 {isRtl ? 'تعديل الشروط والأحكام والسياسات المباشرة للموقع' : 'Edit Policies & Content'}</h3>
@@ -558,7 +725,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </form>
       )}
 
-      {/* 6️⃣ تبويب السوشال ميديا */}
+      {/* 7️⃣ تبويب السوشال ميديا */}
       {tab === 'social' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
           <h3>🌐 {isRtl ? 'روابط شبكات التواصل ورقم التواصل' : 'Social & Contact Details'}</h3>
