@@ -23,53 +23,13 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
 
   useEffect(() => {
     if (messages.length === 0) {
-      const userName = session?.user?.user_metadata?.name || session?.phone || '';
-      const greeting = lang === 'ar' 
-        ? `أهلاً بك${userName ? ` يا ${userName}` : ''} في موجود أوتو! 🏎️ أنا خبيرك الذكي. يمكنني مساعدتك في اختيار القطع، التحقق من أصالتها، أو تتبع طلباتك المباشرة. كيف أخدمك؟` 
-        : `Welcome${userName ? ` ${userName}` : ''} to Mawjood Auto! 🏎️ I am your smart expert. I can help you find parts, check authenticity, or track your live orders. How can I help?`;
-      setMessages([{ sender: 'ai', text: greeting }]);
+      setMessages([{ sender: 'ai', text: 'أهلاً بك! مساعد التشخيص جاهز. اكتب أي سؤال لنفحص الاتصال سوياً ⚙️' }]);
     }
-  }, [lang, session, messages.length]);
+  }, [messages.length]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
-
-  const quickQuestions = lang === 'ar' ? [
-    'وين أحصل قطعة لسيارتي؟',
-    'كيف أعرف القطعة أصلية؟',
-    '📦 تتبع طلباتي الحالية',
-    '💬 التواصل مع الدعم الفني'
-  ] : [
-    'Where to find a part?',
-    'How to check if OEM?',
-    '📦 Track my orders',
-    '💬 Contact Support'
-  ];
-
-  const fetchUserContext = async () => {
-    if (!session) return "Customer is a guest. No active logged-in session.";
-    const phone = session.phone || session.email || '';
-    if (!phone) return "Customer is logged in, but no phone/email found.";
-
-    const baseUrl = supabaseUrl && supabaseUrl.startsWith('http') 
-      ? supabaseUrl 
-      : "https://shszpcjmhkemqwborfwy.supabase.co";
-
-    try {
-      const [ordersRes, inqRes] = await Promise.all([
-        fetch(`${baseUrl}/rest/v1/orders?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null),
-        fetch(`${baseUrl}/rest/v1/fitment_inquiries?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null)
-      ]);
-
-      const orders = ordersRes && ordersRes.ok ? await ordersRes.json() : [];
-      const inquiries = inqRes && inqRes.ok ? await inqRes.json() : [];
-
-      return `Customer Phone/ID: ${phone}. Active Orders: ${JSON.stringify(orders)}. Inquiries: ${JSON.stringify(inquiries)}.`;
-    } catch (e) {
-      return "Logged in user, context unavailable.";
-    }
-  };
 
   const sendMessage = async (textToSend: string) => {
     if (!textToSend.trim() || loading) return;
@@ -79,103 +39,105 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     setMessages((prev) => [...prev, { sender: 'user', text: userMsg }]);
     setLoading(true);
 
-    if (userMsg.includes('الدعم') || userMsg.includes('Support')) {
-      setMessages((prev) => [...prev, { 
-        sender: 'ai', 
-        text: lang === 'ar' 
-          ? 'يمكنك التواصل المباشر مع خدمة العملاء عبر الواتساب على الرقم: 97455000000+ 📱' 
-          : 'You can contact customer support directly on WhatsApp: +97455000000 📱' 
-      }]);
-      setLoading(false);
-      return;
-    }
-
-    const userContext = await fetchUserContext();
-
-    // 🔗 تأكيد الرابط المباشر لمشروعك في Supabase لمنع مشكلة العناوين النسبية
     const baseUrl = supabaseUrl && supabaseUrl.startsWith('http') 
       ? supabaseUrl 
       : "https://shszpcjmhkemqwborfwy.supabase.co";
 
-    // 🔑 جلب المفتاح المباشر في حال وجوده في البيئة
-    // @ts-ignore
-    const apiKey = (typeof process !== 'undefined' && (process.env?.REACT_APP_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) || import.meta.env?.VITE_GEMINI_API_KEY || "";
-
-    const systemPrompt = `You are "Mawjood Auto AI", an expert automotive assistant in Qatar.
-Language: ${lang === 'ar' ? 'Arabic' : 'English'}.
-Context: ${userContext}
-
-Instructions:
-1. ORDER TRACKING: If user asks "تتبع طلبي" or "هل لدي طلبات", read Context and give order details clearly.
-2. PARTS SEARCH: If asking for parts (e.g., مروحه كامري 2006, كم قطعة في تويوتا), tell them politely to use the top search bar or upload VIN (رقم الشاصي).
-3. Always answer friendly, concisely, directly, and as a human car expert. NO code blocks.`;
+    let debugLog: string[] = [];
+    debugLog.push(`🔍 **بداية التست:**`);
+    debugLog.push(`- URL: ${baseUrl}`);
+    debugLog.push(`- Key Present: ${!!supabaseKey}`);
 
     try {
-      let aiReply = "";
+      // 🧪 1. اختبار الاتصال بـ Supabase Edge Function
+      const functionUrl = `${baseUrl}/functions/v1/chat_assistant`;
+      debugLog.push(`- جاري الاتصال بـ: ${functionUrl}`);
 
-      // 1️⃣ تجربة الاتصال المباشر بـ Supabase Edge Function
-      const edgeRes = await fetch(`${baseUrl}/functions/v1/chat_assistant`, {
+      const edgeRes = await fetch(functionUrl, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`
+          'apikey': supabaseKey || '',
+          'Authorization': `Bearer ${supabaseKey || ''}`
         },
-        body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext })
-      }).catch((e) => {
-        console.error("Edge Function Network Catch:", e);
+        body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext: "Test Context" })
+      }).catch((err) => {
+        debugLog.push(`❌ فشل شبكة (Fetch Failed): ${err.message}`);
         return null;
       });
 
-      if (edgeRes && edgeRes.ok) {
-        const edgeData = await edgeRes.json();
-        if (edgeData.reply) aiReply = edgeData.reply;
-      } else if (edgeRes) {
-        console.error("Edge Function Status Error:", edgeRes.status, await edgeRes.text().catch(() => ''));
+      if (edgeRes) {
+        debugLog.push(`📡 رمز استجابة السيرفر (Status): ${edgeRes.status}`);
+        const textBody = await edgeRes.text();
+        
+        if (edgeRes.ok) {
+          try {
+            const parsed = JSON.parse(textBody);
+            if (parsed.reply) {
+              // 🟢 نجاح كامل!
+              setMessages((prev) => [...prev, { sender: 'ai', text: parsed.reply }]);
+              setLoading(false);
+              return;
+            } else {
+              debugLog.push(`⚠️ السيرفر رد بنجاح لكن بدون reply: ${textBody}`);
+            }
+          } catch (e) {
+            debugLog.push(`⚠️ الرد ليس JSON صالح: ${textBody.substring(0, 100)}`);
+          }
+        } else {
+          debugLog.push(`❌ خطأ من Supabase: ${textBody}`);
+        }
       }
 
-      // 2️⃣ الخيار الثاني: الاتصال المباشر بمحرك Gemini إذا كان المفتاح متوفراً بالواجهة
-      if (!aiReply && apiKey) {
+      // 🧪 2. فحص المفتاح المباشر لـ Gemini إذا توفر
+      // @ts-ignore
+      const apiKey = (typeof process !== 'undefined' && (process.env?.REACT_APP_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) || import.meta.env?.VITE_GEMINI_API_KEY || "";
+      debugLog.push(`- Direct Gemini Key Present: ${!!apiKey}`);
+
+      if (apiKey) {
+        debugLog.push(`- جاري تجربة الاتصال المباشر بـ Google Gemini...`);
         const directRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [
-                { parts: [{ text: systemPrompt }] },
-                ...messages.map(m => ({ parts: [{ text: `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}` }] })),
-                { parts: [{ text: `User: ${userMsg}` }] }
-              ]
+              contents: [{ parts: [{ text: `User question: ${userMsg}` }] }]
             })
           }
-        ).catch(() => null);
+        ).catch((err) => {
+          debugLog.push(`❌ فشل الاتصال المباشر بجوجل: ${err.message}`);
+          return null;
+        });
 
-        if (directRes && directRes.ok) {
-          const directData = await directRes.json();
-          aiReply = directData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+        if (directRes) {
+          debugLog.push(`📡 Google Gemini Status: ${directRes.status}`);
+          const directText = await directRes.text();
+          if (directRes.ok) {
+            const parsed = JSON.parse(directText);
+            const directReply = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (directReply) {
+              setMessages((prev) => [...prev, { sender: 'ai', text: `(رد من Gemini المباشر):\n${directReply}` }]);
+              setLoading(false);
+              return;
+            }
+          } else {
+            debugLog.push(`❌ خطأ من Google API: ${directText}`);
+          }
         }
       }
 
-      if (aiReply) {
-        setMessages((prev) => [...prev, { sender: 'ai', text: aiReply }]);
-      } else {
-        throw new Error("No response received from both Edge Function and direct Gemini API");
-      }
+      // 🔴 إظهار تقرير التست الكامل داخل الشات للمستخدم
+      setMessages((prev) => [...prev, { 
+        sender: 'ai', 
+        text: debugLog.join('\n') 
+      }]);
 
-    } catch (err) {
-      console.error("Chatbot Error Stack:", err);
-      let smartFallback = "";
-      if (userMsg.includes("تتبع") || userMsg.includes("طلبي") || userMsg.includes("طلبات")) {
-        smartFallback = lang === 'ar' 
-          ? "لمتابعة طلباتك واستفساراتك، يرجى الضغط على زر **'📦 متابعة استفساراتي وطلباتي'** الموجود في أعلى الصفحة! 🚚"
-          : "To track your orders, please click **'📦 Track Inquiries & Orders'** at the top of the page! 🚚";
-      } else {
-        smartFallback = lang === 'ar'
-          ? `للبحث عن **"${userMsg}"**: اكتب الكلمة في خانة البحث العلوية مباشرة، أو أرسل رقم الشاصي للكراج! 🚘`
-          : `To find **"${userMsg}"**: Type it in the search bar above or submit your VIN! 🚘`;
-      }
-      setMessages((prev) => [...prev, { sender: 'ai', text: smartFallback }]);
+    } catch (globalErr: any) {
+      setMessages((prev) => [...prev, { 
+        sender: 'ai', 
+        text: `💥 خطأ عام في الكود: ${globalErr?.message || globalErr}` 
+      }]);
     } finally {
       setLoading(false);
     }
@@ -199,13 +161,11 @@ Instructions:
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            fontSize: '14px',
-            animation: 'bounce 2s infinite'
+            fontSize: '14px'
           }}
         >
-          <style>{`@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }`}</style>
-          <span style={{ fontSize: '18px' }}>🚀</span>
-          <span>{lang === 'ar' ? 'خبير موجود أوتو' : 'Mawjood AI Expert'}</span>
+          <span style={{ fontSize: '18px' }}>🛠️</span>
+          <span>{lang === 'ar' ? 'فحص خبير أوتو' : 'Debug AI Expert'}</span>
         </button>
       )}
 
@@ -227,13 +187,12 @@ Instructions:
         >
           <div style={{ backgroundColor: '#1f3a5f', color: 'white', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '26px' }}>🤖</span>
+              <span style={{ fontSize: '26px' }}>⚙️</span>
               <div>
-                <strong style={{ fontSize: '15px', display: 'block' }}>{lang === 'ar' ? 'خبير موجود أوتو الذكي' : 'Mawjood Auto Expert'}</strong>
-                <span style={{ fontSize: '11.5px', opacity: 0.9, color: '#4ade80' }}>🟢 {lang === 'ar' ? 'متصل وجاهز لتتبع طلباتك' : 'Online & Ready'}</span>
+                <strong style={{ fontSize: '15px', display: 'block' }}>وضع كشف الأخطاء (Debug Mode)</strong>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', opacity: 0.8 }}>✖</button>
+            <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>✖</button>
           </div>
 
           <div style={{ flex: 1, padding: '16px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -245,47 +204,22 @@ Instructions:
                   backgroundColor: m.sender === 'user' ? '#e0872a' : '#ffffff',
                   color: m.sender === 'user' ? '#ffffff' : '#1e293b',
                   padding: '12px 16px',
-                  borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                  fontSize: '13.5px',
+                  borderRadius: '12px',
+                  fontSize: '12.5px',
                   lineHeight: '1.6',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                  maxWidth: '85%'
+                  maxWidth: '90%',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
                 }}
               >
-                <div dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} />
+                {m.text}
               </div>
             ))}
 
-            {messages.length === 1 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                {quickQuestions.map((q, i) => (
-                  <button
-                    key={i}
-                    onClick={() => sendMessage(q)}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #1f3a5f',
-                      color: '#1f3a5f',
-                      borderRadius: '12px',
-                      padding: '8px 12px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                    }}
-                    onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                    onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {loading && (
-              <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '16px', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                ⏳ {lang === 'ar' ? 'جاري التحقق من النظام...' : 'Checking database...'}
+              <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '16px', fontSize: '13px', color: '#64748b' }}>
+                ⏳ جاري تشخيص الاتصال بالخوادم...
               </div>
             )}
             <div ref={chatEndRef} />
@@ -294,15 +228,15 @@ Instructions:
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ display: 'flex', gap: '8px', padding: '12px', borderTop: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
             <input
               type="text"
-              placeholder={lang === 'ar' ? 'اسأل الخبير (مثال: تتبع طلبي، كيف أعرف الأصلي؟)...' : 'Ask Expert (e.g. Track order)...'}
+              placeholder="اكتب أي شيء لاختبار الاتصال..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              style={{ flex: 1, padding: '12px 14px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13.5px', outline: 'none', backgroundColor: '#f8fafc' }}
+              style={{ flex: 1, padding: '12px 14px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13.5px', outline: 'none' }}
             />
             <button
               type="submit"
               disabled={loading}
-              style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', padding: '0 18px', fontWeight: 'bold', cursor: 'pointer', fontSize: '18px' }}
+              style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', padding: '0 18px', fontWeight: 'bold', cursor: 'pointer' }}
             >
               🚀
             </button>
