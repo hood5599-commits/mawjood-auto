@@ -47,20 +47,12 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     '💬 Contact Support'
   ];
 
-  // 🧹 دالة تنظيف الرابط الأساسي لحذف أي زيادات مثل /rest/v1
-  const getCleanBaseUrl = () => {
-    let url = supabaseUrl && supabaseUrl.startsWith('http') 
-      ? supabaseUrl 
-      : "https://shszpcjmhkemqwborfwy.supabase.co";
-    return url.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
-  };
-
   const fetchUserContext = async () => {
     if (!session) return "Customer is a guest. No active logged-in session.";
     const phone = session.phone || session.email || '';
     if (!phone) return "Customer is logged in, but no phone/email found.";
 
-    const cleanUrl = getCleanBaseUrl();
+    const cleanUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') || "https://shszpcjmhkemqwborfwy.supabase.co";
 
     try {
       const [ordersRes, inqRes] = await Promise.all([
@@ -97,13 +89,10 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     }
 
     const userContext = await fetchUserContext();
-    const cleanUrl = getCleanBaseUrl();
+    const cleanUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') || "https://shszpcjmhkemqwborfwy.supabase.co";
 
     try {
-      // 🎯 المسار الصحيح المباشر: https://shszpcjmhkemqwborfwy.supabase.co/functions/v1/chat_assistant
-      const functionUrl = `${cleanUrl}/functions/v1/chat_assistant`;
-
-      const response = await fetch(functionUrl, {
+      const response = await fetch(`${cleanUrl}/functions/v1/chat_assistant`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -121,21 +110,16 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
         }
       }
 
-      throw new Error(`Edge Error: ${response.status}`);
+      throw new Error(`Server returned status: ${response.status}`);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Chatbot Error:", err);
-      let smartFallback = "";
-      if (userMsg.includes("تتبع") || userMsg.includes("طلبي") || userMsg.includes("طلبات")) {
-        smartFallback = lang === 'ar' 
-          ? "لمتابعة طلباتك واستفساراتك، يرجى الضغط على زر **'📦 متابعة استفساراتي وطلباتي'** الموجود في أعلى الصفحة! 🚚"
-          : "To track your orders, please click **'📦 Track Inquiries & Orders'** at the top of the page! 🚚";
-      } else {
-        smartFallback = lang === 'ar'
-          ? `للبحث عن **"${userMsg}"**: اكتب الكلمة في خانة البحث العلوية مباشرة، أو أرسل رقم الشاصي للكراج! 🚘`
-          : `To find **"${userMsg}"**: Type it in the search bar above or submit your VIN! 🚘`;
-      }
-      setMessages((prev) => [...prev, { sender: 'ai', text: smartFallback }]);
+      setMessages((prev) => [...prev, { 
+        sender: 'ai', 
+        text: lang === 'ar' 
+          ? "حدث انقطاع مؤقت في السيرفر. يرجى تجربة إعادة المحاولة بعد لحظات. 🚚" 
+          : "Temporary server error. Please try again in a moment. 🚚" 
+      }]);
     } finally {
       setLoading(false);
     }
