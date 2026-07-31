@@ -21,7 +21,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
 
   const isRtl = lang === 'ar';
 
-  // رسالة الترحيب الذكية بناءً على حالة تسجيل الدخول
   useEffect(() => {
     if (messages.length === 0) {
       const userName = session?.user?.user_metadata?.name || session?.phone || '';
@@ -48,15 +47,14 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     '💬 Contact Support'
   ];
 
-  // جلب طلبات العميل الحالية من Supabase
   const fetchUserContext = async () => {
     let contextStr = "Customer is a guest. No active orders.";
     if (session) {
       const phone = session.phone || session.email;
       try {
         const [ordersRes, inqRes] = await Promise.all([
-          fetch(`${supabaseUrl}/orders?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey } }),
-          fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey } })
+          fetch(`${supabaseUrl}/rest/v1/orders?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey } }),
+          fetch(`${supabaseUrl}/rest/v1/fitment_inquiries?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey } })
         ]);
         const orders = await ordersRes.json();
         const inquiries = await inqRes.json();
@@ -79,7 +77,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     setMessages((prev) => [...prev, { sender: 'user', text: userMsg }]);
     setLoading(true);
 
-    // 💬 الرد المباشر للدعم الفني
     if (userMsg.includes('الدعم') || userMsg.includes('Support')) {
       setMessages((prev) => [...prev, { 
         sender: 'ai', 
@@ -93,73 +90,41 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
 
     const userContext = await fetchUserContext();
 
-    // @ts-ignore
-    const apiKey = (typeof process !== 'undefined' && (process.env?.REACT_APP_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) || "";
-
-    const systemPrompt = `You are "Mawjood Auto AI", a legendary auto parts expert in Qatar.
-User language: ${lang === 'ar' ? 'Arabic' : 'English'}.
-User Context & Active Orders: ${userContext}
-
-Instructions:
-1. ORDER TRACKING: If user asks about their order/tracking, check 'Recent Orders' in Context and give a clear update.
-2. SEARCH: If asking for parts, tell them to use top search bar or send VIN to garage via Fitment inquiry.
-3. Be helpful, concise, and friendly. No code blocks.`;
-
     try {
-      let response = await fetch('/api/chat', {
+      // 🛡️ الاتصال بالدالة السحابية الآمنة عبر Supabase Edge Function
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat_assistant`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`
+        },
         body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext })
-      }).catch(() => null);
+      });
 
-      let reply = "";
-
-      if (response && response.ok) {
+      if (response.ok) {
         const data = await response.json();
-        reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      }
-
-      if (!reply && apiKey) {
-        const directRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                { parts: [{ text: systemPrompt }] },
-                { parts: [{ text: `User Question: ${userMsg}` }] }
-              ]
-            })
-          }
-        );
-
-        if (directRes.ok) {
-          const directData = await directRes.json();
-          reply = directData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        }
-      }
-
-      if (reply) {
-        setMessages((prev) => [...prev, { sender: 'ai', text: reply }]);
-      } else {
-        let smartFallback = "";
-        if (userMsg.includes("تتبع") || userMsg.includes("طلبي")) {
-          smartFallback = lang === 'ar' 
-            ? "لمتابعة طلباتك واستفساراتك، يرجى الضغط على زر **'📦 متابعة استفساراتي وطلباتي'** الموجود في أعلى الصفحة لمشاهدة الحالة الحية! 🚚"
-            : "To track your orders, please click the **'📦 Track Inquiries & Orders'** button at the top of the page! 🚚";
+        if (data.reply) {
+          setMessages((prev) => [...prev, { sender: 'ai', text: data.reply }]);
         } else {
-          smartFallback = lang === 'ar'
-            ? `للبحث عن **"${userMsg}"**: اكتب اسم القطعة في خانة البحث العلوية، أو اختر أي قطعة وأرسل رقم الشاصي (VIN) للكراج لتأكيد التوافق 100%! 🚘`
-            : `To find **"${userMsg}"**: Type the part name in the search bar above or submit your VIN for a fitment check! 🚘`;
+          throw new Error("Empty AI Response");
         }
-        setMessages((prev) => [...prev, { sender: 'ai', text: smartFallback }]);
+      } else {
+        throw new Error("Function Error");
       }
+
     } catch (err) {
-      setMessages((prev) => [...prev, { 
-        sender: 'ai', 
-        text: lang === 'ar' ? 'يمكنك تصفح القطع مباشرة عبر شريط البحث العلوي! 🚘' : 'Browse parts via the search bar above! 🚘' 
-      }]);
+      console.error("Chatbot Error:", err);
+      let smartFallback = "";
+      if (userMsg.includes("تتبع") || userMsg.includes("طلبي")) {
+        smartFallback = lang === 'ar' 
+          ? "لمتابعة طلباتك، يرجى الضغط على زر **'📦 متابعة استفساراتي وطلباتي'** الموجود في أعلى الصفحة! 🚚"
+          : "To track your orders, please click **'📦 Track Inquiries & Orders'** at the top of the page! 🚚";
+      } else {
+        smartFallback = lang === 'ar'
+          ? `للبحث عن **"${userMsg}"**: اكتب الكلمة في خانة البحث العلوية مباشرة، أو أرسل رقم الشاصي للكراج! 🚘`
+          : `To find **"${userMsg}"**: Type it in the search bar above or submit your VIN! 🚘`;
+      }
+      setMessages((prev) => [...prev, { sender: 'ai', text: smartFallback }]);
     } finally {
       setLoading(false);
     }
