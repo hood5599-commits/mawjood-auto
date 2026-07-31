@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { ExcelPartUploader } from './ExcelPartUploader';
 
 interface GarageProps {
@@ -39,9 +40,11 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [returnDays, setReturnDays] = useState<number>(3);
   const [warrantyDays, setWarrantyDays] = useState<number>(14);
 
-  const previousInquiriesCount = useRef<number>(0);
-
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || session?.code || 'garage_unknown';
+
+  // إنشاء عميل Supabase للـ Realtime والاتصال
+  const supabaseRestUrl = supabaseUrl.replace('/rest/v1', '');
+  const supabase = createClient(supabaseRestUrl, apiKey);
 
   const playChimeSound = () => {
     try {
@@ -67,13 +70,33 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchMyOrders();
     fetchMyInquiries();
 
-    const interval = setInterval(() => {
-      fetchMyInquiries();
-      fetchMyOrders();
-    }, 15000);
+    if (!userId || userId === 'garage_unknown') return;
 
-    return () => clearInterval(interval);
-  }, [session]);
+    // 🚀 تفعيل Supabase Realtime الاستماع الفوري بدلاً من الـ setInterval
+    const channel = supabase
+      .channel(`garage-channel-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'fitment_inquiries', filter: `garage_id=eq.${userId}` },
+        (payload) => {
+          playChimeSound(); // تنبيه صوتي فوري عند وصول استفسار جديد
+          fetchMyInquiries();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders', filter: `garage_id=eq.${userId}` },
+        (payload) => {
+          playChimeSound(); // تنبيه صوتي فوري عند وصول طلب جديد
+          fetchMyOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   const fetchMyParts = async () => {
     if (!userId || userId === 'garage_unknown') return;
@@ -103,11 +126,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
       if (response.ok) {
         const data = await response.json();
-        const activePending = data.filter((item: any) => item.status === 'pending_check');
-        if (activePending.length > previousInquiriesCount.current && previousInquiriesCount.current !== 0) {
-          playChimeSound();
-        }
-        previousInquiriesCount.current = activePending.length;
         setMyInquiries(data);
       }
     } catch (error) {}
