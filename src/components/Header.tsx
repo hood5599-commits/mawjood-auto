@@ -41,14 +41,15 @@ export const Header: React.FC<HeaderProps> = ({
         alignItems: 'center'
       }}>
         
-        {/* 1️⃣ الشعار النصي الفخم (بدون إيموجي السيارة) */}
+        {/* 1️⃣ الشعار النصي الفخم (داعم للغتين العربية والإنجليزية) */}
         <div 
           onClick={() => setView('shop')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
         >
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '24px', fontWeight: '900', color: '#1f3a5f', letterSpacing: '-0.5px', lineHeight: '1.1' }}>
-              موجود <span style={{ color: '#e0872a' }}>أوتو</span>
+              {lang === 'ar' ? 'موجود ' : 'Mawjood '} 
+              <span style={{ color: '#e0872a' }}>{lang === 'ar' ? 'أوتو' : 'Auto'}</span>
             </span>
             <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold', letterSpacing: '1.5px', marginTop: '2px' }}>
               MAWJOOD AUTO
@@ -93,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
               gap: '6px'
             }}
           >
-            🛒 {isRtl ? 'السلة' : 'Cart'}
+            🛒 {lang === 'ar' ? 'السلة' : 'Cart'}
             {cartCount > 0 && (
               <span style={{
                 backgroundColor: '#e0872a',
@@ -133,13 +134,13 @@ export const Header: React.FC<HeaderProps> = ({
                   gap: '6px'
                 }}
               >
-                👤 {isRtl ? 'حسابي' : 'Account'}
+                👤 {lang === 'ar' ? 'حسابي' : 'Account'}
               </button>
 
               {/* 🚪 زر الخروج الواضح والمرتب */}
               <button
                 onClick={onLogout}
-                title={isRtl ? 'تسجيل الخروج' : 'Logout'}
+                title={lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}
                 style={{
                   padding: '9px 14px',
                   borderRadius: '10px',
@@ -154,7 +155,7 @@ export const Header: React.FC<HeaderProps> = ({
                   gap: '5px'
                 }}
               >
-                🚪 {isRtl ? 'خروج' : 'Logout'}
+                🚪 {lang === 'ar' ? 'خروج' : 'Logout'}
               </button>
 
             </div>
@@ -172,7 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
                 fontSize: '13px'
               }}
             >
-              🔑 {isRtl ? 'دخول / تسجيل' : 'Login'}
+              🔑 {lang === 'ar' ? 'دخول / تسجيل' : 'Login'}
             </button>
           )}
 
