@@ -47,26 +47,29 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     '💬 Contact Support'
   ];
 
+  // 🛡️ دالة محمية لجلب سياق العميل دون إيقاف المساعد إذا حدث خطأ
   const fetchUserContext = async () => {
-    let contextStr = "Customer is a guest. No active orders.";
-    if (session) {
-      const phone = session.phone || session.email;
-      try {
-        const [ordersRes, inqRes] = await Promise.all([
-          fetch(`${supabaseUrl}/rest/v1/orders?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey } }),
-          fetch(`${supabaseUrl}/rest/v1/fitment_inquiries?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey } })
-        ]);
-        const orders = await ordersRes.json();
-        const inquiries = await inqRes.json();
-        
-        contextStr = `Customer is Logged In. 
-        Recent Orders: ${JSON.stringify(orders)}. 
-        Recent Fitment Inquiries: ${JSON.stringify(inquiries)}.`;
-      } catch (e) {
-        console.error("Failed to fetch context", e);
-      }
+    if (!session) return "Customer is a guest. No active logged-in session.";
+
+    const phone = session.phone || session.email || '';
+    if (!phone) return "Customer is logged in, but no phone/email identifier found.";
+
+    try {
+      const [ordersRes, inqRes] = await Promise.all([
+        fetch(`${supabaseUrl}/rest/v1/orders?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null),
+        fetch(`${supabaseUrl}/rest/v1/fitment_inquiries?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null)
+      ]);
+
+      const orders = ordersRes && ordersRes.ok ? await ordersRes.json() : [];
+      const inquiries = inqRes && inqRes.ok ? await inqRes.json() : [];
+
+      return `Customer is Logged In (${phone}). 
+      Recent Orders: ${JSON.stringify(orders)}. 
+      Recent Fitment Inquiries: ${JSON.stringify(inquiries)}.`;
+    } catch (e) {
+      console.warn("Could not fetch user order context, proceeding without it.", e);
+      return "Customer is Logged In, but order history fetch failed.";
     }
-    return contextStr;
   };
 
   const sendMessage = async (textToSend: string) => {
@@ -91,11 +94,12 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     const userContext = await fetchUserContext();
 
     try {
-      // 🛡️ الاتصال بالدالة السحابية الآمنة عبر Supabase Edge Function
+      // 🛡️ الاتصال بالدالة السحابية الآمنة
       const response = await fetch(`${supabaseUrl}/functions/v1/chat_assistant`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
+          'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`
         },
         body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext })
@@ -105,19 +109,19 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
         const data = await response.json();
         if (data.reply) {
           setMessages((prev) => [...prev, { sender: 'ai', text: data.reply }]);
-        } else {
-          throw new Error("Empty AI Response");
+          return;
         }
-      } else {
-        throw new Error("Function Error");
       }
+
+      // إذا لم تنجح الاستجابة، اركب خطأ ينقل للرد الاحتياطي
+      throw new Error(`Edge function returned status: ${response.status}`);
 
     } catch (err) {
       console.error("Chatbot Error:", err);
       let smartFallback = "";
-      if (userMsg.includes("تتبع") || userMsg.includes("طلبي")) {
+      if (userMsg.includes("تتبع") || userMsg.includes("طلبي") || userMsg.includes("طلبات")) {
         smartFallback = lang === 'ar' 
-          ? "لمتابعة طلباتك، يرجى الضغط على زر **'📦 متابعة استفساراتي وطلباتي'** الموجود في أعلى الصفحة! 🚚"
+          ? "لمتابعة طلباتك واستفساراتك، يرجى الضغط على زر **'📦 متابعة استفساراتي وطلباتي'** الموجود في أعلى الصفحة! 🚚"
           : "To track your orders, please click **'📦 Track Inquiries & Orders'** at the top of the page! 🚚";
       } else {
         smartFallback = lang === 'ar'
