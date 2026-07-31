@@ -52,10 +52,14 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
     const phone = session.phone || session.email || '';
     if (!phone) return "Customer is logged in, but no phone/email found.";
 
+    const baseUrl = supabaseUrl && supabaseUrl.startsWith('http') 
+      ? supabaseUrl 
+      : "https://shszpcjmhkemqwborfwy.supabase.co";
+
     try {
       const [ordersRes, inqRes] = await Promise.all([
-        fetch(`${supabaseUrl}/rest/v1/orders?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null),
-        fetch(`${supabaseUrl}/rest/v1/fitment_inquiries?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null)
+        fetch(`${baseUrl}/rest/v1/orders?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null),
+        fetch(`${baseUrl}/rest/v1/fitment_inquiries?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null)
       ]);
 
       const orders = ordersRes && ordersRes.ok ? await ordersRes.json() : [];
@@ -88,7 +92,12 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
 
     const userContext = await fetchUserContext();
 
-    // 🔑 جلب المفتاح المباشر المضمون
+    // 🔗 تأكيد الرابط المباشر لمشروعك في Supabase لمنع مشكلة العناوين النسبية
+    const baseUrl = supabaseUrl && supabaseUrl.startsWith('http') 
+      ? supabaseUrl 
+      : "https://shszpcjmhkemqwborfwy.supabase.co";
+
+    // 🔑 جلب المفتاح المباشر في حال وجوده في البيئة
     // @ts-ignore
     const apiKey = (typeof process !== 'undefined' && (process.env?.REACT_APP_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) || import.meta.env?.VITE_GEMINI_API_KEY || "";
 
@@ -102,20 +111,30 @@ Instructions:
 3. Always answer friendly, concisely, directly, and as a human car expert. NO code blocks.`;
 
     try {
-      // 1️⃣ تجربة الاتصال المباشر أولاً بـ Supabase Function
       let aiReply = "";
-      const edgeRes = await fetch(`${supabaseUrl}/functions/v1/chat_assistant`, {
+
+      // 1️⃣ تجربة الاتصال المباشر بـ Supabase Edge Function
+      const edgeRes = await fetch(`${baseUrl}/functions/v1/chat_assistant`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey },
+        headers: { 
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        },
         body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext })
-      }).catch(() => null);
+      }).catch((e) => {
+        console.error("Edge Function Network Catch:", e);
+        return null;
+      });
 
       if (edgeRes && edgeRes.ok) {
         const edgeData = await edgeRes.json();
         if (edgeData.reply) aiReply = edgeData.reply;
+      } else if (edgeRes) {
+        console.error("Edge Function Status Error:", edgeRes.status, await edgeRes.text().catch(() => ''));
       }
 
-      // 2️⃣ إذا فشل Edge Function، يتصل تلقائياً بـ Gemini API المباشر
+      // 2️⃣ الخيار الثاني: الاتصال المباشر بمحرك Gemini إذا كان المفتاح متوفراً بالواجهة
       if (!aiReply && apiKey) {
         const directRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -130,9 +149,9 @@ Instructions:
               ]
             })
           }
-        );
+        ).catch(() => null);
 
-        if (directRes.ok) {
+        if (directRes && directRes.ok) {
           const directData = await directRes.json();
           aiReply = directData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
         }
@@ -141,11 +160,11 @@ Instructions:
       if (aiReply) {
         setMessages((prev) => [...prev, { sender: 'ai', text: aiReply }]);
       } else {
-        throw new Error("No response generated");
+        throw new Error("No response received from both Edge Function and direct Gemini API");
       }
 
     } catch (err) {
-      console.error("Chatbot Error:", err);
+      console.error("Chatbot Error Stack:", err);
       let smartFallback = "";
       if (userMsg.includes("تتبع") || userMsg.includes("طلبي") || userMsg.includes("طلبات")) {
         smartFallback = lang === 'ar' 
