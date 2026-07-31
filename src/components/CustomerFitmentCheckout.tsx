@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AITranslatedText } from './AITranslatedText'; // 👈 استيراد مكون الترجمة الذكي
 
 interface CheckoutProps {
   lang: 'ar' | 'en';
@@ -162,21 +163,21 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   // 2️⃣ إتمام الدفع التنفيذي وإرسال الطلب للكراج
   const handleFinalCheckout = async () => {
     if (deliveryType === 'delivery' && !addressDetails.trim()) {
-      alert(isRtl ? 'يرجى إدخال عنوان التوصيل بالتفصيل' : 'Please enter delivery address');
+      alert(isRtl ? 'يرجى إدخال عنوان التوصيل بالتفصيل' : 'Please enter your full delivery address');
       return;
     }
 
     if (paymentMethod === 'card') {
       if (!cardNumber.replace(/\s/g, '') || cardNumber.replace(/\s/g, '').length < 15) {
-        alert(isRtl ? 'يرجى إدخال رقم بطاقة الفيزا/المستر كارد الصحيح (16 رقم)' : 'Please enter a valid card number');
+        alert(isRtl ? 'يرجى إدخال رقم بطاقة الفيزا/المستر كارد الصحيح (16 رقم)' : 'Please enter a valid card number (16 digits)');
         return;
       }
       if (!cardExpiry || cardExpiry.length < 5) {
-        alert(isRtl ? 'يرجى إدخال تاريخ انتهاء البطاقة (MM/YY)' : 'Please enter card expiry date');
+        alert(isRtl ? 'يرجى إدخال تاريخ انتهاء البطاقة (MM/YY)' : 'Please enter card expiry date (MM/YY)');
         return;
       }
       if (!cardCvc || cardCvc.length < 3) {
-        alert(isRtl ? 'يرجى إدخال الرمز السري CVC للبطاقة' : 'Please enter CVC code');
+        alert(isRtl ? 'يرجى إدخال الرمز السري CVC للبطاقة' : 'Please enter the CVC code');
         return;
       }
     }
@@ -189,12 +190,12 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
       const payload = {
         order_code: ordCode,
         part_id: Number(part.id) || null,
-        part_name: String(part.name || 'قطعة غيار'),
+        part_name: String(part.name || (lang === 'ar' ? 'قطعة غيار' : 'Spare Part')),
         price: Number(totalPrice) || 0,
         garage_id: String(part.user_id || 'garage'),
         customer_phone: String(customerPhone || ''),
         delivery_type: deliveryType,
-        address_details: deliveryType === 'delivery' ? addressDetails : 'استلام من المقر',
+        address_details: deliveryType === 'delivery' ? addressDetails : (lang === 'ar' ? 'استلام من المقر' : 'Store Pickup'),
         payment_method: paymentMethod,
         pickup_code: pickupCode,
         status: 'pending'
@@ -217,7 +218,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         onSuccess();
       } else {
         const fallbackPayload = {
-          part_name: String(part.name || 'قطعة غيار'),
+          part_name: String(part.name || (lang === 'ar' ? 'قطعة غيار' : 'Spare Part')),
           price: Number(totalPrice) || 0,
           garage_id: String(part.user_id || 'garage'),
           customer_phone: String(customerPhone || ''),
@@ -235,7 +236,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
           setStep('success');
           onSuccess();
         } else {
-          alert(isRtl ? 'حدث خطأ أثناء معالجة الدفع، يرجى المحاولة لاحقاً' : 'Order creation failed');
+          alert(isRtl ? 'حدث خطأ أثناء معالجة الدفع، يرجى المحاولة لاحقاً' : 'Error processing payment, please try again later');
         }
       }
     } catch (e) {
@@ -252,7 +253,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         {/* هيدر المودال */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px', marginBottom: '20px' }}>
           <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
-            {step === 'inquire' ? (isRtl ? '🔍 فحص مطابقة القطعة مع رقم الشاصي' : 'Check Fitment & VIN') : (isRtl ? '💳 إتمام الشراء والدفع الإلكتروني' : 'Checkout & Payment')}
+            {step === 'inquire' ? (isRtl ? '🔍 فحص مطابقة القطعة مع رقم الشاصي' : '🔍 Check Fitment via VIN') : (isRtl ? '💳 إتمام الشراء والدفع الإلكتروني' : '💳 Checkout & Payment')}
           </h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
         </div>
@@ -263,17 +264,22 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <img src={part?.image_url || 'https://via.placeholder.com/60'} alt={part?.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
               <div>
-                <strong style={{ fontSize: '15px', color: '#1e293b' }}>{part?.name}</strong>
+                <strong style={{ fontSize: '15px', color: '#1e293b' }}>
+                  {/* 👇 دمج الترجمة الذكية لاسم القطعة */}
+                  <AITranslatedText text={part?.name} lang={lang} />
+                </strong>
                 <span style={{ fontSize: '12.5px', color: '#64748b', display: 'block' }}>{part?.make} - {part?.model} ({part?.year})</span>
-                <span style={{ fontSize: '14px', color: '#e0872a', fontWeight: 'bold' }}>{part?.price} QAR</span>
+                <span style={{ fontSize: '14px', color: '#e0872a', fontWeight: 'bold' }}>{part?.price} {lang === 'ar' ? 'ر.ق' : 'QAR'}</span>
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>🔑 رقم الشاسي (VIN) لمطابقة القطعة 100%:</label>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>
+                {isRtl ? '🔑 رقم الشاسي (VIN) لمطابقة القطعة 100%:' : '🔑 VIN (17 chars) for 100% Fitment Match:'}
+              </label>
               <input
                 type="text"
-                placeholder="أدخل 17 حرفاً ورقماً الموجودة في استمارة السيارة..."
+                placeholder={isRtl ? "أدخل 17 حرفاً ورقماً الموجودة في استمارة السيارة..." : "Enter the 17-character VIN found on registration..."}
                 value={vinNumber}
                 onChange={(e) => setVinNumber(e.target.value)}
                 style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', fontFamily: 'monospace', boxSizing: 'border-box' }}
@@ -283,27 +289,37 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
             {/* 📸 رفع صورة القطعة القديمة وصورة الاستمارة */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>📸 صورة القطعة القديمة:</label>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>
+                  {isRtl ? '📸 صورة القطعة القديمة:' : '📸 Old Part Image:'}
+                </label>
                 <div style={{ border: '1px dashed #cbd5e0', padding: '10px', borderRadius: '8px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
                   <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'old_part')} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingOldPart} />
-                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>{uploadingOldPart ? 'جاري الرفع...' : oldPartImg ? '✅ تم الرفع' : 'اختر صورة 📷'}</span>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                    {uploadingOldPart ? (isRtl ? 'جاري الرفع...' : 'Uploading...') : oldPartImg ? (isRtl ? '✅ تم الرفع' : '✅ Uploaded') : (isRtl ? 'اختر صورة 📷' : 'Choose Image 📷')}
+                  </span>
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>📄 صورة الاستمارة:</label>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>
+                  {isRtl ? '📄 صورة الاستمارة:' : '📄 Registration Image:'}
+                </label>
                 <div style={{ border: '1px dashed #cbd5e0', padding: '10px', borderRadius: '8px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
                   <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'reg')} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingReg} />
-                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>{uploadingReg ? 'جاري الرفع...' : carRegistrationImg ? '✅ تم الرفع' : 'اختر صورة 📄'}</span>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                    {uploadingReg ? (isRtl ? 'جاري الرفع...' : 'Uploading...') : carRegistrationImg ? (isRtl ? '✅ تم الرفع' : '✅ Uploaded') : (isRtl ? 'اختر صورة 📄' : 'Choose Image 📄')}
+                  </span>
                 </div>
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>💬 ملاحظات إضافية للكراج (اختياري):</label>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>
+                {isRtl ? '💬 ملاحظات إضافية للكراج (اختياري):' : '💬 Additional Notes for Garage (Optional):'}
+              </label>
               <textarea
                 rows={2}
-                placeholder="مثلاً: هل توجد فتحات حساسات؟ هل هي الجهة اليمين أم اليسار؟"
+                placeholder={isRtl ? "مثلاً: هل توجد فتحات حساسات؟ هل هي الجهة اليمين أم اليسار؟" : "E.g., Does it have sensor holes? Is it for the right or left side?"}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', fontFamily: 'inherit', boxSizing: 'border-box' }}
@@ -312,7 +328,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button type="submit" disabled={loading} style={{ flex: 1, padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {loading ? '...' : (isRtl ? '🔍 إرسال وإضافة للسلة' : 'Send & Add to Cart')}
+                {loading ? '...' : (isRtl ? '🔍 إرسال وإضافة للسلة' : '🔍 Send & Add to Cart')}
               </button>
               <button type="button" onClick={() => setStep('checkout')} style={{ padding: '12px 18px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
                 🚀 {isRtl ? 'تخطي والدفع فوراً' : 'Direct Pay'}
@@ -327,31 +343,35 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
             
             {/* خيارات الشحن والتوصيل */}
             <div>
-              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>🚚 طريقة استلام القطعة:</label>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>
+                {isRtl ? '🚚 طريقة استلام القطعة:' : '🚚 Delivery Method:'}
+              </label>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setDeliveryType('delivery')}
                   style={{ flex: 1, padding: '12px', borderRadius: '10px', border: deliveryType === 'delivery' ? '2px solid #1f3a5f' : '1px solid #cbd5e0', backgroundColor: deliveryType === 'delivery' ? '#e8f2fc' : '#ffffff', color: '#1f3a5f', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
                 >
-                  🚚 توصيل لموقعي (35 QAR)
+                  {isRtl ? '🚚 توصيل لموقعي (35 QAR)' : '🚚 Deliver to my location (35 QAR)'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setDeliveryType('pickup')}
                   style={{ flex: 1, padding: '12px', borderRadius: '10px', border: deliveryType === 'pickup' ? '2px solid #1f3a5f' : '1px solid #cbd5e0', backgroundColor: deliveryType === 'pickup' ? '#e8f2fc' : '#ffffff', color: '#1f3a5f', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
                 >
-                  🏪 استلام من مقر المعرض (مجاناً)
+                  {isRtl ? '🏪 استلام من مقر المعرض (مجاناً)' : '🏪 Pickup from Store (Free)'}
                 </button>
               </div>
             </div>
 
             {deliveryType === 'delivery' && (
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>📍 عنوان التوصيل بالتفصيل (المنطقة / الشارع / المبنى):</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>
+                  {isRtl ? '📍 عنوان التوصيل بالتفصيل (المنطقة / الشارع / المبنى):' : '📍 Full Delivery Address (Zone / Street / Bldg):'}
+                </label>
                 <input
                   type="text"
-                  placeholder="مثال: الدوحة، منطقة السد، شارع 840، مبنى 12"
+                  placeholder={isRtl ? "مثال: الدوحة، منطقة السد، شارع 840، مبنى 12" : "E.g., Doha, Al Sadd, St 840, Bldg 12"}
                   value={addressDetails}
                   onChange={(e) => setAddressDetails(e.target.value)}
                   style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', boxSizing: 'border-box' }}
@@ -362,7 +382,9 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
             {/* 💳 خيارات وسائل الدفع الإلكتروني */}
             <div>
-              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>💳 طريقة الدفع الأنسب لك:</label>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>
+                {isRtl ? '💳 طريقة الدفع الأنسب لك:' : '💳 Select Payment Method:'}
+              </label>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 
@@ -375,7 +397,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                       backgroundColor: '#000000', color: '#ffffff', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                     }}
                   >
-                    <span>🍏 الدفع السريع بـ</span> <strong>Apple Pay</strong>
+                    <span>{isRtl ? '🍏 الدفع السريع بـ' : '🍏 Quick Pay with'}</span> <strong>Apple Pay</strong>
                   </button>
                 )}
 
@@ -388,7 +410,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                       backgroundColor: '#ffffff', color: '#3c4043', fontWeight: 'bold', fontSize: '14.5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
                     }}
                   >
-                    <span>🌐 الدفع بـ</span> <strong>Google Pay</strong>
+                    <span>{isRtl ? '🌐 الدفع بـ' : '🌐 Pay with'}</span> <strong>Google Pay</strong>
                   </button>
                 )}
 
@@ -401,8 +423,8 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                       backgroundColor: paymentMethod === 'card' ? '#f0f7ff' : '#ffffff', color: '#1f3a5f', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                     }}
                   >
-                    <span>💳 البطاقة البنكية (Visa / MasterCard / Mada)</span>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>آمن 100%</span>
+                    <span>{isRtl ? '💳 البطاقة البنكية (Visa / MasterCard / Mada)' : '💳 Credit Card (Visa / MasterCard / Mada)'}</span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>{isRtl ? 'آمن 100%' : '100% Secure'}</span>
                   </button>
                 )}
 
@@ -410,12 +432,12 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                 {paymentMethod === 'card' && (
                   <div style={{ backgroundColor: '#f0f7ff', padding: '16px', borderRadius: '14px', border: '1px solid #bae6fd', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#0369a1' }}>💳 أدخل بيانات البطاقة البنكية:</span>
+                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#0369a1' }}>{isRtl ? '💳 أدخل بيانات البطاقة البنكية:' : '💳 Enter Card Details:'}</span>
                       <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>Visa / MasterCard</span>
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>رقم البطاقة (16 رقم):</label>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>{isRtl ? 'رقم البطاقة (16 رقم):' : 'Card Number (16 digits):'}</label>
                       <input
                         type="text"
                         placeholder="4000 0000 0000 0000"
@@ -426,7 +448,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>اسم صاحب البطاقة (كما هو مدون):</label>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>{isRtl ? 'اسم صاحب البطاقة (كما هو مدون):' : 'Card Holder Name:'}</label>
                       <input
                         type="text"
                         placeholder="MOHAMMED AL-QATARI"
@@ -438,7 +460,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>تاريخ الانتهاء (MM/YY):</label>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>{isRtl ? 'تاريخ الانتهاء (MM/YY):' : 'Expiry Date (MM/YY):'}</label>
                         <input
                           type="text"
                           placeholder="08/28"
@@ -449,7 +471,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                       </div>
 
                       <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>الرمز السري (CVC/CVV):</label>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>{isRtl ? 'الرمز السري (CVC/CVV):' : 'Security Code (CVC/CVV):'}</label>
                         <input
                           type="password"
                           maxLength={4}
@@ -472,8 +494,8 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                       backgroundColor: paymentMethod === 'cod' ? '#fffdf5' : '#ffffff', color: '#92400e', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                     }}
                   >
-                    <span>💵 الدفع نقداً عند استلام القطعة (COD)</span>
-                    <span style={{ fontSize: '12px', color: '#e0872a' }}>نقدي</span>
+                    <span>{isRtl ? '💵 الدفع نقداً عند استلام القطعة (COD)' : '💵 Cash on Delivery (COD)'}</span>
+                    <span style={{ fontSize: '12px', color: '#e0872a' }}>{isRtl ? 'نقدي' : 'Cash'}</span>
                   </button>
                 )}
 
@@ -483,17 +505,17 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
             {/* تفاصيل الحساب والإجمالي */}
             <div style={{ backgroundColor: '#f8fafc', padding: '14px 18px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', color: '#64748b', marginBottom: '6px' }}>
-                <span>قيمة القطعة:</span>
+                <span>{isRtl ? 'قيمة القطعة:' : 'Part Price:'}</span>
                 <span>{part?.price} QAR</span>
               </div>
               {deliveryType === 'delivery' && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', color: '#64748b', marginBottom: '6px' }}>
-                  <span>رسوم التوصيل:</span>
+                  <span>{isRtl ? 'رسوم التوصيل:' : 'Delivery Fee:'}</span>
                   <span>35 QAR</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', color: '#1f3a5f', borderTop: '1px dashed #cbd5e0', paddingTop: '8px', marginTop: '6px' }}>
-                <span>المبلغ الإجمالي المستحق:</span>
+                <span>{isRtl ? 'المبلغ الإجمالي المستحق:' : 'Total Amount Due:'}</span>
                 <span style={{ color: '#e0872a' }}>{totalPrice} QAR</span>
               </div>
             </div>
@@ -505,7 +527,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               disabled={loading}
               style={{ padding: '14px', backgroundColor: '#1e9d6b', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', width: '100%' }}
             >
-              {loading ? 'جاري تنفيذ الطلب وتنبيه الكراج...' : `🚀 تأكيد وإتمام الشراء (${totalPrice} QAR)`}
+              {loading ? (isRtl ? 'جاري تنفيذ الطلب وتنبيه الكراج...' : 'Processing order and notifying garage...') : (isRtl ? `🚀 تأكيد وإتمام الشراء (${totalPrice} QAR)` : `🚀 Confirm & Checkout (${totalPrice} QAR)`)}
             </button>
 
           </div>
@@ -523,11 +545,11 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               <strong style={{ color: '#1f3a5f' }}>{createdOrderCode}</strong>
             </p>
             <p style={{ fontSize: '12.5px', color: '#94a3b8', marginBottom: '24px' }}>
-              تم حفظ القطعة بداخل سلتك وتنبيه الكراج فوراً لتجهيزها للشحن.
+              {isRtl ? 'تم حفظ القطعة بداخل سلتك وتنبيه الكراج فوراً لتجهيزها للشحن.' : 'The part has been saved to your cart and the garage notified to prepare it for shipping.'}
             </p>
 
             <button onClick={onClose} style={{ padding: '12px 32px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              {isRtl ? 'العودة للمتجر 🛒' : 'Back to Shop'}
+              {isRtl ? 'العودة للمتجر 🛒' : 'Back to Shop 🛒'}
             </button>
           </div>
         )}
