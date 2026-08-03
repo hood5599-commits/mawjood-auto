@@ -9,6 +9,7 @@ interface HeaderProps {
   cartCount: number;
   onOpenCart: () => void;
   onLogout: () => void;
+  onRequestCustomPart?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,7 +19,8 @@ export const Header: React.FC<HeaderProps> = ({
   session,
   cartCount,
   onOpenCart,
-  onLogout
+  onLogout,
+  onRequestCustomPart
 }) => {
   const isRtl = lang === 'ar';
 
@@ -60,6 +62,29 @@ export const Header: React.FC<HeaderProps> = ({
         {/* 2️⃣ عناصر التحكم والأزرار */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           
+          {/* 🛠️ زر طلب قطعة غير متوفرة المميز */}
+          {onRequestCustomPart && (
+            <button
+              onClick={onRequestCustomPart}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid #e0872a',
+                backgroundColor: '#fff7ed',
+                color: '#c2410c',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 6px rgba(224,135,42,0.15)'
+              }}
+            >
+              🛠️ {lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Request Part'}
+            </button>
+          )}
+
           {/* زر تغيير اللغة */}
           <button
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
@@ -109,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* زر الحساب وزر الخروج الروعة */}
+          {/* زر الحساب وزر الخروج */}
           {session ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               
@@ -137,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
                 👤 {lang === 'ar' ? 'حسابي' : 'Account'}
               </button>
 
-              {/* 🚪 زر الخروج الواضح والمرتب */}
+              {/* 🚪 زر الخروج */}
               <button
                 onClick={onLogout}
                 title={lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}
