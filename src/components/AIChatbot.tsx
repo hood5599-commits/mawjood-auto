@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import DOMPurify from 'dompurify';
+import { RequestPartModal } from './RequestPartModal';
 
 interface AIChatbotProps {
   lang: 'ar' | 'en';
@@ -18,6 +19,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const isRtl = lang === 'ar';
@@ -37,11 +39,13 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
   }, [messages, isOpen]);
 
   const quickQuestions = lang === 'ar' ? [
+    '🛠️ طلب تسعير قطعة غير متوفرة',
     'وين أحصل قطعة لسيارتي؟',
     'كيف أعرف القطعة أصلية؟',
     '📦 تتبع طلباتي الحالية',
     '💬 التواصل مع الدعم الفني'
   ] : [
+    '🛠️ Request Unlisted Part',
     'Where to find a part?',
     'How to check if OEM?',
     '📦 Track my orders',
@@ -72,6 +76,12 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
 
   const sendMessage = async (textToSend: string) => {
     if (!textToSend.trim() || loading) return;
+
+    // فتح النافذة المنسدلة فوراً إذا اختار زر طلب القطعة
+    if (textToSend.includes('طلب تسعير قطعة') || textToSend.includes('Request Unlisted Part')) {
+      setIsModalOpen(true);
+      return;
+    }
 
     const userMsg = textToSend.trim();
     setInput('');
@@ -127,143 +137,158 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
   };
 
   return (
-    <div style={{ position: 'fixed', bottom: '20px', [isRtl ? 'left' : 'right']: '20px', zIndex: 1000, fontFamily: 'Cairo, sans-serif' }}>
-      
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          style={{
-            backgroundColor: '#1f3a5f',
-            color: 'white',
-            border: '2px solid #e0872a',
-            borderRadius: '50px',
-            padding: '12px 22px',
-            boxShadow: '0 8px 24px rgba(31,58,95,0.35)',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '14px',
-            animation: 'bounce 2s infinite'
-          }}
-        >
-          <style>{`@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }`}</style>
-          <span style={{ fontSize: '18px' }}>🚀</span>
-          <span>{lang === 'ar' ? 'خبير موجود أوتو' : 'Mawjood AI Expert'}</span>
-        </button>
-      )}
+    <>
+      <div style={{ position: 'fixed', bottom: '20px', [isRtl ? 'left' : 'right']: '20px', zIndex: 1000, fontFamily: 'Cairo, sans-serif' }}>
+        
+        {!isOpen && (
+          <button
+            onClick={() => setIsOpen(true)}
+            style={{
+              backgroundColor: '#1f3a5f',
+              color: 'white',
+              border: '2px solid #e0872a',
+              borderRadius: '50px',
+              padding: '12px 22px',
+              boxShadow: '0 8px 24px rgba(31,58,95,0.35)',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '14px',
+              animation: 'bounce 2s infinite'
+            }}
+          >
+            <style>{`@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }`}</style>
+            <span style={{ fontSize: '18px' }}>🚀</span>
+            <span>{lang === 'ar' ? 'خبير موجود أوتو' : 'Mawjood AI Expert'}</span>
+          </button>
+        )}
 
-      {isOpen && (
-        <div
-          style={{
-            width: '380px',
-            maxWidth: '90vw',
-            height: '520px',
-            backgroundColor: '#ffffff',
-            borderRadius: '20px',
-            boxShadow: '0 16px 40px rgba(0,0,0,0.22)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            border: '1px solid #cbd5e0',
-            direction: isRtl ? 'rtl' : 'ltr'
-          }}
-        >
-          <div style={{ backgroundColor: '#1f3a5f', color: 'white', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '26px' }}>🤖</span>
-              <div>
-                <strong style={{ fontSize: '15px', display: 'block' }}>{lang === 'ar' ? 'خبير موجود أوتو الذكي' : 'Mawjood Auto Expert'}</strong>
-                <span style={{ fontSize: '11.5px', opacity: 0.9, color: '#4ade80' }}>🟢 {lang === 'ar' ? 'متصل وجاهز لتتبع طلباتك' : 'Online & Ready'}</span>
-              </div>
-            </div>
-            <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', opacity: 0.8 }}>✖</button>
-          </div>
-
-          <div style={{ flex: 1, padding: '16px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {messages.map((m, idx) => {
-              const formattedText = m.text
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br/>');
-
-              const cleanHtml = DOMPurify.sanitize(formattedText);
-
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
-                    backgroundColor: m.sender === 'user' ? '#e0872a' : '#ffffff',
-                    color: m.sender === 'user' ? '#ffffff' : '#1e293b',
-                    padding: '12px 16px',
-                    borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    fontSize: '13.5px',
-                    lineHeight: '1.6',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    maxWidth: '85%'
-                  }}
-                >
-                  <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />
+        {isOpen && (
+          <div
+            style={{
+              width: '380px',
+              maxWidth: '90vw',
+              height: '520px',
+              backgroundColor: '#ffffff',
+              borderRadius: '20px',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.22)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              border: '1px solid #cbd5e0',
+              direction: isRtl ? 'rtl' : 'ltr'
+            }}
+          >
+            <div style={{ backgroundColor: '#1f3a5f', color: 'white', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '26px' }}>🤖</span>
+                <div>
+                  <strong style={{ fontSize: '15px', display: 'block' }}>{lang === 'ar' ? 'خبير موجود أوتو الذكي' : 'Mawjood Auto Expert'}</strong>
+                  <span style={{ fontSize: '11.5px', opacity: 0.9, color: '#4ade80' }}>🟢 {lang === 'ar' ? 'متصل وجاهز لتتبع طلباتك' : 'Online & Ready'}</span>
                 </div>
-              );
-            })}
+              </div>
+              <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', opacity: 0.8 }}>✖</button>
+            </div>
 
-            {messages.length === 1 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                {quickQuestions.map((q, i) => (
-                  <button
-                    key={i}
-                    onClick={() => sendMessage(q)}
+            <div style={{ flex: 1, padding: '16px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {messages.map((m, idx) => {
+                const formattedText = m.text
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/\n/g, '<br/>');
+
+                const cleanHtml = DOMPurify.sanitize(formattedText);
+
+                return (
+                  <div
+                    key={idx}
                     style={{
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #1f3a5f',
-                      color: '#1f3a5f',
-                      borderRadius: '12px',
-                      padding: '8px 12px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                      alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
+                      backgroundColor: m.sender === 'user' ? '#e0872a' : '#ffffff',
+                      color: m.sender === 'user' ? '#ffffff' : '#1e293b',
+                      padding: '12px 16px',
+                      borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                      fontSize: '13.5px',
+                      lineHeight: '1.6',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                      maxWidth: '85%'
                     }}
-                    onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                    onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
                   >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
+                    <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />
+                  </div>
+                );
+              })}
 
-            {loading && (
-              <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '16px', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                ⏳ {lang === 'ar' ? 'جاري التحقق من النظام...' : 'Checking database...'}
-              </div>
-            )}
-            <div ref={chatEndRef} />
+              {messages.length === 1 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                  {quickQuestions.map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => sendMessage(q)}
+                      style={{
+                        backgroundColor: i === 0 ? '#e0872a' : '#ffffff',
+                        border: i === 0 ? 'none' : '1px solid #1f3a5f',
+                        color: i === 0 ? '#ffffff' : '#1f3a5f',
+                        borderRadius: '12px',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                      }}
+                      onMouseOver={(e) => {
+                        if (i !== 0) e.currentTarget.style.backgroundColor = '#f1f5f9';
+                      }}
+                      onMouseOut={(e) => {
+                        if (i !== 0) e.currentTarget.style.backgroundColor = '#ffffff';
+                      }}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {loading && (
+                <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '16px', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  ⏳ {lang === 'ar' ? 'جاري التحقق من النظام...' : 'Checking database...'}
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ display: 'flex', gap: '8px', padding: '12px', borderTop: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
+              <input
+                type="text"
+                placeholder={lang === 'ar' ? 'اسأل الخبير (مثال: تتبع طلبي، كيف أعرف الأصلي؟)...' : 'Ask Expert (e.g. Track order)...'}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                style={{ flex: 1, padding: '12px 14px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13.5px', outline: 'none', backgroundColor: '#f8fafc' }}
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', padding: '0 18px', fontWeight: 'bold', cursor: 'pointer', fontSize: '18px' }}
+              >
+                🚀
+              </button>
+            </form>
+
           </div>
+        )}
 
-          <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ display: 'flex', gap: '8px', padding: '12px', borderTop: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
-            <input
-              type="text"
-              placeholder={lang === 'ar' ? 'اسأل الخبير (مثال: تتبع طلبي، كيف أعرف الأصلي؟)...' : 'Ask Expert (e.g. Track order)...'}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              style={{ flex: 1, padding: '12px 14px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13.5px', outline: 'none', backgroundColor: '#f8fafc' }}
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', padding: '0 18px', fontWeight: 'bold', cursor: 'pointer', fontSize: '18px' }}
-            >
-              🚀
-            </button>
-          </form>
+      </div>
 
-        </div>
-      )}
-
-    </div>
+      {/* النافذة المنسدلة لطلب قطعة غير متوفرة */}
+      <RequestPartModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        supabaseUrl={supabaseUrl}
+        supabaseKey={supabaseKey}
+        customerPhone={session?.phone || session?.user?.phone || ''}
+      />
+    </>
   );
 };
