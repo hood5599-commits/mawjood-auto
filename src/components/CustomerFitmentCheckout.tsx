@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { AITranslatedText } from './AITranslatedText'; // 👈 استيراد مكون الترجمة الذكي
+import { createWorker } from 'tesseract.js';
+import { AITranslatedText } from './AITranslatedText';
 
 interface CheckoutProps {
   lang: 'ar' | 'en';
@@ -39,6 +40,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   const [carRegistrationImg, setCarRegistrationImg] = useState('');
   const [uploadingOldPart, setUploadingOldPart] = useState(false);
   const [uploadingReg, setUploadingReg] = useState(false);
+  const [scanningVin, setScanningVin] = useState(false);
 
   // إعدادات الشحن والدفع
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
@@ -81,7 +83,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     setCardExpiry(value);
   };
 
-  // 📸 دالة رفع الصور المباشرة لـ Supabase Storage
+  // 📸 دالة رفع الصور المباشرة لـ Supabase Storage + قراءة رقم الشاصي VIN من الاستمارة تلقائياً
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'old_part' | 'reg') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -89,6 +91,27 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
     if (target === 'old_part') setUploadingOldPart(true);
     else setUploadingReg(true);
+
+    // 🔍 إذا كانت الصورة المرفوعة هي صورة الاستمارة، نقوم بقراءة الـ VIN تلقائياً عبر Tesseract OCR
+    if (target === 'reg') {
+      setScanningVin(true);
+      try {
+        const worker = await createWorker('eng');
+        const ret = await worker.recognize(file);
+        await worker.terminate();
+
+        const vinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
+        const match = ret.data.text.match(vinRegex);
+
+        if (match) {
+          setVinNumber(match[0].toUpperCase());
+        }
+      } catch (ocrErr) {
+        console.error("VIN OCR Error:", ocrErr);
+      } finally {
+        setScanningVin(false);
+      }
+    }
 
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
@@ -265,7 +288,6 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               <img src={part?.image_url || 'https://via.placeholder.com/60'} alt={part?.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
               <div>
                 <strong style={{ fontSize: '15px', color: '#1e293b' }}>
-                  {/* 👇 دمج الترجمة الذكية لاسم القطعة */}
                   <AITranslatedText text={part?.name} lang={lang} />
                 </strong>
                 <span style={{ fontSize: '12.5px', color: '#64748b', display: 'block' }}>{part?.make} - {part?.model} ({part?.year})</span>
@@ -279,11 +301,16 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               </label>
               <input
                 type="text"
-                placeholder={isRtl ? "أدخل 17 حرفاً ورقماً الموجودة في استمارة السيارة..." : "Enter the 17-character VIN found on registration..."}
+                placeholder={isRtl ? "أدخل 17 حرفاً ورقماً أو ارفع صورة الاستمارة بالأسفل..." : "Enter the 17-character VIN or upload registration..."}
                 value={vinNumber}
                 onChange={(e) => setVinNumber(e.target.value)}
                 style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', fontFamily: 'monospace', boxSizing: 'border-box' }}
               />
+              {scanningVin && (
+                <p style={{ fontSize: '11.5px', color: '#e0872a', margin: '4px 0 0 0', fontWeight: 'bold' }}>
+                  ⏳ {isRtl ? 'جاري فحص وقراءة رقم الشاصي تلقائياً من الصورة...' : 'Scanning & reading VIN automatically from image...'}
+                </p>
+              )}
             </div>
 
             {/* 📸 رفع صورة القطعة القديمة وصورة الاستمارة */}
@@ -302,12 +329,12 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
               <div>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '4px' }}>
-                  {isRtl ? '📄 صورة الاستمارة:' : '📄 Registration Image:'}
+                  {isRtl ? '📄 صورة الاستمارة (لقراءة الـ VIN تلقائياً):' : '📄 Registration (Auto VIN Read):'}
                 </label>
                 <div style={{ border: '1px dashed #cbd5e0', padding: '10px', borderRadius: '8px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
                   <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'reg')} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingReg} />
                   <span style={{ fontSize: '11.5px', color: '#64748b' }}>
-                    {uploadingReg ? (isRtl ? 'جاري الرفع...' : 'Uploading...') : carRegistrationImg ? (isRtl ? '✅ تم الرفع' : '✅ Uploaded') : (isRtl ? 'اختر صورة 📄' : 'Choose Image 📄')}
+                    {uploadingReg ? (isRtl ? 'جاري الرفع والقراءة...' : 'Uploading & Reading...') : carRegistrationImg ? (isRtl ? '✅ تم الرفع والقراءة' : '✅ Read Successfully') : (isRtl ? 'اختر صورة 📄' : 'Choose Image 📄')}
                   </span>
                 </div>
               </div>
