@@ -26,45 +26,112 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
   const [partNumber, setPartNumber] = useState('');
   const [notes, setNotes] = useState(initialPartName);
 
+  // 📸 حالات رفع الصور (القطعة القديمة + الاستمارة)
+  const [oldPartImgUrl, setOldPartImgUrl] = useState('');
+  const [vinImgUrl, setVinImgUrl] = useState('');
+  const [uploadingOldPart, setUploadingOldPart] = useState(false);
+  const [uploadingVinImg, setUploadingVinImg] = useState(false);
+
   const [scanningVin, setScanningVin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
   if (!isOpen) return null;
 
-  // دالة قراءة رقم الشاصي VIN تلقائياً من صورة الاستمارة
+  const cleanUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') || "https://shszpcjmhkemqwborfwy.supabase.co";
+
+  // دالة رفع الصور المباشرة إلى Supabase Storage
+  const uploadImageToStorage = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    try {
+      const uploadUrl = `${cleanUrl}/storage/v1/object/part-images/${fileName}`;
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': file.type
+        },
+        body: file
+      });
+
+      if (response.ok) {
+        return `${cleanUrl}/storage/v1/object/public/part-images/${fileName}`;
+      }
+    } catch (err) {
+      console.error("Image Upload Error:", err);
+    }
+    return null;
+  };
+
+  // 📄 دالة قراءة رقم الشاصي VIN تلقائياً من صورة الاستمارة المخصصة للاستمارة القطرية
   const handleVinImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadingVinImg(true);
     setScanningVin(true);
+
     try {
+      // 1️⃣ رفع الصورة إلى السيرفر للحصول على رابط مباشر
+      const publicUrl = await uploadImageToStorage(file);
+      if (publicUrl) setVinImgUrl(publicUrl);
+
+      // 2️⃣ القراءة الذكية عبر OCR
       const worker = await createWorker('eng');
       const ret = await worker.recognize(file);
       await worker.terminate();
 
-      // البحث عن نمط رقم الشاصي (17 حرف/رقم)
-      const vinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
-      const match = ret.data.text.match(vinRegex);
+      const rawText = ret.data.text;
+      
+      // أ) البحث المباشر عن نمط الـ VIN (17 حرفاً ورقماً)
+      const cleanedText = rawText.replace(/[\s\-_]/g, '').toUpperCase();
+      const standardVinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
+      const match = cleanedText.match(standardVinRegex);
 
       if (match) {
         setVinNumber(match[0].toUpperCase());
+      } else {
+        // ب) استراتيجية مخصصة للاستمارة: البحث بالقرب من كلمة Chassis أو رقم القاعدة
+        const lines = rawText.split('\n');
+        for (const line of lines) {
+          if (line.toLowerCase().includes('chassis') || line.toLowerCase().includes('engine') || line.includes('القاعدة')) {
+            const extracted = line.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+            const subMatch = extracted.match(/[A-Z0-9]{11,17}/);
+            if (subMatch) {
+              setVinNumber(subMatch[0]);
+              break;
+            }
+          }
+        }
       }
     } catch (err) {
       console.error("OCR Read error:", err);
     } finally {
       setScanningVin(false);
+      setUploadingVinImg(false);
     }
+  };
+
+  // 📸 رفع صورة القطعة القديمة
+  const handleOldPartUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingOldPart(true);
+    const publicUrl = await uploadImageToStorage(file);
+    if (publicUrl) {
+      setOldPartImgUrl(publicUrl);
+    }
+    setUploadingOldPart(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
 
-    const cleanUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') || "https://shszpcjmhkemqwborfwy.supabase.co";
-
     try {
-      // حفظ طلب القطعة المخصصة في جدول custom_part_requests
       const response = await fetch(`${cleanUrl}/rest/v1/custom_part_requests`, {
         method: 'POST',
         headers: {
@@ -82,6 +149,8 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
           vin_number: vinNumber,
           part_number: partNumber,
           notes,
+          part_image_url: oldPartImgUrl || null,
+          vin_image_url: vinImgUrl || null,
           status: 'pending'
         })
       });
@@ -116,7 +185,7 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: '#16a34a' }}>
             <div style={{ fontSize: '48px', marginBottom: '8px' }}>✅</div>
-            <h4 style={{ margin: 0, fontSize: '18px' }}>تم إرسال طلبك لكل الكراجات بنجاح!</h4>
+            <h4 style={{ margin: 0, fontSize: '18px' }}>تم إرسال طلبك بنجاح!</h4>
             <p style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>ستصلك عروض الأسعار والتنبيهات فور توفرها.</p>
           </div>
         ) : (
@@ -126,59 +195,63 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>الشركة المصنعة *</label>
-                <input required type="text" placeholder="مثال: تويوتا" value={make} onChange={(e) => setMake(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} />
+                <input required type="text" placeholder="مثال: تويوتا" value={make} onChange={(e) => setMake(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>الموديل *</label>
-                <input required type="text" placeholder="مثال: كامري" value={model} onChange={(e) => setModel(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} />
+                <input required type="text" placeholder="مثال: كامري" value={model} onChange={(e) => setModel(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>سنة الصنع *</label>
-                <input required type="text" placeholder="مثال: 2006" value={year} onChange={(e) => setYear(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} />
+                <input required type="text" placeholder="مثال: 2006" value={year} onChange={(e) => setYear(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>حجم المحرك (اختياري)</label>
-                <input type="text" placeholder="مثال: 2.4L" value={engineSize} onChange={(e) => setEngineSize(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} />
+                <input type="text" placeholder="مثال: 2.4L" value={engineSize} onChange={(e) => setEngineSize(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
             </div>
 
-            {/* صورة الاستمارة + قرأة رقم الشاصي */}
+            {/* صورة الاستمارة + قراءة رقم الشاصي */}
             <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px dashed #94a3b8' }}>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f', display: 'block', marginBottom: '6px' }}>
                 📄 صورة الاستمارة (لقراءة رقم الشاصي تلقائياً)
               </label>
-              <input type="file" accept="image/*" onChange={handleVinImageUpload} style={{ fontSize: '12px', width: '100%' }} />
-              {scanningVin && <p style={{ fontSize: '11px', color: '#e0872a', margin: '4px 0 0 0' }}>⏳ جاري فحص وقراءة رقم الشاصي تلقائياً...</p>}
+              <input type="file" accept="image/*" onChange={handleVinImageUpload} disabled={uploadingVinImg} style={{ fontSize: '12px', width: '100%' }} />
+              {scanningVin && <p style={{ fontSize: '11px', color: '#e0872a', margin: '4px 0 0 0', fontWeight: 'bold' }}>⏳ جاري فحص وقراءة رقم الشاصي تلقائياً من الصورة...</p>}
+              {vinImgUrl && <span style={{ fontSize: '11px', color: '#16a34a', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>✅ تم رفع صورة الاستمارة</span>}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>رقم الشاصي (VIN)</label>
-                <input type="text" placeholder="17 رقم" value={vinNumber} onChange={(e) => setVinNumber(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', textTransform: 'uppercase' }} />
+                <input type="text" placeholder="17 رقم" value={vinNumber} onChange={(e) => setVinNumber(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', textTransform: 'uppercase', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>رقم القطعة (Part Number)</label>
-                <input type="text" placeholder="اختياري" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} />
+                <input type="text" placeholder="اختياري" value={partNumber} onChange={(e) => setPartNumber(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
             </div>
 
             {/* صورة القطعة القديمة */}
             <div>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>صورة القطعة القديمة (اختياري)</label>
-              <input type="file" accept="image/*" style={{ fontSize: '12px', width: '100%' }} />
+              <input type="file" accept="image/*" onChange={handleOldPartUpload} disabled={uploadingOldPart} style={{ fontSize: '12px', width: '100%' }} />
+              {uploadingOldPart && <p style={{ fontSize: '11px', color: '#e0872a', margin: '4px 0 0 0' }}>جاري رفع الصورة...</p>}
+              {oldPartImgUrl && <span style={{ fontSize: '11px', color: '#16a34a', display: 'block', marginTop: '2px', fontWeight: 'bold' }}>✅ تم رفع صورة القطعة القديمة</span>}
             </div>
 
             {/* تفاصيل وملاحظات */}
             <div>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>تفاصيل القطعة وملاحظاتك *</label>
-              <textarea required rows={3} placeholder="اكتب اسم القطعة بالتفصيل (مثال: مروحة رديتر جهة السائق)..." value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', resize: 'vertical' }} />
+              <textarea required rows={3} placeholder="اكتب اسم القطعة بالتفصيل (مثال: مروحة رديتر جهة السائق)..." value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
             </div>
 
+            {/* 👇 زر إرسال الطلب المحدث */}
             <button type="submit" disabled={submitting} style={{ backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', padding: '12px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', marginTop: '8px', boxShadow: '0 4px 12px rgba(224,135,42,0.3)' }}>
-              {submitting ? 'جاري الإرسال لكل الكراجات...' : '🚀 إرسال الطلب لجميع الكراجات'}
+              {submitting ? 'جاري الإرسال...' : '🚀 إرسال الطلب'}
             </button>
           </form>
         )}
