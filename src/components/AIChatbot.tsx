@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 
 interface AIChatbotProps {
   lang: 'ar' | 'en';
@@ -181,24 +182,32 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabas
           </div>
 
           <div style={{ flex: 1, padding: '16px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {messages.map((m, idx) => (
-              <div
-                key={idx}
-                style={{
-                  alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
-                  backgroundColor: m.sender === 'user' ? '#e0872a' : '#ffffff',
-                  color: m.sender === 'user' ? '#ffffff' : '#1e293b',
-                  padding: '12px 16px',
-                  borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                  fontSize: '13.5px',
-                  lineHeight: '1.6',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                  maxWidth: '85%'
-                }}
-              >
-                <div dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} />
-              </div>
-            ))}
+            {messages.map((m, idx) => {
+              const formattedText = m.text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br/>');
+
+              const cleanHtml = DOMPurify.sanitize(formattedText);
+
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
+                    backgroundColor: m.sender === 'user' ? '#e0872a' : '#ffffff',
+                    color: m.sender === 'user' ? '#ffffff' : '#1e293b',
+                    padding: '12px 16px',
+                    borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    fontSize: '13.5px',
+                    lineHeight: '1.6',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                    maxWidth: '85%'
+                  }}
+                >
+                  <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />
+                </div>
+              );
+            })}
 
             {messages.length === 1 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
