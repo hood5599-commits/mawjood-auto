@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExcelPartUploader } from './ExcelPartUploader';
 import { Toast } from './Toast';
-import { AITranslatedText } from './AITranslatedText'; // 👈 تم استيراد مكون الترجمة الذكي
+import { AITranslatedText } from './AITranslatedText';
 
 interface GarageProps {
   lang: 'ar' | 'en';
@@ -14,7 +14,7 @@ interface GarageProps {
 }
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'orders'>('add_part');
+  const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('add_part');
 
   const [partName, setPartName] = useState('');
   const [partNumber, setPartNumber] = useState('');
@@ -37,14 +37,26 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [myParts, setMyParts] = useState<any[]>([]);
   const [myOrders, setMyOrders] = useState<any[]>([]);
   const [myInquiries, setMyInquiries] = useState<any[]>([]);
+  const [customRequests, setCustomRequests] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
+  const [selectedCustomRequest, setSelectedCustomRequest] = useState<any | null>(null);
+
+  // 📝 حالات تقديم عرض سعر للقطع المخصصة
+  const [quotePrice, setQuotePrice] = useState('');
+  const [quotePartType, setQuotePartType] = useState('مستعمل أصلي');
+  const [quoteCondition, setQuoteCondition] = useState('نظيف');
+  const [quoteWarranty, setQuoteWarranty] = useState('ضمان تجربة 3 أيام');
+  const [quoteNotes, setQuoteNotes] = useState('');
+  const [submittingQuote, setSubmittingQuote] = useState(false);
+
   const [returnDays, setReturnDays] = useState<number>(3);
   const [warrantyDays, setWarrantyDays] = useState<number>(14);
 
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || session?.code || 'garage_unknown';
+  const garageName = session?.user_metadata?.garage_name || session?.garage_name || 'كراج معتمد';
   const isRtl = lang === 'ar';
 
   const playChimeSound = () => {
@@ -70,10 +82,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchMyParts();
     fetchMyOrders();
     fetchMyInquiries();
+    fetchCustomRequests();
 
     const interval = setInterval(() => {
       fetchMyInquiries();
       fetchMyOrders();
+      fetchCustomRequests();
       if ((window as any).shouldPlayChime) playChimeSound(); 
     }, 15000);
 
@@ -117,6 +131,18 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         }
 
         setMyInquiries(data);
+      }
+    } catch (error) {}
+  };
+
+  // جلب طلبات القطع المخصصة غير المتوفرة لكل الكراجات
+  const fetchCustomRequests = async () => {
+    try {
+      const response = await fetch(`${supabaseUrl}/custom_part_requests?order=id.desc`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
+      });
+      if (response.ok) {
+        setCustomRequests(await response.json());
       }
     } catch (error) {}
   };
@@ -185,6 +211,55 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         setActiveTab('my_parts');
       }
     } catch (error) {}
+  };
+
+  // دالة إرسال عرض سعر لطلب قطعة مخصصة
+  const handleSendCustomQuote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCustomRequest || !quotePrice) return;
+
+    setSubmittingQuote(true);
+    try {
+      const response = await fetch(`${supabaseUrl}/garage_quotes`, {
+        method: 'POST',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          request_id: selectedCustomRequest.id,
+          garage_id: String(userId),
+          garage_name: garageName,
+          price: parseFloat(quotePrice),
+          part_type: quotePartType,
+          part_condition: quoteCondition,
+          warranty: quoteWarranty,
+          garage_notes: quoteNotes
+        })
+      });
+
+      if (response.ok) {
+        // تحديث حالة الطلب
+        await fetch(`${supabaseUrl}/custom_part_requests?id=eq.${selectedCustomRequest.id}`, {
+          method: 'PATCH',
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'offers_received' })
+        });
+
+        alert(isRtl ? 'تم إرسال عرض السعر للعميل بنجاح! 🎉' : 'Quote sent successfully! 🎉');
+        setSelectedCustomRequest(null);
+        setQuotePrice('');
+        setQuoteNotes('');
+        fetchCustomRequests();
+      } else {
+        alert(isRtl ? 'حدث خطأ أثناء إرسال التسعيرة' : 'Failed to send quote');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmittingQuote(false);
+    }
   };
 
   const handleConfirmFitment = async () => {
@@ -261,6 +336,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const activeInquiriesList = myInquiries.filter(i => i.status !== 'ordered');
   const pendingInquiriesCount = myInquiries.filter(i => i.status === 'pending_check').length;
+  const pendingCustomRequestsCount = customRequests.filter(r => r.status === 'pending' || r.status === 'offers_received').length;
 
   return (
     <div style={{ maxWidth: '900px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr' }}>
@@ -273,6 +349,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
         <button onClick={() => setShowExcelModal(true)} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#38a169', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           📊 {isRtl ? 'رفع قطع بالإكسل' : 'Bulk Upload Excel'}
+        </button>
+
+        <button onClick={() => setActiveTab('custom_requests')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'custom_requests' ? '#e0872a' : 'transparent', color: activeTab === 'custom_requests' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', position: 'relative' }}>
+          📥 {isRtl ? 'طلبات التسعير الواردة' : 'Custom Requests'}
+          {pendingCustomRequestsCount > 0 && (
+            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 {pendingCustomRequestsCount}</span>
+          )}
         </button>
 
         <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', position: 'relative' }}>
@@ -388,6 +471,144 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               {editingId ? (isRtl ? 'حفظ التعديلات' : 'Save Changes') : (isRtl ? '🚀 نشر القطعة للبيع' : '🚀 Publish Part for Sale')}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* 📥 تبويب طلبات القطع المخصصة الواردة من العملاء */}
+      {activeTab === 'custom_requests' && (
+        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+            📥 {isRtl ? 'طلبات القطع المخصصة الواردة من العملاء' : 'Custom Part Requests from Customers'}
+          </h3>
+
+          {customRequests.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>{isRtl ? 'لا توجد طلبات قطع جديدة حالياً.' : 'No custom requests currently.'}</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {customRequests.map((req) => (
+                <div key={req.id} style={{ padding: '20px', border: '1px solid #e0872a', borderRadius: '15px', backgroundColor: '#fffdfa' }}>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#fff7ed', color: '#c2410c', padding: '4px 10px', borderRadius: '6px', border: '1px solid #ffedd5' }}>
+                      {isRtl ? 'رقم الطلب:' : 'Request ID:'} #{req.id}
+                    </span>
+                    <span style={{ fontSize: '12.5px', color: '#64748b' }}>
+                      📱 {req.customer_phone}
+                    </span>
+                  </div>
+
+                  <div style={{ backgroundColor: '#ffffff', padding: '14px', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '12px' }}>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#1f3a5f' }}>
+                      🚘 {req.make} - {req.model} ({req.year}) {req.engine_size && `[${req.engine_size}]`}
+                    </h4>
+                    {req.vin_number && (
+                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#334155', fontFamily: 'monospace' }}>
+                        🔑 {isRtl ? 'رقم الشاصي (VIN):' : 'VIN:'} <strong>{req.vin_number}</strong>
+                      </p>
+                    )}
+                    {req.part_number && (
+                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#334155' }}>
+                        🔢 {isRtl ? 'رقم القطعة:' : 'Part Number:'} {req.part_number}
+                      </p>
+                    )}
+                    <p style={{ margin: '8px 0 0 0', fontSize: '13.5px', color: '#1e293b', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '8px', borderRight: '4px solid #e0872a' }}>
+                      💬 <strong>{isRtl ? 'القطعة المطلوبة:' : 'Requested Part:'}</strong> {req.notes}
+                    </p>
+                  </div>
+
+                  {/* صور المرفقات إن وجدت */}
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
+                    {req.vin_image_url && (
+                      <a href={req.vin_image_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none', backgroundColor: '#eff6ff', padding: '6px 12px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                        📄 {isRtl ? 'عرض صورة الاستمارة' : 'View Registration'}
+                      </a>
+                    )}
+                    {req.part_image_url && (
+                      <a href={req.part_image_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none', backgroundColor: '#eff6ff', padding: '6px 12px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                        📸 {isRtl ? 'عرض صورة القطعة القديمة' : 'View Old Part'}
+                      </a>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedCustomRequest(req)}
+                    style={{ width: '100%', padding: '11px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(224,135,42,0.2)' }}
+                  >
+                    🏷️ {isRtl ? 'القطعة متوفرة عندي (تقديم تسعيرة)' : 'Available (Submit Quote)'}
+                  </button>
+
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 🏷️ نافذة تقديم عرض سعر للعميل */}
+      {selectedCustomRequest && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200 }}>
+          <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', maxWidth: '500px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', fontFamily: 'Cairo, sans-serif', direction: isRtl ? 'rtl' : 'ltr' }}>
+            
+            <h3 style={{ margin: '0 0 14px 0', color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
+              🏷️ تقديم تسعيرة لطلب #{selectedCustomRequest.id}
+            </h3>
+
+            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
+              السيارة: <strong>{selectedCustomRequest.make} {selectedCustomRequest.model} ({selectedCustomRequest.year})</strong><br />
+              القطعة: <strong>{selectedCustomRequest.notes}</strong>
+            </p>
+
+            <form onSubmit={handleSendCustomQuote} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>السعر المطلوب (QAR) *</label>
+                <input required type="number" placeholder="مثال: 350" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '14px', fontWeight: 'bold' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>نوع القطعة *</label>
+                  <select value={quotePartType} onChange={(e) => setQuotePartType(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}>
+                    <option value="جديد أصلي">جديد أصلي</option>
+                    <option value="جديد تجاري">جديد تجاري</option>
+                    <option value="مستعمل أصلي">مستعمل أصلي</option>
+                    <option value="مستعمل تجاري">مستعمل تجاري</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>حالة القطعة *</label>
+                  <select value={quoteCondition} onChange={(e) => setQuoteCondition(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}>
+                    <option value="جديد">جديد</option>
+                    <option value="شبه جديد">شبه جديد</option>
+                    <option value="نظيف">نظيف</option>
+                    <option value="وسط">وسط</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>الضمان *</label>
+                <input required type="text" placeholder="مثال: ضمان تجربة 3 أيام" value={quoteWarranty} onChange={(e) => setQuoteWarranty(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>ملاحظات الكراج (اختياري)</label>
+                <input type="text" placeholder="مثال: القطعة أصلية وكالة شغال 100%" value={quoteNotes} onChange={(e) => setQuoteNotes(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button type="submit" disabled={submittingQuote} style={{ flex: 1, padding: '12px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {submittingQuote ? 'جاري إرسال التسعيرة...' : '🚀 إرسال التسعيرة للعميل'}
+                </button>
+                <button type="button" onClick={() => setSelectedCustomRequest(null)} style={{ padding: '12px 18px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  إلغاء
+                </button>
+              </div>
+
+            </form>
+
+          </div>
         </div>
       )}
 
