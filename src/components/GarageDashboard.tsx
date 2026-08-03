@@ -13,46 +13,253 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
-// هيكلية شجرة تصنيفات القطع (Categories Tree)
-const CATEGORY_TREE: Record<string, Record<string, string[]>> = {
-  "Suspension": {
-    "Bump Stop": ["Front", "Rear"],
-    "Control Arm": ["Upper", "Lower"],
-    "Shock Absorber": ["Gas", "Hydraulic"],
-    "Springs": ["Coil Spring", "Leaf Spring"]
-  },
-  "Brake & Wheel Hub": {
-    "Brake Pad": ["Front Pads", "Rear Pads"],
-    "Brake Rotor / Disc": ["Ventilated", "Solid"],
-    "Wheel Hub Bearing": ["Front Hub", "Rear Hub"]
-  },
-  "Engine": {
-    "Belts & Chains": ["Timing Belt", "Serpentine Belt"],
-    "Engine Mounts": ["Right Mount", "Left Mount", "Rear Mount"],
-    "Pistons & Rings": ["Standard", "Oversize"]
-  },
-  "Cooling System": {
-    "Radiator": ["Main Radiator", "Auxiliary"],
-    "Water Pump": ["Mechanical", "Electric"],
-    "Thermostat": ["Housing & Sensor"]
-  },
-  "Electrical": {
-    "Alternator": ["Standard Amperage", "High Output"],
-    "Starter Motor": ["Direct Drive", "Gear Reduction"],
-    "Sensors": ["Oxygen Sensor", "Camshaft Sensor", "Crankshaft Sensor"]
-  }
+// 🗂️ الشجرة الكاملة والشاملة لجميع الأقسام والأفرع الرئيسية والفرعية
+const FULL_CATEGORY_TREE: Record<string, string[]> = {
+  "Belt Drive": [
+    "Belt", "Belt Removal / Installation Tool", "Belt Tensioner", "Belt Tensioner Bolt", "Idler Pulley"
+  ],
+  "Body & Lamp Assembly": [
+    "Air Deflector", "Antenna", "Antenna Cable", "Bumper Cover", "Bumper Cover Retainer", "Bumper Cover Support",
+    "Bumper Energy Absorber", "Bumper Insert", "Bumper Reinforcement", "Bumper Trim / Molding",
+    "Convertible Top Hydraulic Pump Fluid", "Door Hinge", "Door Hinge Pin & Bushing Kit", "Door Latch Striker Plate",
+    "Door Lock Actuator", "Door Lock Rod Grommet", "Fender", "Fender Vent", "Fog / Driving Lamp Assembly",
+    "Fog / Driving Lamp Bezel", "Grille", "Grille Molding", "Grille Retainer / Clip", "Headlamp Assembly",
+    "Headlamp Level Sensor", "High Mount Brake Light", "Hood", "Hood Bumper", "Hood Insulator Retainer / Clip",
+    "Impact / Crash Sensor", "Inner Fender", "Key Blank", "License Plate Bracket", "License Plate Retainer / Clip",
+    "Lift Support", "Molding Retainer / Clip", "Outside Door Handle", "Outside Door Handle Reinforcement",
+    "Outside Mirror & Glass Assembly", "Outside Mirror Glass", "Park Assist (PAS) Camera", "Radiator Support",
+    "Side Marker Lamp Assembly", "Splash Shield Retainer / Clip", "Tail Lamp Assembly", "Tailgate Lock",
+    "Touch-Up Paint", "Tow Hook Cover", "Trailer Hitch", "Trailer Hitch Ball & Mount Kit",
+    "Truck Bed Mat / Liner Retainer", "Trunk Latch", "Trunk Lock Actuator", "Valance Panel"
+  ],
+  "Brake & Wheel Hub": [
+    "ABS Control Module", "ABS Control Module Insulator", "ABS Control Module Nut / Bolt", "ABS Tone Ring",
+    "ABS Wheel Speed Sensor", "Banjo Bolt / Washer", "Brake Bleeder Screw", "Brake Fluid", "Brake Hose",
+    "Brake Pad", "Brake Pedal Position Sensor", "Caliper", "Caliper Bracket Bolt", "Caliper Piston",
+    "Caliper Piston Seal", "Caliper Repair Kit", "Caliper Slide Pin", "Caliper Slide Pin Boot / Bushing",
+    "Disc Brake Hardware Kit", "Master Cylinder", "Master Cylinder Cap", "Master Cylinder Reservoir",
+    "Parking Brake Adjuster", "Parking Brake Cable", "Parking Brake Cable Bracket Nut/Bolt",
+    "Parking Brake Hardware Kit", "Parking Brake Lever", "Parking Brake Shoe", "Power Brake Booster",
+    "Power Brake Booster Check Valve", "Power Brake Booster Sensor", "Rotor", "Rotor & Brake Pad Kit",
+    "Rotor Retaining Screw", "Spindle Nut", "Vacuum Hose", "Vacuum Pump", "Wheel Bearing & Hub",
+    "Wheel Hub Mounting Bolt", "Wheel Seal"
+  ],
+  "Cooling System": [
+    "Coolant / Antifreeze", "Coolant Air Bleed Hose / Pipe", "Coolant Air Bleeder", "Coolant Filler Neck",
+    "Coolant Hose / Pipe", "Coolant Hose / Pipe Seal", "Coolant Reservoir", "Coolant Reservoir Cap",
+    "Coolant Water Crossover Mounting Set", "Cooling System Tester Adapter", "Hose Clamp", "Radiator",
+    "Radiator Cap", "Radiator Fan Assembly", "Radiator Fan Blade", "Radiator Fan Motor", "Radiator Hose",
+    "Radiator Upper Air Baffle Retainer / Clip", "Temperature Sender / Sensor", "Thermostat",
+    "Thermostat / Thermostat Housing / Water Outlet Seal", "Water Inlet Gasket", "Water Pump",
+    "Water Pump Gasket", "Water Pump Seal / O-Ring"
+  ],
+  "Drivetrain": [
+    "Axle Shaft Seal", "CV Axle", "CV Joint Boot", "CV Joint Boot Band", "Differential Carrier",
+    "Differential Carrier Bearing / Race", "Differential Carrier Bushing", "Differential Carrier Shim",
+    "Differential Cover Bolt", "Differential Cover Gasket", "Differential Crush Sleeve", "Differential Fill / Drain Plug",
+    "Differential Gear Installation Kit", "Differential Housing Bolt", "Differential Pinion Bearing / Race",
+    "Differential Pinion Bearing Baffle", "Differential Pinion Flange", "Differential Pinion Nut",
+    "Differential Pinion Repair Sleeve", "Differential Pinion Seal", "Differential Pinion Shim",
+    "Differential Rebuild Kit", "Differential Ring Gear Bolt", "Differential Ring and Pinion",
+    "Differential Seal", "Differential Washer", "Drive Shaft", "Drive Shaft Bolt",
+    "Drive Shaft Center Support Bearing", "Drive Shaft Center Support Bearing Bracket", "Drive Shaft Flex Joint",
+    "Drive Shaft Seal", "Drive Shaft Slip Yoke Seal", "Gear Oil", "Gear Oil Additive",
+    "Transfer Case Main Shaft Pilot Bearing"
+  ],
+  "Electrical": [
+    "Alternator / Generator", "Anti-Theft Control Module", "Automatic Headlamp Sensor", "Battery",
+    "Battery Cable", "Battery Current Sensor", "Battery Terminal Bolt / Nut", "Body Control Module (BCM)",
+    "Circuit Breaker", "Engine Control Module (ECM Computer)", "Fuse", "HID Lighting Ballast", "Horn",
+    "Keyless Entry Module / Receiver", "Keyless Entry Remote", "Keyless Entry Remote Case", "Parking Aid Sensor",
+    "Speed Sensor", "Speed Sensor Seal", "Starter Bolt", "Starter Motor", "Starter Motor Heat Shield", "Yaw Sensor"
+  ],
+  "Electrical-Bulb & Socket": [
+    "Back Up / Reverse Lamp Bulb", "Brake Light Bulb", "Daytime Running Light Bulb", "Dome Light Bulb",
+    "Fog / Driving Lamp Bulb", "Fog / Driving Lamp Socket", "Headlamp Bulb", "Headlamp Socket",
+    "LED Bulb Adapter", "License Plate Lamp Bulb", "Parking Brake Warning Light Bulb", "Parking Lamp Bulb",
+    "Side Marker Lamp Socket", "Side Marker Light Bulb", "Step / Courtesy Light Bulb", "Tail Lamp Bulb",
+    "Trunk / Cargo Area Light Bulb", "Turn Signal Lamp Bulb", "Turn Signal Lamp Socket"
+  ],
+  "Electrical-Connector": [
+    "A/C Compressor Clutch Coil Connector", "A/C Refrigerant Pressure Switch Connector", "ABS Wheel Speed Sensor Connector",
+    "AIR / Smog Pump Relay", "Accelerator Pedal Position Sensor Connector", "Air Bag Clockspring Connector",
+    "Air Injection Relay Connector", "Ambient Air Temperature Sensor Connector", "Blower Motor Control Module / Resistor Connector",
+    "Body Wiring Harness / Connector", "Brake Light Switch Connector", "Brake Pedal Connector",
+    "Camshaft Position Sensor Connector", "Crankshaft Position Sensor Connector", "Cylinder Deactivation Solenoid Connector",
+    "Door Lock Actuator Connector", "Fog / Driving Lamp Connector", "Fuel Injection Pressure Sensor Connector",
+    "Fuel Injector Connector", "Fuel Sending Unit Connector", "Fuel Tank Pressure Sensor Connector",
+    "Ignition Coil Connector", "Ignition Control Module (ICM) Connector", "Ignition Starter Switch Connector",
+    "Knock / Detonation Sensor Connector", "Manifold Pressure (MAP) Sensor Connector", "Oil Pressure Sender / Switch Connector",
+    "Park Assist (PAS) Camera Connector", "Parking Aid Sensor Connector", "Power Brake Booster Connector",
+    "Power Window Switch Connector", "Radiator Fan Motor Connector", "Radio Connector", "Side Marker Lamp Connector",
+    "Speed Sensor Connector", "Starter Solenoid Connector", "Supercharger Bypass Solenoid / Valve Connector",
+    "Temperature Sender / Sensor Connector", "Throttle Control Actuator Connector", "Throttle Position Sensor (TPS) Connector",
+    "Trailer Connector", "Turn Signal Switch Connector", "Vacuum Pump Connector", "Vapor Canister Connector",
+    "Vapor Canister Purge Valve / Solenoid Connector", "Vapor Canister Vent Valve / Solenoid Connector",
+    "Variable Valve Timing (VVT) Solenoid Connector", "Window Defroster Motor Connector", "Wiper / Washer Switch Connector",
+    "Wiper Motor Connector"
+  ],
+  "Electrical-Switch & Relay": [
+    "A/C Compressor Relay", "A/C Refrigerant Pressure Switch", "A/C System Relay", "ABS Relay", "AIR / Smog Pump Relay",
+    "Accelerator Relay", "Accessory Delay Relay", "Accessory Power Relay", "Air Injection Relay", "Blower Motor Relay",
+    "Clutch Pedal Position / Starter Safety Switch", "Cornering Lamp Relay", "Cruise Control Switch",
+    "Daytime Running Light Relay", "Dimmer Switch", "Door Lock Switch", "Driver Information Display Switch",
+    "Driving Light Relay", "Engine Control Module Relay", "Fog / Driving Lamp Relay", "Fog / Driving Lamp Switch",
+    "Fuel Pump / Circuit Opening Relay", "Headlamp Relay", "Headlamp Switch", "Horn Relay", "Ignition Relay",
+    "Ignition Starter Switch", "Instrument Panel Dimmer Switch", "Neutral Safety Switch / Range Sensor",
+    "Oil Pressure Sender / Switch", "Outside Mirror Switch", "Overdrive Switch", "Parking Brake Control Relay",
+    "Parking Lamp Relay", "Power Seat Switch", "Power Window Switch", "Radiator Fan Relay", "Seat Heater Switch",
+    "Steering Wheel Audio Control Switch", "Sunroof / Sunshade Switch", "Traction / Stability Control Switch",
+    "Transmission-Automatic Fluid Pressure Switch", "Transmission-Automatic Manual Shift Shaft Position Switch",
+    "Trunk Lid / Tailgate Release Switch", "Turn Signal Switch", "Vacuum Pump Relay", "Wiper / Washer Switch",
+    "Wiper Motor Relay", "Wiring Relay"
+  ],
+  "Engine": [
+    "Camshaft", "Camshaft Bearing", "Camshaft Bolt", "Camshaft Dowel Pin", "Camshaft Gear Installation Tool",
+    "Camshaft Retainer / Thrust Plate", "Camshaft Seal", "Connecting Rod", "Connecting Rod Bearing",
+    "Connecting Rod Bolt", "Conversion / Lower Gasket Set", "Crankshaft", "Crankshaft Main Bearing",
+    "Crankshaft Main Bearing Cap Bolt", "Crankshaft Main Bearing Gasket", "Crankshaft Main Bearing Repair Sleeve",
+    "Crankshaft Repair Sleeve", "Crankshaft Repair Sleeve Tool", "Crankshaft Seal", "Crankshaft Seal Cover",
+    "Crankshaft Seal Cover Tool", "Crankshaft Seal Gasket", "Cylinder Deactivation Delete",
+    "Cylinder Deactivation Delete Block-Off Plug", "Cylinder Deactivation Solenoid", "Cylinder Head",
+    "Cylinder Head Alignment Dowel Pin", "Cylinder Head Bolt", "Cylinder Head Gasket", "Cylinder Head Gasket Set",
+    "Cylinder Head Plug", "Cylinder Head Spacer Shim", "Cylinder Repair Sleeve", "Engine Block Heater",
+    "Engine Kit Gasket Set", "Exhaust Valve", "Fuel Pump Camshaft Follower", "Harmonic Balancer",
+    "Harmonic Balancer Bolt", "Harmonic Balancer Washer", "Intake Insulator", "Intake Manifold",
+    "Intake Manifold Bolt", "Intake Manifold Cover", "Intake Manifold Gasket",
+    "Intake Manifold Runner Control Valve / Solenoid", "Intake Valve", "Intake to Exhaust Gasket",
+    "Motor Mount", "Motor Mount Bracket", "Motor Mount Bracket Bolt", "Motor Mount Kit", "Oil", "Oil Cooler",
+    "Oil Cooler Adapter Seal", "Oil Cooler Gasket", "Oil Cooler Line", "Oil Cooler Line Connector",
+    "Oil Cooler Mounting Kit", "Oil Cooler Seal", "Oil Dipstick / Tube", "Oil Dipstick / Tube Seal",
+    "Oil Drain Plug", "Oil Drain Plug Gasket", "Oil Filler Cap", "Oil Filler Cap Gasket", "Oil Filler Tube",
+    "Oil Filler Tube Grommet", "Oil Filter", "Oil Filter Adapter", "Oil Filter Adapter Gasket / O-Ring",
+    "Oil Filter Bypass Valve", "Oil Filter Gasket", "Oil Filter Housing Seal", "Oil Filter Remote Mounting Kit",
+    "Oil Galley Plug", "Oil Level Sensor", "Oil Level Sensor Gasket / O-Ring", "Oil Pan", "Oil Pan Bolt",
+    "Oil Pan Cover", "Oil Pan Gasket", "Oil Pressure Filter", "Oil Pressure Relief Valve",
+    "Oil Pressure Relief Valve Deflector", "Oil Pressure Relief Valve Plug", "Oil Pressure Relief Valve Spring",
+    "Oil Pump", "Oil Pump Cover Bolt", "Oil Pump Drive Gear", "Oil Pump Gasket", "Oil Pump Pickup Tube / Screen",
+    "Oil Pump Pickup Tube Bracket", "Oil Pump Pickup Tube O-Ring", "Oil Pump Seal", "Oil Strainer Gasket",
+    "Oil Sump Plate", "Oil Sump Windage Tray", "Piston", "Piston Pin Retainer", "Piston Ring", "Push Rod",
+    "Push Rod Guide Plate", "Rocker Arm", "Rocker Arm Bolt", "Rocker Arm Shaft Support", "Rocker Arm Stud",
+    "Timing Cam Sprocket", "Timing Chain", "Timing Chain & Component Kit", "Timing Chain Cover Gasket",
+    "Timing Chain Tensioner", "Timing Cover", "Timing Cover Gasket", "Timing Cover Repair Sleeve",
+    "Timing Cover Seal", "Timing Crank Sprocket", "Turbocharger Gasket", "Valley Pan Cover", "Valve Cover",
+    "Valve Cover Bolt / Screw", "Valve Cover Gasket", "Valve Cover Grommet", "Valve Guide", "Valve Lifter",
+    "Valve Lifter Guide", "Valve Seat", "Valve Spring", "Valve Spring Retainer", "Valve Spring Retainer Keeper",
+    "Valve Stem Seal", "Variable Valve Timing (VVT) Solenoid / Actuator",
+    "Variable Valve Timing (VVT) Solenoid Gasket / Seal", "Variable Valve Timing (VVT) Sprocket",
+    "Variable Valve Timing (VVT) Sprocket Bolt"
+  ],
+  "Exhaust & Emission": [
+    "AIR / Smog Pump Check Valve", "Bolt / Spring", "Catalytic Converter", "Clamp", "Exhaust Header Gasket",
+    "Exhaust Manifold", "Exhaust Manifold Gasket", "Exhaust Manifold Hardware",
+    "Exhaust Manifold To Cylinder Head Repair Clamp", "Knock / Detonation Sensor", "Manifold Pressure (MAP) Sensor",
+    "Mass Air Flow (MAF) Sensor", "Mass Air Flow (MAF) Sensor Gasket", "Oxygen (O2) Sensor", "Pipe Flange Gasket / Seal",
+    "Positive Crankcase Ventilation (PCV) Hose", "Vapor Canister", "Vapor Canister Purge Valve / Solenoid",
+    "Vapor Canister Purge Valve Hose", "Vapor Canister Vent Valve / Solenoid"
+  ],
+  "Fuel & Air": [
+    "Air Cleaner Intake Hose", "Air Filter", "Air Filter Housing Grommet", "Air Intake / Charge Temperature Sensor",
+    "Fuel Injection Pressure Sensor", "Fuel Injector", "Fuel Injector Clip", "Fuel Injector Seal / O-Ring",
+    "Fuel Line / Hose", "Fuel Line Retainer", "Fuel Pressure Relief Valve Cap", "Fuel Pressure Sensor Cover",
+    "Fuel Pump & Housing Assembly", "Fuel Pump Drive Module", "Fuel Pump Gasket / Seal", "Fuel Rail",
+    "Fuel Rail Pressure Relief Valve", "Fuel Sending Unit", "Fuel Sending Unit O-Ring", "Fuel Tank Cap",
+    "Fuel Tank Cap Tester Adapter", "Fuel Tank Cap Tether / Clip", "Fuel Tank Filler Neck", "Fuel Tank Lock Ring",
+    "Fuel Tank Pressure Sensor", "Fuel Tank Strap", "Idle Relearn Tool", "Throttle Body", "Throttle Body Gasket",
+    "Throttle Position Sensor (TPS)"
+  ],
+  "Heat & Air Conditioning": [
+    "A/C Compressor", "A/C Compressor & Component Kit", "A/C Compressor Relief Valve", "A/C Condenser",
+    "A/C Condenser Fan Motor", "A/C Evaporator Core", "A/C Expansion Valve",
+    "A/C Receiver Drier Desiccant Element", "A/C Refrigerant Hose / Line", "A/C Refrigerant Oil",
+    "A/C Refrigerant Temperature Sensor", "A/C System O-Rings / Seals", "A/C System Service Valve / Core / Cap",
+    "Ambient Air Temperature Sensor", "Blower Motor", "Blower Motor Control Module / Resistor",
+    "Blower Motor Housing / Seal", "Cabin Air Filter", "Cabin Air Filter Retainer", "Climate Control Module",
+    "Heater Air Door", "Heater Air Door Actuator", "Heater Core", "Heater Hose"
+  ],
+  "Ignition": [
+    "Camshaft Position Sensor", "Camshaft Position Sensor Seal", "Crankshaft Position Sensor", "Ignition Coil",
+    "Ignition Coil Mounting Bracket", "Ignition Coil Wire", "Ignition Control Module (ICM)", "Ignition Lock Cylinder",
+    "Ignition Lock Housing", "Spark Plug", "Spark Plug Wire"
+  ],
+  "Interior": [
+    "Accelerator Pedal Position Sensor", "Accessory Power Outlet", "Accessory Power Outlet Cover",
+    "Air Bag Clockspring", "Brake Pedal", "Brake Pedal Pad", "Cargo Area Mat", "Clutch Pedal Bushing",
+    "Clutch Pedal Pad", "Dash Board Cover", "Door Panel Retainer / Clip", "Floor Mat", "Flooring", "Gauge Panel",
+    "Gauge Set", "Inside Door Handle", "Inside Rear View Mirror", "Microphone", "Occupant Detection Sensor",
+    "Radio Installation Kit", "Radio Module Interface", "Seat Belt Guide / Clip", "Seat Cover", "Speaker",
+    "Speaker Bezel", "Speaker Bracket", "Steering Wheel", "Sunroof Motor", "Transmission Shift Handle",
+    "Transmission Shift Lever", "USB / AUX Port", "Window Motor", "Window Regulator", "Window Regulator & Motor Assembly"
+  ],
+  "Literature": [
+    "Repair Manual"
+  ],
+  "Steering": [
+    "Power Steering Fluid", "Rack and Pinion", "Rack and Pinion Bellow", "Rack and Pinion Bellow Clamp",
+    "Rack and Pinion Belt Kit", "Rack and Pinion O-Ring", "Steering Column Switch Housing", "Steering Gear Bolt",
+    "Steering Wheel Position Sensor", "Tie Rod End", "Tie Rod Nut"
+  ],
+  "Suspension": [
+    "Alignment Bolt / Camber Plate", "Bump Stop", "Coil Spring", "Coil Spring Seat / Insulator", "Control Arm",
+    "Control Arm Anchor Bolt", "Control Arm Bushing", "Control Arm Nut", "Control Arm Washer", "Front End Kit",
+    "Ride Height Sensor", "Shock / Strut", "Shock / Strut & Coil Spring Assembly", "Shock / Strut Bearing",
+    "Shock / Strut Bellow", "Shock / Strut Bolt", "Shock / Strut Mount", "Shock / Strut Mount Bolt",
+    "Shock Mount Washer", "Strut Mount Nut", "Strut Mount Retainer", "Strut Mount Washer", "Strut Rod Lock Nut",
+    "Subframe Bushing", "Subframe Mount Bolt", "Sway Bar Bracket", "Sway Bar Bushing", "Sway Bar Link"
+  ],
+  "Transmission-Automatic": [
+    "Automatic Transmission Control Unit (TCU)", "Boost Valve", "Bushing", "Bushing Kit", "Case", "Case Bushing",
+    "Case Cover", "Case Vent", "Clutch Apply Plate", "Clutch Housing", "Clutch Housing Thrust Bearing",
+    "Clutch Hub", "Clutch Pack Piston", "Clutch Pack Piston Dam / Seal", "Clutch Plate", "Clutch Plate Pack",
+    "Clutch Plate Retaining Ring", "Clutch Plate and Housing Assembly", "Clutch Seal Ring", "Clutch Spring",
+    "Components", "Detent Lever", "Extension Housing", "Extension Housing Bolt", "Extension Housing Bushing",
+    "Extension Housing Gasket", "Extension Housing Seal", "Filter", "Flexplate", "Flexplate Mounting Bolt",
+    "Fluid Cooler Line / Hose", "Fluid Cooler Line / Hose Connector", "Fluid Cooler Line / Hose Seal",
+    "Fluid Cooler Line Clip", "Fluid Pan", "Fluid Pan Drain Plug", "Fluid Pan Gasket", "Fluid Pan Magnet",
+    "Fluid Pump Bushing", "Fluid Pump Cover", "Fluid Pump Cover Bolt", "Fluid Pump O-Ring", "Fluid Pump Rotor",
+    "Fluid Pump Seal", "Fluid Pump Slide", "Gasket Kit", "Input Carrier", "Manual Shaft Seal", "Manual Shift Shaft",
+    "Manual Valve", "O-Rings & Seals", "Output Carrier", "Output Shaft Bearing", "Output Shaft Bushing",
+    "Output Shaft Seal", "Parking Pawl", "Piston Kit", "Plug Adapter", "Pressure Regulator Valve", "Rebuild Kit",
+    "Retaining Ring", "Sealing Rings", "Servo Piston", "Shift Improvement Kit", "Shift Shaft Seal", "Shift Solenoid",
+    "Snap Ring", "Sprag", "Sun Gear", "Sun Gear Bearing", "Torque Converter", "Torque Converter Bolt",
+    "Torque Converter Clutch Valve", "Torque Converter Hardware", "Torque Converter Housing Plug",
+    "Torque Converter Shaft Seal", "Transmission Fluid", "Transmission Fluid Additive", "Transmission Mount",
+    "Transmission Service Kit", "Turbine Shaft Fluid Seal Ring", "Turbine Shaft Seal", "Valve Body",
+    "Valve Body Check Ball", "Valve Body Separator Plate"
+  ],
+  "Transmission-Manual": [
+    "Bearing Retainer", "Case", "Clutch Alignment Tool", "Clutch Bellhousing", "Clutch Kit", "Clutch Master Cylinder",
+    "Clutch Pilot Bearing", "Clutch Slave Cylinder", "Countershaft Bearing/Race", "Countershaft Gear",
+    "Countershaft Gear Bearing", "Countershaft Gear Bearing Retainer", "Countershaft Gear Snap Ring",
+    "Detent Mechanism", "Detent Plug", "Detent Roller", "Detent Spring", "Drive Axle Seal", "Fluid Pump",
+    "Fluid Pump Inlet Pipe", "Fluid Temperature Sensor", "Flywheel", "Flywheel Bolt", "Gear", "Gear Bearing",
+    "Gear Snap Ring", "Gear Spacer", "Input Shaft Bearing", "Input Shaft Repair Sleeve", "Input Shaft Seal",
+    "Main / Output Shaft Bearing", "Main / Output Shaft Seal", "Manual Transmission Fluid", "Manual Transmission Seal",
+    "Reverse Gear Shaft", "Reverse Idler Bearing", "Reverse Idler Gear", "Reverse Idler Shaft", "Shift Fork",
+    "Shift Guide Detent Plate", "Shift Lever Bushing", "Shift Lever Collar", "Shift Rail Plate", "Shift Shaft",
+    "Shift Shaft Pin", "Shift Shaft Seal", "Synchro Assembly", "Synchro Ring", "Synchro Spring", "Transmission Mount"
+  ],
+  "Wheel": [
+    "Lug Nut", "Lug Nut & Lock Kit", "Lug Nut Installation Tool / Key", "Lug Nut Lock", "Lug Stud",
+    "Tire Pressure Monitoring System (TPMS) Sensor", "Tire Pressure Monitoring System (TPMS) Stem / Service Kit",
+    "Tire Valve Stem", "Wheel"
+  ],
+  "Wiper & Washer": [
+    "Washer Fluid Reservoir", "Washer Fluid Reservoir Cap", "Washer Pump", "Washer Pump Grommet",
+    "Wiper Arm Cover", "Wiper Arm Nut", "Wiper Blade", "Wiper Linkage / Transmission", "Wiper Motor"
+  ]
 };
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('add_part');
 
-  // بيانات الاستمارة الأساسية
+  // بيانات الاستمارة
   const [partName, setPartName] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [partPrice, setPartPrice] = useState('');
   const [partStock, setPartStock] = useState('1');
   
-  // الخيارات الجديدة للأنواع والحالة
+  // الأنواع والحالة
   const [partType, setPartType] = useState('مستعمل أصلي'); 
   const [partCondition, setPartCondition] = useState('نظيف'); 
 
@@ -64,13 +271,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   // التصنيف الشجري 
   const [mainCategory, setMainCategory] = useState('');
   const [subCategory, setSubCategory] = useState('');
-  const [childCategory, setChildCategory] = useState('');
 
-  // رفع أكثر من صورة
+  // رفع صور متعددة
   const [partImages, setPartImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
-  // حالات نافذة الإكسل والإشعارات
+  // نافذة الإكسل والإشعارات
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -106,21 +312,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchCustomRequests();
   }, [userId]);
 
+  // خوارزمية التعرف الذكي لاقتراح التصنيف فور كتابة التاجر/الكراج لاسماء الأجزاء
   const handlePartNameChange = (name: string) => {
     setPartName(name);
     const lower = name.toLowerCase();
 
-    if (lower.includes('bump') || lower.includes('مساعد') || lower.includes('جامبين') || lower.includes('suspension')) {
-      setMainCategory('Suspension');
-      setSubCategory('Bump Stop');
-    } else if (lower.includes('brake') || lower.includes('سفايف') || lower.includes('دراكول') || lower.includes('قماش')) {
-      setMainCategory('Brake & Wheel Hub');
-      setSubCategory('Brake Pad');
-    } else if (lower.includes('radiator') || lower.includes('رديتر') || lower.includes('مروحة')) {
-      setMainCategory('Cooling System');
-      setSubCategory('Radiator');
-    } else if (lower.includes('دينمو') || lower.includes('سلف') || lower.includes('starter') || lower.includes('alternator')) {
-      setMainCategory('Electrical');
+    for (const [mainCat, subCats] of Object.entries(FULL_CATEGORY_TREE)) {
+      for (const subCat of subCats) {
+        if (lower.includes(subCat.toLowerCase())) {
+          setMainCategory(mainCat);
+          setSubCategory(subCat);
+          return;
+        }
+      }
     }
   };
 
@@ -204,7 +408,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     e.preventDefault();
     if (!userId || userId === 'garage_unknown') return alert(isRtl ? 'يرجى تسجيل الدخول مجدداً' : 'Please login again');
 
-    const fullCategoryPath = [mainCategory, subCategory, childCategory].filter(Boolean).join(' > ');
+    const fullCategoryPath = [mainCategory, subCategory].filter(Boolean).join(' > ');
 
     try {
       const method = editingId ? 'PATCH' : 'POST';
@@ -357,7 +561,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartName(part.name); setPartNumber(part.part_number || ''); setPartPrice(part.price ? part.price.toString() : ''); 
     setPartStock((part.stock ?? 1).toString()); setPartType(part.part_type || 'مستعمل أصلي'); setPartCondition(part.part_condition || 'نظيف');
     setPartMake(part.make); setPartModel(part.model || ''); setPartYear(part.year); setPartEngine(part.engine || ''); 
-    setMainCategory(''); setSubCategory(''); setChildCategory('');
+    setMainCategory(''); setSubCategory('');
     setPartImages(part.additional_images || [part.image_url]); setEditingId(part.id); 
     setActiveTab('add_part'); window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -366,7 +570,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartName(''); setPartNumber(''); setPartPrice(''); setPartStock('1'); 
     setPartType('مستعمل أصلي'); setPartCondition('نظيف');
     setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); 
-    setMainCategory(''); setSubCategory(''); setChildCategory('');
+    setMainCategory(''); setSubCategory('');
     setPartImages([]); setEditingId(null);
   };
 
@@ -377,7 +581,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   return (
     <div style={{ maxWidth: '940px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
-      {/* 🔄 أزرار القائمة الرئيسية */}
+      {/* 🔄 القائمة الرئيسية */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', flexWrap: 'wrap' }}>
         <button onClick={() => { resetForm(); setActiveTab('add_part'); }} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'add_part' ? '#3182ce' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
           ➕ {isRtl ? 'إضافة قطعة' : 'Add Part'}
@@ -450,49 +654,40 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
             </div>
 
+            {/* 🗂️ شجرة التصنيفات الكاملة (جميع الأفرع التي أرسلتها) */}
             <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold', color: '#1f3a5f' }}>
-                🗂️ مكان وتصنيف القطعة (الفرع الأول ➔ الثاني ➔ الثالث):
+                🗂️ مكان وتصنيف القطعة (الفرع الأول Primary Category ➔ الفرع الثاني Sub-Category):
               </label>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {/* الفرع الأول Primary Category */}
                 <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#475569' }}>الفرع الرئيسي (Primary Category)</label>
                   <select
                     value={mainCategory}
-                    onChange={(e) => { setMainCategory(e.target.value); setSubCategory(''); setChildCategory(''); }}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12.5px' }}
+                    onChange={(e) => { setMainCategory(e.target.value); setSubCategory(''); }}
+                    style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
                   >
                     <option value="">-- اختر الفرع الرئيسي --</option>
-                    {Object.keys(CATEGORY_TREE).map((cat) => (
+                    {Object.keys(FULL_CATEGORY_TREE).map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
                 </div>
 
+                {/* الفرع الثاني Sub-Category */}
                 <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#475569' }}>الفرع الفرعي (Sub-Category)</label>
                   <select
                     value={subCategory}
-                    onChange={(e) => { setSubCategory(e.target.value); setChildCategory(''); }}
+                    onChange={(e) => setSubCategory(e.target.value)}
                     disabled={!mainCategory}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12.5px' }}
+                    style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
                   >
-                    <option value="">-- الفرع الثاني --</option>
-                    {mainCategory && CATEGORY_TREE[mainCategory] && Object.keys(CATEGORY_TREE[mainCategory]).map((sub) => (
+                    <option value="">-- اختر الفرع الفرعي --</option>
+                    {mainCategory && FULL_CATEGORY_TREE[mainCategory]?.map((sub) => (
                       <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <select
-                    value={childCategory}
-                    onChange={(e) => setChildCategory(e.target.value)}
-                    disabled={!subCategory}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12.5px' }}
-                  >
-                    <option value="">-- الفرع الثالث (اختياري) --</option>
-                    {mainCategory && subCategory && CATEGORY_TREE[mainCategory]?.[subCategory]?.map((child) => (
-                      <option key={child} value={child}>{child}</option>
                     ))}
                   </select>
                 </div>
@@ -533,6 +728,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
             </div>
 
+            {/* الأزرار الـ 4 لجميع أنواع حالة القطع */}
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold' }}>
                 نوع / حالة القطعة:
@@ -612,6 +808,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
             </div>
 
+            {/* رفع صور متعددة */}
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
                 📸 صور القطعة (يمكنك اختيار رفع أكثر من صورة معاً):
@@ -835,7 +1032,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 📥 تبويب الطلبات الواردة (الشراء الفعلي) */}
+      {/* 📥 تبويب الطلبات الواردة */}
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 {isRtl ? 'الطلبات الواردة للشحن والاستلام' : 'Incoming Orders for Delivery/Pickup'}</h3>
@@ -962,7 +1159,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 🔍 مودال معاينة تفاصيل القطعة (للاستفسارات) */}
+      {/* 🔍 مودال معاينة تفاصيل القطعة */}
       {previewPartDetails && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
           <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', maxWidth: '500px', width: '90%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
