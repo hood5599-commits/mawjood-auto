@@ -393,16 +393,21 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
       if (response.ok) setMyInquiries(await response.json());
     } catch (error) {}
-  };
-
-  const fetchCustomRequests = async () => {
-    try {
-      const response = await fetch(`${supabaseUrl}/custom_part_requests?order=id.desc`, {
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
-      });
-      if (response.ok) setCustomRequests(await response.json());
-    } catch (error) {}
-  };
+ const fetchCustomRequests = async () => {
+  try {
+    const response = await fetch(`${supabaseUrl}/custom_part_requests?order=id.desc`, {
+      headers: { 
+        'apikey': apiKey, 
+        'Authorization': `Bearer ${session?.token || apiKey}` 
+      }
+    });
+    if (response.ok) {
+      setCustomRequests(await response.json());
+    }
+  } catch (error) {
+    console.error("خطأ في جلب طلبات التسعير:", error);
+  }
+};
 
   const handlePublishSingle = async (e: React.FormEvent) => {
     e.preventDefault();
