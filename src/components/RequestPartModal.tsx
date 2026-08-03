@@ -25,10 +25,7 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
   const [vinNumber, setVinNumber] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [notes, setNotes] = useState(initialPartName);
-  
-  const [vinImage, setVinImage] = useState<File | null>(null);
-  const [partImage, setPartImage] = useState<File | null>(null);
-  
+
   const [scanningVin, setScanningVin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -39,7 +36,6 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
   const handleVinImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setVinImage(file);
 
     setScanningVin(true);
     try {
@@ -68,7 +64,7 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
     const cleanUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') || "https://shszpcjmhkemqwborfwy.supabase.co";
 
     try {
-      // هنا نقوم بحفظ طلب القطعة المخصصة في جدول custom_part_requests
+      // حفظ طلب القطعة المخصصة في جدول custom_part_requests
       const response = await fetch(`${cleanUrl}/rest/v1/custom_part_requests`, {
         method: 'POST',
         headers: {
@@ -108,7 +104,7 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
   };
 
   return (
-    <div style={{ fixed: true, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
       <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)', fontFamily: 'Cairo, sans-serif', direction: 'rtl' }}>
         
         <button onClick={onClose} style={{ position: 'absolute', top: '16px', left: '16px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}>✕</button>
@@ -172,7 +168,7 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
             {/* صورة القطعة القديمة */}
             <div>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>صورة القطعة القديمة (اختياري)</label>
-              <input type="file" accept="image/*" onChange={(e) => setPartImage(e.target.files?.[0] || null)} style={{ fontSize: '12px', width: '100%' }} />
+              <input type="file" accept="image/*" style={{ fontSize: '12px', width: '100%' }} />
             </div>
 
             {/* تفاصيل وملاحظات */}
