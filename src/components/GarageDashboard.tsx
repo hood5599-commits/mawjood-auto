@@ -13,7 +13,6 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
-// 🗂️ الشجرة الكاملة والشاملة لجميع الأقسام والأفرع الرئيسية والفرعية
 const FULL_CATEGORY_TREE: Record<string, string[]> = {
   "Belt Drive": [
     "Belt", "Belt Removal / Installation Tool", "Belt Tensioner", "Belt Tensioner Bolt", "Idler Pulley"
@@ -253,13 +252,11 @@ const FULL_CATEGORY_TREE: Record<string, string[]> = {
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('add_part');
 
-  // بيانات الاستمارة
   const [partName, setPartName] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [partPrice, setPartPrice] = useState('');
   const [partStock, setPartStock] = useState('1');
   
-  // الأنواع والحالة
   const [partType, setPartType] = useState('مستعمل أصلي'); 
   const [partCondition, setPartCondition] = useState('نظيف'); 
 
@@ -268,15 +265,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [partYear, setPartYear] = useState('');
   const [partEngine, setPartEngine] = useState('');
 
-  // التصنيف الشجري 
   const [mainCategory, setMainCategory] = useState('');
   const [subCategory, setSubCategory] = useState('');
 
-  // رفع صور متعددة
   const [partImages, setPartImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
-  // نافذة الإكسل والإشعارات
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -290,7 +284,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [selectedCustomRequest, setSelectedCustomRequest] = useState<any | null>(null);
 
-  // تسعير القطع المخصصة
   const [quotePrice, setQuotePrice] = useState('');
   const [quotePartType, setQuotePartType] = useState('مستعمل أصلي');
   const [quoteCondition, setQuoteCondition] = useState('نظيف');
@@ -312,7 +305,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchCustomRequests();
   }, [userId]);
 
-  // خوارزمية التعرف الذكي لاقتراح التصنيف فور كتابة التاجر/الكراج لاسماء الأجزاء
   const handlePartNameChange = (name: string) => {
     setPartName(name);
     const lower = name.toLowerCase();
@@ -393,21 +385,23 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
       if (response.ok) setMyInquiries(await response.json());
     } catch (error) {}
- const fetchCustomRequests = async () => {
-  try {
-    const response = await fetch(`${supabaseUrl}/custom_part_requests?order=id.desc`, {
-      headers: { 
-        'apikey': apiKey, 
-        'Authorization': `Bearer ${session?.token || apiKey}` 
+  };
+
+  const fetchCustomRequests = async () => {
+    try {
+      const response = await fetch(`${supabaseUrl}/custom_part_requests?order=id.desc`, {
+        headers: { 
+          'apikey': apiKey, 
+          'Authorization': `Bearer ${session?.token || apiKey}` 
+        }
+      });
+      if (response.ok) {
+        setCustomRequests(await response.json());
       }
-    });
-    if (response.ok) {
-      setCustomRequests(await response.json());
+    } catch (error) {
+      console.error("خطأ في جلب طلبات التسعير:", error);
     }
-  } catch (error) {
-    console.error("خطأ في جلب طلبات التسعير:", error);
-  }
-};
+  };
 
   const handlePublishSingle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -448,7 +442,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
 
       if (response.ok) {
-        alert(isRtl ? 'تم حفظ القطعة بنجاح! 🎉' : 'Part saved successfully! 🎉');
+        alert(isRtl ? 'تم حفظ القطعة بنجاح' : 'Part saved successfully');
         resetForm();
         fetchMyParts();
         onSuccess();
@@ -489,7 +483,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           body: JSON.stringify({ status: 'offers_received' })
         });
 
-        alert(isRtl ? 'تم إرسال عرض السعر للعميل بنجاح! 🎉' : 'Quote sent successfully! 🎉');
+        alert(isRtl ? 'تم إرسال عرض السعر للعميل بنجاح' : 'Quote sent successfully');
         setSelectedCustomRequest(null);
         setQuotePrice('');
         setQuoteNotes('');
@@ -516,7 +510,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
 
       if (response.ok) {
-        alert(isRtl ? 'تم تأكيد التوافق بنجاح! ✅' : 'Fitment confirmed! ✅');
+        alert(isRtl ? 'تم تأكيد التوافق بنجاح' : 'Fitment confirmed');
         setSelectedInquiry(null);
         fetchMyInquiries();
       }
@@ -545,7 +539,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
 
       if (response.ok) {
-        alert(isRtl ? 'تم تحديث حالة الطلب بنجاح! 🚀' : 'Order status updated! 🚀');
+        alert(isRtl ? 'تم تحديث حالة الطلب بنجاح' : 'Order status updated');
         fetchMyOrders();
       }
     } catch (error) {}
@@ -586,45 +580,43 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   return (
     <div style={{ maxWidth: '940px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
-      {/* 🔄 القائمة الرئيسية */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', flexWrap: 'wrap' }}>
         <button onClick={() => { resetForm(); setActiveTab('add_part'); }} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'add_part' ? '#3182ce' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
-          ➕ {isRtl ? 'إضافة قطعة' : 'Add Part'}
+          {isRtl ? 'إضافة قطعة' : 'Add Part'}
         </button>
 
         <button onClick={() => setShowExcelModal(true)} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#38a169', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          📊 {isRtl ? 'رفع قطع بالإكسل' : 'Bulk Excel'}
+          {isRtl ? 'رفع قطع بالإكسل' : 'Bulk Excel'}
         </button>
 
         <button onClick={() => setActiveTab('custom_requests')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'custom_requests' ? '#e0872a' : 'transparent', color: activeTab === 'custom_requests' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', position: 'relative' }}>
-          📥 {isRtl ? 'طلبات التسعير الواردة' : 'Custom Requests'}
+          {isRtl ? 'طلبات التسعير الواردة' : 'Custom Requests'}
           {pendingCustomRequestsCount > 0 && (
-            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 {pendingCustomRequestsCount}</span>
+            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>{pendingCustomRequestsCount}</span>
           )}
         </button>
 
         <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', position: 'relative' }}>
-          ❓ {isRtl ? 'فحص التوافق' : 'Fitment Check'}
+          {isRtl ? 'فحص التوافق' : 'Fitment Check'}
           {pendingInquiriesCount > 0 && (
-            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 {pendingInquiriesCount}</span>
+            <span style={{ position: 'absolute', top: '5px', right: '10px', backgroundColor: '#e53e3e', color: 'white', fontSize: '11px', padding: '2px 7px', borderRadius: '10px', fontWeight: 'bold' }}>{pendingInquiriesCount}</span>
           )}
         </button>
 
         <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'my_parts' ? '#2b6cb0' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
-          📦 {isRtl ? `معروضاتي (${myParts.length})` : `My Ads (${myParts.length})`}
+          {isRtl ? `معروضاتي (${myParts.length})` : `My Ads (${myParts.length})`}
         </button>
 
         <button onClick={() => setActiveTab('orders')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
-          📥 {isRtl ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}
+          {isRtl ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}
         </button>
       </div>
 
-      {/* ➕ تبويب إضافة / تعديل قطعة غيار */}
       {activeTab === 'add_part' && (
         <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
             <h2 style={{ color: '#1a365d', margin: 0, fontSize: '20px' }}>
-              {editingId ? (isRtl ? '✏️ تعديل بيانات القطعة' : '✏️ Edit Part') : (isRtl ? '➕ إضافة قطعة غيار جديدة' : '➕ Add New Spare Part')}
+              {editingId ? (isRtl ? 'تعديل بيانات القطعة' : 'Edit Part') : (isRtl ? 'إضافة قطعة غيار جديدة' : 'Add New Spare Part')}
             </h2>
           </div>
 
@@ -659,14 +651,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
             </div>
 
-            {/* 🗂️ شجرة التصنيفات الكاملة (جميع الأفرع التي أرسلتها) */}
             <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold', color: '#1f3a5f' }}>
-                🗂️ مكان وتصنيف القطعة (الفرع الأول Primary Category ➔ الفرع الثاني Sub-Category):
+                مكان وتصنيف القطعة (الفرع الأول Primary Category ➔ الفرع الثاني Sub-Category):
               </label>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {/* الفرع الأول Primary Category */}
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#475569' }}>الفرع الرئيسي (Primary Category)</label>
                   <select
@@ -681,7 +671,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   </select>
                 </div>
 
-                {/* الفرع الثاني Sub-Category */}
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#475569' }}>الفرع الفرعي (Sub-Category)</label>
                   <select
@@ -733,7 +722,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
             </div>
 
-            {/* الأزرار الـ 4 لجميع أنواع حالة القطع */}
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold' }}>
                 نوع / حالة القطعة:
@@ -741,10 +729,10 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
                 {[
-                  { label: '🚗 مستعمل أصلي', val: 'مستعمل أصلي', color: '#16a34a', bg: '#f0fff4' },
-                  { label: '💎 جديد أصلي (OEM)', val: 'جديد أصلي (OEM)', color: '#2563eb', bg: '#eff6ff' },
-                  { label: '⚙️ جديد تجاري', val: 'جديد تجاري', color: '#e0872a', bg: '#fff7ed' },
-                  { label: '🛠️ مستعمل تجاري', val: 'مستعمل تجاري', color: '#dc2626', bg: '#fef2f2' }
+                  { label: 'مستعمل أصلي', val: 'مستعمل أصلي', color: '#16a34a', bg: '#f0fff4' },
+                  { label: 'جديد أصلي (OEM)', val: 'جديد أصلي (OEM)', color: '#2563eb', bg: '#eff6ff' },
+                  { label: 'جديد تجاري', val: 'جديد تجاري', color: '#e0872a', bg: '#fff7ed' },
+                  { label: 'مستعمل تجاري', val: 'مستعمل تجاري', color: '#dc2626', bg: '#fef2f2' }
                 ].map((item) => (
                   <button
                     key={item.val}
@@ -813,10 +801,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
             </div>
 
-            {/* رفع صور متعددة */}
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                📸 صور القطعة (يمكنك اختيار رفع أكثر من صورة معاً):
+                صور القطعة (يمكنك اختيار رفع أكثر من صورة معاً):
               </label>
 
               <div style={{ border: '2px dashed #94a3b8', padding: '20px', borderRadius: '12px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
@@ -829,7 +816,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   disabled={uploadingImages}
                 />
                 <p style={{ margin: 0, color: '#475569', fontWeight: 'bold', fontSize: '13px' }}>
-                  {uploadingImages ? '⏳ جاري رفع الصور...' : '📷 اضغط هنا لاختيار صورة أو أكثر من جهازك'}
+                  {uploadingImages ? 'جاري رفع الصور...' : 'اضغط هنا لاختيار صورة أو أكثر من جهازك'}
                 </p>
               </div>
 
@@ -855,17 +842,16 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               type="submit"
               style={{ width: '100%', padding: '14px', backgroundColor: editingId ? '#3182ce' : '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 12px rgba(22,163,74,0.25)' }}
             >
-              {editingId ? 'حفظ التعديلات' : '🚀 نشر القطعة للبيع الآن'}
+              {editingId ? 'حفظ التعديلات' : 'نشر القطعة للبيع الآن'}
             </button>
           </form>
         </div>
       )}
 
-      {/* 📥 تبويب طلبات القطع المخصصة */}
       {activeTab === 'custom_requests' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-            📥 {isRtl ? 'طلبات القطع المخصصة الواردة من العملاء' : 'Custom Part Requests from Customers'}
+            {isRtl ? 'طلبات القطع المخصصة الواردة من العملاء' : 'Custom Part Requests from Customers'}
           </h3>
 
           {customRequests.length === 0 ? (
@@ -880,38 +866,38 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                       {isRtl ? 'رقم الطلب:' : 'Request ID:'} #{req.id}
                     </span>
                     <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                      📱 {req.customer_phone}
+                      {req.customer_phone}
                     </span>
                   </div>
 
                   <div style={{ backgroundColor: '#ffffff', padding: '14px', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '12px' }}>
                     <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#1f3a5f' }}>
-                      🚘 {req.make} - {req.model} ({req.year}) {req.engine_size && `[${req.engine_size}]`}
+                      {req.make} - {req.model} ({req.year}) {req.engine_size && `[${req.engine_size}]`}
                     </h4>
                     {req.vin_number && (
                       <p style={{ margin: '4px 0', fontSize: '13px', color: '#334155', fontFamily: 'monospace' }}>
-                        🔑 {isRtl ? 'رقم الشاصي (VIN):' : 'VIN:'} <strong>{req.vin_number}</strong>
+                        {isRtl ? 'رقم الشاصي (VIN):' : 'VIN:'} <strong>{req.vin_number}</strong>
                       </p>
                     )}
                     {req.part_number && (
                       <p style={{ margin: '4px 0', fontSize: '13px', color: '#334155' }}>
-                        🔢 {isRtl ? 'رقم القطعة:' : 'Part Number:'} {req.part_number}
+                        {isRtl ? 'رقم القطعة:' : 'Part Number:'} {req.part_number}
                       </p>
                     )}
                     <p style={{ margin: '8px 0 0 0', fontSize: '13.5px', color: '#1e293b', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '8px', borderRight: '4px solid #e0872a' }}>
-                      💬 <strong>{isRtl ? 'القطعة المطلوبة:' : 'Requested Part:'}</strong> {req.notes}
+                      <strong>{isRtl ? 'القطعة المطلوبة:' : 'Requested Part:'}</strong> {req.notes}
                     </p>
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
                     {req.vin_image_url && (
                       <a href={req.vin_image_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none', backgroundColor: '#eff6ff', padding: '6px 12px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
-                        📄 {isRtl ? 'صورة الاستمارة' : 'View Registration'}
+                        {isRtl ? 'صورة الاستمارة' : 'View Registration'}
                       </a>
                     )}
                     {req.part_image_url && (
                       <a href={req.part_image_url} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none', backgroundColor: '#eff6ff', padding: '6px 12px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
-                        📸 {isRtl ? 'صورة القطعة القديمة' : 'View Old Part'}
+                        {isRtl ? 'صورة القطعة القديمة' : 'View Old Part'}
                       </a>
                     )}
                   </div>
@@ -920,7 +906,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     onClick={() => setSelectedCustomRequest(req)}
                     style={{ width: '100%', padding: '11px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(224,135,42,0.2)' }}
                   >
-                    🏷️ {isRtl ? 'القطعة متوفرة عندي (تقديم تسعيرة)' : 'Available (Submit Quote)'}
+                    {isRtl ? 'القطعة متوفرة عندي (تقديم تسعيرة)' : 'Available (Submit Quote)'}
                   </button>
                 </div>
               ))}
@@ -929,11 +915,10 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* ❓ تبويب استفسارات التوافق */}
       {activeTab === 'inquiries' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-            ❓ {isRtl ? 'استفسارات مطابقة التوافق الواردة' : 'Incoming Fitment Inquiries'}
+            {isRtl ? 'استفسارات مطابقة التوافق الواردة' : 'Incoming Fitment Inquiries'}
           </h3>
 
           {activeInquiriesList.length === 0 ? (
@@ -948,7 +933,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                       {isRtl ? 'كود الاستفسار:' : 'Inquiry Code:'} {inquiry.inquiry_code || `#INQ-${inquiry.id}`}
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: 'bold', color: inquiry.status === 'pending_check' ? '#dd6b20' : inquiry.status === 'confirmed_compatible' ? '#38a169' : '#e53e3e' }}>
-                      {inquiry.status === 'pending_check' ? (isRtl ? '⏳ بانتظار ردك' : '⏳ Awaiting Reply') : inquiry.status === 'confirmed_compatible' ? (isRtl ? '✅ تم تأكيد التوافق' : '✅ Confirmed Fitment') : (isRtl ? '❌ لا تركب' : '❌ Incompatible')}
+                      {inquiry.status === 'pending_check' ? (isRtl ? 'بانتظار ردك' : 'Awaiting Reply') : inquiry.status === 'confirmed_compatible' ? (isRtl ? 'تم تأكيد التوافق' : 'Confirmed Fitment') : (isRtl ? 'لا تركب' : 'Incompatible')}
                     </span>
                   </div>
 
@@ -960,9 +945,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <strong style={{ fontSize: '15px', color: '#1a365d' }}>
-                          📦 <AITranslatedText text={inquiry.part_name || (isRtl ? 'قطعة من معروضاتك' : 'Part from your listings')} lang={lang} />
+                          <AITranslatedText text={inquiry.part_name || (isRtl ? 'قطعة من معروضاتك' : 'Part from your listings')} lang={lang} />
                         </strong>
-                        <span style={{ fontSize: '11px', color: '#3182ce', backgroundColor: '#ebf8ff', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{isRtl ? '🔍 اضغط للمعاينة' : '🔍 Click to Preview'}</span>
+                        <span style={{ fontSize: '11px', color: '#3182ce', backgroundColor: '#ebf8ff', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{isRtl ? 'اضغط للمعاينة' : 'Click to Preview'}</span>
                       </div>
                       {inquiry.part_number && <span style={{ fontSize: '12px', color: '#718096', display: 'block' }}>Part #: {inquiry.part_number}</span>}
                       <span style={{ fontSize: '13.5px', color: '#dd6b20', fontWeight: 'bold' }}>{inquiry.part_price || 0} QAR</span>
@@ -970,9 +955,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   </div>
 
                   <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '10px', border: '1px solid #edf2f7', marginBottom: '12px' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#2d3748', marginBottom: '6px' }}>🚘 {isRtl ? 'سيارة العميل:' : 'Customer Car:'} {inquiry.car_make} - {inquiry.car_model} ({inquiry.car_year}) {inquiry.car_engine && `[${inquiry.car_engine}]`}</div>
-                    {inquiry.vin_number && <div style={{ fontSize: '13px', color: '#4a5568', fontFamily: 'monospace' }}>🔑 {isRtl ? 'رقم الشاصي (VIN):' : 'VIN:'} <strong>{inquiry.vin_number}</strong></div>}
-                    {inquiry.customer_notes && <div style={{ fontSize: '13px', color: '#718096', marginTop: '6px', fontStyle: 'italic' }}>💬 {isRtl ? 'ملاحظات العميل:' : 'Customer Notes:'} "{inquiry.customer_notes}"</div>}
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#2d3748', marginBottom: '6px' }}>{isRtl ? 'سيارة العميل:' : 'Customer Car:'} {inquiry.car_make} - {inquiry.car_model} ({inquiry.car_year}) {inquiry.car_engine && `[${inquiry.car_engine}]`}</div>
+                    {inquiry.vin_number && <div style={{ fontSize: '13px', color: '#4a5568', fontFamily: 'monospace' }}>{isRtl ? 'رقم الشاصي (VIN):' : 'VIN:'} <strong>{inquiry.vin_number}</strong></div>}
+                    {inquiry.customer_notes && <div style={{ fontSize: '13px', color: '#718096', marginTop: '6px', fontStyle: 'italic' }}>{isRtl ? 'ملاحظات العميل:' : 'Customer Notes:'} "{inquiry.customer_notes}"</div>}
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
@@ -992,8 +977,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
                   {inquiry.status === 'pending_check' && (
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={() => setSelectedInquiry(inquiry)} style={{ flex: 1, padding: '10px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✅ {isRtl ? 'تركب (تأكيد التوافق والضمان)' : 'Fits (Confirm & Warranty)'}</button>
-                      <button onClick={() => handleRejectFitment(inquiry.id)} style={{ flex: 1, padding: '10px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>❌ {isRtl ? 'لا تركب (رفض الطلب)' : 'Doesn\'t Fit (Reject)'}</button>
+                      <button onClick={() => setSelectedInquiry(inquiry)} style={{ flex: 1, padding: '10px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>{isRtl ? 'تركب (تأكيد التوافق والضمان)' : 'Fits (Confirm & Warranty)'}</button>
+                      <button onClick={() => handleRejectFitment(inquiry.id)} style={{ flex: 1, padding: '10px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>{isRtl ? 'لا تركب (رفض الطلب)' : 'Doesn\'t Fit (Reject)'}</button>
                     </div>
                   )}
 
@@ -1004,14 +989,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 📦 تبويب إدارة إعلاناتي */}
       {activeTab === 'my_parts' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ margin: 0, color: '#1a365d' }}>📦 {isRtl ? `جميع القطع المعروضة (${myParts.length})` : `All Listed Parts (${myParts.length})`}</h3>
+            <h3 style={{ margin: 0, color: '#1a365d' }}>{isRtl ? `جميع القطع المعروضة (${myParts.length})` : `All Listed Parts (${myParts.length})`}</h3>
             
             <button onClick={() => setShowExcelModal(true)} style={{ padding: '8px 16px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              📊 {isRtl ? 'رفع المزيد بالإكسل' : 'Upload More via Excel'}
+              {isRtl ? 'رفع المزيد بالإكسل' : 'Upload More via Excel'}
             </button>
           </div>
 
@@ -1024,23 +1008,22 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     <AITranslatedText text={part.name} lang={lang} /> 
                     {part.part_number && <span style={{ fontSize: '12px', color: '#718096' }}>[PN: {part.part_number}]</span>}
                   </h4>
-                  <div style={{ fontSize: '12.5px', color: '#718096', marginBottom: '4px' }}>🚘 {part.make} - {part.model} ({part.year})</div>
+                  <div style={{ fontSize: '12.5px', color: '#718096', marginBottom: '4px' }}>{part.make} - {part.model} ({part.year})</div>
                   <div><span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{part.price} QAR</span> | <span style={{ fontSize: '12px', color: '#2b6cb0', fontWeight: 'bold' }}>{part.part_type || (isRtl ? 'مستعمل' : 'Used')}</span></div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => handleEdit(part)} style={{ padding: '8px 14px', backgroundColor: '#ebf8ff', color: '#3182ce', border: '1px solid #bee3f8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>✏️ {isRtl ? 'تعديل' : 'Edit'}</button>
-                <button onClick={() => handleDelete(part.id)} style={{ padding: '8px 14px', backgroundColor: '#fff5f5', color: '#e53e3e', border: '1px solid #fed7d7', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>🗑️ {isRtl ? 'حذف' : 'Delete'}</button>
+                <button onClick={() => handleEdit(part)} style={{ padding: '8px 14px', backgroundColor: '#ebf8ff', color: '#3182ce', border: '1px solid #bee3f8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>{isRtl ? 'تعديل' : 'Edit'}</button>
+                <button onClick={() => handleDelete(part.id)} style={{ padding: '8px 14px', backgroundColor: '#fff5f5', color: '#e53e3e', border: '1px solid #fed7d7', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>{isRtl ? 'حذف' : 'Delete'}</button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* 📥 تبويب الطلبات الواردة */}
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>📥 {isRtl ? 'الطلبات الواردة للشحن والاستلام' : 'Incoming Orders for Delivery/Pickup'}</h3>
+          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>{isRtl ? 'الطلبات الواردة للشحن والاستلام' : 'Incoming Orders for Delivery/Pickup'}</h3>
           {myOrders.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>{isRtl ? 'لا توجد طلبات جديدة حالياً.' : 'No new orders currently.'}</p>
           ) : (
@@ -1060,14 +1043,14 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
                 <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #edf2f7', fontSize: '13px', color: '#4a5568', marginBottom: '12px' }}>
                   <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                    🚚 {isRtl ? 'طريقة التسليم:' : 'Delivery Method:'} {order.delivery_type === 'delivery' ? (isRtl ? 'توصيل لموقع العميل' : 'Delivery to Customer') : (isRtl ? '🏪 استلام من مقر موجود أوتو' : '🏪 Pickup from Store')}
+                    {isRtl ? 'طريقة التسليم:' : 'Delivery Method:'} {order.delivery_type === 'delivery' ? (isRtl ? 'توصيل لموقع العميل' : 'Delivery to Customer') : (isRtl ? 'استلام من مقر موجود أوتو' : 'Pickup from Store')}
                   </div>
                   {order.delivery_type === 'delivery' && (
                     <div style={{ marginTop: '6px' }}>
-                      📍 {isRtl ? 'العنوان:' : 'Address:'} <strong>{order.address_details || (isRtl ? 'غير محدد' : 'Not specified')}</strong>
+                      {isRtl ? 'العنوان:' : 'Address:'} <strong>{order.address_details || (isRtl ? 'غير محدد' : 'Not specified')}</strong>
                     </div>
                   )}
-                  {order.pickup_code && <div style={{ color: '#2f855a', fontWeight: 'bold', marginTop: '6px' }}>🔑 {isRtl ? 'كود تسليم المندوب:' : 'Driver Pickup Code:'} {order.pickup_code}</div>}
+                  {order.pickup_code && <div style={{ color: '#2f855a', fontWeight: 'bold', marginTop: '6px' }}>{isRtl ? 'كود تسليم المندوب:' : 'Driver Pickup Code:'} {order.pickup_code}</div>}
                 </div>
 
                 <div>
@@ -1076,27 +1059,27 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                       onClick={() => updateOrderStatus(order.id, 'ready_for_pickup')} 
                       style={{ width: '100%', padding: '11px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
                     >
-                      ✅ {isRtl ? 'تأكيد توفر القطعة وتجهيزها' : 'Confirm Part Availability & Prep'}
+                      {isRtl ? 'تأكيد توفر القطعة وتجهيزها' : 'Confirm Part Availability & Prep'}
                     </button>
                   )}
 
                   {order.status === 'ready_for_pickup' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ padding: '8px', backgroundColor: '#f0fff4', color: '#276749', borderRadius: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '12.5px', border: '1px solid #c6f6d5' }}>
-                        📦 {isRtl ? 'القطعة جاهزة وفي انتظار وصول المندوب' : 'Part ready, waiting for driver'}
+                        {isRtl ? 'القطعة جاهزة وفي انتظار وصول المندوب' : 'Part ready, waiting for driver'}
                       </div>
                       <button 
                         onClick={() => updateOrderStatus(order.id, 'handed_to_driver')} 
                         style={{ width: '100%', padding: '11px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
                       >
-                        🚚 {isRtl ? 'تم تسليم القطعة للمندوب الآن' : 'Handed over to driver'}
+                        {isRtl ? 'تم تسليم القطعة للمندوب الآن' : 'Handed over to driver'}
                       </button>
                     </div>
                   )}
 
                   {(order.status === 'handed_to_driver' || order.status === 'delivered') && (
                     <div style={{ padding: '10px', backgroundColor: '#ebf8ff', color: '#2b6cb0', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', border: '1px solid #bee3f8' }}>
-                      {order.status === 'delivered' ? (isRtl ? '✅ تم التسليم للعميل بالكامل' : '✅ Delivered to Customer') : (isRtl ? '🚚 تم تسليم القطعة للمندوب (قيد التوصيل للعميل)' : '🚚 With Driver (Out for Delivery)')}
+                      {order.status === 'delivered' ? (isRtl ? 'تم التسليم للعميل بالكامل' : 'Delivered to Customer') : (isRtl ? 'تم تسليم القطعة للمندوب (قيد التوصيل للعميل)' : 'With Driver (Out for Delivery)')}
                     </div>
                   )}
                 </div>
@@ -1107,12 +1090,11 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 🏷️ مودال تقديم التسعيرة */}
       {selectedCustomRequest && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200 }}>
           <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', maxWidth: '500px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
             <h3 style={{ margin: '0 0 14px 0', color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
-              🏷️ تقديم تسعيرة لطلب #{selectedCustomRequest.id}
+              تقديم تسعيرة لطلب #{selectedCustomRequest.id}
             </h3>
             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
               السيارة: <strong>{selectedCustomRequest.make} {selectedCustomRequest.model} ({selectedCustomRequest.year})</strong><br />
@@ -1153,7 +1135,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button type="submit" disabled={submittingQuote} style={{ flex: 1, padding: '12px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {submittingQuote ? 'جاري إرسال التسعيرة...' : '🚀 إرسال التسعيرة'}
+                  {submittingQuote ? 'جاري إرسال التسعيرة...' : 'إرسال التسعيرة'}
                 </button>
                 <button type="button" onClick={() => setSelectedCustomRequest(null)} style={{ padding: '12px 18px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
                   إلغاء
@@ -1164,12 +1146,11 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 🔍 مودال معاينة تفاصيل القطعة */}
       {previewPartDetails && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
           <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', maxWidth: '500px', width: '90%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
             <button onClick={() => setPreviewPartDetails(null)} style={{ position: 'absolute', top: '15px', right: '15px', border: 'none', background: '#edf2f7', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
-            <h3 style={{ margin: '0 0 15px 0', color: '#1a365d' }}>🔍 {isRtl ? 'تفاصيل قطعة المعرض' : 'Garage Part Details'}</h3>
+            <h3 style={{ margin: '0 0 15px 0', color: '#1a365d' }}>{isRtl ? 'تفاصيل قطعة المعرض' : 'Garage Part Details'}</h3>
             <img src={previewPartDetails.part_image || 'https://via.placeholder.com/300'} alt={previewPartDetails.part_name} style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #cbd5e0', marginBottom: '15px' }} />
             <h4 style={{ margin: '0 0 6px 0', fontSize: '18px', color: '#2d3748' }}>
               <AITranslatedText text={previewPartDetails.part_name} lang={lang} />
@@ -1181,14 +1162,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 🛡️ مودال تأكيد التوافق */}
       {selectedInquiry && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', maxWidth: '500px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ margin: '0 0 15px 0', color: '#2b6cb0' }}>🛡️ {isRtl ? 'تحديد شروط ضمان القطعة للعميل' : 'Set Warranty Terms'}</h3>
+            <h3 style={{ margin: '0 0 15px 0', color: '#2b6cb0' }}>{isRtl ? 'تحديد شروط ضمان القطعة للعميل' : 'Set Warranty Terms'}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '25px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '6px' }}>1️⃣ {isRtl ? 'مهلة الإرجاع قبل/عند التركيب (أيام):' : 'Return Window (Days):'}</label>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '6px' }}>1. {isRtl ? 'مهلة الإرجاع قبل/عند التركيب (أيام):' : 'Return Window (Days):'}</label>
                 <select value={returnDays} onChange={(e) => setReturnDays(Number(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
                   <option value={1}>{isRtl ? 'يوم واحد' : '1 Day'}</option>
                   <option value={3}>{isRtl ? '3 أيام (موصى به)' : '3 Days'}</option>
@@ -1197,7 +1177,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                 </select>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '6px' }}>2️⃣ {isRtl ? 'فترة ضمان التشغيل بعد التركيب (أيام):' : 'Operational Warranty Period:'}</label>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '6px' }}>2. {isRtl ? 'فترة ضمان التشغيل بعد التركيب (أيام):' : 'Operational Warranty Period:'}</label>
                 <select value={warrantyDays} onChange={(e) => setWarrantyDays(Number(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
                   <option value={7}>{isRtl ? '7 أيام' : '7 Days'}</option>
                   <option value={14}>{isRtl ? '14 يوماً (موصى به)' : '14 Days'}</option>
@@ -1207,14 +1187,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={handleConfirmFitment} style={{ flex: 1, padding: '12px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>🚀 {isRtl ? 'تأكيد وإرسال' : 'Confirm & Send'}</button>
+              <button onClick={handleConfirmFitment} style={{ flex: 1, padding: '12px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>{isRtl ? 'تأكيد وإرسال' : 'Confirm & Send'}</button>
               <button onClick={() => setSelectedInquiry(null)} style={{ padding: '12px 20px', backgroundColor: '#edf2f7', color: '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>{isRtl ? 'إلغاء' : 'Cancel'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 📊 النافذة المنبثقة لرفع الإكسل */}
       {showExcelModal && (
         <ExcelPartUploader
           lang={lang}
@@ -1230,7 +1209,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         />
       )}
 
-      {/* 🔔 التنبيهات المنبثقة */}
       {toastMessage && (
         <Toast 
           message={toastMessage} 
