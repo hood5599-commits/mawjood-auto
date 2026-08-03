@@ -83,7 +83,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     setCardExpiry(value);
   };
 
-  // 📸 دالة رفع الصور المباشرة لـ Supabase Storage + قراءة رقم الشاصي VIN من الاستمارة تلقائياً
+  // 📸 دالة رفع الصور المباشرة لـ Supabase Storage + قراءة رقم الشاصي VIN من الاستمارة تلقائياً (محسّنة للاستمارة القطرية والجوال)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'old_part' | 'reg') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -100,11 +100,28 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         const ret = await worker.recognize(file);
         await worker.terminate();
 
-        const vinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
-        const match = ret.data.text.match(vinRegex);
+        const rawText = ret.data.text;
+        
+        // 1️⃣ البحث عن نمط الـ VIN المكون من 17 حرفاً ورقماً بعد تنظيف النص المجلوب
+        const cleanedText = rawText.replace(/[\s\-_]/g, '').toUpperCase();
+        const standardVinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
+        const match = cleanedText.match(standardVinRegex);
 
         if (match) {
           setVinNumber(match[0].toUpperCase());
+        } else {
+          // 2️⃣ البحث المباشر في الأسطر القريبة من الكلمات المفتاحية بالاستمارة القطرية
+          const lines = rawText.split('\n');
+          for (const line of lines) {
+            if (line.toLowerCase().includes('chassis') || line.toLowerCase().includes('engine') || line.includes('القاعدة')) {
+              const extracted = line.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+              const subMatch = extracted.match(/[A-Z0-9]{11,17}/);
+              if (subMatch) {
+                setVinNumber(subMatch[0]);
+                break;
+              }
+            }
+          }
         }
       } catch (ocrErr) {
         console.error("VIN OCR Error:", ocrErr);
