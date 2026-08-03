@@ -1,0 +1,62 @@
+/* =========================================================
+   📱 تنسيقات تجاوب الجوال الشاملة لموقع موجود أوتو
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  /* 1️⃣ ضبط الأبعاد العامة والتباعد لمنع الخروج عن الشاشة */
+  body, html {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  /* 2️⃣ تحويل الأزرار المتجاورة إلى عمود واحد أو خيارات سهلة الضغط */
+  button, input, select, textarea {
+    min-height: 44px !important; /* حجم متوافق مع معايير الأصبع في الجوال */
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 3️⃣ جعل جميع الكروت والشبكات تعتمد عموداً واحداً في الجوال */
+  div[style*="gridTemplateColumns"],
+  div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* 4️⃣ تحويل الهيدر والقوائم المرصوفة إلى عناصر متناسقة */
+  header div[style*="display: flex"] {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* 5️⃣ النوافذ المنبثقة (Modals) - جعلها تخرج من الأسفل مثل تطبيقات الهواتف */
+  div[style*="position: fixed"][style*="zIndex"],
+  div[style*="position: fixed"][style*="z-index"] {
+    padding: 10px !important;
+  }
+
+  div[style*="maxWidth: 500px"],
+  div[style*="maxWidth: 580px"],
+  div[style*="maxWidth: 600px"],
+  div[style*="maxWidth: 680px"],
+  div[style*="max-width: 500px"],
+  div[style*="max-width: 580px"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 85vh !important;
+  }
+
+  /* 6️⃣ تحسين عرض الصور والجداول على الهاتف */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* 7️⃣ تحسين تصفح التبويبات وأزرار التحكم في لوحة الكراج والمتجر */
+  div[style*="flexWrap: wrap"],
+  div[style*="flex-wrap: wrap"] {
+    gap: 8px !important;
+  }
+}
