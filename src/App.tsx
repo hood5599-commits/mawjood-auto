@@ -11,8 +11,9 @@ import { DeliveryDashboard } from './components/DeliveryDashboard';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
 import { StaticPages, type StaticPageView } from './components/StaticPages';
-import { AITranslatedText } from './components/AITranslatedText'; // 👈 استيراد مكون الترجمة الذكي
-import { AIChatbot } from './components/AIChatbot'; // 👈 1. استيراد مكون المساعد الذكي
+import { AITranslatedText } from './components/AITranslatedText';
+import { AIChatbot } from './components/AIChatbot';
+import { RequestPartModal } from './components/RequestPartModal';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
@@ -38,6 +39,7 @@ export default function App() {
 
   const [selectedPartForCheckout, setSelectedPartForCheckout] = useState<{ part: any; initialStep?: 'inquire' | 'checkout' } | null>(null);
   const [showOrderTracker, setShowOrderTracker] = useState(false);
+  const [isCustomPartModalOpen, setIsCustomPartModalOpen] = useState(false);
 
   const [inventory, setInventory] = useState<any[]>([]);
   const [session, setSession] = useState<any | null>(null);
@@ -173,6 +175,7 @@ export default function App() {
           session={session} 
           cartCount={totalCartCount} 
           onOpenCart={() => setIsCartOpen(true)} 
+          onRequestCustomPart={() => setIsCustomPartModalOpen(true)}
           onLogout={() => { 
             setSession(null); 
             setCartItems([]); 
@@ -205,7 +208,6 @@ export default function App() {
                 ) : (
                   cartItems.map((item, index) => (
                     <div key={index} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '10px' }}>
-                      {/* 👇 ترجمة أسماء القطع بداخل السلة */}
                       <strong><AITranslatedText text={item.name} lang={lang} /></strong>
                       <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>{item.price} {isRtl ? 'ر.ق' : 'QAR'} x {item.quantity || 1}</p>
                       <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ color: '#d1453b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
@@ -300,7 +302,7 @@ export default function App() {
             />
           )}
 
-          {/* 📄 عرض الصفحات التعريفية والمعلومات مع تمرير siteSettings */}
+          {/* 📄 عرض الصفحات التعريفية والمعلومات */}
           {['contact', 'faq', 'articles', 'about', 'privacy', 'terms', 'news'].includes(view) && (
             <StaticPages 
               lang={lang} 
@@ -313,7 +315,7 @@ export default function App() {
           {view === 'shop' && (
             <div style={{ marginTop: '20px', width: '100%' }}>
 
-              {/* 📊 شريط الإحصائيات والأرقام الحقيقية المنسقة بدقة بدون مشاكل اتجاه الخط */}
+              {/* 📊 شريط الإحصائيات والأرقام الحقيقية */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '25px' }}>
                 
                 {/* 1️⃣ متوسط وقت التوصيل */}
@@ -342,7 +344,7 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* 4️⃣ عملاء راضون مع تنسيق اتجاه الرقم */}
+                {/* 4️⃣ عملاء راضون */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
                   <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#16a34a', direction: 'ltr', display: 'inline-block' }}>+{siteSettings?.happyCustomersCount || 10}</h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
@@ -381,7 +383,7 @@ export default function App() {
 
         </main>
 
-        {/* 💳 الشراء المباشر مع ربط إضافة السلة المباشرة وتمرير siteSettings */}
+        {/* 💳 الشراء المباشر */}
         {selectedPartForCheckout && (
           <CustomerFitmentCheckout
             lang={lang}
@@ -435,11 +437,20 @@ export default function App() {
 
         {/* 🤖 المساعد الذكي للعملاء */}
         <AIChatbot 
-  lang={lang} 
-  supabaseUrl={SUPABASE_URL} 
-  supabaseKey={API_KEY} 
-  session={session} 
-/>
+          lang={lang} 
+          supabaseUrl={SUPABASE_URL} 
+          supabaseKey={API_KEY} 
+          session={session} 
+        />
+
+        {/* 🛠️ النافذة المنسدلة المباشرة لطلب قطعة غير متوفرة */}
+        <RequestPartModal
+          isOpen={isCustomPartModalOpen}
+          onClose={() => setIsCustomPartModalOpen(false)}
+          supabaseUrl={SUPABASE_URL}
+          supabaseKey={API_KEY}
+          customerPhone={session?.phone || session?.email || session?.user?.phone || ''}
+        />
 
       </div>
     </>
