@@ -1,6 +1,6 @@
 import React from 'react';
 import { t } from '../utils/translations';
-import { AITranslatedText } from './AITranslatedText'; // 👈 1. استيراد مكون الترجمة بالذكاء الاصطناعي
+import { AITranslatedText } from './AITranslatedText';
 
 interface PartCardProps {
   lang: 'ar' | 'en';
@@ -8,6 +8,7 @@ interface PartCardProps {
   translateMake?: any;
   onBuy?: (item: any) => void;
   onBuyClick?: (item: any) => void;
+  onAddToCartDirect?: (item: any) => void; // 🛒 خاصية الإضافة المباشرة للسلة
   onShare?: (item: any) => void;
   onShareClick?: (item: any) => Promise<void> | void; 
 }
@@ -18,11 +19,32 @@ export const PartCard: React.FC<PartCardProps> = ({
   translateMake = {}, 
   onBuy, 
   onBuyClick, 
+  onAddToCartDirect,
   onShare,
   onShareClick 
 }) => {
-  const handleBuy = onBuyClick || onBuy || (() => {});
+  const handleInquire = onBuyClick || onBuy || (() => {});
   const handleShare = onShareClick || onShare || (() => {});
+
+  // 🛒 دالة الإضافة المباشرة للسلة مع توحيد بيانات الصورة
+  const handleDirectCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // تجهيز كائن القطعة بالصورة الموحدة
+    const formattedItem = {
+      ...item,
+      image: item.image_url || item.image || item.part_image || 'https://via.placeholder.com/150',
+      image_url: item.image_url || item.image || item.part_image || 'https://via.placeholder.com/150',
+      quantity: 1
+    };
+
+    if (onAddToCartDirect) {
+      onAddToCartDirect(formattedItem);
+    } else {
+      // fallback في حال لم تُمرر الخاصية
+      handleInquire(formattedItem);
+    }
+  };
 
   return (
     <div 
@@ -46,7 +68,7 @@ export const PartCard: React.FC<PartCardProps> = ({
     >
       <div style={{ height: '180px', overflow: 'hidden', position: 'relative', backgroundColor: '#f7fafc' }}>
         <img 
-          src={item.image_url} 
+          src={item.image_url || item.image || item.part_image} 
           alt={item.name} 
           style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
           onError={(e) => { 
@@ -58,7 +80,7 @@ export const PartCard: React.FC<PartCardProps> = ({
           top: '10px', 
           right: lang === 'ar' ? 'auto' : '10px', 
           left: lang === 'ar' ? '10px' : 'auto', 
-          backgroundColor: '#1a365d', 
+          backgroundColor: '#1f3a5f', 
           color: 'white', 
           fontSize: '11px', 
           fontWeight: 'bold', 
@@ -69,9 +91,8 @@ export const PartCard: React.FC<PartCardProps> = ({
         </span>
       </div>
 
-      <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {/* 👇 2. هنا التعديل السحري: تمرير اسم القطعة للذكاء الاصطناعي لترجمته إذا لزم الأمر */}
-        <h4 style={{ margin: 0, fontSize: '16px', color: '#1a365d', fontWeight: 'bold', lineHeight: '1.4' }}>
+      <div style={{ padding: '18px', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <h4 style={{ margin: 0, fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold', lineHeight: '1.4' }}>
           <AITranslatedText text={item.name} lang={lang} />
         </h4>
         
@@ -89,27 +110,75 @@ export const PartCard: React.FC<PartCardProps> = ({
           )}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', borderTop: '1px solid #edf2f7', paddingTop: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', borderTop: '1px solid #edf2f7', paddingTop: '10px' }}>
           <span style={{ fontSize: '12px', color: '#718096' }}>{t[lang]?.expectedPrice || (lang === 'ar' ? 'السعر المتوقع' : 'Expected Price')}:</span>
-          <strong style={{ fontSize: '18px', color: '#e53e3e' }}>
-            {item.price} <span style={{ fontSize: '13px' }}>{t[lang]?.currency || (lang === 'ar' ? 'ر.ق' : 'QAR')}</span>
+          <strong style={{ fontSize: '17px', color: '#e0872a' }}>
+            {item.price} <span style={{ fontSize: '12px' }}>{t[lang]?.currency || (lang === 'ar' ? 'ر.ق' : 'QAR')}</span>
           </strong>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
+        {/* 🛠️ أزرار التفاعل المقسمة بوضوح */}
+        <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+          
+          {/* 🛒 1. زر إضافة مباشرة للسلة */}
           <button 
-            onClick={() => handleBuy(item)} 
-            style={{ flex: 1, padding: '10px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            type="button"
+            onClick={handleDirectCart} 
+            style={{ 
+              flex: 1, 
+              padding: '9px 6px', 
+              backgroundColor: '#1f3a5f', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '8px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer', 
+              fontSize: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '4px' 
+            }}
           >
             🛒 {lang === 'ar' ? 'أضف للسلة' : 'Add to Cart'}
           </button>
           
+          {/* 🔍 2. زر اسأل البائع / فحص الشاصي */}
           <button 
+            type="button"
+            onClick={() => handleInquire(item)} 
+            style={{ 
+              padding: '9px 10px', 
+              backgroundColor: '#f1f5f9', 
+              color: '#1f3a5f', 
+              border: '1px solid #cbd5e0', 
+              borderRadius: '8px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer', 
+              fontSize: '11.5px' 
+            }}
+          >
+            🔍 {lang === 'ar' ? 'فحص' : 'Inquire'}
+          </button>
+
+          {/* 🔗 3. زر المشاركة */}
+          <button 
+            type="button"
             onClick={() => handleShare(item)} 
-            style={{ padding: '10px 12px', backgroundColor: '#edf2f7', color: '#4a5568', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+            style={{ 
+              padding: '9px 10px', 
+              backgroundColor: '#edf2f7', 
+              color: '#4a5568', 
+              border: 'none', 
+              borderRadius: '8px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer', 
+              fontSize: '11.5px' 
+            }}
           >
             {t[lang]?.share || (lang === 'ar' ? 'مشاركة' : 'Share')}
           </button>
+
         </div>
       </div>
     </div>
