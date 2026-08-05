@@ -1,294 +1,267 @@
-import React, { useState, useRef, useEffect } from 'react';
-import DOMPurify from 'dompurify';
-import { RequestPartModal } from './RequestPartModal';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface AIChatbotProps {
   lang: 'ar' | 'en';
   supabaseUrl: string;
-  supabaseKey: string;
-  session: any;
+  apiKey: string;
+  categoryTree: Record<string, string[]>;
+  onOpenCategoryTree: (mainCategory: string, subCategory: string) => void;
+  onCloseCategoryTree: () => void;
+  onFilterCatalog: (searchQuery: string) => void;
 }
 
 interface Message {
-  sender: 'user' | 'ai';
+  id: string;
+  sender: 'user' | 'assistant';
   text: string;
+  timestamp: string;
 }
 
-export const AIChatbot: React.FC<AIChatbotProps> = ({ lang, supabaseUrl, supabaseKey, session }) => {
+// قاموس الربط بين المصطلحات العامية الخليجية/الأعراض والتصنيفات المعيارية
+const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query: string }> = {
+  // الفرامل والفرع الفني
+  'سفايف': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad' },
+  'قماشات': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad' },
+  'دسيين': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor' },
+  'هوبات': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor' },
+  'صرير': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad' },
+  
+  // التعليق والمساعدات
+  'جامبينات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock' },
+  'مساعدات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock' },
+  'شيال': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm' },
+  'مقصات': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm' },
+  'طقطقة': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm' },
+
+  // التكييف والتبريد
+  'كمبروسر': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor' },
+  'مكيف': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor' },
+  'رديتر': { main: 'Cooling System', sub: 'Radiator', query: 'Radiator' },
+  'حرارة': { main: 'Cooling System', sub: 'Thermostat', query: 'Thermostat' },
+
+  // الكهرباء والمحرك
+  'دينمو': { main: 'Electrical', sub: 'Alternator / Generator', query: 'Alternator' },
+  'سلف': { main: 'Electrical', sub: 'Starter Motor', query: 'Starter' },
+  'بواجي': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug' },
+  'تفتفة': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug' },
+  'موبينات': { main: 'Ignition', sub: 'Ignition Coil', query: 'Coil' }
+};
+
+export const AIChatbot: React.FC<AIChatbotProps> = ({
+  lang,
+  categoryTree,
+  onOpenCategoryTree,
+  onCloseCategoryTree,
+  onFilterCatalog
+}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const isRtl = lang === 'ar';
 
   useEffect(() => {
     if (messages.length === 0) {
-      const userName = session?.user?.user_metadata?.name || session?.phone || '';
-      const greeting = lang === 'ar' 
-        ? `أهلاً بك${userName ? ` يا ${userName}` : ''} في موجود أوتو! 🏎️ أنا خبيرك الذكي. يمكنني مساعدتك في اختيار القطع، التحقق من أصالتها، أو تتبع طلباتك المباشرة. كيف أخدمك؟` 
-        : `Welcome${userName ? ` ${userName}` : ''} to Mawjood Auto! 🏎️ I am your smart expert. I can help you find parts, check authenticity, or track your live orders. How can I help?`;
-      setMessages([{ sender: 'ai', text: greeting }]);
+      setMessages([
+        {
+          id: 'welcome',
+          sender: 'assistant',
+          text: isRtl
+            ? 'أهلاً بك مع خبير موجود أوتو للقطع والصيانة. كيف يمكنني مساعدتك اليوم في اختيار القطعة المناسبة لسيارتك؟'
+            : 'Welcome to Mawjood Auto Sales & Technical Expert. How can I assist you in finding the right part today?',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
     }
-  }, [lang, session, messages.length]);
+  }, [lang, isRtl]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isOpen]);
+  }, [messages]);
 
-  const quickQuestions = lang === 'ar' ? [
-    '🛠️ طلب تسعير قطعة غير متوفرة',
-    'وين أحصل قطعة لسيارتي؟',
-    'كيف أعرف القطعة أصلية؟',
-    '📦 تتبع طلباتي الحالية',
-    '💬 التواصل مع الدعم الفني'
-  ] : [
-    '🛠️ Request Unlisted Part',
-    'Where to find a part?',
-    'How to check if OEM?',
-    '📦 Track my orders',
-    '💬 Contact Support'
-  ];
+  const processSmartAgentResponse = (userText: string) => {
+    const lowerText = userText.toLowerCase();
 
-  const fetchUserContext = async () => {
-    if (!session) return "Customer is a guest. No active logged-in session.";
-    const phone = session.phone || session.email || '';
-    if (!phone) return "Customer is logged in, but no phone/email found.";
-
-    const cleanUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') || "https://shszpcjmhkemqwborfwy.supabase.co";
-
-    try {
-      const [ordersRes, inqRes] = await Promise.all([
-        fetch(`${cleanUrl}/rest/v1/orders?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null),
-        fetch(`${cleanUrl}/rest/v1/fitment_inquiries?customer_phone=eq.${phone}&limit=3&order=id.desc`, { headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` } }).catch(() => null)
-      ]);
-
-      const orders = ordersRes && ordersRes.ok ? await ordersRes.json() : [];
-      const inquiries = inqRes && inqRes.ok ? await inqRes.json() : [];
-
-      return `Customer Phone/ID: ${phone}. Active Orders: ${JSON.stringify(orders)}. Inquiries: ${JSON.stringify(inquiries)}.`;
-    } catch (e) {
-      return "Logged in user, context unavailable.";
+    // 1. فحص إغلاق الشجرة وإكمال الطلب
+    if (lowerText.includes('شكرا') || lowerText.includes('تم') || lowerText.includes('خلاص') || lowerText.includes('cancel') || lowerText.includes('thanks')) {
+      onCloseCategoryTree();
+      return isRtl
+        ? 'العفو! سعيد بخدمتك. تم إغلاق الشجرة، وإذا احتجت أي قطعة أخرى أنا موجود دائماً لخدمتك.'
+        : 'You are welcome! Category tree closed. Let me know if you need anything else.';
     }
+
+    // 2. البحث عن المطابقات التشخيصية واللفظية
+    let matchedCategory: { main: string; sub: string; query: string } | null = null;
+
+    for (const [key, val] of Object.entries(SYMPTOM_AND_DIALECT_MAP)) {
+      if (lowerText.includes(key.toLowerCase())) {
+        matchedCategory = val;
+        break;
+      }
+    }
+
+    // إذا لم نجد في القاموس العامي، نبحث بداخل شجرة التصنيفات المباشرة
+    if (!matchedCategory) {
+      for (const [mainCat, subCats] of Object.entries(categoryTree)) {
+        for (const subCat of subCats) {
+          if (lowerText.includes(subCat.toLowerCase())) {
+            matchedCategory = { main: mainCat, sub: subCat, query: subCat };
+            break;
+          }
+        }
+        if (matchedCategory) break;
+      }
+    }
+
+    // 3. اتخاذ القرار التفاعلي المباشر
+    if (matchedCategory) {
+      // فتح الشجرة آلياً وتصفية الكتالوج
+      onOpenCategoryTree(matchedCategory.main, matchedCategory.sub);
+      onFilterCatalog(matchedCategory.query);
+
+      return isRtl
+        ? `بناءً على طلبك، قمت بفتح قسم (${matchedCategory.main} > ${matchedCategory.sub}) لك على الشاشة فوراً، وتم تصفية القطع المتاحة. تنبيه هام: هذا التشخيص الأولي مبني على الأعراض المذكورة، وننصحك دائماً بزيارة كراج فحص مختص لمعاينة السيارة على الطبيعة وتأكيد السبب قبل الشراء.`
+        : `I have opened (${matchedCategory.main} > ${matchedCategory.sub}) for you on screen. Note: This initial assessment is based on described symptoms; we strongly recommend visiting a professional garage to inspect the car in person before purchasing.`;
+    }
+
+    // 4. الرد المباشر لمدير المبيعات والمستشار
+    return isRtl
+      ? 'يسعدني مساعدتك! يرجى تزويدي باسم القطعة أو نوع المشكلة التي تظهر بسيارتك، وسأقوم بفتح التصنيف المناسب لك وتحديد أفضل الخيارات المتاحة لدى الكراجات.'
+      : 'I am happy to assist! Please provide the part name or symptom, and I will navigate the category tree and show available parts directly.';
   };
 
-  const sendMessage = async (textToSend: string) => {
-    if (!textToSend.trim() || loading) return;
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
 
-    // فتح النافذة المنسدلة فوراً إذا اختار زر طلب القطعة
-    if (textToSend.includes('طلب تسعير قطعة') || textToSend.includes('Request Unlisted Part')) {
-      setIsModalOpen(true);
-      return;
-    }
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: input,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
 
-    const userMsg = textToSend.trim();
+    setMessages(prev => [...prev, userMsg]);
+    const currentInput = input;
     setInput('');
-    setMessages((prev) => [...prev, { sender: 'user', text: userMsg }]);
-    setLoading(true);
+    setIsTyping(true);
 
-    if (userMsg.includes('الدعم') || userMsg.includes('Support')) {
-      setMessages((prev) => [...prev, { 
-        sender: 'ai', 
-        text: lang === 'ar' 
-          ? 'يمكنك التواصل المباشر مع خدمة العملاء عبر الواتساب على الرقم: 97455000000+ 📱' 
-          : 'You can contact customer support directly on WhatsApp: +97455000000 📱' 
-      }]);
-      setLoading(false);
-      return;
-    }
-
-    const userContext = await fetchUserContext();
-    const cleanUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') || "https://shszpcjmhkemqwborfwy.supabase.co";
-
-    try {
-      const response = await fetch(`${cleanUrl}/functions/v1/chat_assistant`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`
-        },
-        body: JSON.stringify({ userMsg, previousMessages: messages, lang, userContext })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.reply) {
-          setMessages((prev) => [...prev, { sender: 'ai', text: data.reply }]);
-          return;
-        }
-      }
-
-      throw new Error(`Server returned status: ${response.status}`);
-
-    } catch (err: any) {
-      console.error("Chatbot Error:", err);
-      setMessages((prev) => [...prev, { 
-        sender: 'ai', 
-        text: lang === 'ar' 
-          ? "حدث انقطاع مؤقت في السيرفر. يرجى تجربة إعادة المحاولة بعد لحظات. 🚚" 
-          : "Temporary server error. Please try again in a moment. 🚚" 
-      }]);
-    } finally {
-      setLoading(false);
-    }
+    setTimeout(() => {
+      const responseText = processSmartAgentResponse(currentInput);
+      const assistantMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        sender: 'assistant',
+        text: responseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, assistantMsg]);
+      setIsTyping(false);
+    }, 800);
   };
 
   return (
-    <>
-      <div style={{ position: 'fixed', bottom: '20px', [isRtl ? 'left' : 'right']: '20px', zIndex: 1000, fontFamily: 'Cairo, sans-serif' }}>
-        
-        {!isOpen && (
-          <button
-            onClick={() => setIsOpen(true)}
-            style={{
-              backgroundColor: '#1f3a5f',
-              color: 'white',
-              border: '2px solid #e0872a',
-              borderRadius: '50px',
-              padding: '12px 22px',
-              boxShadow: '0 8px 24px rgba(31,58,95,0.35)',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '14px',
-              animation: 'bounce 2s infinite'
-            }}
-          >
-            <style>{`@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }`}</style>
-            <span style={{ fontSize: '18px' }}>🚀</span>
-            <span>{lang === 'ar' ? 'خبير موجود أوتو' : 'Mawjood AI Expert'}</span>
-          </button>
-        )}
+    <div style={{ position: 'fixed', bottom: '24px', left: isRtl ? '24px' : 'auto', right: isRtl ? 'auto' : '24px', zIndex: 1500, fontFamily: 'Cairo, sans-serif' }}>
+      
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          style={{
+            padding: '14px 22px',
+            backgroundColor: '#1f3a5f',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '30px',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            cursor: 'pointer',
+            boxShadow: '0 8px 20px rgba(31,58,95,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <span>خبير موجود أوتو الذكي</span>
+        </button>
+      )}
 
-        {isOpen && (
-          <div
-            style={{
-              width: '380px',
-              maxWidth: '90vw',
-              height: '520px',
-              backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              boxShadow: '0 16px 40px rgba(0,0,0,0.22)',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              border: '1px solid #cbd5e0',
-              direction: isRtl ? 'rtl' : 'ltr'
-            }}
-          >
-            <div style={{ backgroundColor: '#1f3a5f', color: 'white', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '26px' }}>🤖</span>
-                <div>
-                  <strong style={{ fontSize: '15px', display: 'block' }}>{lang === 'ar' ? 'خبير موجود أوتو الذكي' : 'Mawjood Auto Expert'}</strong>
-                  <span style={{ fontSize: '11.5px', opacity: 0.9, color: '#4ade80' }}>🟢 {lang === 'ar' ? 'متصل وجاهز لتتبع طلباتك' : 'Online & Ready'}</span>
-                </div>
-              </div>
-              <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer', opacity: 0.8 }}>✖</button>
+      {isOpen && (
+        <div style={{
+          width: '360px',
+          height: '500px',
+          backgroundColor: '#ffffff',
+          borderRadius: '20px',
+          boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          border: '1px solid #e2e8f0',
+          direction: isRtl ? 'rtl' : 'ltr'
+        }}>
+          
+          <div style={{ backgroundColor: '#1f3a5f', padding: '16px', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>خبير ومستشار المبيعات</h4>
+              <span style={{ fontSize: '11px', color: '#cbd5e0' }}>متصل الآن لمساعدتك بالمبيعات والتوافق</span>
             </div>
-
-            <div style={{ flex: 1, padding: '16px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {messages.map((m, idx) => {
-                const formattedText = m.text
-                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                  .replace(/\n/g, '<br/>');
-
-                const cleanHtml = DOMPurify.sanitize(formattedText);
-
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start',
-                      backgroundColor: m.sender === 'user' ? '#e0872a' : '#ffffff',
-                      color: m.sender === 'user' ? '#ffffff' : '#1e293b',
-                      padding: '12px 16px',
-                      borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      fontSize: '13.5px',
-                      lineHeight: '1.6',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                      maxWidth: '85%'
-                    }}
-                  >
-                    <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />
-                  </div>
-                );
-              })}
-
-              {messages.length === 1 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                  {quickQuestions.map((q, i) => (
-                    <button
-                      key={i}
-                      onClick={() => sendMessage(q)}
-                      style={{
-                        backgroundColor: i === 0 ? '#e0872a' : '#ffffff',
-                        border: i === 0 ? 'none' : '1px solid #1f3a5f',
-                        color: i === 0 ? '#ffffff' : '#1f3a5f',
-                        borderRadius: '12px',
-                        padding: '8px 12px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                      }}
-                      onMouseOver={(e) => {
-                        if (i !== 0) e.currentTarget.style.backgroundColor = '#f1f5f9';
-                      }}
-                      onMouseOut={(e) => {
-                        if (i !== 0) e.currentTarget.style.backgroundColor = '#ffffff';
-                      }}
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {loading && (
-                <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '16px', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  ⏳ {lang === 'ar' ? 'جاري التحقق من النظام...' : 'Checking database...'}
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} style={{ display: 'flex', gap: '8px', padding: '12px', borderTop: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
-              <input
-                type="text"
-                placeholder={lang === 'ar' ? 'اسأل الخبير (مثال: تتبع طلبي، كيف أعرف الأصلي؟)...' : 'Ask Expert (e.g. Track order)...'}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                style={{ flex: 1, padding: '12px 14px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13.5px', outline: 'none', backgroundColor: '#f8fafc' }}
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', padding: '0 18px', fontWeight: 'bold', cursor: 'pointer', fontSize: '18px' }}
-              >
-                🚀
-              </button>
-            </form>
-
+            <button
+              onClick={() => setIsOpen(false)}
+              style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '18px', cursor: 'pointer' }}
+            >
+              ✕
+            </button>
           </div>
-        )}
 
-      </div>
+          <div style={{ flex: 1, padding: '16px', overflowY: 'auto', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {messages.map(msg => (
+              <div
+                key={msg.id}
+                style={{
+                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                  maxWidth: '82%',
+                  backgroundColor: msg.sender === 'user' ? '#1f3a5f' : '#ffffff',
+                  color: msg.sender === 'user' ? '#ffffff' : '#1e293b',
+                  padding: '12px 14px',
+                  borderRadius: msg.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.04)',
+                  fontSize: '13px',
+                  lineHeight: '1.5'
+                }}
+              >
+                <div>{msg.text}</div>
+                <span style={{ fontSize: '10px', opacity: 0.6, marginTop: '4px', display: 'block', textAlign: 'left' }}>{msg.timestamp}</span>
+              </div>
+            ))}
+            {isTyping && (
+              <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '12px', fontSize: '12px', color: '#64748b' }}>
+                جاري التحليل واستدعاء الواجهة...
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
 
-      {/* النافذة المنسدلة لطلب قطعة غير متوفرة */}
-      <RequestPartModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        supabaseUrl={supabaseUrl}
-        supabaseKey={supabaseKey}
-        customerPhone={session?.phone || session?.user?.phone || ''}
-      />
-    </>
+          <form onSubmit={handleSendMessage} style={{ padding: '12px', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              placeholder={isRtl ? 'اكتب اسم القطعة أو العطل...' : 'Type part name or symptom...'}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', outline: 'none' }}
+            />
+            <button
+              type="submit"
+              style={{ padding: '10px 16px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+            >
+              إرسال
+            </button>
+          </form>
+
+        </div>
+      )}
+
+    </div>
   );
 };
+
+export default AIChatbot;
