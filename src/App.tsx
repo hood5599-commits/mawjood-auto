@@ -14,16 +14,41 @@ import { StaticPages, type StaticPageView } from './components/StaticPages';
 import { AITranslatedText } from './components/AITranslatedText';
 import { AIChatbot } from './components/AIChatbot';
 import { RequestPartModal } from './components/RequestPartModal';
+import { AIErrorBoundary } from './components/AIErrorBoundary';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const AUTH_URL = "https://shszpcjmhkemqwborfwy.supabase.co/auth/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
 
+const FULL_CATEGORY_TREE: Record<string, string[]> = {
+  "Belt Drive": ["Belt", "Belt Removal / Installation Tool", "Belt Tensioner", "Belt Tensioner Bolt", "Idler Pulley"],
+  "Body & Lamp Assembly": ["Air Deflector", "Antenna", "Bumper Cover", "Bumper Insert", "Fender", "Fog / Driving Lamp Assembly", "Grille", "Headlamp Assembly", "Hood", "Outside Mirror Glass", "Radiator Support", "Tail Lamp Assembly", "Trunk Lock Actuator"],
+  "Brake & Wheel Hub": ["ABS Control Module", "ABS Wheel Speed Sensor", "Brake Bleeder Screw", "Brake Fluid", "Brake Hose", "Brake Pad", "Caliper", "Master Cylinder", "Parking Brake Shoe", "Power Brake Booster", "Rotor", "Wheel Bearing & Hub"],
+  "Cooling System": ["Coolant / Antifreeze", "Coolant Hose / Pipe", "Coolant Reservoir", "Radiator", "Radiator Cap", "Radiator Fan Assembly", "Temperature Sender / Sensor", "Thermostat", "Water Pump"],
+  "Drivetrain": ["Axle Shaft Seal", "CV Axle", "CV Joint Boot", "Differential Carrier", "Drive Shaft", "Gear Oil"],
+  "Electrical": ["Alternator / Generator", "Battery", "Engine Control Module (ECM Computer)", "Fuse", "Horn", "Speed Sensor", "Starter Motor"],
+  "Electrical-Bulb & Socket": ["Brake Light Bulb", "Fog / Driving Lamp Bulb", "Headlamp Bulb", "Tail Lamp Bulb", "Turn Signal Lamp Bulb"],
+  "Electrical-Connector": ["ABS Wheel Speed Sensor Connector", "Brake Light Switch Connector", "Camshaft Position Sensor Connector", "Crankshaft Position Sensor Connector", "Fuel Injector Connector", "Ignition Coil Connector"],
+  "Electrical-Switch & Relay": ["A/C System Relay", "Blower Motor Relay", "Door Lock Switch", "Fuel Pump / Circuit Opening Relay", "Headlamp Switch", "Ignition Starter Switch", "Power Window Switch", "Turn Signal Switch"],
+  "Engine": ["Camshaft", "Connecting Rod", "Crankshaft", "Cylinder Head", "Cylinder Head Gasket", "Engine Block Heater", "Exhaust Valve", "Harmonic Balancer", "Intake Manifold", "Intake Valve", "Motor Mount", "Oil Cooler", "Oil Filter", "Oil Pan", "Oil Pump", "Piston", "Piston Ring", "Rocker Arm", "Timing Chain", "Valve Cover", "Variable Valve Timing (VVT) Solenoid / Actuator"],
+  "Exhaust & Emission": ["Catalytic Converter", "Exhaust Header Gasket", "Exhaust Manifold", "Mass Air Flow (MAF) Sensor", "Oxygen (O2) Sensor", "Vapor Canister Purge Valve / Solenoid"],
+  "Fuel & Air": ["Air Filter", "Fuel Injection Pressure Sensor", "Fuel Injector", "Fuel Line / Hose", "Fuel Pump & Housing Assembly", "Fuel Tank Cap", "Throttle Body"],
+  "Heat & Air Conditioning": ["A/C Compressor", "A/C Condenser", "A/C Evaporator Core", "A/C Expansion Valve", "Ambient Air Temperature Sensor", "Blower Motor", "Cabin Air Filter", "Heater Core"],
+  "Ignition": ["Camshaft Position Sensor", "Crankshaft Position Sensor", "Ignition Coil", "Spark Plug", "Spark Plug Wire"],
+  "Interior": ["Accelerator Pedal Position Sensor", "Air Bag Clockspring", "Floor Mat", "Inside Door Handle", "Steering Wheel", "Window Motor", "Window Regulator"],
+  "Steering": ["Power Steering Fluid", "Rack and Pinion", "Steering Wheel Position Sensor", "Tie Rod End"],
+  "Suspension": ["Alignment Bolt / Camber Plate", "Coil Spring", "Control Arm", "Control Arm Bushing", "Shock / Strut", "Shock / Strut Mount", "Sway Bar Bushing", "Sway Bar Link"],
+  "Transmission-Automatic": ["Automatic Transmission Control Unit (TCU)", "Clutch Housing", "Filter", "Flexplate", "Fluid Pan", "Torque Converter", "Transmission Fluid", "Transmission Mount", "Valve Body"],
+  "Transmission-Manual": ["Clutch Kit", "Clutch Master Cylinder", "Clutch Slave Cylinder", "Flywheel", "Manual Transmission Fluid", "Shift Fork", "Synchro Ring"],
+  "Wheel": ["Lug Nut", "Lug Stud", "Tire Pressure Monitoring System (TPMS) Sensor", "Wheel"],
+  "Wiper & Washer": ["Washer Fluid Reservoir", "Washer Pump", "Wiper Arm", "Wiper Blade", "Wiper Motor"]
+};
+
 const TRANSLATE_MAKE: Record<string, string> = { "تويوتا": "Toyota", "هيونداي": "Hyundai", "نيسان": "Nissan", "فورد": "Ford", "شفروليه": "Chevrolet", "كيا": "Kia", "هوندا": "Honda", "لكزس": "Lexus", "ميتسوبيشي": "Mitsubishi", "مازدا": "Mazda", "جي إم سي": "GMC", "بي إم دبليو": "BMW", "مرسيدس": "Mercedes-Benz", "فولكس فاجن": "Volkswagen", "أودي": "Audi", "جيب": "Jeep", "دودج": "Dodge", "رام": "Ram", "لاند روفر": "Land Rover", "إنفينيتي": "Infiniti", "سوبارو": "Subaru", "رينو": "Renault", "سوزوكي": "Suzuki", "بورش": "Porsche", "كرايسلر": "Chrysler" };
 const TRANSLATE_MODEL: Record<string, string> = { "كامري": "Camry", "كورولا": "Corolla", "يارس": "Yaris", "هيلوكس": "Hilux", "لاندكروزر": "Land Cruiser", "برادو": "Prado", "أفالون": "Avalon", "راف فور": "RAV4", "فورشنر": "Fortuner", "شاص": "LC70 (Shas)", "إلنترا": "Elantra", "سوناتا": "Sonata", "أكسنت": "Accent", "توسان": "Tucson", "سانتافي": "Santa Fe", "أزيرا": "Azera", "كريتا": "Creta", "كونا": "Kona", "باترول": "Patrol", "ألتيما": "Altima", "صني": "Sunny", "ماكسيما": "Maxima", "إكس تريل": "X-Trail", "نافارا": "Navara", "باثفايندر": "Pathfinder", "سنترا": "Sentra", "تورس": "Taurus", "إكسبلورر": "Explorer", "إف-150": "F-150", "إكسبديشن": "Expedition", "موستنج": "Mustang", "إيدج": "Edge", "رينجر": "Ranger", "تاهو": "Tahoe", "سوبربان": "Suburban", "سيلفرادو": "Silverado", "ماليبو": "Malibu", "كابتيفا": "Captiva", "ترافيرس": "Traverse", "كابرس": "Caprice", "سيراتو": "Cerato", "أوبتيما / K5": "Optima", "ريو": "Rio", "سبورتج": "Sportage", "سورينتو": "Sorento", "كادينزا / K8": "Cadenza", "بيغاس": "Pegas", "أكورد": "Accord", "سيفيك": "Civic", "سي آر في": "CR-V", "سيتي": "City", "بايلوت": "Pilot", "أوديسي": "Odyssey", "باجيرو": "Pajero", "لانسر": "Lancer", "أتراج": "Attrage", "إكليبس كروس": "Eclipse Cross", "L200": "L200", "مازدا 6": "Mazda 6", "مازدا 3": "Mazda 3", "CX-9": "CX-9", "CX-5": "CX-5", "يوكن": "Yukon", "سييرا": "Sierra", "أكاديا": "Acadia", "تيرين": "Terrain", "الفئة الثالثة": "3 Series", "الفئة الخامسة": "5 Series", "الفئة السابعة": "7 Series", "جولف": "Golf", "باسات": "Passat", "تيغوان": "Tiguan", "طوارق": "Touareg", "رانجلر": "Wrangler", "جراند شيروكي": "Grand Cherokee", "شيروكي": "Cherokee", "تشارجر": "Charger", "تشالنجر": "Challenger", "دورانجو": "Durango", "رينج روفر": "Range Rover", "ديفندر": "Defender", "ديسكفري": "Discovery", "فورستر": "Forester", "أوت باك": "Outback", "إمبريزا": "Impreza", "داستر": "Duster", "ميجان": "Megane", "كوليوس": "Koleos", "سويفت": "Swift", "جيمني": "Jimny", "فيتارا": "Vitara", "كايين": "Cayenne", "ماكان": "Macan", "911": "911" };
 const CAR_DATA: Record<string, { models: string[], engines: string[] }> = { "تويوتا": { models: ["كامري", "كورولا", "يارس", "هيلوكس", "لاندكروزر", "برادو", "أفالون", "راف فور", "فورشنر", "شاص"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر", "6 سلندر - 4.0 لتر", "8 سلندر - 4.6 لتر", "8 سلندر - 5.7 لتر", "هايبرد (الهجين)"] }, "هيونداي": { models: ["إلنترا", "سوناتا", "أكسنت", "توسان", "سانتافي", "أزيرا", "كريتا", "كونا"], engines: ["4 سلندر - 1.4 لتر", "4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر"] }, "نيسان": { models: ["باترول", "ألتيما", "صني", "ماكسيما", "إكس تريل", "نافارا", "باثفايندر", "سنترا"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 4.0 لتر", "8 سلندر - 5.6 لتر"] }, "فورد": { models: ["تورس", "إكسبلورر", "إف-150", "إكسبديشن", "موستنج", "إيدج", "رينجر"], engines: ["4 سلندر EcoBoost - 2.0 لتر", "6 سلندر - 3.5 لتر", "6 سلندر EcoBoost - 3.5 لتر", "8 سلندر - 5.0 لتر"] }, "شفروليه": { models: ["تاهو", "سوبربان", "سيلفرادو", "ماليبو", "كابتيفا", "ترافيرس", "كابرس"], engines: ["4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.3 لتر", "8 سلندر - 6.0 لتر", "8 سلندر - 6.2 لتر"] }, "كيا": { models: ["سيراتو", "أوبتيما / K5", "ريو", "سبورتج", "سورينتو", "كادينزا / K8", "بيغاس"], engines: ["4 سلندر - 1.4 لتر", "4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر"] }, "هوندا": { models: ["أكورد", "سيفيك", "سي آر في", "سيتي", "بايلوت", "أوديسي"], engines: ["4 سلندر توربو - 1.5 لتر", "4 سلندر - 2.0 لتر", "4 سلندر - 2.4 لتر", "6 سلندر - 3.5 لتر"] }, "لكزس": { models: ["ES", "LS", "LX", "RX", "GX", "IS", "UX"], engines: ["4 سلندر - 2.5 لتر", "6 سلندر - 3.5 لتر", "6 سلندر توربو - 3.4 لتر", "8 سلندر - 4.6 لتر", "8 سلندر - 5.7 لتر"] }, "ميتسوبيشي": { models: ["باجيرو", "لانسر", "أتراج", "إكليبس كروس", "L200"], engines: ["4 سلندر - 1.2 لتر", "4 سلندر - 1.5 لتر", "4 سلندر - 2.0 لتر", "6 سلندر - 3.5 لتر"] }, "مازدا": { models: ["CX-9", "CX-5", "مازدا 6", "مازدا 3"], engines: ["4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر", "4 سلندر توربو - 2.5 لتر"] }, "جي إم سي": { models: ["يوكن", "سييرا", "أكاديا", "تيرين"], engines: ["4 سلندر - 1.5 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.3 لتر", "8 سلندر - 6.2 لتر"] }, "بي إم دبليو": { models: ["الفئة الثالثة", "الفئة الخامسة", "الفئة السابعة", "X5", "X6"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر توربو - 3.0 لتر", "8 سلندر توربو - 4.4 لتر"] }, "مرسيدس": { models: ["C-Class", "E-Class", "S-Class", "G-Class", "GLE"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.0 لتر", "8 سلندر - 4.0 لتر"] }, "فولكس فاجن": { models: ["جولف", "باسات", "تيغوان", "طوارق"], engines: ["4 سلندر توربو - 1.4 لتر", "4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.6 لتر"] }, "أودي": { models: ["A3", "A4", "A6", "Q5", "Q7"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر توربو - 3.0 لتر"] }, "جيب": { models: ["رانجلر", "جراند شيروكي", "شيروكي"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] }, "دودج": { models: ["تشارجر", "تشالنجر", "دورانجو"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر", "8 سلندر - 6.4 لتر"] }, "رام": { models: ["1500"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] }, "لاند روفر": { models: ["رينج روفر", "ديفندر", "ديسكفري"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.0 لتر", "8 سلندر - 5.0 لتر"] }, "إنفينيتي": { models: ["Q50", "QX50", "QX80"], engines: ["4 سلندر توربو - 2.0 لتر", "6 سلندر - 3.7 لتر", "8 سلندر - 5.6 لتر"] }, "سوبارو": { models: ["فورستر", "أوت باك", "إمبريزا"], engines: ["4 سلندر - 2.0 لتر", "4 سلندر - 2.5 لتر"] }, "رينو": { models: ["داستر", "ميجان", "كوليوس"], engines: ["4 سلندر - 1.6 لتر", "4 سلندر - 2.0 لتر", "4 سلندر توربو - 1.3 لتر"] }, "سوزوكي": { models: ["سويفت", "جيمني", "فيتارا"], engines: ["4 سلندر - 1.2 لتر", "4 سلندر - 1.5 لتر"] }, "بورش": { models: ["كايين", "ماكان", "911"], engines: ["6 سلندر توربو - 3.0 لتر", "8 سلندر توربو - 4.0 لتر"] }, "كرايسلر": { models: ["300C"], engines: ["6 سلندر - 3.6 لتر", "8 سلندر - 5.7 لتر"] } };
 const YEARS = Array.from({ length: 2026 - 1970 + 1 }, (_, i) => (2026 - i).toString());
-const PARTS_CATEGORIES = [ "Belt Drive", "Body & Lamp Assembly", "Brake & Wheel Hub", "Cooling System", "Drivetrain", "Electrical", "Electrical-Bulb & Socket", "Electrical-Connector", "Electrical-Switch & Relay", "Engine", "Exhaust & Emission", "Fuel & Air", "Heat & Air Conditioning", "Ignition", "Interior", "Steering", "Suspension", "Transmission-Automatic", "Wheel", "Wiper & Washer" ];
+const PARTS_CATEGORIES = Object.keys(FULL_CATEGORY_TREE);
 
 const styles: Record<string, React.CSSProperties> = { 
   page: { fontFamily: "'Cairo', 'Segoe UI', Tahoma, Geneva, sans-serif", backgroundColor: 'var(--mw-bg, #F5F7FA)', minHeight: '100vh', paddingBottom: '60px', color: 'var(--mw-ink, #131C26)' }, 
@@ -46,7 +71,6 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
-  // إعدادات السوشال ميديا والموقع والأرقام الحقيقية
   const [siteSettings, setSiteSettings] = useState(() => {
     const saved = localStorage.getItem('mawjood_site_settings');
     return saved ? JSON.parse(saved) : { 
@@ -71,11 +95,10 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
-  // 🌍 تغيير اتجاه الصفحة HTML بناءً على اللغة المختارة
   useEffect(() => {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
-  }, [lang]);
+  }, [lang, isRtl]);
 
   useEffect(() => {
     const hasVisited = localStorage.getItem('hasVisitedMawjood');
@@ -142,19 +165,18 @@ export default function App() {
     setSelectedPartForCheckout({ part: item, initialStep: 'inquire' });
   };
 
-  const toggleCategory = (category: string) => { setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); };
+  const toggleCategory = (category: string) => { 
+    setExpandedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]); 
+  };
 
   const totalCartPrice = cartItems.reduce((total, item) => total + (Number(item.price) * (item.quantity || 1)), 0);
   const totalCartCount = cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
 
-  // 📊 حساب الأرقام الواقعية والحقيقية 100% من قاعدة البيانات
   const realPartsCount = inventory.length;
-
-  // جلب عدد الكراجات والمحلات ذات المعروضات الحقيقية في القاعدة
   const realGaragesCount = Array.from(new Set(inventory.map(p => p.garage_id || p.garage_name || 'عام').filter(Boolean))).length;
 
   return (
-    <>
+    <AIErrorBoundary supabaseUrl={SUPABASE_URL} apiKey={API_KEY}>
       {showWelcome && (
         <WelcomeModal 
           lang={lang} 
@@ -187,18 +209,17 @@ export default function App() {
         {session && session.role !== 'garage' && session.role !== 'driver' && session.role !== 'admin' && (
           <div style={{ maxWidth: '1240px', margin: '14px auto -10px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={() => setShowOrderTracker(true)} style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              📦 {isRtl ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
+              {isRtl ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
             </button>
           </div>
         )}
 
-        {/* 🛒 السلة الجانبية Drawer */}
         {isCartOpen && (
           <>
             <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
             <div style={{ position: 'fixed', top: 0, bottom: 0, [isRtl ? 'left' : 'right']: 0, width: '380px', maxWidth: '100%', backgroundColor: '#ffffff', zIndex: 101, padding: '24px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
-                <h3 style={{ margin: 0 }}>🛒 {isRtl ? 'سلة المشتريات' : 'Your Cart'}</h3>
+                <h3 style={{ margin: 0 }}>{isRtl ? 'سلة المشتريات' : 'Your Cart'}</h3>
                 <button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✖</button>
               </div>
 
@@ -225,7 +246,7 @@ export default function App() {
                     <span>{totalCartPrice} {isRtl ? 'ر.ق' : 'QAR'}</span>
                   </div>
                   <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    🚀 {isRtl ? 'إتمام الشراء' : 'Checkout'}
+                    {isRtl ? 'إتمام الشراء' : 'Checkout'}
                   </button>
                 </div>
               )}
@@ -257,7 +278,6 @@ export default function App() {
             />
           )}
 
-          {/* 👑 واجهة مدير النظام الأدمن */}
           {view === 'admin' && (
             <AdminDashboard 
               lang={lang} 
@@ -269,7 +289,6 @@ export default function App() {
             />
           )}
 
-          {/* 🛵 واجهة لوحة المندوب */}
           {view === 'driver' && (
             <DeliveryDashboard 
               lang={lang} 
@@ -279,7 +298,6 @@ export default function App() {
             />
           )}
 
-          {/* ⚙️ واجهة لوحة الكراج */}
           {view === 'dashboard' && session?.role === 'garage' && (
             <GarageDashboard 
               lang={lang} 
@@ -292,7 +310,6 @@ export default function App() {
             />
           )}
 
-          {/* 👤 واجهة الملف الشخصي */}
           {view === 'profile' && session && (
             <CustomerProfile 
               lang={lang} 
@@ -302,7 +319,6 @@ export default function App() {
             />
           )}
 
-          {/* 📄 عرض الصفحات التعريفية والمعلومات */}
           {['contact', 'faq', 'articles', 'about', 'privacy', 'terms', 'news'].includes(view) && (
             <StaticPages 
               lang={lang} 
@@ -315,43 +331,36 @@ export default function App() {
           {view === 'shop' && (
             <div style={{ marginTop: '20px', width: '100%' }}>
 
-              {/* 📊 شريط الإحصائيات والأرقام الحقيقية */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '25px' }}>
-                
-                {/* 1️⃣ متوسط وقت التوصيل */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
                   <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#1f3a5f' }}>
                     {isRtl ? (siteSettings?.deliveryTimeText || 'ساعتان - 24 ساعة') : (siteSettings?.deliveryTimeText === 'ساعتان - 24 ساعة' ? '2 - 24 Hours' : siteSettings?.deliveryTimeText)}
                   </h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
-                    {isRtl ? '⏱️ متوسط وقت التوصيل' : '⏱️ Avg. Delivery Time'}
+                    {isRtl ? 'متوسط وقت التوصيل' : 'Avg. Delivery Time'}
                   </p>
                 </div>
 
-                {/* 2️⃣ القطع الحقيقية في قاعدة البيانات */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
                   <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#e0872a' }}>{realPartsCount.toLocaleString()}</h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
-                    {isRtl ? '📦 القطع في قاعدة البيانات' : '📦 Parts in Database'}
+                    {isRtl ? 'القطع في قاعدة البيانات' : 'Parts in Database'}
                   </p>
                 </div>
 
-                {/* 3️⃣ كراج ومعرض قطع غيار حقيقي */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
                   <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1f3a5f', direction: 'ltr', display: 'inline-block' }}>+{realGaragesCount || siteSettings?.garagesCount || 1}</h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
-                    {isRtl ? '🏬 كراج ومعرض قطع غيار' : '🏬 Verified Garages & Stores'}
+                    {isRtl ? 'كراج ومعرض قطع غيار' : 'Verified Garages & Stores'}
                   </p>
                 </div>
 
-                {/* 4️⃣ عملاء راضون */}
                 <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
                   <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#16a34a', direction: 'ltr', display: 'inline-block' }}>+{siteSettings?.happyCustomersCount || 10}</h2>
                   <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
-                    {isRtl ? '😊 عملاء راضون' : '😊 Happy Customers'}
+                    {isRtl ? 'عملاء راضون' : 'Happy Customers'}
                   </p>
                 </div>
-
               </div>
 
               <SidebarFilters 
@@ -383,7 +392,6 @@ export default function App() {
 
         </main>
 
-        {/* 💳 الشراء المباشر */}
         {selectedPartForCheckout && (
           <CustomerFitmentCheckout
             lang={lang}
@@ -412,7 +420,6 @@ export default function App() {
           />
         )}
 
-        {/* 📦 متابعة الطلبات */}
         {showOrderTracker && (
           <CustomerOrderTracker
             lang={lang}
@@ -427,7 +434,6 @@ export default function App() {
           />
         )}
 
-        {/* 🔻 الفوتر الرئيسي */}
         <Footer 
           lang={lang} 
           siteSettings={siteSettings} 
@@ -435,15 +441,30 @@ export default function App() {
           session={session} 
         />
 
-        {/* 🤖 المساعد الذكي للعملاء */}
+        {/* 🤖 المساعد الذكي والمستشار التفاعلي */}
         <AIChatbot 
           lang={lang} 
           supabaseUrl={SUPABASE_URL} 
-          supabaseKey={API_KEY} 
-          session={session} 
+          apiKey={API_KEY} 
+          categoryTree={FULL_CATEGORY_TREE}
+          onOpenCategoryTree={(main, sub) => {
+            setView('shop');
+            if (!expandedCategories.includes(main)) {
+              setExpandedCategories(prev => [...prev, main]);
+            }
+            setFilterCategory(`${main} > ${sub}`);
+            window.scrollTo({ top: 350, behavior: 'smooth' });
+          }}
+          onCloseCategoryTree={() => {
+            setExpandedCategories([]);
+            setFilterCategory('');
+          }}
+          onFilterCatalog={(query) => {
+            setView('shop');
+            setSearchTerm(query);
+          }}
         />
 
-        {/* 🛠️ النافذة المنسدلة المباشرة لطلب قطعة غير متوفرة */}
         <RequestPartModal
           isOpen={isCustomPartModalOpen}
           onClose={() => setIsCustomPartModalOpen(false)}
@@ -453,6 +474,6 @@ export default function App() {
         />
 
       </div>
-    </>
+    </AIErrorBoundary>
   );
 }
