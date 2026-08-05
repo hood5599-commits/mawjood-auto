@@ -202,6 +202,67 @@ export default function App() {
 
   return (
     <AIErrorBoundary supabaseUrl={SUPABASE_URL} apiKey={API_KEY}>
+      {/* 🎨 تحسينات بصرية عامة (Hover / Glass / Responsive) بدون أي تعديل على المنطق */}
+      <style>{`
+        .mw-stat-card {
+          position: relative;
+          background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(250,251,253,0.94) 100%);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          transition: transform 0.35s cubic-bezier(0.22,1,0.36,1), box-shadow 0.35s cubic-bezier(0.22,1,0.36,1), border-color 0.3s ease;
+          will-change: transform;
+        }
+        .mw-stat-card:hover {
+          transform: translateY(-5px) scale(1.015);
+          box-shadow: 0 18px 34px -10px rgba(31,58,95,0.20), 0 4px 10px rgba(31,58,95,0.06);
+          border-color: rgba(31,58,95,0.18) !important;
+        }
+        .mw-stat-card::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1px;
+          background: linear-gradient(135deg, rgba(31,58,95,0.10), rgba(224,135,42,0.10));
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        .mw-stat-card:hover::after { opacity: 1; }
+
+        .mw-cart-overlay { animation: mwFadeIn 0.25s ease; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+        .mw-cart-drawer { animation: mwDrawerIn 0.4s cubic-bezier(0.22,1,0.36,1); }
+        @keyframes mwFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes mwDrawerIn { from { opacity: 0; transform: scale(0.98) translateX(6px); } to { opacity: 1; transform: scale(1) translateX(0); } }
+
+        .mw-cart-item { transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease; }
+        .mw-cart-item:hover { box-shadow: 0 8px 18px rgba(15,23,42,0.08); transform: translateY(-1px); border-color: #cbd5e0 !important; }
+
+        .mw-cart-close-btn { transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease; }
+        .mw-cart-close-btn:hover { background-color: #f1f5f9; color: #1f3a5f; transform: rotate(90deg); }
+
+        .mw-remove-btn { transition: background-color 0.2s ease, transform 0.15s ease; }
+        .mw-remove-btn:hover { background-color: #fee2e2; transform: scale(1.1); }
+
+        .mw-checkout-btn {
+          transition: transform 0.18s ease, box-shadow 0.25s ease, filter 0.2s ease;
+        }
+        .mw-checkout-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -6px rgba(31,58,95,0.4); filter: brightness(1.06); }
+        .mw-checkout-btn:active { transform: translateY(0); }
+
+        .mw-track-btn { transition: transform 0.18s ease, box-shadow 0.25s ease; }
+        .mw-track-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -6px rgba(31,58,95,0.35); }
+
+        @media (max-width: 640px) {
+          .mw-main-container { padding: 0 14px !important; margin-top: 18px !important; }
+          .mw-stats-grid { gap: 10px !important; margin-bottom: 18px !important; }
+          .mw-stat-card { padding: 16px 12px !important; }
+        }
+      `}</style>
+
       {showWelcome && (
         <WelcomeModal 
           lang={lang} 
@@ -233,7 +294,22 @@ export default function App() {
 
         {session && session.role !== 'garage' && session.role !== 'driver' && session.role !== 'admin' && (
           <div style={{ maxWidth: '1240px', margin: '14px auto -10px', padding: '0 20px', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowOrderTracker(true)} style={{ backgroundColor: '#1f3a5f', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+            <button
+              className="mw-track-btn"
+              onClick={() => setShowOrderTracker(true)}
+              style={{
+                background: 'linear-gradient(135deg, #24466f 0%, #1f3a5f 100%)',
+                color: 'white',
+                border: 'none',
+                padding: '11px 20px',
+                borderRadius: '14px',
+                fontWeight: 'bold',
+                fontSize: '13.5px',
+                cursor: 'pointer',
+                boxShadow: '0 6px 16px -4px rgba(31,58,95,0.35)',
+                letterSpacing: '0.2px'
+              }}
+            >
               {isRtl ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders'}
             </button>
           </div>
@@ -242,44 +318,107 @@ export default function App() {
         {/* 🛒 واجهة سلة المشتريات الجانبية المعدلة بظهور الصور */}
         {isCartOpen && (
           <>
-            <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
-            <div style={{ position: 'fixed', top: 0, bottom: 0, [isRtl ? 'left' : 'right']: 0, width: '380px', maxWidth: '100%', backgroundColor: '#ffffff', zIndex: 101, padding: '24px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
-                <h3 style={{ margin: 0, color: '#1f3a5f' }}>{isRtl ? 'سلة المشتريات 🛒' : 'Your Cart 🛒'}</h3>
-                <button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#64748b' }}>✖</button>
+            <div
+              className="mw-cart-overlay"
+              onClick={() => setIsCartOpen(false)}
+              style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.45)', zIndex: 100 }}
+            />
+            <div
+              className="mw-cart-drawer"
+              style={{
+                position: 'fixed',
+                top: 0,
+                bottom: 0,
+                [isRtl ? 'left' : 'right']: 0,
+                width: '390px',
+                maxWidth: '100%',
+                backgroundColor: '#ffffff',
+                zIndex: 101,
+                padding: '22px',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: isRtl ? '12px 0 40px rgba(15,23,42,0.18)' : '-12px 0 40px rgba(15,23,42,0.18)',
+                borderRadius: isRtl ? '0 24px 24px 0' : '24px 0 0 24px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eef1f5', paddingBottom: '16px' }}>
+                <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '17px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {isRtl ? 'سلة المشتريات' : 'Your Cart'}
+                  <span style={{ fontSize: '13px' }}>🛒</span>
+                </h3>
+                <button
+                  className="mw-cart-close-btn"
+                  onClick={() => setIsCartOpen(false)}
+                  style={{
+                    background: '#f8fafc',
+                    border: 'none',
+                    borderRadius: '10px',
+                    width: '32px',
+                    height: '32px',
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ✖
+                </button>
               </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '18px 2px' }}>
                 {cartItems.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#64748b', marginTop: '40px' }}>{isRtl ? 'السلة فارغة حالياً' : 'Your cart is currently empty'}</p>
+                  <div style={{ textAlign: 'center', marginTop: '60px', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '38px', marginBottom: '10px', opacity: 0.6 }}>🛒</div>
+                    <p style={{ margin: 0, fontSize: '13.5px', fontWeight: 600 }}>
+                      {isRtl ? 'السلة فارغة حالياً' : 'Your cart is currently empty'}
+                    </p>
+                  </div>
                 ) : (
                   cartItems.map((item, index) => (
-                    <div key={item.id || index} style={{ display: 'flex', gap: '12px', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '12px', backgroundColor: '#f8fafc', alignItems: 'center' }}>
+                    <div
+                      key={item.id || index}
+                      className="mw-cart-item"
+                      style={{
+                        display: 'flex',
+                        gap: '12px',
+                        padding: '12px',
+                        border: '1px solid #eef1f5',
+                        borderRadius: '14px',
+                        marginBottom: '12px',
+                        backgroundColor: '#fbfcfe',
+                        alignItems: 'center'
+                      }}
+                    >
                       
                       {/* 📸 إظهار صورة القطعة بالسلة */}
                       <img
                         src={item.image_url || item.image || item.part_image || 'https://via.placeholder.com/80'}
                         alt={item.name}
-                        style={{ width: '65px', height: '65px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0', backgroundColor: '#ffffff' }}
+                        style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', flexShrink: 0 }}
                         onError={(e: any) => { e.target.src = 'https://via.placeholder.com/80?text=Auto+Part'; }}
                       />
 
-                      <div style={{ flex: 1 }}>
-                        <strong style={{ fontSize: '13.5px', color: '#1f3a5f', display: 'block', marginBottom: '2px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <strong style={{ fontSize: '13.5px', color: '#1f3a5f', display: 'block', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <AITranslatedText text={item.name} lang={lang} />
                         </strong>
-                        <span style={{ fontSize: '13px', color: '#e0872a', fontWeight: 'bold' }}>
+                        <span style={{ fontSize: '13.5px', color: '#e0872a', fontWeight: 800 }}>
                           {item.price} {isRtl ? 'ر.ق' : 'QAR'}
                         </span>
                         
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>الكمية: {item.quantity || 1}</span>
+                          <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 600 }}>
+                            {isRtl ? 'الكمية:' : 'Qty:'} {item.quantity || 1}
+                          </span>
                         </div>
                       </div>
 
                       <button 
+                        className="mw-remove-btn"
                         onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} 
-                        style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}
+                        style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '15px', padding: '6px', borderRadius: '8px', flexShrink: 0 }}
                         title={isRtl ? 'حذف من السلة' : 'Remove item'}
                       >
                         🗑️
@@ -290,12 +429,32 @@ export default function App() {
               </div>
 
               {cartItems.length > 0 && (
-                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '16px', color: '#1f3a5f', marginBottom: '14px' }}>
-                    <span>{isRtl ? 'المبلغ الإجمالي:' : 'Total:'}</span>
-                    <span style={{ color: '#e0872a' }}>{totalCartPrice} {isRtl ? 'ر.ق' : 'QAR'}</span>
+                <div style={{ borderTop: '1px solid #eef1f5', paddingTop: '18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <span style={{ fontSize: '13px', color: '#8a94a3', fontWeight: 600 }}>
+                      {isRtl ? 'المبلغ الإجمالي:' : 'Total:'}
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: '19px', color: '#e0872a', letterSpacing: '-0.2px' }}>
+                      {totalCartPrice} {isRtl ? 'ر.ق' : 'QAR'}
+                    </span>
                   </div>
-                  <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer' }}>
+                  <button
+                    className="mw-checkout-btn"
+                    onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }}
+                    style={{
+                      width: '100%',
+                      padding: '15px',
+                      background: 'linear-gradient(135deg, #24466f 0%, #1f3a5f 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '14px',
+                      fontWeight: 800,
+                      fontSize: '15px',
+                      cursor: 'pointer',
+                      boxShadow: '0 8px 20px -6px rgba(31,58,95,0.4)',
+                      letterSpacing: '0.2px'
+                    }}
+                  >
                     {isRtl ? '🚀 إتمام الشراء والدفع' : '🚀 Checkout & Pay'}
                   </button>
                 </div>
@@ -381,33 +540,33 @@ export default function App() {
           {view === 'shop' && (
             <div style={{ marginTop: '20px', width: '100%' }}>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '25px' }}>
-                <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#1f3a5f' }}>
+              <div className="mw-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '25px' }}>
+                <div className="mw-stat-card" style={{ padding: '20px 16px', borderRadius: '20px', textAlign: 'center', boxShadow: '0 4px 15px rgba(15,23,42,0.04)', border: '1px solid #f1f5f9' }}>
+                  <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '900', color: '#1f3a5f', letterSpacing: '-0.3px' }}>
                     {isRtl ? (siteSettings?.deliveryTimeText || 'ساعتان - 24 ساعة') : (siteSettings?.deliveryTimeText === 'ساعتان - 24 ساعة' ? '2 - 24 Hours' : siteSettings?.deliveryTimeText)}
                   </h2>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '12.5px', color: '#8a94a3', fontWeight: 'bold' }}>
                     {isRtl ? 'متوسط وقت التوصيل' : 'Avg. Delivery Time'}
                   </p>
                 </div>
 
-                <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#e0872a' }}>{realPartsCount.toLocaleString()}</h2>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
+                <div className="mw-stat-card" style={{ padding: '20px 16px', borderRadius: '20px', textAlign: 'center', boxShadow: '0 4px 15px rgba(15,23,42,0.04)', border: '1px solid #f1f5f9' }}>
+                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#e0872a', letterSpacing: '-0.3px' }}>{realPartsCount.toLocaleString()}</h2>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '12.5px', color: '#8a94a3', fontWeight: 'bold' }}>
                     {isRtl ? 'القطع في قاعدة البيانات' : 'Parts in Database'}
                   </p>
                 </div>
 
-                <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1f3a5f', direction: 'ltr', display: 'inline-block' }}>+{realGaragesCount || siteSettings?.garagesCount || 1}</h2>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
+                <div className="mw-stat-card" style={{ padding: '20px 16px', borderRadius: '20px', textAlign: 'center', boxShadow: '0 4px 15px rgba(15,23,42,0.04)', border: '1px solid #f1f5f9' }}>
+                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#1f3a5f', direction: 'ltr', display: 'inline-block', letterSpacing: '-0.3px' }}>+{realGaragesCount || siteSettings?.garagesCount || 1}</h2>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '12.5px', color: '#8a94a3', fontWeight: 'bold' }}>
                     {isRtl ? 'كراج ومعرض قطع غيار' : 'Verified Garages & Stores'}
                   </p>
                 </div>
 
-                <div style={{ backgroundColor: '#ffffff', padding: '20px 16px', borderRadius: '18px', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#16a34a', direction: 'ltr', display: 'inline-block' }}>+{siteSettings?.happyCustomersCount || 10}</h2>
-                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>
+                <div className="mw-stat-card" style={{ padding: '20px 16px', borderRadius: '20px', textAlign: 'center', boxShadow: '0 4px 15px rgba(15,23,42,0.04)', border: '1px solid #f1f5f9' }}>
+                  <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '900', color: '#16a34a', direction: 'ltr', display: 'inline-block', letterSpacing: '-0.3px' }}>+{siteSettings?.happyCustomersCount || 10}</h2>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '12.5px', color: '#8a94a3', fontWeight: 'bold' }}>
                     {isRtl ? 'عملاء راضون' : 'Happy Customers'}
                   </p>
                 </div>
