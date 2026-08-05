@@ -161,7 +161,32 @@ export default function App() {
     } catch (error) { console.error(error); }
   };
 
-  const handleBuyClick = (item: any) => {
+  // 🛒 دالة الإضافة المباشرة للسلة مع توحيد كائن الصورة لضمان ظهورها
+  const handleAddToCartDirect = (part: any) => {
+    const formattedPart = {
+      ...part,
+      id: part.id,
+      name: part.name || 'قطعة غيار',
+      price: Number(part.price) || 0,
+      image_url: part.image_url || part.image || part.part_image || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
+      quantity: 1
+    };
+
+    setCartItems(prevCart => {
+      const existingIndex = prevCart.findIndex((item) => item.id === part.id);
+      if (existingIndex > -1) {
+        const updated = [...prevCart];
+        updated[existingIndex].quantity = (updated[existingIndex].quantity || 1) + 1;
+        return updated;
+      }
+      return [...prevCart, formattedPart];
+    });
+
+    setIsCartOpen(true);
+  };
+
+  // 🔍 دالة فتح مودال "اسأل البائع / فحص الشاصي" عند الحاجة فقط
+  const handleInquireClick = (item: any) => {
     setSelectedPartForCheckout({ part: item, initialStep: 'inquire' });
   };
 
@@ -214,25 +239,50 @@ export default function App() {
           </div>
         )}
 
+        {/* 🛒 واجهة سلة المشتريات الجانبية المعدلة بظهور الصور */}
         {isCartOpen && (
           <>
             <div onClick={() => setIsCartOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
             <div style={{ position: 'fixed', top: 0, bottom: 0, [isRtl ? 'left' : 'right']: 0, width: '380px', maxWidth: '100%', backgroundColor: '#ffffff', zIndex: 101, padding: '24px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px' }}>
-                <h3 style={{ margin: 0 }}>{isRtl ? 'سلة المشتريات' : 'Your Cart'}</h3>
-                <button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✖</button>
+                <h3 style={{ margin: 0, color: '#1f3a5f' }}>{isRtl ? 'سلة المشتريات 🛒' : 'Your Cart 🛒'}</h3>
+                <button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#64748b' }}>✖</button>
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
                 {cartItems.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#64748b' }}>{isRtl ? 'السلة فارغة' : 'Your cart is currently empty'}</p>
+                  <p style={{ textAlign: 'center', color: '#64748b', marginTop: '40px' }}>{isRtl ? 'السلة فارغة حالياً' : 'Your cart is currently empty'}</p>
                 ) : (
                   cartItems.map((item, index) => (
-                    <div key={index} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '10px' }}>
-                      <strong><AITranslatedText text={item.name} lang={lang} /></strong>
-                      <p style={{ margin: '4px 0', fontSize: '13px', color: '#64748b' }}>{item.price} {isRtl ? 'ر.ق' : 'QAR'} x {item.quantity || 1}</p>
-                      <button onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} style={{ color: '#d1453b', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
-                        {isRtl ? 'حذف' : 'Remove'}
+                    <div key={item.id || index} style={{ display: 'flex', gap: '12px', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '12px', backgroundColor: '#f8fafc', alignItems: 'center' }}>
+                      
+                      {/* 📸 إظهار صورة القطعة بالسلة */}
+                      <img
+                        src={item.image_url || item.image || item.part_image || 'https://via.placeholder.com/80'}
+                        alt={item.name}
+                        style={{ width: '65px', height: '65px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0', backgroundColor: '#ffffff' }}
+                        onError={(e: any) => { e.target.src = 'https://via.placeholder.com/80?text=Auto+Part'; }}
+                      />
+
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ fontSize: '13.5px', color: '#1f3a5f', display: 'block', marginBottom: '2px' }}>
+                          <AITranslatedText text={item.name} lang={lang} />
+                        </strong>
+                        <span style={{ fontSize: '13px', color: '#e0872a', fontWeight: 'bold' }}>
+                          {item.price} {isRtl ? 'ر.ق' : 'QAR'}
+                        </span>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>الكمية: {item.quantity || 1}</span>
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} 
+                        style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px' }}
+                        title={isRtl ? 'حذف من السلة' : 'Remove item'}
+                      >
+                        🗑️
                       </button>
                     </div>
                   ))
@@ -241,12 +291,12 @@ export default function App() {
 
               {cartItems.length > 0 && (
                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '12px' }}>
-                    <span>{isRtl ? 'الإجمالي:' : 'Total:'}</span>
-                    <span>{totalCartPrice} {isRtl ? 'ر.ق' : 'QAR'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '16px', color: '#1f3a5f', marginBottom: '14px' }}>
+                    <span>{isRtl ? 'المبلغ الإجمالي:' : 'Total:'}</span>
+                    <span style={{ color: '#e0872a' }}>{totalCartPrice} {isRtl ? 'ر.ق' : 'QAR'}</span>
                   </div>
-                  <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    {isRtl ? 'إتمام الشراء' : 'Checkout'}
+                  <button onClick={() => { setIsCartOpen(false); setSelectedPartForCheckout({ part: cartItems[0], initialStep: 'checkout' }); }} style={{ width: '100%', padding: '14px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer' }}>
+                    {isRtl ? '🚀 إتمام الشراء والدفع' : '🚀 Checkout & Pay'}
                   </button>
                 </div>
               )}
@@ -363,6 +413,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* 🛠️ يمرر الفلتر دالتي الإضافة المباشرة للسلة وفحص الشاصي */}
               <SidebarFilters 
                 lang={lang} 
                 carData={CAR_DATA} 
@@ -385,7 +436,8 @@ export default function App() {
                 setFilterEngine={setFilterEngine} 
                 filterCategory={filterCategory}
                 setFilterCategory={setFilterCategory}
-                addToCart={handleBuyClick}
+                addToCart={handleAddToCartDirect}
+                onInquire={handleInquireClick}
               />
             </div>
           )}
@@ -405,10 +457,7 @@ export default function App() {
             onClose={() => setSelectedPartForCheckout(null)}
             onSuccess={(addedPart?: any) => {
               if (addedPart) {
-                setCartItems(prev => {
-                  if (prev.some(item => item.id === addedPart.id)) return prev;
-                  return [...prev, { ...addedPart, quantity: 1 }];
-                });
+                handleAddToCartDirect(addedPart);
               } else {
                 const purchasedPartId = selectedPartForCheckout.part.id;
                 setCartItems(prev => prev.filter(item => item.id !== purchasedPartId));
@@ -441,7 +490,6 @@ export default function App() {
           session={session} 
         />
 
-        {/* 🤖 المساعد الذكي والمستشار التفاعلي (عبود) */}
         <AIChatbot 
           lang={lang} 
           carData={CAR_DATA}
@@ -449,7 +497,6 @@ export default function App() {
           onApplyFilters={(filters) => {
             setView('shop');
             
-            // فتح شجرة التصنيفات واختيار الفرع
             if (filters.mainCategory && !expandedCategories.includes(filters.mainCategory)) {
               setExpandedCategories(prev => [...prev, filters.mainCategory as string]);
             }
@@ -459,17 +506,14 @@ export default function App() {
               setFilterCategory('');
             }
             
-            // تعبئة الفلاتر الجانبية
             if (filters.query) setSearchTerm(filters.query);
             if (filters.make) setFilterMake(filters.make);
             if (filters.model) setFilterModel(filters.model);
             if (filters.year) setFilterYear(filters.year);
 
-            // النزول تلقائياً لمنطقة المعروضات
             window.scrollTo({ top: 350, behavior: 'smooth' });
           }}
           onCloseFilters={() => {
-            // تصفية جميع الخانات
             setSearchTerm('');
             setFilterMake('');
             setFilterModel('');
