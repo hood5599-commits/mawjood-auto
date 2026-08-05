@@ -441,27 +441,41 @@ export default function App() {
           session={session} 
         />
 
-        {/* 🤖 المساعد الذكي والمستشار التفاعلي */}
+        {/* 🤖 المساعد الذكي والمستشار التفاعلي (عبود) */}
         <AIChatbot 
           lang={lang} 
-          supabaseUrl={SUPABASE_URL} 
-          apiKey={API_KEY} 
+          carData={CAR_DATA}
           categoryTree={FULL_CATEGORY_TREE}
-          onOpenCategoryTree={(main, sub) => {
+          onApplyFilters={(filters) => {
             setView('shop');
-            if (!expandedCategories.includes(main)) {
-              setExpandedCategories(prev => [...prev, main]);
+            
+            // فتح شجرة التصنيفات واختيار الفرع
+            if (filters.mainCategory && !expandedCategories.includes(filters.mainCategory)) {
+              setExpandedCategories(prev => [...prev, filters.mainCategory as string]);
             }
-            setFilterCategory(`${main} > ${sub}`);
+            if (filters.mainCategory && filters.subCategory) {
+              setFilterCategory(`${filters.mainCategory} > ${filters.subCategory}`);
+            } else {
+              setFilterCategory('');
+            }
+            
+            // تعبئة الفلاتر الجانبية
+            if (filters.query) setSearchTerm(filters.query);
+            if (filters.make) setFilterMake(filters.make);
+            if (filters.model) setFilterModel(filters.model);
+            if (filters.year) setFilterYear(filters.year);
+
+            // النزول تلقائياً لمنطقة المعروضات
             window.scrollTo({ top: 350, behavior: 'smooth' });
           }}
-          onCloseCategoryTree={() => {
-            setExpandedCategories([]);
+          onCloseFilters={() => {
+            // تصفية جميع الخانات
+            setSearchTerm('');
+            setFilterMake('');
+            setFilterModel('');
+            setFilterYear('');
             setFilterCategory('');
-          }}
-          onFilterCatalog={(query) => {
-            setView('shop');
-            setSearchTerm(query);
+            setExpandedCategories([]);
           }}
         />
 
