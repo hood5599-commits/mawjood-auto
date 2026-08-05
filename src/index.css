@@ -1,18 +1,51 @@
-body {
-  font-family: 'Cairo', sans-serif;
-  background-color: #f7fafc; /* لون الخلفية العام */
-  margin: 0;
-  padding: 0;
-  color: #2d3748;
+/* ==========================================
+   موجود أوتو - الهوية البصرية والتنسيقات الرئيسية
+   ========================================== */
+
+:root {
+  /* ألوان الهوية البصرية الرئيسية */
+  --primary-color: #1f3a5f;      /* الكحلي الملكي */
+  --primary-hover: #162b47;      /* الكحلي الداكن عند التمرير */
+  --accent-color: #e0872a;       /* البرتقالي الدافئ للتفاعل والشراء */
+  --accent-hover: #c7741e;       /* البرتقالي الداكن عند الضغط */
+  
+  /* ألوان الخلفيات والنصوص */
+  --bg-color: #f8fafc;           /* خلفية الموقع العامة */
+  --card-bg: #ffffff;            /* خلفية البطاقات والكرات */
+  --text-color: #1e293b;          /* النص الرئيسي (داكن وواضح) */
+  --text-muted: #64748b;         /* النص الفرعي والتوضيحات */
+  --border-color: #e2e8f0;       /* ألوان الحدود والفاصل */
 }
 
-/* لتنسيق ناعم لكل العناصر */
+/* التنسيق الأساسي لجميع العناصر */
 * {
   box-sizing: border-box;
-}:root {
-  --primary-color: #1a365d;
-  --accent-color: #e53e3e;
-  --text-color: #2d3748;
+  margin: 0;
+  padding: 0;
 }
 
-/* الآن يمكنك استخدامها في أي ملف CSS بهذا الشكل: color: var(--primary-color); */
+/* تنسيق جسم الصفحة */
+body {
+  font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  direction: rtl;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* تحسين تجربة النقر والروابط */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: 'Cairo', sans-serif;
+}
+
+/* شريط التمرير الناعم للموقع */
+html {
+  scroll-behavior: smooth;
+}
