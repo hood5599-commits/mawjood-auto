@@ -33,7 +33,7 @@ const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query
   'مكيف': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor' },
   'دينمو': { main: 'Electrical', sub: 'Alternator / Generator', query: 'Alternator' },
   'سلف': { main: 'Electrical', sub: 'Starter Motor', query: 'Starter' },
-  'بواجي': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug' }
+  'بلاكات': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug' }
 };
 
 export const AIChatbot: React.FC<AIChatbotProps> = ({
@@ -57,7 +57,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
         {
           id: 'welcome',
           sender: 'assistant',
-          text: isRtl ? 'أهلاً! أنا عبود، مساعدك في موجود أوتو. وش القطعة أو السيارة اللي تدور عليها؟' : 'Hi! I am Abboud, your Mawjood Auto assistant. What part or car are you looking for?',
+          text: isRtl ? 'أهلاً! أنا عبود مساعد موجود. وش القطعة أو السيارة اللي تدور عليها؟' : 'Hi! I am Abboud, Mawjood assistant. What part or car are you looking for?',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -134,8 +134,8 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       const partsFound = [extractedMake, extractedModel, extractedYear, (matchedCategory?.sub || '')].filter(Boolean).join(' ');
       
       return isRtl
-        ? `أبشر! جهزت لك نتائج (${partsFound}) خلف هذه المحادثة، تفقدها الآن.`
-        : `Done! Results for (${partsFound}) are ready behind this chat.`;
+        ? `أبشر! جهزت لك نتائج (${partsFound}) في الصفحة، تفقدها الآن.`
+        : `Done! Results for (${partsFound}) are ready.`;
     }
 
     return isRtl
@@ -187,10 +187,13 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
             fontWeight: 'bold',
             fontSize: '14px',
             cursor: 'pointer',
-            boxShadow: '0 8px 20px rgba(31,58,95,0.3)'
+            boxShadow: '0 8px 20px rgba(31,58,95,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}
         >
-          عبود - مساعد موجود
+          <span>عبود مساعد موجود</span>
         </button>
       )}
 
@@ -209,7 +212,10 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
         }}>
           
           <div style={{ backgroundColor: '#1f3a5f', padding: '16px', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>عبود - مساعد موجود</h4>
+            <div>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>عبود مساعد موجود</h4>
+              <span style={{ fontSize: '11px', color: '#cbd5e0' }}>متصل الآن لمساعدتك</span>
+            </div>
             <button
               onClick={() => setIsOpen(false)}
               style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '18px', cursor: 'pointer' }}
