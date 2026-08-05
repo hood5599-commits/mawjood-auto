@@ -15,7 +15,7 @@ interface Message {
   timestamp: string;
 }
 
-// القاموس الذكي للربط اللفظي
+// القاموس الذكي للربط اللفظي والأعراض الميكانيكية
 const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query: string }> = {
   'مروحة': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan' },
   'مروحه': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan' },
@@ -57,7 +57,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
         {
           id: 'welcome',
           sender: 'assistant',
-          text: isRtl ? 'أهلاً! أنا عبود مساعد موجود. وش القطعة أو السيارة اللي تدور عليها؟' : 'Hi! I am Abboud, Mawjood assistant. What part or car are you looking for?',
+          text: isRtl ? 'أهلاً! أنا عبود مساعدك في موجود أوتو. وش القطعة أو السيارة اللي تدور عليها؟' : 'Hi! I am Abboud, your Mawjood Auto assistant. What part or car are you looking for?',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -71,10 +71,34 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
   const processSmartAgentResponse = (userText: string) => {
     const lowerText = userText.toLowerCase();
 
-    // 1. التحقق من إنهاء الطلب وإغلاق الشجرة
+    // 1. الذكاء الخارق: أسئلة خدمة العملاء (FAQs & Intents)
+    if (/(كيف اطلب|شلون اطلب|طريقة الطلب|شلون اشتري|كيف اشتري)/.test(lowerText)) {
+      return isRtl 
+        ? 'الطلب جداً سهل! ابحث عن قطعتك هنا أو في القائمة الجانبية، اضغط على "إضافة للسلة" أو "شراء مباشر"، وكمل بيانات الدفع والتوصيل وبنوصلها لك بأسرع وقت.' 
+        : 'Ordering is easy! Search for your part, add it to cart, fill in your details, and we will deliver it ASAP.';
+    }
+
+    if (/(توصيل|شحن|متى توصل|كم ياخذ وقت|التوصيل)/.test(lowerText)) {
+      return isRtl 
+        ? 'التوصيل عندنا سريع ما يطول! ياخذ عادة من ساعتين إلى 24 ساعة كحد أقصى للطلبات داخل قطر.' 
+        : 'Delivery is fast! It usually takes 2 to 24 hours maximum within Qatar.';
+    }
+
+    if (/(دفع|فلوس|ادفع|طرق الدفع|كاش|ابل باي|بطاقة)/.test(lowerText)) {
+      return isRtl 
+        ? 'نوفر لك كل طرق الدفع اللي تريحك: الدفع عند الاستلام (كاش)، بطاقات الائتمان، و Apple Pay / Google Pay.' 
+        : 'We offer multiple payment methods: Cash on Delivery (COD), Credit/Debit Cards, and Apple/Google Pay.';
+    }
+
+    if (/(غير متوفرة|مو موجودة|مش موجودة|ما لقيتها|مالقيت)/.test(lowerText)) {
+      return isRtl 
+        ? 'ولا تشيل هم! اضغط على زر "طلب قطعة غير متوفرة" الموجود في أعلى الموقع، عطنا تفاصيلها واحنا بنبحث لك عنها في كل الكراجات ونوفرها لك بأفضل سعر.' 
+        : 'No worries! Click the "Request Custom Part" button at the top, provide the details, and we will find it for you.';
+    }
+
     if (/(شكرا|تم|خلاص|يعطيك العافية|cancel|thanks|close)/.test(lowerText)) {
       onCloseFilters();
-      return isRtl ? 'حياك الله بأي وقت! تم تصفية البحث.' : 'Happy to help! Search cleared.';
+      return isRtl ? 'حياك الله بأي وقت! تم إعادة ضبط الفلاتر لتتصفح براحتك.' : 'Happy to help! Search filters cleared.';
     }
 
     // 2. الذكاء الخارق: استخراج الشركة، الموديل، السنة من الجملة مباشرة
@@ -82,18 +106,16 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
     let extractedModel = '';
     let extractedYear = '';
 
-    // استخراج السنة (أرقام بين 1900 و 2029)
     const yearMatch = lowerText.match(/\b(19\d{2}|20\d{2})\b/);
     if (yearMatch) extractedYear = yearMatch[1];
 
-    // استخراج الماركة والموديل بذكاء
     for (const [make, data] of Object.entries(carData)) {
       if (lowerText.includes(make.toLowerCase())) extractedMake = make;
       
       for (const model of data.models) {
         if (lowerText.includes(model.toLowerCase())) {
           extractedModel = model;
-          extractedMake = make; // استنتاج الماركة تلقائياً إذا عرف الموديل
+          extractedMake = make; // استنتاج الماركة تلقائياً إذا تم تحديد الموديل
           break;
         }
       }
@@ -120,7 +142,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       }
     }
 
-    // 4. تنفيذ أوامر الفلترة في الخلفية
+    // 4. تنفيذ أوامر الفلترة في الخلفية إذا وجدنا معطيات
     if (matchedCategory || extractedMake || extractedModel || extractedYear) {
       onApplyFilters({
         query: matchedCategory?.query || '',
@@ -134,13 +156,14 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       const partsFound = [extractedMake, extractedModel, extractedYear, (matchedCategory?.sub || '')].filter(Boolean).join(' ');
       
       return isRtl
-        ? `أبشر! جهزت لك نتائج (${partsFound}) في الصفحة، تفقدها الآن.`
-        : `Done! Results for (${partsFound}) are ready.`;
+        ? `أبشر! قمت بفلترة النتائج لـ (${partsFound})، تفقد الشاشة خلفي الآن.`
+        : `Done! Results for (${partsFound}) are applied to the screen behind me.`;
     }
 
+    // الرد النهائي في حال لم يفهم شيئاً
     return isRtl
-      ? 'ما فهمت عليك زين، ياليت توضح لي اسم القطعة وموديل السيارة.'
-      : 'Could you clarify the part name and your car model?';
+      ? 'ما فهمت عليك زين، تقدر تسألني عن طريقة الطلب، أو تعطيني اسم القطعة وموديل سيارتك عشان أبحث لك.'
+      : 'I didn\'t quite catch that. You can ask me how to order, or give me a part name and your car model to search.';
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -214,7 +237,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
           <div style={{ backgroundColor: '#1f3a5f', padding: '16px', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>عبود مساعد موجود</h4>
-              <span style={{ fontSize: '11px', color: '#cbd5e0' }}>متصل الآن لمساعدتك</span>
+              <span style={{ fontSize: '11px', color: '#cbd5e0' }}>متصل الآن لخدمتك</span>
             </div>
             <button
               onClick={() => setIsOpen(false)}
@@ -246,7 +269,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
             ))}
             {isTyping && (
               <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '12px', fontSize: '12px', color: '#64748b' }}>
-                جاري البحث...
+                جاري الرد...
               </div>
             )}
             <div ref={chatEndRef} />
@@ -255,7 +278,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
           <form onSubmit={handleSendMessage} style={{ padding: '12px', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '8px' }}>
             <input
               type="text"
-              placeholder={isRtl ? 'وش تبحث عنه؟' : 'What are you looking for?'}
+              placeholder={isRtl ? 'اسألني أو ابحث عن قطعة...' : 'Ask or search for a part...'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', outline: 'none' }}
