@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 
 interface AIChatbotProps {
   lang: 'ar' | 'en';
-  supabaseUrl: string;
-  apiKey: string;
+  carData: Record<string, { models: string[], engines: string[] }>;
   categoryTree: Record<string, string[]>;
-  onOpenCategoryTree: (mainCategory: string, subCategory: string) => void;
-  onCloseCategoryTree: () => void;
-  onFilterCatalog: (searchQuery: string) => void;
+  onApplyFilters: (filters: { query?: string; make?: string; model?: string; year?: string; mainCategory?: string; subCategory?: string }) => void;
+  onCloseFilters: () => void;
 }
 
 interface Message {
@@ -17,42 +15,33 @@ interface Message {
   timestamp: string;
 }
 
-// قاموس الربط بين المصطلحات العامية الخليجية/الأعراض والتصنيفات المعيارية
+// القاموس الذكي للربط اللفظي
 const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query: string }> = {
-  // الفرامل والفرع الفني
+  'مروحة': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan' },
+  'مروحه': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan' },
+  'رديتر': { main: 'Cooling System', sub: 'Radiator', query: 'Radiator' },
+  'لديتر': { main: 'Cooling System', sub: 'Radiator', query: 'Radiator' },
   'سفايف': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad' },
   'قماشات': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad' },
   'دسيين': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor' },
   'هوبات': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor' },
-  'صرير': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad' },
-  
-  // التعليق والمساعدات
   'جامبينات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock' },
   'مساعدات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock' },
   'شيال': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm' },
   'مقصات': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm' },
-  'طقطقة': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm' },
-
-  // التكييف والتبريد
   'كمبروسر': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor' },
   'مكيف': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor' },
-  'رديتر': { main: 'Cooling System', sub: 'Radiator', query: 'Radiator' },
-  'حرارة': { main: 'Cooling System', sub: 'Thermostat', query: 'Thermostat' },
-
-  // الكهرباء والمحرك
   'دينمو': { main: 'Electrical', sub: 'Alternator / Generator', query: 'Alternator' },
   'سلف': { main: 'Electrical', sub: 'Starter Motor', query: 'Starter' },
-  'بواجي': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug' },
-  'تفتفة': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug' },
-  'موبينات': { main: 'Ignition', sub: 'Ignition Coil', query: 'Coil' }
+  'بواجي': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug' }
 };
 
 export const AIChatbot: React.FC<AIChatbotProps> = ({
   lang,
+  carData,
   categoryTree,
-  onOpenCategoryTree,
-  onCloseCategoryTree,
-  onFilterCatalog
+  onApplyFilters,
+  onCloseFilters
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -68,9 +57,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
         {
           id: 'welcome',
           sender: 'assistant',
-          text: isRtl
-            ? 'أهلاً بك مع خبير موجود أوتو للقطع والصيانة. كيف يمكنني مساعدتك اليوم في اختيار القطعة المناسبة لسيارتك؟'
-            : 'Welcome to Mawjood Auto Sales & Technical Expert. How can I assist you in finding the right part today?',
+          text: isRtl ? 'أهلاً! أنا عبود، مساعدك في موجود أوتو. وش القطعة أو السيارة اللي تدور عليها؟' : 'Hi! I am Abboud, your Mawjood Auto assistant. What part or car are you looking for?',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -84,17 +71,36 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
   const processSmartAgentResponse = (userText: string) => {
     const lowerText = userText.toLowerCase();
 
-    // 1. فحص إغلاق الشجرة وإكمال الطلب
-    if (lowerText.includes('شكرا') || lowerText.includes('تم') || lowerText.includes('خلاص') || lowerText.includes('cancel') || lowerText.includes('thanks')) {
-      onCloseCategoryTree();
-      return isRtl
-        ? 'العفو! سعيد بخدمتك. تم إغلاق الشجرة، وإذا احتجت أي قطعة أخرى أنا موجود دائماً لخدمتك.'
-        : 'You are welcome! Category tree closed. Let me know if you need anything else.';
+    // 1. التحقق من إنهاء الطلب وإغلاق الشجرة
+    if (/(شكرا|تم|خلاص|يعطيك العافية|cancel|thanks|close)/.test(lowerText)) {
+      onCloseFilters();
+      return isRtl ? 'حياك الله بأي وقت! تم تصفية البحث.' : 'Happy to help! Search cleared.';
     }
 
-    // 2. البحث عن المطابقات التشخيصية واللفظية
-    let matchedCategory: { main: string; sub: string; query: string } | null = null;
+    // 2. الذكاء الخارق: استخراج الشركة، الموديل، السنة من الجملة مباشرة
+    let extractedMake = '';
+    let extractedModel = '';
+    let extractedYear = '';
 
+    // استخراج السنة (أرقام بين 1900 و 2029)
+    const yearMatch = lowerText.match(/\b(19\d{2}|20\d{2})\b/);
+    if (yearMatch) extractedYear = yearMatch[1];
+
+    // استخراج الماركة والموديل بذكاء
+    for (const [make, data] of Object.entries(carData)) {
+      if (lowerText.includes(make.toLowerCase())) extractedMake = make;
+      
+      for (const model of data.models) {
+        if (lowerText.includes(model.toLowerCase())) {
+          extractedModel = model;
+          extractedMake = make; // استنتاج الماركة تلقائياً إذا عرف الموديل
+          break;
+        }
+      }
+    }
+
+    // 3. استخراج القطعة المطلوبة
+    let matchedCategory: { main: string; sub: string; query: string } | null = null;
     for (const [key, val] of Object.entries(SYMPTOM_AND_DIALECT_MAP)) {
       if (lowerText.includes(key.toLowerCase())) {
         matchedCategory = val;
@@ -102,11 +108,10 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       }
     }
 
-    // إذا لم نجد في القاموس العامي، نبحث بداخل شجرة التصنيفات المباشرة
     if (!matchedCategory) {
       for (const [mainCat, subCats] of Object.entries(categoryTree)) {
         for (const subCat of subCats) {
-          if (lowerText.includes(subCat.toLowerCase())) {
+          if (lowerText.includes(subCat.toLowerCase()) || lowerText.includes(subCat.split(' ')[0].toLowerCase())) {
             matchedCategory = { main: mainCat, sub: subCat, query: subCat };
             break;
           }
@@ -115,21 +120,27 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       }
     }
 
-    // 3. اتخاذ القرار التفاعلي المباشر
-    if (matchedCategory) {
-      // فتح الشجرة آلياً وتصفية الكتالوج
-      onOpenCategoryTree(matchedCategory.main, matchedCategory.sub);
-      onFilterCatalog(matchedCategory.query);
+    // 4. تنفيذ أوامر الفلترة في الخلفية
+    if (matchedCategory || extractedMake || extractedModel || extractedYear) {
+      onApplyFilters({
+        query: matchedCategory?.query || '',
+        make: extractedMake,
+        model: extractedModel,
+        year: extractedYear,
+        mainCategory: matchedCategory?.main,
+        subCategory: matchedCategory?.sub
+      });
 
+      const partsFound = [extractedMake, extractedModel, extractedYear, (matchedCategory?.sub || '')].filter(Boolean).join(' ');
+      
       return isRtl
-        ? `بناءً على طلبك، قمت بفتح قسم (${matchedCategory.main} > ${matchedCategory.sub}) لك على الشاشة فوراً، وتم تصفية القطع المتاحة. تنبيه هام: هذا التشخيص الأولي مبني على الأعراض المذكورة، وننصحك دائماً بزيارة كراج فحص مختص لمعاينة السيارة على الطبيعة وتأكيد السبب قبل الشراء.`
-        : `I have opened (${matchedCategory.main} > ${matchedCategory.sub}) for you on screen. Note: This initial assessment is based on described symptoms; we strongly recommend visiting a professional garage to inspect the car in person before purchasing.`;
+        ? `أبشر! جهزت لك نتائج (${partsFound}) خلف هذه المحادثة، تفقدها الآن.`
+        : `Done! Results for (${partsFound}) are ready behind this chat.`;
     }
 
-    // 4. الرد المباشر لمدير المبيعات والمستشار
     return isRtl
-      ? 'يسعدني مساعدتك! يرجى تزويدي باسم القطعة أو نوع المشكلة التي تظهر بسيارتك، وسأقوم بفتح التصنيف المناسب لك وتحديد أفضل الخيارات المتاحة لدى الكراجات.'
-      : 'I am happy to assist! Please provide the part name or symptom, and I will navigate the category tree and show available parts directly.';
+      ? 'ما فهمت عليك زين، ياليت توضح لي اسم القطعة وموديل السيارة.'
+      : 'Could you clarify the part name and your car model?';
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -158,7 +169,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       };
       setMessages(prev => [...prev, assistantMsg]);
       setIsTyping(false);
-    }, 800);
+    }, 600);
   };
 
   return (
@@ -176,20 +187,17 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
             fontWeight: 'bold',
             fontSize: '14px',
             cursor: 'pointer',
-            boxShadow: '0 8px 20px rgba(31,58,95,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
+            boxShadow: '0 8px 20px rgba(31,58,95,0.3)'
           }}
         >
-          <span>خبير موجود أوتو الذكي</span>
+          عبود - مساعد موجود
         </button>
       )}
 
       {isOpen && (
         <div style={{
-          width: '360px',
-          height: '500px',
+          width: '340px',
+          height: '460px',
           backgroundColor: '#ffffff',
           borderRadius: '20px',
           boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
@@ -201,10 +209,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
         }}>
           
           <div style={{ backgroundColor: '#1f3a5f', padding: '16px', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>خبير ومستشار المبيعات</h4>
-              <span style={{ fontSize: '11px', color: '#cbd5e0' }}>متصل الآن لمساعدتك بالمبيعات والتوافق</span>
-            </div>
+            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>عبود - مساعد موجود</h4>
             <button
               onClick={() => setIsOpen(false)}
               style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '18px', cursor: 'pointer' }}
@@ -235,7 +240,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
             ))}
             {isTyping && (
               <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '12px', fontSize: '12px', color: '#64748b' }}>
-                جاري التحليل واستدعاء الواجهة...
+                جاري البحث...
               </div>
             )}
             <div ref={chatEndRef} />
@@ -244,7 +249,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
           <form onSubmit={handleSendMessage} style={{ padding: '12px', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '8px' }}>
             <input
               type="text"
-              placeholder={isRtl ? 'اكتب اسم القطعة أو العطل...' : 'Type part name or symptom...'}
+              placeholder={isRtl ? 'وش تبحث عنه؟' : 'What are you looking for?'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', outline: 'none' }}
