@@ -26,7 +26,6 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
   const [partNumber, setPartNumber] = useState('');
   const [notes, setNotes] = useState(initialPartName);
 
-  // 📸 حالات رفع الصور (القطعة القديمة + الاستمارة)
   const [oldPartImgUrl, setOldPartImgUrl] = useState('');
   const [vinImgUrl, setVinImgUrl] = useState('');
   const [uploadingOldPart, setUploadingOldPart] = useState(false);
@@ -40,7 +39,6 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
 
   const cleanUrl = supabaseUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '') || "https://shszpcjmhkemqwborfwy.supabase.co";
 
-  // دالة رفع الصور المباشرة إلى Supabase Storage
   const uploadImageToStorage = async (file: File): Promise<string | null> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
@@ -65,7 +63,6 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
     return null;
   };
 
-  // 📄 دالة قراءة رقم الشاصي VIN تلقائياً من صورة الاستمارة المخصصة للاستمارة القطرية
   const handleVinImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -74,18 +71,14 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
     setScanningVin(true);
 
     try {
-      // 1️⃣ رفع الصورة إلى السيرفر للحصول على رابط مباشر
       const publicUrl = await uploadImageToStorage(file);
       if (publicUrl) setVinImgUrl(publicUrl);
 
-      // 2️⃣ القراءة الذكية عبر OCR
       const worker = await createWorker('eng');
       const ret = await worker.recognize(file);
       await worker.terminate();
 
       const rawText = ret.data.text;
-      
-      // أ) البحث المباشر عن نمط الـ VIN (17 حرفاً ورقماً)
       const cleanedText = rawText.replace(/[\s\-_]/g, '').toUpperCase();
       const standardVinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
       const match = cleanedText.match(standardVinRegex);
@@ -93,7 +86,6 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
       if (match) {
         setVinNumber(match[0].toUpperCase());
       } else {
-        // ب) استراتيجية مخصصة للاستمارة: البحث بالقرب من كلمة Chassis أو رقم القاعدة
         const lines = rawText.split('\n');
         for (const line of lines) {
           if (line.toLowerCase().includes('chassis') || line.toLowerCase().includes('engine') || line.includes('القاعدة')) {
@@ -114,7 +106,6 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
     }
   };
 
-  // 📸 رفع صورة القطعة القديمة
   const handleOldPartUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -131,6 +122,11 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
     e.preventDefault();
     setSubmitting(true);
 
+    // إنشاء معرف مشفر وخاص بالعميل لحماية الخصوصية
+    const anonymousCustomerCode = customerPhone && customerPhone !== 'زائر'
+      ? `CUST-${Math.abs(customerPhone.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0) % 89999 + 10000)}`
+      : 'CUST-GUEST';
+
     try {
       const response = await fetch(`${cleanUrl}/rest/v1/custom_part_requests`, {
         method: 'POST',
@@ -141,7 +137,7 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
-          customer_phone: customerPhone || 'زائر',
+          customer_phone: anonymousCustomerCode,
           make,
           model,
           year,
@@ -178,20 +174,18 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
         
         <button onClick={onClose} style={{ position: 'absolute', top: '16px', left: '16px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}>✕</button>
 
-        <h3 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>🛠️</span> طلب تسعير قطعة غير متوفرة
+        <h3 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
+          طلب تسعير قطعة غير متوفرة
         </h3>
 
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: '#16a34a' }}>
-            <div style={{ fontSize: '48px', marginBottom: '8px' }}>✅</div>
-            <h4 style={{ margin: 0, fontSize: '18px' }}>تم إرسال طلبك بنجاح!</h4>
+            <h4 style={{ margin: 0, fontSize: '18px' }}>تم إرسال طلبك بنجاح</h4>
             <p style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>ستصلك عروض الأسعار والتنبيهات فور توفرها.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             
-            {/* بيانات السيارة */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>الشركة المصنعة *</label>
@@ -214,14 +208,13 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
               </div>
             </div>
 
-            {/* صورة الاستمارة + قراءة رقم الشاصي */}
             <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px dashed #94a3b8' }}>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f', display: 'block', marginBottom: '6px' }}>
-                📄 صورة الاستمارة (لقراءة رقم الشاصي تلقائياً)
+                صورة الاستمارة (لقراءة رقم الشاصي تلقائياً)
               </label>
               <input type="file" accept="image/*" onChange={handleVinImageUpload} disabled={uploadingVinImg} style={{ fontSize: '12px', width: '100%' }} />
-              {scanningVin && <p style={{ fontSize: '11px', color: '#e0872a', margin: '4px 0 0 0', fontWeight: 'bold' }}>⏳ جاري فحص وقراءة رقم الشاصي تلقائياً من الصورة...</p>}
-              {vinImgUrl && <span style={{ fontSize: '11px', color: '#16a34a', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>✅ تم رفع صورة الاستمارة</span>}
+              {scanningVin && <p style={{ fontSize: '11px', color: '#e0872a', margin: '4px 0 0 0', fontWeight: 'bold' }}>جاري فحص وقراءة رقم الشاصي تلقائياً من الصورة...</p>}
+              {vinImgUrl && <span style={{ fontSize: '11px', color: '#16a34a', display: 'block', marginTop: '4px', fontWeight: 'bold' }}>تم رفع صورة الاستمارة</span>}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -235,23 +228,20 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
               </div>
             </div>
 
-            {/* صورة القطعة القديمة */}
             <div>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>صورة القطعة القديمة (اختياري)</label>
               <input type="file" accept="image/*" onChange={handleOldPartUpload} disabled={uploadingOldPart} style={{ fontSize: '12px', width: '100%' }} />
               {uploadingOldPart && <p style={{ fontSize: '11px', color: '#e0872a', margin: '4px 0 0 0' }}>جاري رفع الصورة...</p>}
-              {oldPartImgUrl && <span style={{ fontSize: '11px', color: '#16a34a', display: 'block', marginTop: '2px', fontWeight: 'bold' }}>✅ تم رفع صورة القطعة القديمة</span>}
+              {oldPartImgUrl && <span style={{ fontSize: '11px', color: '#16a34a', display: 'block', marginTop: '2px', fontWeight: 'bold' }}>تم رفع صورة القطعة القديمة</span>}
             </div>
 
-            {/* تفاصيل وملاحظات */}
             <div>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>تفاصيل القطعة وملاحظاتك *</label>
               <textarea required rows={3} placeholder="اكتب اسم القطعة بالتفصيل (مثال: مروحة رديتر جهة السائق)..." value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
             </div>
 
-            {/* 👇 زر إرسال الطلب المحدث */}
             <button type="submit" disabled={submitting} style={{ backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', padding: '12px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', marginTop: '8px', boxShadow: '0 4px 12px rgba(224,135,42,0.3)' }}>
-              {submitting ? 'جاري الإرسال...' : '🚀 إرسال الطلب'}
+              {submitting ? 'جاري الإرسال...' : 'إرسال الطلب'}
             </button>
           </form>
         )}
