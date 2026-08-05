@@ -42,9 +42,13 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   const [uploadingReg, setUploadingReg] = useState(false);
   const [scanningVin, setScanningVin] = useState(false);
 
-  // إعدادات الشحن والدفع
+  // إعدادات الشحن وتحديد الموقع عبر Google Maps
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
   const [addressDetails, setAddressDetails] = useState('');
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const [mapsLink, setMapsLink] = useState('');
+
+  // طرق الدفع
   const [paymentMethod, setPaymentMethod] = useState<'apple_pay' | 'google_pay' | 'card' | 'cod'>('card');
 
   // 💳 حالات بيانات البطاقة البنكية
@@ -56,7 +60,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   const [loading, setLoading] = useState(false);
   const [createdOrderCode, setCreatedOrderCode] = useState('');
 
-  // قراءة صلاحيات الدفع المفعلة من الأدمن
+  // قراءة صلاحيات الدفع
   const isOnlinePaymentEnabled = siteSettings?.enableOnlinePayment ?? true;
   const showApplePay = siteSettings?.enableApplePay ?? true;
   const showGooglePay = siteSettings?.enableGooglePay ?? true;
@@ -67,14 +71,41 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   const deliveryFee = deliveryType === 'delivery' ? 35 : 0;
   const totalPrice = (Number(part?.price) || 0) + deliveryFee;
 
-  // تنسيق رقم البطاقة تلقائياً (4 أرقام - 4 أرقام...)
+  // 📍 دالة تحديد موقع العميل عبر GPS وتوليد رابط Google Maps
+  const handleGetGPSLocation = () => {
+    if (!navigator.geolocation) {
+      alert(isRtl ? 'المتصفح لا يدعم تحديد الموقع الجغرافي' : 'Geolocation is not supported by your browser');
+      return;
+    }
+
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const gMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+        
+        setMapsLink(gMapsUrl);
+        setAddressDetails((prev) => prev ? `${prev} (موقع الخريطة: ${gMapsUrl})` : `موقعي الجغرافي: ${gMapsUrl}`);
+        setGettingLocation(false);
+      },
+      (error) => {
+        console.error("GPS Location Error:", error);
+        alert(isRtl ? 'تعذر تحديد موقعك الحالي. تأكد من إعطاء الصلاحية للمتصفح.' : 'Could not fetch location. Please allow browser location access.');
+        setGettingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // تنسيق رقم البطاقة
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '').substring(0, 16);
     const formatted = value.match(/.{1,4}/g)?.join(' ') || value;
     setCardNumber(formatted);
   };
 
-  // تنسيق تاريخ الانتهاء (MM/YY)
+  // تنسيق تاريخ الانتهاء
   const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '').substring(0, 4);
     if (value.length >= 3) {
@@ -83,7 +114,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     setCardExpiry(value);
   };
 
-  // 📸 دالة رفع الصور المباشرة لـ Supabase Storage + قراءة رقم الشاصي VIN من الاستمارة تلقائياً (محسّنة للاستمارة القطرية والجوال)
+  // 📸 دالة رفع الصور
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'old_part' | 'reg') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -92,7 +123,6 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     if (target === 'old_part') setUploadingOldPart(true);
     else setUploadingReg(true);
 
-    // 🔍 إذا كانت الصورة المرفوعة هي صورة الاستمارة، نقوم بقراءة الـ VIN تلقائياً عبر Tesseract OCR
     if (target === 'reg') {
       setScanningVin(true);
       try {
@@ -101,8 +131,6 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         await worker.terminate();
 
         const rawText = ret.data.text;
-        
-        // 1️⃣ البحث عن نمط الـ VIN المكون من 17 حرفاً ورقماً بعد تنظيف النص المجلوب
         const cleanedText = rawText.replace(/[\s\-_]/g, '').toUpperCase();
         const standardVinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
         const match = cleanedText.match(standardVinRegex);
@@ -110,7 +138,6 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         if (match) {
           setVinNumber(match[0].toUpperCase());
         } else {
-          // 2️⃣ البحث المباشر في الأسطر القريبة من الكلمات المفتاحية بالاستمارة القطرية
           const lines = rawText.split('\n');
           for (const line of lines) {
             if (line.toLowerCase().includes('chassis') || line.toLowerCase().includes('engine') || line.includes('القاعدة')) {
@@ -158,7 +185,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     }
   };
 
-  // 1️⃣ إرسال استفسار فحص التوافق + إضافة أوتوماتيكية للسلة
+  // 1️⃣ إرسال استفسار فحص التوافق
   const handleSendInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -200,10 +227,10 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     }
   };
 
-  // 2️⃣ إتمام الدفع التنفيذي وإرسال الطلب للكراج
+  // 2️⃣ إتمام الشراء والدفع
   const handleFinalCheckout = async () => {
     if (deliveryType === 'delivery' && !addressDetails.trim()) {
-      alert(isRtl ? 'يرجى إدخال عنوان التوصيل بالتفصيل' : 'Please enter your full delivery address');
+      alert(isRtl ? 'يرجى إدخال عنوان التوصيل أو استخدام زر تحديد الموقع على الخريطة' : 'Please enter delivery address or use map locator');
       return;
     }
 
@@ -385,7 +412,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         {step === 'checkout' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             
-            {/* خيارات الشحن والتوصيل */}
+            {/* خيارات الشحن والتوصيل + زر Google Maps */}
             <div>
               <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 'bold', marginBottom: '8px' }}>
                 {isRtl ? '🚚 طريقة استلام القطعة:' : '🚚 Delivery Method:'}
@@ -409,18 +436,54 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
             </div>
 
             {deliveryType === 'delivery' && (
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>
-                  {isRtl ? '📍 عنوان التوصيل بالتفصيل (المنطقة / الشارع / المبنى):' : '📍 Full Delivery Address (Zone / Street / Bldg):'}
-                </label>
+              <div style={{ backgroundColor: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
+                    {isRtl ? '📍 عنوان التوصيل بالتفصيل:' : '📍 Delivery Address Details:'}
+                  </label>
+                  
+                  {/* 📍 زر تحديد الموقع عبر Google Maps المباشر */}
+                  <button
+                    type="button"
+                    onClick={handleGetGPSLocation}
+                    disabled={gettingLocation}
+                    style={{
+                      backgroundColor: '#e0872a',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: gettingLocation ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    📍 {gettingLocation ? (isRtl ? 'جاري التحديد...' : 'Locating...') : (isRtl ? 'تحديد موقعي بـ Google Maps' : 'Locate on Maps')}
+                  </button>
+                </div>
+
                 <input
                   type="text"
-                  placeholder={isRtl ? "مثال: الدوحة، منطقة السد، شارع 840، مبنى 12" : "E.g., Doha, Al Sadd, St 840, Bldg 12"}
+                  placeholder={isRtl ? "مثال: الدوحة، منطقة السد، شارع 840، مبنى 12 أو اضغط الزر أعلاه..." : "E.g., Doha, Al Sadd, St 840, Bldg 12 or use map button above..."}
                   value={addressDetails}
                   onChange={(e) => setAddressDetails(e.target.value)}
                   style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', boxSizing: 'border-box' }}
                   required
                 />
+
+                {mapsLink && (
+                  <a
+                    href={mapsLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '12px', color: '#16a34a', fontWeight: 'bold', textDecoration: 'underline' }}
+                  >
+                    ✅ {isRtl ? 'تم تحديد إحداثيات موقعك بنجاح (معاينة على الخريطة)' : 'Location captured (View on Google Maps)'}
+                  </a>
+                )}
               </div>
             )}
 
@@ -472,7 +535,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
                   </button>
                 )}
 
-                {/* 💳 مربع إدخال بيانات الفيزا / ماستركارد عند اختيار البطاقة */}
+                {/* 💳 مربع إدخال بيانات البطاقة */}
                 {paymentMethod === 'card' && (
                   <div style={{ backgroundColor: '#f0f7ff', padding: '16px', borderRadius: '14px', border: '1px solid #bae6fd', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -582,7 +645,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
           <div style={{ textAlign: 'center', padding: '20px 10px' }}>
             <span style={{ fontSize: '54px' }}>🎉</span>
             <h3 style={{ color: '#1e9d6b', margin: '10px 0 6px 0' }}>
-              {isRtl ? 'تم إرسال طلبك للكراج بنجاح!' : 'Order Placed Successfully!'}
+              {isRtl ? 'تم إرسال طلبك بنجاح!' : 'Order Placed Successfully!'}
             </h3>
             <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '16px' }}>
               {isRtl ? `كود العملية الخاص بك هو: ` : `Your order code is: `}
