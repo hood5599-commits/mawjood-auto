@@ -865,8 +865,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#fff7ed', color: '#c2410c', padding: '4px 10px', borderRadius: '6px', border: '1px solid #ffedd5' }}>
                       {isRtl ? 'رقم الطلب:' : 'Request ID:'} #{req.id}
                     </span>
-                    <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                      {req.customer_phone}
+                    {/* 🔒 إظهار معرف العميل المشفّر لحماية الخصوصية بدلاً من رقم الهاتف */}
+                    <span style={{ fontSize: '12.5px', color: '#64748b', fontWeight: 'bold' }}>
+                      {isRtl ? 'معرف العميل:' : 'Customer ID:'} {req.customer_phone?.startsWith('CUST') ? req.customer_phone : `CUST-${req.id + 1000}`}
                     </span>
                   </div>
 
