@@ -47,9 +47,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     setLoading(true);
     try {
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(`${supabaseUrl}/orders?customer_phone=eq.${customerPhone}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${customerPhone}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${customerPhone}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(`${supabaseUrl}/orders?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
       ]);
 
       if (resOrders.ok) setOrders(await resOrders.json());
@@ -228,7 +228,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         }
         .mwj-ot-review-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
 
-        /* نافذة التقييم المنبثقة */
         .mwj-ot-review-overlay {
           position: fixed; inset: 0; background: rgba(15,23,32,0.65); backdrop-filter: blur(3px);
           display: flex; justify-content: center; align-items: center; z-index: 1100; padding: 20px;
@@ -367,7 +366,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     </div>
 
                     <div className="mwj-ot-part-row">
-                      <img src={inq.part_image || 'https://via.placeholder.com/60'} alt={inq.part_name} />
+                      <img src={inq.part_image || inq.image_url || 'https://via.placeholder.com/60'} alt={inq.part_name} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <strong style={{ fontSize: '15px', color: '#16304f' }}>
                           <AITranslatedText text={inq.part_name} lang={lang} />
@@ -398,7 +397,8 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                                 inquiry_id: inq.id,
                                 name: inq.part_name,
                                 price: inq.part_price,
-                                image_url: inq.part_image,
+                                image_url: inq.part_image || inq.image_url,
+                                image: inq.part_image || inq.image_url,
                                 user_id: inq.garage_id,
                                 make: inq.car_make,
                                 model: inq.car_model,
@@ -506,6 +506,8 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                                 id: `custom-${q.id}`,
                                 name: `${selectedRequestQuotes.request.notes} (${q.part_type})`,
                                 price: q.price,
+                                image_url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
+                                image: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
                                 user_id: q.garage_id,
                                 make: selectedRequestQuotes.request.make,
                                 model: selectedRequestQuotes.request.model,
@@ -513,7 +515,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                               });
                             }
                           }}
-                          style={{ width: '100%', padding: '11px', backgroundColor: '#1e9d6b', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}
+                          style={{ width: '100%', padding: '11px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}
                         >
                           🛒 قبول العرض والشراء فوراً
                         </button>
@@ -584,7 +586,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
                   {/* تعليق إضافي */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '7px', color: '#334155' }}>
                       {lang === 'ar' ? 'ملاحظات أو تعليق إضافي (اختياري):' : 'Additional comments (Optional):'}
                     </label>
                     <textarea placeholder={lang === 'ar' ? 'اكتب رأيك لتطوير خدمتنا...' : 'Write your feedback...'} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mwj-ot-review-textarea" />
