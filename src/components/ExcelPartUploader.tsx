@@ -155,9 +155,6 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     const BATCH_SIZE = 50; // رفع 50 قطعة في كل دفعة لضمان أداء مستقر ومباشر
     const total = rawData.length;
 
-    const mappedHeaderValues = Object.values(mapping).filter(Boolean);
-    const unmappedHeaders = headers.filter(h => !mappedHeaderValues.includes(h));
-
     for (let i = 0; i < total; i += BATCH_SIZE) {
       const chunk = rawData.slice(i, i + BATCH_SIZE);
       
@@ -165,13 +162,6 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
         const rawMake = String(row[mapping.make] || '').trim();
         const { make, isCorrected } = cleanAndCorrectMake(rawMake);
         if (isCorrected) autoCorrections++;
-
-        const extraSpecs: Record<string, any> = {};
-        unmappedHeaders.forEach(h => {
-          if (row[h] !== '' && row[h] !== null && row[h] !== undefined) {
-            extraSpecs[h] = row[h];
-          }
-        });
 
         return {
           name: String(row[mapping.name] || 'قطعة بدون اسم').trim(),
@@ -183,13 +173,12 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
           part_number: mapping.part_number && row[mapping.part_number] ? String(row[mapping.part_number]).trim() : null,
           condition: mapping.condition && row[mapping.condition] ? String(row[mapping.condition]).trim() : 'جديد',
           user_id: session?.user?.id || session?.id || session?.phone || 'garage',
-          additional_images: [],
           image_url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'
         };
       });
 
       try {
-        await fetch(`${supabaseUrl}/parts`, {
+        const res = await fetch(`${supabaseUrl}/parts`, {
           method: 'POST',
           headers: {
             'apikey': apiKey,
@@ -199,6 +188,11 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
           },
           body: JSON.stringify(batchPayload)
         });
+
+        if (!res.ok) {
+          const errBody = await res.json();
+          console.error("Supabase Excel Upload Error:", errBody);
+        }
 
         const currentUploaded = Math.min(i + BATCH_SIZE, total);
         setUploadedCount(currentUploaded);
