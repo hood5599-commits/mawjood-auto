@@ -10,16 +10,29 @@ interface ExcelPartUploaderProps {
   onSuccess: () => void;
 }
 
-// 🧠 القاموس الذكي للمرادفات (Auto-Detect Dictionary)
+// 🧠 القاموس الذكي الشامل للمرادفات مع تصحيح الكلمات الشائعة (Auto-Detect Dictionary)
 const SYNONYMS: Record<string, string[]> = {
-  name: ['اسم القطعة', 'القطعة', 'الاسم', 'اسم السلعة', 'الوصف', 'part name', 'name', 'item', 'description', 'part', 'title', 'سلعة'],
-  make: ['الماركة', 'الشركة', 'نوع السيارة', 'المصنع', 'الماركه', 'make', 'brand', 'car make', 'manufacturer'],
-  model: ['الموديل', 'موديل السيارة', 'الموديل/الفئة', 'الموديل ', 'model', 'car model'],
-  year: ['السنة', 'سنة الصنع', 'الموديل (السنة)', 'سنه الصنع', 'year', 'make year', 'prod year'],
-  category: ['القسم', 'الفئة', 'التصنيف', 'قسم القطعة', 'category', 'cat', 'type'],
-  price: ['السعر', 'سعر البيع', 'المبلغ', 'القيمة', 'سعر التجزئة', 'price', 'unit price', 'selling price', 'cost', 'amount'],
-  part_number: ['رقم القطعة', 'الرمز', 'كود القطعة', 'رقم الغيار', 'oem', 'part number', 'part no', 'sku', 'part_number', 'code'],
+  name: ['اسم القطعة', 'القطعة', 'الاسم', 'اسم السلعة', 'الوصف', 'part name', 'name', 'item', 'description', 'part', 'title', 'سلعة', 'اسم الغيار'],
+  make: ['الماركة', 'الشركة', 'نوع السيارة', 'المصنع', 'الماركه', 'تويوتا', 'نيسان', 'make', 'brand', 'car make', 'manufacturer'],
+  model: ['الموديل', 'موديل السيارة', 'الموديل/الفئة', 'الموديل ', 'model', 'car model', 'فئة السيارة'],
+  year: ['السنة', 'سنة الصنع', 'الموديل (السنة)', 'سنه الصنع', 'year', 'make year', 'prod year', 'عام'],
+  category: ['القسم', 'الفئة', 'التصنيف', 'قسم القطعة', 'التصنيف الرئيسي', 'category', 'cat', 'type'],
+  price: ['السعر', 'سعر البيع', 'المبلغ', 'القيمة', 'سعر التجزئة', 'price', 'unit price', 'selling price', 'cost', 'amount', 'QAR'],
+  part_number: ['رقم القطعة', 'الرمز', 'كود القطعة', 'رقم الغيار', 'oem', 'part number', 'part no', 'sku', 'part_number', 'code', 'رقم الشاصي'],
   condition: ['الحالة', 'حالة القطعة', 'جديد/مستعمل', 'condition', 'state']
+};
+
+// 🛠️ خريطة لتعديل الأخطاء الإملائية الشائعة في أسماء السيارات تلقائياً
+const MAKE_CORRECTIONS: Record<string, string> = {
+  'تويوتتا': 'تويوتا',
+  'تويتا': 'تويوتا',
+  'نيصان': 'نيسان',
+  'هونداي': 'هيونداي',
+  'شيفروليه': 'شفروليه',
+  'شفروليت': 'شفروليه',
+  'فورد': 'فورد',
+  'لكزس': 'لكزس',
+  'مرسيدس': 'مرسيدس'
 };
 
 export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
@@ -48,13 +61,14 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     condition: ''
   });
 
-  // حالات تقدم الرفع
+  // حالات تقدم الرفع والتصحيحات
   const [progress, setProgress] = useState(0);
   const [uploadedCount, setUploadedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [correctedCount, setCorrectedCount] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 1️⃣ قراءة ملف الإكسل والتوليد التلقائي للربط
+  // 1️⃣ قراءة ملف الإكسل والتوليد التلقائي للربط مع التصحيح
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -95,7 +109,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     reader.readAsBinaryString(file);
   };
 
-  // 🧠 دالة التعرّف التلقائي
+  // 🧠 دالة التعرّف التلقائي والمطابقة المرنة
   const autoDetectMapping = (detectedHeaders: string[]) => {
     const newMapping: Record<string, string> = {
       name: '', make: '', model: '', year: '', category: '', price: '', part_number: '', condition: ''
@@ -104,7 +118,6 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     Object.keys(SYNONYMS).forEach(fieldKey => {
       const synonyms = SYNONYMS[fieldKey];
       
-      // نبحث عن أقرب عمود يطابق أحد المرادفات
       const matchedHeader = detectedHeaders.find(header => {
         const cleanHeader = header.toString().trim().toLowerCase();
         return synonyms.some(syn => cleanHeader === syn.toLowerCase() || cleanHeader.includes(syn.toLowerCase()));
@@ -118,6 +131,15 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     setMapping(newMapping);
   };
 
+  // 🚀 دالة تصحيح المسميات الإملائية تلقائياً
+  const cleanAndCorrectMake = (rawMake: string): { make: string; isCorrected: boolean } => {
+    const trimmed = String(rawMake || '').trim();
+    if (MAKE_CORRECTIONS[trimmed]) {
+      return { make: MAKE_CORRECTIONS[trimmed], isCorrected: true };
+    }
+    return { make: trimmed || 'عام', isCorrected: false };
+  };
+
   // 3️⃣ بدء عملية الرفع الذكية على دفعات (Batch Processing)
   const startBatchUpload = async () => {
     if (!mapping.name || !mapping.price) {
@@ -128,20 +150,22 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     setStep('uploading');
     setProgress(0);
     setUploadedCount(0);
+    let autoCorrections = 0;
 
-    const BATCH_SIZE = 50; // رفع 50 قطعة في كل دفعة
+    const BATCH_SIZE = 50; // رفع 50 قطعة في كل دفعة لضمان أداء مستقر ومباشر
     const total = rawData.length;
 
-    // تصفية المعرفات المربوطة لمعرفة الأعمدة الإضافية غير المربوطة (لتخزينها بـ extra_specifications)
     const mappedHeaderValues = Object.values(mapping).filter(Boolean);
     const unmappedHeaders = headers.filter(h => !mappedHeaderValues.includes(h));
 
     for (let i = 0; i < total; i += BATCH_SIZE) {
       const chunk = rawData.slice(i, i + BATCH_SIZE);
       
-      // تجهيز الدفعة الحالية بالشكل المطلق للداتابيز
       const batchPayload = chunk.map(row => {
-        // جمع كل الأعمدة الغريبة في كائن جانبي
+        const rawMake = String(row[mapping.make] || '').trim();
+        const { make, isCorrected } = cleanAndCorrectMake(rawMake);
+        if (isCorrected) autoCorrections++;
+
         const extraSpecs: Record<string, any> = {};
         unmappedHeaders.forEach(h => {
           if (row[h] !== '' && row[h] !== null && row[h] !== undefined) {
@@ -151,25 +175,25 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
         return {
           name: String(row[mapping.name] || 'قطعة بدون اسم').trim(),
-          make: String(row[mapping.make] || 'عام').trim(),
+          make: make,
           model: String(row[mapping.model] || 'جميع الموديلات').trim(),
           year: String(row[mapping.year] || new Date().getFullYear()).trim(),
           category: String(row[mapping.category] || 'Engine').trim(),
           price: parseFloat(row[mapping.price]) || 0,
           part_number: mapping.part_number && row[mapping.part_number] ? String(row[mapping.part_number]).trim() : null,
           condition: mapping.condition && row[mapping.condition] ? String(row[mapping.condition]).trim() : 'جديد',
-          garage_id: session?.user?.id || session?.phone || 'garage',
-          extra_specifications: Object.keys(extraSpecs).length > 0 ? extraSpecs : null
+          user_id: session?.user?.id || session?.id || session?.phone || 'garage',
+          additional_images: [],
+          image_url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'
         };
       });
 
       try {
-        // إرسال الدفعة إلى Supabase
         await fetch(`${supabaseUrl}/parts`, {
           method: 'POST',
           headers: {
             'apikey': apiKey,
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${session?.token || apiKey}`,
             'Content-Type': 'application/json',
             'Prefer': 'return=minimal'
           },
@@ -178,6 +202,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
         const currentUploaded = Math.min(i + BATCH_SIZE, total);
         setUploadedCount(currentUploaded);
+        setCorrectedCount(autoCorrections);
         setProgress(Math.round((currentUploaded / total) * 100));
 
       } catch (err) {
@@ -202,7 +227,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
                 {isRtl ? 'الرفع الذكي لقطع الغيار من الإكسل' : 'Smart Excel Bulk Upload'}
               </h3>
               <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                {isRtl ? 'رفع آلاف القطع وتصفيتها أوتوماتيكياً دون الحاجة لتعديل الملف' : 'Auto-maps columns & handles 1000+ items'}
+                {isRtl ? 'معالجة آلاف القطع مع التصحيح التلقائي للأخطاء الإملائية' : 'Auto-maps columns & corrects spelling errors'}
               </span>
             </div>
           </div>
@@ -221,7 +246,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
             <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>📁</span>
             <h4 style={{ margin: '0 0 8px 0', color: '#1e293b' }}>{isRtl ? 'اختر ملف إكسل من جهازك' : 'Choose your Excel File'}</h4>
             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
-              {isRtl ? 'يدعم الملفات بنوع (.xlsx, .xls, .csv) حتى لو احتوت على أكثر من 1,000 قطعة' : 'Supports .xlsx, .xls, .csv files'}
+              {isRtl ? 'يدعم الملفات بنوع (.xlsx, .xls, .csv) حتى لو احتوت على أكثر من 10,000 قطعة' : 'Supports .xlsx, .xls, .csv files'}
             </p>
 
             <label style={{ padding: '12px 28px', backgroundColor: '#1f3a5f', color: '#ffffff', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', display: 'inline-block' }}>
@@ -235,11 +260,11 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
         {step === 'map' && (
           <div>
             <div style={{ backgroundColor: '#e8f9f1', color: '#1e9d6b', padding: '12px 16px', borderRadius: '12px', marginBottom: '18px', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>✅ {isRtl ? `تم التعرف على الملف بنجاح! تم ربط الأعمدة أوتوماتيكياً (` : `File loaded! (${totalCount} items found)`}{totalCount} قطعة)</span>
+              <span>✅ {isRtl ? `تم فحص الملف والتعرف على (${totalCount}) قطعة جاهزة للرفع` : `File loaded! (${totalCount} items found)`}</span>
             </div>
 
             <p style={{ fontSize: '13px', color: '#475569', marginBottom: '14px' }}>
-              {isRtl ? 'راجع مطابقة الأعمدة أدناه أو عدلها إن لزم، وسيقوم النظام بتجاهل بقية الأعمدة غير الضرورية:' : 'Review how your columns were matched:'}
+              {isRtl ? 'تم ربط الأعمدة أوتوماتيكياً. يمكنك تعديل أي عمود قبل بدء عملية الرفع المباشر:' : 'Review how your columns were matched:'}
             </p>
 
             {/* شبكة الربط */}
@@ -251,7 +276,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
                 { key: 'model', label: isRtl ? 'الموديل (كامري/باترول...)' : 'Model' },
                 { key: 'year', label: isRtl ? 'السنة (2022)' : 'Year' },
                 { key: 'category', label: isRtl ? 'القسم / التصنيف' : 'Category' },
-                { key: 'part_number', label: isRtl ? 'رقم القطعة / Part #' : 'Part Number' },
+                { key: 'part_number', label: isRtl ? 'رقم القطعة OEM / Part #' : 'Part Number' },
                 { key: 'condition', label: isRtl ? 'الحالة (جديد/مستعمل)' : 'Condition' },
               ].map(field => (
                 <div key={field.key} style={{ padding: '10px 14px', borderRadius: '10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
@@ -288,7 +313,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
         {step === 'uploading' && (
           <div style={{ textAlign: 'center', padding: '30px 10px' }}>
             <h4 style={{ color: '#1f3a5f', marginBottom: '8px' }}>
-              {isRtl ? 'جاري إضافة القطع لقاعدة البيانات...' : 'Uploading Parts to Database...'}
+              {isRtl ? 'جاري رفع وإضافة القطع لقاعدة البيانات...' : 'Uploading Parts to Database...'}
             </h4>
             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
               {isRtl ? `تم رفع ${uploadedCount} من أصل ${totalCount} قطعة` : `Uploaded ${uploadedCount} of ${totalCount}`}
@@ -296,24 +321,30 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
             {/* شريط التقدم */}
             <div style={{ width: '100%', height: '14px', backgroundColor: '#e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '12px' }}>
-              <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#1e9d6b', transition: 'width 0.3s ease' }} />
+              <div style={{ width: `${progress}%`, height: '100%', backgroundColor: '#16a34a', transition: 'width 0.3s ease' }} />
             </div>
 
-            <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1e9d6b' }}>{progress}%</span>
+            <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>{progress}%</span>
           </div>
         )}
 
-        {/* 4️⃣ المرحلة الأخيرة: النجاح والإنهاء */}
+        {/* 4️⃣ المرحلة الأخيرة: النجاح والإنهاء مع تقرير التصحيحات */}
         {step === 'done' && (
           <div style={{ textAlign: 'center', padding: '30px 10px' }}>
             <span style={{ fontSize: '54px' }}>🎉</span>
-            <h3 style={{ color: '#1e9d6b', margin: '12px 0 6px 0' }}>{isRtl ? 'تم رفع إكسل القطع بنجاح!' : 'Bulk Upload Completed!'}</h3>
-            <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '24px' }}>
-              {isRtl ? `تمت إضافة ${uploadedCount} قطعة جديدة متوفرة للبيع فوراً للعملاء.` : `Successfully added ${uploadedCount} parts.`}
+            <h3 style={{ color: '#16a34a', margin: '12px 0 6px 0' }}>{isRtl ? 'تم رفع إكسل القطع بنجاح!' : 'Bulk Upload Completed!'}</h3>
+            <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '12px' }}>
+              {isRtl ? `تمت إضافة ${uploadedCount} قطعة جديدة لكتالوج معروضاتك متوفرة للبيع فوراً.` : `Successfully added ${uploadedCount} parts.`}
             </p>
 
+            {correctedCount > 0 && (
+              <p style={{ fontSize: '12.5px', color: '#e0872a', fontWeight: 'bold', marginBottom: '20px', backgroundColor: '#fff7ed', padding: '8px', borderRadius: '8px' }}>
+                ✨ {isRtl ? `تم التصحيح والضبط الإملائي التلقائي لـ ${correctedCount} قطعة متوافقة!` : `Auto-corrected ${correctedCount} item names!`}
+              </p>
+            )}
+
             <button onClick={onClose} style={{ padding: '12px 32px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
-              {isRtl ? 'العودة للوحة الكراج ⚙️' : 'Done'}
+              {isRtl ? 'العودة للوحة المعروضات ⚙️' : 'Done'}
             </button>
           </div>
         )}
