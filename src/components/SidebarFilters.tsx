@@ -36,7 +36,6 @@ interface SidebarProps {
   onInquire?: (item: any) => void;
 }
 
-// 🌐 خريطة ترجمة التصنيفات الهجينة النظيفة بدعم عربي - إنكليزي
 const CATEGORY_TRANSLATION: Record<string, string> = {
   "Belt Drive": "نظام السيور والمكرات — Belt Drive",
   "Body & Lamp Assembly": "الهيكل والإضاءة — Body & Lamp Assembly",
@@ -76,7 +75,7 @@ const MAKE_DOMAINS: Record<string, string> = {
 
 const nodeStyle: React.CSSProperties = {
   display: 'flex',
-  justify: 'space-between',
+  justifyContent: 'space-between',
   alignItems: 'center',
   cursor: 'pointer',
   padding: '8px 12px',
@@ -315,7 +314,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
-  // 🛒 دالة رسم بطاقة القطعة وتجهيز البيانات للسلة بمرونة عالية
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -325,7 +323,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     const { alternatives } = findSmartInterchangeParts(part, inventory);
     const tierInfo = classifyPartTier(part);
 
-    // توحيد كائن القطعة للسلة
     const formattedPart = {
       ...part,
       image_url: part.image_url || part.image || part.part_image || DEFAULT_IMAGE,
@@ -408,7 +405,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         )}
 
-        {/* 🛠️ أزرار زيادة الكمية والإضافة المباشرة بالسلة واسأل البائع */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', justifyContent: 'center' }}>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '30px', height: '30px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
@@ -444,7 +440,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
         
-        {/* شريط البحث المباشر السريع */}
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
           <input 
             type="text" 
@@ -480,7 +475,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             )}
           </div>
         ) : (
-          /* شجرة البحث المباشرة المنظمة حسب الماركة والسنوات بدون إيموجيات معقدة */
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
             {Object.keys(carData).map(make => {
               const makeKey = `make_${make}`;
@@ -582,7 +576,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                       {isEngineOpen && (
                                                         <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
                                                           {isCategoriesLoading ? (
-                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {lang === 'ar' ? 'جاري فحص الأقسان...' : 'Checking categories...'}</li>
+                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {lang === 'ar' ? 'جاري فحص الأقسام...' : 'Checking categories...'}</li>
                                                           ) : availableCategories.length === 0 ? (
                                                             <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{lang === 'ar' ? 'لا توجد أقسام متوفرة لهذا المحرك.' : 'No categories available for this engine.'}</li>
                                                           ) : (
