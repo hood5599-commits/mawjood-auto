@@ -71,6 +71,9 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
   const deliveryFee = deliveryType === 'delivery' ? 35 : 0;
   const totalPrice = (Number(part?.price) || 0) + deliveryFee;
 
+  // 🖼️ توحيد رابط صورة القطعة لضمان إرسالها وحفظها بمرونة
+  const partImageUrl = part?.image_url || part?.image || part?.part_image || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80';
+
   // 📍 دالة تحديد موقع العميل عبر GPS وتوليد رابط Google Maps
   const handleGetGPSLocation = () => {
     if (!navigator.geolocation) {
@@ -114,7 +117,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     setCardExpiry(value);
   };
 
-  // 📸 دالة رفع الصور
+  // 📸 دالة رفع الصور مع قراءة رقم الشاصي الذكي
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'old_part' | 'reg') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -194,12 +197,12 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     try {
       const payload = {
         inquiry_code: inqCode,
-        part_id: Number(part.id) || null,
+        part_id: typeof part.id === 'string' && part.id.startsWith('custom-') ? null : (Number(part.id) || null),
         part_name: String(part.name || ''),
         part_number: part.part_number || null,
         part_price: Number(part.price) || 0,
-        part_image: part.image_url || null,
-        garage_id: String(part.user_id || 'garage'),
+        part_image: partImageUrl,
+        garage_id: String(part.user_id || part.garage_id || 'garage'),
         customer_phone: String(customerPhone || ''),
         car_make: carMake,
         car_model: carModel,
@@ -219,7 +222,11 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
 
       setCreatedOrderCode(inqCode);
       setStep('success');
-      onSuccess(part);
+      onSuccess({
+        ...part,
+        image_url: partImageUrl,
+        image: partImageUrl
+      });
     } catch (e) {
       alert(isRtl ? 'حدث خطأ أثناء تقديم الاستفسار' : 'Failed to send inquiry');
     } finally {
@@ -256,10 +263,10 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
     try {
       const payload = {
         order_code: ordCode,
-        part_id: Number(part.id) || null,
+        part_id: typeof part.id === 'string' && part.id.startsWith('custom-') ? null : (Number(part.id) || null),
         part_name: String(part.name || (lang === 'ar' ? 'قطعة غيار' : 'Spare Part')),
         price: Number(totalPrice) || 0,
-        garage_id: String(part.user_id || 'garage'),
+        garage_id: String(part.user_id || part.garage_id || 'garage'),
         customer_phone: String(customerPhone || ''),
         delivery_type: deliveryType,
         address_details: deliveryType === 'delivery' ? addressDetails : (lang === 'ar' ? 'استلام من المقر' : 'Store Pickup'),
@@ -287,7 +294,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         const fallbackPayload = {
           part_name: String(part.name || (lang === 'ar' ? 'قطعة غيار' : 'Spare Part')),
           price: Number(totalPrice) || 0,
-          garage_id: String(part.user_id || 'garage'),
+          garage_id: String(part.user_id || part.garage_id || 'garage'),
           customer_phone: String(customerPhone || ''),
           status: 'pending'
         };
@@ -329,7 +336,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         {step === 'inquire' && (
           <form onSubmit={handleSendInquiry} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <img src={part?.image_url || 'https://via.placeholder.com/60'} alt={part?.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
+              <img src={partImageUrl} alt={part?.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
               <div>
                 <strong style={{ fontSize: '15px', color: '#1e293b' }}>
                   <AITranslatedText text={part?.name} lang={lang} />
@@ -632,7 +639,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
               type="button"
               onClick={handleFinalCheckout}
               disabled={loading}
-              style={{ padding: '14px', backgroundColor: '#1e9d6b', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', width: '100%' }}
+              style={{ padding: '14px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', width: '100%' }}
             >
               {loading ? (isRtl ? 'جاري تنفيذ الطلب وتنبيه الكراج...' : 'Processing order and notifying garage...') : (isRtl ? `🚀 تأكيد وإتمام الشراء (${totalPrice} QAR)` : `🚀 Confirm & Checkout (${totalPrice} QAR)`)}
             </button>
@@ -644,7 +651,7 @@ export const CustomerFitmentCheckout: React.FC<CheckoutProps> = ({
         {step === 'success' && (
           <div style={{ textAlign: 'center', padding: '20px 10px' }}>
             <span style={{ fontSize: '54px' }}>🎉</span>
-            <h3 style={{ color: '#1e9d6b', margin: '10px 0 6px 0' }}>
+            <h3 style={{ color: '#16a34a', margin: '10px 0 6px 0' }}>
               {isRtl ? 'تم إرسال طلبك بنجاح!' : 'Order Placed Successfully!'}
             </h3>
             <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '16px' }}>
