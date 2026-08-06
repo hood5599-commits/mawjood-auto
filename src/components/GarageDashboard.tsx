@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ExcelPartUploader } from './ExcelPartUploader';
 import { Toast } from './Toast';
 import { AITranslatedText } from './AITranslatedText';
@@ -13,240 +13,55 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
+// 🌐 القاموس الهجين لترجمة الأقسام الرئيسية دون إيموجي
+const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
+  "Belt Drive": { ar: "نظام السيور والمكرات", en: "Belt Drive" },
+  "Body & Lamp Assembly": { ar: "الهيكل والإضاءة", en: "Body & Lamp Assembly" },
+  "Brake & Wheel Hub": { ar: "الفرامل والفرامات", en: "Brake & Wheel Hub" },
+  "Cooling System": { ar: "نظام التبريد والرديتر", en: "Cooling System" },
+  "Drivetrain": { ar: "نظام الدفع والمحاور", en: "Drivetrain" },
+  "Electrical": { ar: "الكهرباء والكهربائيات", en: "Electrical" },
+  "Electrical-Bulb & Socket": { ar: "اللمبات واللمبات والسوكتات", en: "Electrical-Bulb & Socket" },
+  "Electrical-Connector": { ar: "الفيش والتوصيلات الكهربائية", en: "Electrical-Connector" },
+  "Electrical-Switch & Relay": { ar: "المفاتيح والكتاوت والريليهات", en: "Electrical-Switch & Relay" },
+  "Engine": { ar: "المحرك ومكوناته", en: "Engine" },
+  "Exhaust & Emission": { ar: "العادم والانبعاثات (الكزوز)", en: "Exhaust & Emission" },
+  "Fuel & Air": { ar: "الوقود وهواء المحرك", en: "Fuel & Air" },
+  "Heat & Air Conditioning": { ar: "التكييف والتدفئة", en: "Heat & Air Conditioning" },
+  "Ignition": { ar: "نظام الاشتعال (البواجي)", en: "Ignition" },
+  "Interior": { ar: "المقصورة والديكور الداخلي", en: "Interior" },
+  "Literature": { ar: "الكتالوجات والكتيبات", en: "Literature" },
+  "Steering": { ar: "نظام التوجيه (الدركسون)", en: "Steering" },
+  "Suspension": { ar: "المساعدات ونظام التعليق", en: "Suspension" },
+  "Transmission-Automatic": { ar: "القير الأوتوماتيك", en: "Transmission-Automatic" },
+  "Transmission-Manual": { ar: "القير العادي", en: "Transmission-Manual" },
+  "Wheel": { ar: "الإطارات والجنوط", en: "Wheel" },
+  "Wiper & Washer": { ar: "المساحات ومساحات الزجاج", en: "Wiper & Washer" }
+};
+
 const FULL_CATEGORY_TREE: Record<string, string[]> = {
-  "Belt Drive": [
-    "Belt", "Belt Removal / Installation Tool", "Belt Tensioner", "Belt Tensioner Bolt", "Idler Pulley"
-  ],
-  "Body & Lamp Assembly": [
-    "Air Deflector", "Antenna", "Antenna Cable", "Bumper Cover", "Bumper Cover Retainer", "Bumper Cover Support",
-    "Bumper Energy Absorber", "Bumper Insert", "Bumper Reinforcement", "Bumper Trim / Molding",
-    "Convertible Top Hydraulic Pump Fluid", "Door Hinge", "Door Hinge Pin & Bushing Kit", "Door Latch Striker Plate",
-    "Door Lock Actuator", "Door Lock Rod Grommet", "Fender", "Fender Vent", "Fog / Driving Lamp Assembly",
-    "Fog / Driving Lamp Bezel", "Grille", "Grille Molding", "Grille Retainer / Clip", "Headlamp Assembly",
-    "Headlamp Level Sensor", "High Mount Brake Light", "Hood", "Hood Bumper", "Hood Insulator Retainer / Clip",
-    "Impact / Crash Sensor", "Inner Fender", "Key Blank", "License Plate Bracket", "License Plate Retainer / Clip",
-    "Lift Support", "Molding Retainer / Clip", "Outside Door Handle", "Outside Door Handle Reinforcement",
-    "Outside Mirror & Glass Assembly", "Outside Mirror Glass", "Park Assist (PAS) Camera", "Radiator Support",
-    "Side Marker Lamp Assembly", "Splash Shield Retainer / Clip", "Tail Lamp Assembly", "Tailgate Lock",
-    "Touch-Up Paint", "Tow Hook Cover", "Trailer Hitch", "Trailer Hitch Ball & Mount Kit",
-    "Truck Bed Mat / Liner Retainer", "Trunk Latch", "Trunk Lock Actuator", "Valance Panel"
-  ],
-  "Brake & Wheel Hub": [
-    "ABS Control Module", "ABS Control Module Insulator", "ABS Control Module Nut / Bolt", "ABS Tone Ring",
-    "ABS Wheel Speed Sensor", "Banjo Bolt / Washer", "Brake Bleeder Screw", "Brake Fluid", "Brake Hose",
-    "Brake Pad", "Brake Pedal Position Sensor", "Caliper", "Caliper Bracket Bolt", "Caliper Piston",
-    "Caliper Piston Seal", "Caliper Repair Kit", "Caliper Slide Pin", "Caliper Slide Pin Boot / Bushing",
-    "Disc Brake Hardware Kit", "Master Cylinder", "Master Cylinder Cap", "Master Cylinder Reservoir",
-    "Parking Brake Adjuster", "Parking Brake Cable", "Parking Brake Cable Bracket Nut/Bolt",
-    "Parking Brake Hardware Kit", "Parking Brake Lever", "Parking Brake Shoe", "Power Brake Booster",
-    "Power Brake Booster Check Valve", "Power Brake Booster Sensor", "Rotor", "Rotor & Brake Pad Kit",
-    "Rotor Retaining Screw", "Spindle Nut", "Vacuum Hose", "Vacuum Pump", "Wheel Bearing & Hub",
-    "Wheel Hub Mounting Bolt", "Wheel Seal"
-  ],
-  "Cooling System": [
-    "Coolant / Antifreeze", "Coolant Air Bleed Hose / Pipe", "Coolant Air Bleeder", "Coolant Filler Neck",
-    "Coolant Hose / Pipe", "Coolant Hose / Pipe Seal", "Coolant Reservoir", "Coolant Reservoir Cap",
-    "Coolant Water Crossover Mounting Set", "Cooling System Tester Adapter", "Hose Clamp", "Radiator",
-    "Radiator Cap", "Radiator Fan Assembly", "Radiator Fan Blade", "Radiator Fan Motor", "Radiator Hose",
-    "Radiator Upper Air Baffle Retainer / Clip", "Temperature Sender / Sensor", "Thermostat",
-    "Thermostat / Thermostat Housing / Water Outlet Seal", "Water Inlet Gasket", "Water Pump",
-    "Water Pump Gasket", "Water Pump Seal / O-Ring"
-  ],
-  "Drivetrain": [
-    "Axle Shaft Seal", "CV Axle", "CV Joint Boot", "CV Joint Boot Band", "Differential Carrier",
-    "Differential Carrier Bearing / Race", "Differential Carrier Bushing", "Differential Carrier Shim",
-    "Differential Cover Bolt", "Differential Cover Gasket", "Differential Crush Sleeve", "Differential Fill / Drain Plug",
-    "Differential Gear Installation Kit", "Differential Housing Bolt", "Differential Pinion Bearing / Race",
-    "Differential Pinion Bearing Baffle", "Differential Pinion Flange", "Differential Pinion Nut",
-    "Differential Pinion Repair Sleeve", "Differential Pinion Seal", "Differential Pinion Shim",
-    "Differential Rebuild Kit", "Differential Ring Gear Bolt", "Differential Ring and Pinion",
-    "Differential Seal", "Differential Washer", "Drive Shaft", "Drive Shaft Bolt",
-    "Drive Shaft Center Support Bearing", "Drive Shaft Center Support Bearing Bracket", "Drive Shaft Flex Joint",
-    "Drive Shaft Seal", "Drive Shaft Slip Yoke Seal", "Gear Oil", "Gear Oil Additive",
-    "Transfer Case Main Shaft Pilot Bearing"
-  ],
-  "Electrical": [
-    "Alternator / Generator", "Anti-Theft Control Module", "Automatic Headlamp Sensor", "Battery",
-    "Battery Cable", "Battery Current Sensor", "Battery Terminal Bolt / Nut", "Body Control Module (BCM)",
-    "Circuit Breaker", "Engine Control Module (ECM Computer)", "Fuse", "HID Lighting Ballast", "Horn",
-    "Keyless Entry Module / Receiver", "Keyless Entry Remote", "Keyless Entry Remote Case", "Parking Aid Sensor",
-    "Speed Sensor", "Speed Sensor Seal", "Starter Bolt", "Starter Motor", "Starter Motor Heat Shield", "Yaw Sensor"
-  ],
-  "Electrical-Bulb & Socket": [
-    "Back Up / Reverse Lamp Bulb", "Brake Light Bulb", "Daytime Running Light Bulb", "Dome Light Bulb",
-    "Fog / Driving Lamp Bulb", "Fog / Driving Lamp Socket", "Headlamp Bulb", "Headlamp Socket",
-    "LED Bulb Adapter", "License Plate Lamp Bulb", "Parking Brake Warning Light Bulb", "Parking Lamp Bulb",
-    "Side Marker Lamp Socket", "Side Marker Light Bulb", "Step / Courtesy Light Bulb", "Tail Lamp Bulb",
-    "Trunk / Cargo Area Light Bulb", "Turn Signal Lamp Bulb", "Turn Signal Lamp Socket"
-  ],
-  "Electrical-Connector": [
-    "A/C Compressor Clutch Coil Connector", "A/C Refrigerant Pressure Switch Connector", "ABS Wheel Speed Sensor Connector",
-    "AIR / Smog Pump Relay", "Accelerator Pedal Position Sensor Connector", "Air Bag Clockspring Connector",
-    "Air Injection Relay Connector", "Ambient Air Temperature Sensor Connector", "Blower Motor Control Module / Resistor Connector",
-    "Body Wiring Harness / Connector", "Brake Light Switch Connector", "Brake Pedal Connector",
-    "Camshaft Position Sensor Connector", "Crankshaft Position Sensor Connector", "Cylinder Deactivation Solenoid Connector",
-    "Door Lock Actuator Connector", "Fog / Driving Lamp Connector", "Fuel Injection Pressure Sensor Connector",
-    "Fuel Injector Connector", "Fuel Sending Unit Connector", "Fuel Tank Pressure Sensor Connector",
-    "Ignition Coil Connector", "Ignition Control Module (ICM) Connector", "Ignition Starter Switch Connector",
-    "Knock / Detonation Sensor Connector", "Manifold Pressure (MAP) Sensor Connector", "Oil Pressure Sender / Switch Connector",
-    "Park Assist (PAS) Camera Connector", "Parking Aid Sensor Connector", "Power Brake Booster Connector",
-    "Power Window Switch Connector", "Radiator Fan Motor Connector", "Radio Connector", "Side Marker Lamp Connector",
-    "Speed Sensor Connector", "Starter Solenoid Connector", "Supercharger Bypass Solenoid / Valve Connector",
-    "Temperature Sender / Sensor Connector", "Throttle Control Actuator Connector", "Throttle Position Sensor (TPS) Connector",
-    "Trailer Connector", "Turn Signal Switch Connector", "Vacuum Pump Connector", "Vapor Canister Connector",
-    "Vapor Canister Purge Valve / Solenoid Connector", "Vapor Canister Vent Valve / Solenoid Connector",
-    "Variable Valve Timing (VVT) Solenoid Connector", "Window Defroster Motor Connector", "Wiper / Washer Switch Connector",
-    "Wiper Motor Connector"
-  ],
-  "Electrical-Switch & Relay": [
-    "A/C Compressor Relay", "A/C Refrigerant Pressure Switch", "A/C System Relay", "ABS Relay", "AIR / Smog Pump Relay",
-    "Accelerator Relay", "Accessory Delay Relay", "Accessory Power Relay", "Air Injection Relay", "Blower Motor Relay",
-    "Clutch Pedal Position / Starter Safety Switch", "Cornering Lamp Relay", "Cruise Control Switch",
-    "Daytime Running Light Relay", "Dimmer Switch", "Door Lock Switch", "Driver Information Display Switch",
-    "Driving Light Relay", "Engine Control Module Relay", "Fog / Driving Lamp Relay", "Fog / Driving Lamp Switch",
-    "Fuel Pump / Circuit Opening Relay", "Headlamp Relay", "Headlamp Switch", "Horn Relay", "Ignition Relay",
-    "Ignition Starter Switch", "Instrument Panel Dimmer Switch", "Neutral Safety Switch / Range Sensor",
-    "Oil Pressure Sender / Switch", "Outside Mirror Switch", "Overdrive Switch", "Parking Brake Control Relay",
-    "Parking Lamp Relay", "Power Seat Switch", "Power Window Switch", "Radiator Fan Relay", "Seat Heater Switch",
-    "Steering Wheel Audio Control Switch", "Sunroof / Sunshade Switch", "Traction / Stability Control Switch",
-    "Transmission-Automatic Fluid Pressure Switch", "Transmission-Automatic Manual Shift Shaft Position Switch",
-    "Trunk Lid / Tailgate Release Switch", "Turn Signal Switch", "Vacuum Pump Relay", "Wiper / Washer Switch",
-    "Wiper Motor Relay", "Wiring Relay"
-  ],
-  "Engine": [
-    "Camshaft", "Camshaft Bearing", "Camshaft Bolt", "Camshaft Dowel Pin", "Camshaft Gear Installation Tool",
-    "Camshaft Retainer / Thrust Plate", "Camshaft Seal", "Connecting Rod", "Connecting Rod Bearing",
-    "Connecting Rod Bolt", "Conversion / Lower Gasket Set", "Crankshaft", "Crankshaft Main Bearing",
-    "Crankshaft Main Bearing Cap Bolt", "Crankshaft Main Bearing Gasket", "Crankshaft Main Bearing Repair Sleeve",
-    "Crankshaft Repair Sleeve", "Crankshaft Repair Sleeve Tool", "Crankshaft Seal", "Crankshaft Seal Cover",
-    "Crankshaft Seal Cover Tool", "Crankshaft Seal Gasket", "Cylinder Deactivation Delete",
-    "Cylinder Deactivation Delete Block-Off Plug", "Cylinder Deactivation Solenoid", "Cylinder Head",
-    "Cylinder Head Alignment Dowel Pin", "Cylinder Head Bolt", "Cylinder Head Gasket", "Cylinder Head Gasket Set",
-    "Cylinder Head Plug", "Cylinder Head Spacer Shim", "Cylinder Repair Sleeve", "Engine Block Heater",
-    "Engine Kit Gasket Set", "Exhaust Valve", "Fuel Pump Camshaft Follower", "Harmonic Balancer",
-    "Harmonic Balancer Bolt", "Harmonic Balancer Washer", "Intake Insulator", "Intake Manifold",
-    "Intake Manifold Bolt", "Intake Manifold Cover", "Intake Manifold Gasket",
-    "Intake Manifold Runner Control Valve / Solenoid", "Intake Valve", "Intake to Exhaust Gasket",
-    "Motor Mount", "Motor Mount Bracket", "Motor Mount Bracket Bolt", "Motor Mount Kit", "Oil", "Oil Cooler",
-    "Oil Cooler Adapter Seal", "Oil Cooler Gasket", "Oil Cooler Line", "Oil Cooler Line Connector",
-    "Oil Cooler Mounting Kit", "Oil Cooler Seal", "Oil Dipstick / Tube", "Oil Dipstick / Tube Seal",
-    "Oil Drain Plug", "Oil Drain Plug Gasket", "Oil Filler Cap", "Oil Filler Cap Gasket", "Oil Filler Tube",
-    "Oil Filler Tube Grommet", "Oil Filter", "Oil Filter Adapter", "Oil Filter Adapter Gasket / O-Ring",
-    "Oil Filter Bypass Valve", "Oil Filter Gasket", "Oil Filter Housing Seal", "Oil Filter Remote Mounting Kit",
-    "Oil Galley Plug", "Oil Level Sensor", "Oil Level Sensor Gasket / O-Ring", "Oil Pan", "Oil Pan Bolt",
-    "Oil Pan Cover", "Oil Pan Gasket", "Oil Pressure Filter", "Oil Pressure Relief Valve",
-    "Oil Pressure Relief Valve Deflector", "Oil Pressure Relief Valve Plug", "Oil Pressure Relief Valve Spring",
-    "Oil Pump", "Oil Pump Cover Bolt", "Oil Pump Drive Gear", "Oil Pump Gasket", "Oil Pump Pickup Tube / Screen",
-    "Oil Pump Pickup Tube Bracket", "Oil Pump Pickup Tube O-Ring", "Oil Pump Seal", "Oil Strainer Gasket",
-    "Oil Sump Plate", "Oil Sump Windage Tray", "Piston", "Piston Pin Retainer", "Piston Ring", "Push Rod",
-    "Push Rod Guide Plate", "Rocker Arm", "Rocker Arm Bolt", "Rocker Arm Shaft Support", "Rocker Arm Stud",
-    "Timing Cam Sprocket", "Timing Chain", "Timing Chain & Component Kit", "Timing Chain Cover Gasket",
-    "Timing Chain Tensioner", "Timing Cover", "Timing Cover Gasket", "Timing Cover Repair Sleeve",
-    "Timing Cover Seal", "Timing Crank Sprocket", "Turbocharger Gasket", "Valley Pan Cover", "Valve Cover",
-    "Valve Cover Bolt / Screw", "Valve Cover Gasket", "Valve Cover Grommet", "Valve Guide", "Valve Lifter",
-    "Valve Lifter Guide", "Valve Seat", "Valve Spring", "Valve Spring Retainer", "Valve Spring Retainer Keeper",
-    "Valve Stem Seal", "Variable Valve Timing (VVT) Solenoid / Actuator",
-    "Variable Valve Timing (VVT) Solenoid Gasket / Seal", "Variable Valve Timing (VVT) Sprocket",
-    "Variable Valve Timing (VVT) Sprocket Bolt"
-  ],
-  "Exhaust & Emission": [
-    "AIR / Smog Pump Check Valve", "Bolt / Spring", "Catalytic Converter", "Clamp", "Exhaust Header Gasket",
-    "Exhaust Manifold", "Exhaust Manifold Gasket", "Exhaust Manifold Hardware",
-    "Exhaust Manifold To Cylinder Head Repair Clamp", "Knock / Detonation Sensor", "Manifold Pressure (MAP) Sensor",
-    "Mass Air Flow (MAF) Sensor", "Mass Air Flow (MAF) Sensor Gasket", "Oxygen (O2) Sensor", "Pipe Flange Gasket / Seal",
-    "Positive Crankcase Ventilation (PCV) Hose", "Vapor Canister", "Vapor Canister Purge Valve / Solenoid",
-    "Vapor Canister Purge Valve Hose", "Vapor Canister Vent Valve / Solenoid"
-  ],
-  "Fuel & Air": [
-    "Air Cleaner Intake Hose", "Air Filter", "Air Filter Housing Grommet", "Air Intake / Charge Temperature Sensor",
-    "Fuel Injection Pressure Sensor", "Fuel Injector", "Fuel Injector Clip", "Fuel Injector Seal / O-Ring",
-    "Fuel Line / Hose", "Fuel Line Retainer", "Fuel Pressure Relief Valve Cap", "Fuel Pressure Sensor Cover",
-    "Fuel Pump & Housing Assembly", "Fuel Pump Drive Module", "Fuel Pump Gasket / Seal", "Fuel Rail",
-    "Fuel Rail Pressure Relief Valve", "Fuel Sending Unit", "Fuel Sending Unit O-Ring", "Fuel Tank Cap",
-    "Fuel Tank Cap Tester Adapter", "Fuel Tank Cap Tether / Clip", "Fuel Tank Filler Neck", "Fuel Tank Lock Ring",
-    "Fuel Tank Pressure Sensor", "Fuel Tank Strap", "Idle Relearn Tool", "Throttle Body", "Throttle Body Gasket",
-    "Throttle Position Sensor (TPS)"
-  ],
-  "Heat & Air Conditioning": [
-    "A/C Compressor", "A/C Compressor & Component Kit", "A/C Compressor Relief Valve", "A/C Condenser",
-    "A/C Condenser Fan Motor", "A/C Evaporator Core", "A/C Expansion Valve",
-    "A/C Receiver Drier Desiccant Element", "A/C Refrigerant Hose / Line", "A/C Refrigerant Oil",
-    "A/C Refrigerant Temperature Sensor", "A/C System O-Rings / Seals", "A/C System Service Valve / Core / Cap",
-    "Ambient Air Temperature Sensor", "Blower Motor", "Blower Motor Control Module / Resistor",
-    "Blower Motor Housing / Seal", "Cabin Air Filter", "Cabin Air Filter Retainer", "Climate Control Module",
-    "Heater Air Door", "Heater Air Door Actuator", "Heater Core", "Heater Hose"
-  ],
-  "Ignition": [
-    "Camshaft Position Sensor", "Camshaft Position Sensor Seal", "Crankshaft Position Sensor", "Ignition Coil",
-    "Ignition Coil Mounting Bracket", "Ignition Coil Wire", "Ignition Control Module (ICM)", "Ignition Lock Cylinder",
-    "Ignition Lock Housing", "Spark Plug", "Spark Plug Wire"
-  ],
-  "Interior": [
-    "Accelerator Pedal Position Sensor", "Accessory Power Outlet", "Accessory Power Outlet Cover",
-    "Air Bag Clockspring", "Brake Pedal", "Brake Pedal Pad", "Cargo Area Mat", "Clutch Pedal Bushing",
-    "Clutch Pedal Pad", "Dash Board Cover", "Door Panel Retainer / Clip", "Floor Mat", "Flooring", "Gauge Panel",
-    "Gauge Set", "Inside Door Handle", "Inside Rear View Mirror", "Microphone", "Occupant Detection Sensor",
-    "Radio Installation Kit", "Radio Module Interface", "Seat Belt Guide / Clip", "Seat Cover", "Speaker",
-    "Speaker Bezel", "Speaker Bracket", "Steering Wheel", "Sunroof Motor", "Transmission Shift Handle",
-    "Transmission Shift Lever", "USB / AUX Port", "Window Motor", "Window Regulator", "Window Regulator & Motor Assembly"
-  ],
-  "Literature": [
-    "Repair Manual"
-  ],
-  "Steering": [
-    "Power Steering Fluid", "Rack and Pinion", "Rack and Pinion Bellow", "Rack and Pinion Bellow Clamp",
-    "Rack and Pinion Belt Kit", "Rack and Pinion O-Ring", "Steering Column Switch Housing", "Steering Gear Bolt",
-    "Steering Wheel Position Sensor", "Tie Rod End", "Tie Rod Nut"
-  ],
-  "Suspension": [
-    "Alignment Bolt / Camber Plate", "Bump Stop", "Coil Spring", "Coil Spring Seat / Insulator", "Control Arm",
-    "Control Arm Anchor Bolt", "Control Arm Bushing", "Control Arm Nut", "Control Arm Washer", "Front End Kit",
-    "Ride Height Sensor", "Shock / Strut", "Shock / Strut & Coil Spring Assembly", "Shock / Strut Bearing",
-    "Shock / Strut Bellow", "Shock / Strut Bolt", "Shock / Strut Mount", "Shock / Strut Mount Bolt",
-    "Shock Mount Washer", "Strut Mount Nut", "Strut Mount Retainer", "Strut Mount Washer", "Strut Rod Lock Nut",
-    "Subframe Bushing", "Subframe Mount Bolt", "Sway Bar Bracket", "Sway Bar Bushing", "Sway Bar Link"
-  ],
-  "Transmission-Automatic": [
-    "Automatic Transmission Control Unit (TCU)", "Boost Valve", "Bushing", "Bushing Kit", "Case", "Case Bushing",
-    "Case Cover", "Case Vent", "Clutch Apply Plate", "Clutch Housing", "Clutch Housing Thrust Bearing",
-    "Clutch Hub", "Clutch Pack Piston", "Clutch Pack Piston Dam / Seal", "Clutch Plate", "Clutch Plate Pack",
-    "Clutch Plate Retaining Ring", "Clutch Plate and Housing Assembly", "Clutch Seal Ring", "Clutch Spring",
-    "Components", "Detent Lever", "Extension Housing", "Extension Housing Bolt", "Extension Housing Bushing",
-    "Extension Housing Gasket", "Extension Housing Seal", "Filter", "Flexplate", "Flexplate Mounting Bolt",
-    "Fluid Cooler Line / Hose", "Fluid Cooler Line / Hose Connector", "Fluid Cooler Line / Hose Seal",
-    "Fluid Cooler Line Clip", "Fluid Pan", "Fluid Pan Drain Plug", "Fluid Pan Gasket", "Fluid Pan Magnet",
-    "Fluid Pump Bushing", "Fluid Pump Cover", "Fluid Pump Cover Bolt", "Fluid Pump O-Ring", "Fluid Pump Rotor",
-    "Fluid Pump Seal", "Fluid Pump Slide", "Gasket Kit", "Input Carrier", "Manual Shaft Seal", "Manual Shift Shaft",
-    "Manual Valve", "O-Rings & Seals", "Output Carrier", "Output Shaft Bearing", "Output Shaft Bushing",
-    "Output Shaft Seal", "Parking Pawl", "Piston Kit", "Plug Adapter", "Pressure Regulator Valve", "Rebuild Kit",
-    "Retaining Ring", "Sealing Rings", "Servo Piston", "Shift Improvement Kit", "Shift Shaft Seal", "Shift Solenoid",
-    "Snap Ring", "Sprag", "Sun Gear", "Sun Gear Bearing", "Torque Converter", "Torque Converter Bolt",
-    "Torque Converter Clutch Valve", "Torque Converter Hardware", "Torque Converter Housing Plug",
-    "Torque Converter Shaft Seal", "Transmission Fluid", "Transmission Fluid Additive", "Transmission Mount",
-    "Transmission Service Kit", "Turbine Shaft Fluid Seal Ring", "Turbine Shaft Seal", "Valve Body",
-    "Valve Body Check Ball", "Valve Body Separator Plate"
-  ],
-  "Transmission-Manual": [
-    "Bearing Retainer", "Case", "Clutch Alignment Tool", "Clutch Bellhousing", "Clutch Kit", "Clutch Master Cylinder",
-    "Clutch Pilot Bearing", "Clutch Slave Cylinder", "Countershaft Bearing/Race", "Countershaft Gear",
-    "Countershaft Gear Bearing", "Countershaft Gear Bearing Retainer", "Countershaft Gear Snap Ring",
-    "Detent Mechanism", "Detent Plug", "Detent Roller", "Detent Spring", "Drive Axle Seal", "Fluid Pump",
-    "Fluid Pump Inlet Pipe", "Fluid Temperature Sensor", "Flywheel", "Flywheel Bolt", "Gear", "Gear Bearing",
-    "Gear Snap Ring", "Gear Spacer", "Input Shaft Bearing", "Input Shaft Repair Sleeve", "Input Shaft Seal",
-    "Main / Output Shaft Bearing", "Main / Output Shaft Seal", "Manual Transmission Fluid", "Manual Transmission Seal",
-    "Reverse Gear Shaft", "Reverse Idler Bearing", "Reverse Idler Gear", "Reverse Idler Shaft", "Shift Fork",
-    "Shift Guide Detent Plate", "Shift Lever Bushing", "Shift Lever Collar", "Shift Rail Plate", "Shift Shaft",
-    "Shift Shaft Pin", "Shift Shaft Seal", "Synchro Assembly", "Synchro Ring", "Synchro Spring", "Transmission Mount"
-  ],
-  "Wheel": [
-    "Lug Nut", "Lug Nut & Lock Kit", "Lug Nut Installation Tool / Key", "Lug Nut Lock", "Lug Stud",
-    "Tire Pressure Monitoring System (TPMS) Sensor", "Tire Pressure Monitoring System (TPMS) Stem / Service Kit",
-    "Tire Valve Stem", "Wheel"
-  ],
-  "Wiper & Washer": [
-    "Washer Fluid Reservoir", "Washer Fluid Reservoir Cap", "Washer Pump", "Washer Pump Grommet",
-    "Wiper Arm Cover", "Wiper Arm Nut", "Wiper Blade", "Wiper Linkage / Transmission", "Wiper Motor"
-  ]
+  "Belt Drive": ["Belt", "Belt Removal / Installation Tool", "Belt Tensioner", "Belt Tensioner Bolt", "Idler Pulley"],
+  "Body & Lamp Assembly": ["Air Deflector", "Antenna", "Bumper Cover", "Bumper Insert", "Fender", "Fog / Driving Lamp Assembly", "Grille", "Headlamp Assembly", "Hood", "Outside Mirror Glass", "Radiator Support", "Tail Lamp Assembly", "Trunk Lock Actuator"],
+  "Brake & Wheel Hub": ["ABS Control Module", "ABS Wheel Speed Sensor", "Brake Bleeder Screw", "Brake Fluid", "Brake Hose", "Brake Pad", "Caliper", "Master Cylinder", "Parking Brake Shoe", "Power Brake Booster", "Rotor", "Wheel Bearing & Hub"],
+  "Cooling System": ["Coolant / Antifreeze", "Coolant Hose / Pipe", "Coolant Reservoir", "Radiator", "Radiator Cap", "Radiator Fan Assembly", "Temperature Sender / Sensor", "Thermostat", "Water Pump"],
+  "Drivetrain": ["Axle Shaft Seal", "CV Axle", "CV Joint Boot", "Differential Carrier", "Drive Shaft", "Gear Oil"],
+  "Electrical": ["Alternator / Generator", "Battery", "Engine Control Module (ECM Computer)", "Fuse", "Horn", "Speed Sensor", "Starter Motor"],
+  "Electrical-Bulb & Socket": ["Back Up / Reverse Lamp Bulb", "Brake Light Bulb", "Fog / Driving Lamp Bulb", "Headlamp Bulb", "Tail Lamp Bulb"],
+  "Electrical-Connector": ["ABS Wheel Speed Sensor Connector", "Brake Light Switch Connector", "Camshaft Position Sensor Connector", "Crankshaft Position Sensor Connector", "Fuel Injector Connector", "Ignition Coil Connector"],
+  "Electrical-Switch & Relay": ["A/C System Relay", "Blower Motor Relay", "Door Lock Switch", "Fuel Pump / Circuit Opening Relay", "Headlamp Switch", "Ignition Starter Switch", "Power Window Switch"],
+  "Engine": ["Camshaft", "Connecting Rod", "Crankshaft", "Cylinder Head", "Cylinder Head Gasket", "Engine Block Heater", "Exhaust Valve", "Harmonic Balancer", "Intake Manifold", "Intake Valve", "Motor Mount", "Oil Cooler", "Oil Filter", "Oil Pan", "Oil Pump", "Piston", "Piston Ring", "Rocker Arm", "Timing Chain", "Valve Cover", "Variable Valve Timing (VVT) Solenoid / Actuator"],
+  "Exhaust & Emission": ["Catalytic Converter", "Exhaust Header Gasket", "Exhaust Manifold", "Mass Air Flow (MAF) Sensor", "Oxygen (O2) Sensor", "Vapor Canister Purge Valve / Solenoid"],
+  "Fuel & Air": ["Air Filter", "Fuel Injection Pressure Sensor", "Fuel Injector", "Fuel Line / Hose", "Fuel Pump & Housing Assembly", "Fuel Tank Cap", "Throttle Body"],
+  "Heat & Air Conditioning": ["A/C Compressor", "A/C Condenser", "A/C Evaporator Core", "A/C Expansion Valve", "Ambient Air Temperature Sensor", "Blower Motor", "Cabin Air Filter", "Heater Core"],
+  "Ignition": ["Camshaft Position Sensor", "Crankshaft Position Sensor", "Ignition Coil", "Spark Plug", "Spark Plug Wire"],
+  "Interior": ["Accelerator Pedal Position Sensor", "Air Bag Clockspring", "Floor Mat", "Inside Door Handle", "Steering Wheel", "Window Motor", "Window Regulator"],
+  "Literature": ["Repair Manual"],
+  "Steering": ["Power Steering Fluid", "Rack and Pinion", "Steering Wheel Position Sensor", "Tie Rod End"],
+  "Suspension": ["Alignment Bolt / Camber Plate", "Coil Spring", "Control Arm", "Control Arm Bushing", "Shock / Strut", "Shock / Strut Mount", "Sway Bar Bushing", "Sway Bar Link"],
+  "Transmission-Automatic": ["Automatic Transmission Control Unit (TCU)", "Clutch Housing", "Filter", "Flexplate", "Fluid Pan", "Torque Converter", "Transmission Fluid", "Transmission Mount", "Valve Body"],
+  "Transmission-Manual": ["Clutch Kit", "Clutch Master Cylinder", "Clutch Slave Cylinder", "Flywheel", "Manual Transmission Fluid", "Shift Fork", "Synchro Ring"],
+  "Wheel": ["Lug Nut", "Lug Stud", "Tire Pressure Monitoring System (TPMS) Sensor", "Wheel"],
+  "Wiper & Washer": ["Washer Fluid Reservoir", "Washer Pump", "Wiper Arm", "Wiper Blade", "Wiper Motor"]
 };
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
@@ -280,6 +95,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [customRequests, setCustomRequests] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
 
+  // 🚀 حالات البحث والفلترة والعرض لقائمة الـ 10,000+ قطعة
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [inlineEditingPartId, setInlineEditingPartId] = useState<number | null>(null);
+  const [inlinePrice, setInlinePrice] = useState('');
+  const [inlineStock, setInlineStock] = useState('');
+
   const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [selectedCustomRequest, setSelectedCustomRequest] = useState<any | null>(null);
@@ -305,9 +127,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchCustomRequests();
   }, [userId]);
 
+  // 🔍 البحث التلقائي والتصحيح الإملائي الذكي للربط مع القوائم المنسدلة الهجينة
   const handlePartNameChange = (name: string) => {
     setPartName(name);
-    const lower = name.toLowerCase();
+    const lower = name.toLowerCase().trim();
+
+    if (!lower) return;
 
     for (const [mainCat, subCats] of Object.entries(FULL_CATEGORY_TREE)) {
       for (const subCat of subCats) {
@@ -442,13 +267,41 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
 
       if (response.ok) {
-        alert(isRtl ? 'تم حفظ القطعة بنجاح' : 'Part saved successfully');
+        setToastMessage(isRtl ? 'تم حفظ بيانات القطعة بنجاح! ✅' : 'Part saved successfully');
         resetForm();
         fetchMyParts();
         onSuccess();
         setActiveTab('my_parts');
       }
     } catch (error) {}
+  };
+
+  // ✏️ التعديل المباشر والسريع في نفس السطر (In-Line Quick Edit)
+  const handleQuickSaveInline = async (partId: number) => {
+    try {
+      const response = await fetch(`${supabaseUrl}/parts?id=eq.${partId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
+          price: parseFloat(inlinePrice),
+          stock: parseInt(inlineStock) || 0
+        })
+      });
+
+      if (response.ok) {
+        setToastMessage(isRtl ? 'تم تحديث السعر والمخزون فوراً! ✅' : 'Updated successfully');
+        setInlineEditingPartId(null);
+        fetchMyParts();
+        if (onSuccess) onSuccess();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleSendCustomQuote = async (e: React.FormEvent) => {
@@ -560,7 +413,17 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartName(part.name); setPartNumber(part.part_number || ''); setPartPrice(part.price ? part.price.toString() : ''); 
     setPartStock((part.stock ?? 1).toString()); setPartType(part.part_type || 'مستعمل أصلي'); setPartCondition(part.part_condition || 'نظيف');
     setPartMake(part.make); setPartModel(part.model || ''); setPartYear(part.year); setPartEngine(part.engine || ''); 
-    setMainCategory(''); setSubCategory('');
+    
+    // استخراج التصنيف
+    if (part.category && part.category.includes('>')) {
+      const parts = part.category.split('>');
+      setMainCategory(parts[0].trim());
+      setSubCategory(parts[1].trim());
+    } else {
+      setMainCategory(part.category || '');
+      setSubCategory('');
+    }
+
     setPartImages(part.additional_images || [part.image_url]); setEditingId(part.id); 
     setActiveTab('add_part'); window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -573,20 +436,33 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartImages([]); setEditingId(null);
   };
 
+  // ⚡ التصفية الفورية اللحظية لقائمة الـ 10,000+ قطعة
+  const filteredMyParts = useMemo(() => {
+    if (!searchQuery.trim()) return myParts;
+    const q = searchQuery.toLowerCase().trim();
+    return myParts.filter(p => 
+      String(p.name || '').toLowerCase().includes(q) ||
+      String(p.part_number || '').toLowerCase().includes(q) ||
+      String(p.make || '').toLowerCase().includes(q) ||
+      String(p.model || '').toLowerCase().includes(q)
+    );
+  }, [myParts, searchQuery]);
+
   const activeInquiriesList = myInquiries.filter(i => i.status !== 'ordered');
   const pendingInquiriesCount = myInquiries.filter(i => i.status === 'pending_check').length;
   const pendingCustomRequestsCount = customRequests.filter(r => r.status === 'pending' || r.status === 'offers_received').length;
 
   return (
-    <div style={{ maxWidth: '940px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
+    <div style={{ maxWidth: '1000px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
+      {/* 🚀 الهيدر التنفيذي وعناوين التبويب */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', flexWrap: 'wrap' }}>
-        <button onClick={() => { resetForm(); setActiveTab('add_part'); }} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'add_part' ? '#3182ce' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
-          {isRtl ? 'إضافة قطعة' : 'Add Part'}
+        <button onClick={() => { resetForm(); setActiveTab('add_part'); }} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'add_part' ? '#1f3a5f' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
+          {isRtl ? 'إضافة قطعة جديدة' : 'Add Part'}
         </button>
 
-        <button onClick={() => setShowExcelModal(true)} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#38a169', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {isRtl ? 'رفع قطع بالإكسل' : 'Bulk Excel'}
+        <button onClick={() => setShowExcelModal(true)} style={{ padding: '12px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#16a34a', color: 'white', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          📄 {isRtl ? 'رفع قطع بالإكسل' : 'Bulk Excel'}
         </button>
 
         <button onClick={() => setActiveTab('custom_requests')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'custom_requests' ? '#e0872a' : 'transparent', color: activeTab === 'custom_requests' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px', position: 'relative' }}>
@@ -603,7 +479,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           )}
         </button>
 
-        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'my_parts' ? '#2b6cb0' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
+        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'my_parts' ? '#1f3a5f' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
           {isRtl ? `معروضاتي (${myParts.length})` : `My Ads (${myParts.length})`}
         </button>
 
@@ -612,10 +488,11 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </button>
       </div>
 
+      {/* 1️⃣ تبويب إضافة قطعة غيار جديدة (مع القوائم الهجينة النقية بدون إيموجي) */}
       {activeTab === 'add_part' && (
         <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
-            <h2 style={{ color: '#1a365d', margin: 0, fontSize: '20px' }}>
+            <h2 style={{ color: '#1f3a5f', margin: 0, fontSize: '20px', fontWeight: 'bold' }}>
               {editingId ? (isRtl ? 'تعديل بيانات القطعة' : 'Edit Part') : (isRtl ? 'إضافة قطعة غيار جديدة' : 'Add New Spare Part')}
             </h2>
           </div>
@@ -624,12 +501,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                  {isRtl ? 'اسم قطعة الغيار *' : 'Part Name *'}
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
+                  {isRtl ? 'اسم قطعة الغيار (اكتب الاسم للربط الآلي) *' : 'Part Name *'}
                 </label>
                 <input
                   type="text"
-                  placeholder={isRtl ? "مثال: مساعدات أمامية، Bump Stop..." : "E.g., Bump Stop, Alternator..."}
+                  placeholder={isRtl ? "مثال: مساعدات أمامية، Oil Filter..." : "E.g., Oil Filter, Bumper..."}
                   value={partName}
                   onChange={(e) => handlePartNameChange(e.target.value)}
                   style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }}
@@ -638,22 +515,23 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                  {isRtl ? 'رقم القطعة (اختياري):' : 'Part Number (PN) (Optional):'}
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
+                  {isRtl ? 'رقم القطعة الأصلي OEM (اخياري):' : 'Part Number OEM (Optional):'}
                 </label>
                 <input
                   type="text"
-                  placeholder="مثال: 27060-0H110"
+                  placeholder="مثال: 90915-YZZD1"
                   value={partNumber}
                   onChange={(e) => setPartNumber(e.target.value)}
-                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', fontFamily: 'monospace' }}
                 />
               </div>
             </div>
 
+            {/* 🌐 القوائم المنسدلة الهجينة النظيفة بدون إيموجي (Bilingual Dropdowns) */}
             <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold', color: '#1f3a5f' }}>
-                مكان وتصنيف القطعة (الفرع الأول Primary Category ➔ الفرع الثاني Sub-Category):
+                تصنيف وموقع القطعة (Hybrid Category Selector):
               </label>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -666,7 +544,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                   >
                     <option value="">-- اختر الفرع الرئيسي --</option>
                     {Object.keys(FULL_CATEGORY_TREE).map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat} value={cat}>
+                        {CATEGORY_TRANSLATIONS[cat] ? `${CATEGORY_TRANSLATIONS[cat].ar} — ${cat}` : cat}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -803,7 +683,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                صور القطعة (يمكنك اختيار رفع أكثر من صورة معاً):
+                صور القطعة:
               </label>
 
               <div style={{ border: '2px dashed #94a3b8', padding: '20px', borderRadius: '12px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
@@ -840,7 +720,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
             <button
               type="submit"
-              style={{ width: '100%', padding: '14px', backgroundColor: editingId ? '#3182ce' : '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 12px rgba(22,163,74,0.25)' }}
+              style={{ width: '100%', padding: '14px', backgroundColor: editingId ? '#1f3a5f' : '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 12px rgba(22,163,74,0.25)' }}
             >
               {editingId ? 'حفظ التعديلات' : 'نشر القطعة للبيع الآن'}
             </button>
@@ -848,9 +728,190 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
+      {/* 2️⃣ تبويب معروضاتي - لوحة المحرك السريع لمعالجة 10,000+ قطعة (Compact Table + Live Search) */}
+      {activeTab === 'my_parts' && (
+        <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
+                {isRtl ? `إدارة معروضات الكراج (${filteredMyParts.length} / ${myParts.length})` : `Manage Ads (${filteredMyParts.length})`}
+              </h3>
+            </div>
+
+            {/* أزرار نمط العرض (جدول مدمج vs بطاقات) + رفع الإكسل */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '3px' }}>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  style={{ padding: '6px 12px', border: 'none', borderRadius: '6px', backgroundColor: viewMode === 'table' ? '#1f3a5f' : 'transparent', color: viewMode === 'table' ? '#ffffff' : '#64748b', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+                >
+                  📄 جدول مدمج
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('cards')}
+                  style={{ padding: '6px 12px', border: 'none', borderRadius: '6px', backgroundColor: viewMode === 'cards' ? '#1f3a5f' : 'transparent', color: viewMode === 'cards' ? '#ffffff' : '#64748b', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+                >
+                  🎴 بطاقات
+                </button>
+              </div>
+
+              <button onClick={() => setShowExcelModal(true)} style={{ padding: '8px 14px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                📄 رفع إكسل
+              </button>
+            </div>
+          </div>
+
+          {/* 🔍 شريط البحث اللحظي السريع في الـ 10,000+ قطعة */}
+          <div style={{ marginBottom: '16px' }}>
+            <input
+              type="text"
+              placeholder={isRtl ? "🔍 بحث سريع برقم القطعة OEM، اسمها، أو ماركة السيارة..." : "🔍 Search by PN, Name, or Make..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', boxSizing: 'border-box', backgroundColor: '#f8fafc' }}
+            />
+          </div>
+
+          {/* 📊 1. نمط العرض الأول: جدول مدمج عالي الأداء (Compact Table) */}
+          {viewMode === 'table' ? (
+            <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f1f5f9', color: '#1f3a5f', borderBottom: '2px solid #cbd5e0' }}>
+                    <th style={{ padding: '12px 10px' }}>الصورة</th>
+                    <th style={{ padding: '12px 10px' }}>اسم القطعة / OEM</th>
+                    <th style={{ padding: '12px 10px' }}>التوافق والسيارة</th>
+                    <th style={{ padding: '12px 10px' }}>السعر</th>
+                    <th style={{ padding: '12px 10px' }}>المخزون</th>
+                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMyParts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                        {isRtl ? 'لا توجد نتائج مطابقة للبحث' : 'No matching parts found'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredMyParts.map(part => {
+                      const isInline = inlineEditingPartId === part.id;
+                      return (
+                        <tr key={part.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: '#ffffff' }}>
+                          <td style={{ padding: '8px 10px' }}>
+                            <img src={part.image_url || 'https://via.placeholder.com/40'} alt={part.name} style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                          </td>
+
+                          <td style={{ padding: '8px 10px' }}>
+                            <strong style={{ color: '#1f3a5f', display: 'block' }}>
+                              <AITranslatedText text={part.name} lang={lang} />
+                            </strong>
+                            {part.part_number && <span style={{ fontSize: '11px', color: '#e0872a', fontFamily: 'monospace' }}>PN: {part.part_number}</span>}
+                          </td>
+
+                          <td style={{ padding: '8px 10px', color: '#475569' }}>
+                            {part.make} - {part.model} ({part.year})
+                          </td>
+
+                          <td style={{ padding: '8px 10px' }}>
+                            {isInline ? (
+                              <input
+                                type="number"
+                                value={inlinePrice}
+                                onChange={(e) => setInlinePrice(e.target.value)}
+                                style={{ width: '70px', padding: '4px', borderRadius: '4px', border: '1px solid #e0872a', fontWeight: 'bold' }}
+                              />
+                            ) : (
+                              <span style={{ fontWeight: 'bold', color: '#16a34a' }}>{part.price} QAR</span>
+                            )}
+                          </td>
+
+                          <td style={{ padding: '8px 10px' }}>
+                            {isInline ? (
+                              <input
+                                type="number"
+                                value={inlineStock}
+                                onChange={(e) => setInlineStock(e.target.value)}
+                                style={{ width: '50px', padding: '4px', borderRadius: '4px', border: '1px solid #e0872a', fontWeight: 'bold' }}
+                              />
+                            ) : (
+                              <span style={{ fontWeight: 'bold', color: (part.stock || 1) > 0 ? '#1f3a5f' : '#dc2626' }}>
+                                {part.stock ?? 1}
+                              </span>
+                            )}
+                          </td>
+
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            {isInline ? (
+                              <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                <button onClick={() => handleQuickSaveInline(part.id)} style={{ backgroundColor: '#16a34a', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>حفظ</button>
+                                <button onClick={() => setInlineEditingPartId(null)} style={{ backgroundColor: '#94a3b8', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>إلغاء</button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                <button
+                                  onClick={() => {
+                                    setInlineEditingPartId(part.id);
+                                    setInlinePrice(String(part.price));
+                                    setInlineStock(String(part.stock ?? 1));
+                                  }}
+                                  title="تعديل سريع للسعر والمخزون"
+                                  style={{ backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', fontWeight: 'bold' }}
+                                >
+                                  ⚡ تعديل سريع
+                                </button>
+                                <button onClick={() => handleEdit(part)} style={{ padding: '4px 8px', backgroundColor: '#ebf8ff', color: '#2b6cb0', border: '1px solid #bee3f8', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}>تعديل كامل</button>
+                                <button onClick={() => handleDelete(part.id)} style={{ padding: '4px 8px', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}>حذف</button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* 🎴 2. نمط العرض الثاني: بطاقات المعرض التقليدية */
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' }}>
+              {filteredMyParts.map(part => (
+                <div key={part.id} style={{ border: '1px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden', backgroundColor: '#f8fafc', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <img src={part.image_url || 'https://via.placeholder.com/70'} alt={part.name} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #cbd5e0' }} />
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: '0 0 4px 0', color: '#1f3a5f', fontSize: '14.5px' }}>
+                        <AITranslatedText text={part.name} lang={lang} />
+                      </h4>
+                      {part.part_number && <span style={{ fontSize: '11.5px', color: '#e0872a', fontWeight: 'bold', display: 'block' }}>PN: {part.part_number}</span>}
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>{part.make} - {part.model} ({part.year})</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '8px', alignItems: 'center' }}>
+                    <strong style={{ color: '#16a34a', fontSize: '16px' }}>{part.price} QAR</strong>
+                    <span style={{ fontSize: '12px', color: '#1f3a5f', fontWeight: 'bold' }}>المخزون: {part.stock ?? 1}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    <button onClick={() => handleEdit(part)} style={{ flex: 1, padding: '8px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>تعديل البيانات</button>
+                    <button onClick={() => handleDelete(part.id)} style={{ padding: '8px 12px', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>حذف</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* 3️⃣ باقي التبويبات والمودالات بنفس استقرارها وقوتها */}
       {activeTab === 'custom_requests' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+          <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
             {isRtl ? 'طلبات القطع المخصصة الواردة من العملاء' : 'Custom Part Requests from Customers'}
           </h3>
 
@@ -865,7 +926,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#fff7ed', color: '#c2410c', padding: '4px 10px', borderRadius: '6px', border: '1px solid #ffedd5' }}>
                       {isRtl ? 'رقم الطلب:' : 'Request ID:'} #{req.id}
                     </span>
-                    {/* 🔒 إظهار معرف العميل المشفّر لحماية الخصوصية بدلاً من رقم الهاتف */}
                     <span style={{ fontSize: '12.5px', color: '#64748b', fontWeight: 'bold' }}>
                       {isRtl ? 'معرف العميل:' : 'Customer ID:'} {req.customer_phone?.startsWith('CUST') ? req.customer_phone : `CUST-${req.id + 1000}`}
                     </span>
@@ -918,7 +978,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
       {activeTab === 'inquiries' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+          <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
             {isRtl ? 'استفسارات مطابقة التوافق الواردة' : 'Incoming Fitment Inquiries'}
           </h3>
 
@@ -945,7 +1005,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                     <img src={inquiry.part_image || 'https://via.placeholder.com/60'} alt={inquiry.part_name} style={{ width: '65px', height: '65px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong style={{ fontSize: '15px', color: '#1a365d' }}>
+                        <strong style={{ fontSize: '15px', color: '#1f3a5f' }}>
                           <AITranslatedText text={inquiry.part_name || (isRtl ? 'قطعة من معروضاتك' : 'Part from your listings')} lang={lang} />
                         </strong>
                         <span style={{ fontSize: '11px', color: '#3182ce', backgroundColor: '#ebf8ff', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{isRtl ? 'اضغط للمعاينة' : 'Click to Preview'}</span>
@@ -990,41 +1050,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {activeTab === 'my_parts' && (
-        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ margin: 0, color: '#1a365d' }}>{isRtl ? `جميع القطع المعروضة (${myParts.length})` : `All Listed Parts (${myParts.length})`}</h3>
-            
-            <button onClick={() => setShowExcelModal(true)} style={{ padding: '8px 16px', backgroundColor: '#38a169', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {isRtl ? 'رفع المزيد بالإكسل' : 'Upload More via Excel'}
-            </button>
-          </div>
-
-          {myParts.map(part => (
-            <div key={part.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '10px', backgroundColor: '#f8fafc' }}>
-              <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                <img src={part.image_url || 'https://via.placeholder.com/60'} alt={part.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px' }} />
-                <div>
-                  <h4 style={{ margin: '0 0 4px 0', color: '#2d3748', fontSize: '16px' }}>
-                    <AITranslatedText text={part.name} lang={lang} /> 
-                    {part.part_number && <span style={{ fontSize: '12px', color: '#718096' }}>[PN: {part.part_number}]</span>}
-                  </h4>
-                  <div style={{ fontSize: '12.5px', color: '#718096', marginBottom: '4px' }}>{part.make} - {part.model} ({part.year})</div>
-                  <div><span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{part.price} QAR</span> | <span style={{ fontSize: '12px', color: '#2b6cb0', fontWeight: 'bold' }}>{part.part_type || (isRtl ? 'مستعمل' : 'Used')}</span></div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => handleEdit(part)} style={{ padding: '8px 14px', backgroundColor: '#ebf8ff', color: '#3182ce', border: '1px solid #bee3f8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>{isRtl ? 'تعديل' : 'Edit'}</button>
-                <button onClick={() => handleDelete(part.id)} style={{ padding: '8px 14px', backgroundColor: '#fff5f5', color: '#e53e3e', border: '1px solid #fed7d7', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>{isRtl ? 'حذف' : 'Delete'}</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1a365d' }}>{isRtl ? 'الطلبات الواردة للشحن والاستلام' : 'Incoming Orders for Delivery/Pickup'}</h3>
+          <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f' }}>{isRtl ? 'الطلبات الواردة للشحن والاستلام' : 'Incoming Orders for Delivery/Pickup'}</h3>
           {myOrders.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>{isRtl ? 'لا توجد طلبات جديدة حالياً.' : 'No new orders currently.'}</p>
           ) : (
@@ -1151,7 +1179,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
           <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', maxWidth: '500px', width: '90%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
             <button onClick={() => setPreviewPartDetails(null)} style={{ position: 'absolute', top: '15px', right: '15px', border: 'none', background: '#edf2f7', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
-            <h3 style={{ margin: '0 0 15px 0', color: '#1a365d' }}>{isRtl ? 'تفاصيل قطعة المعرض' : 'Garage Part Details'}</h3>
+            <h3 style={{ margin: '0 0 15px 0', color: '#1f3a5f' }}>{isRtl ? 'تفاصيل قطعة المعرض' : 'Garage Part Details'}</h3>
             <img src={previewPartDetails.part_image || 'https://via.placeholder.com/300'} alt={previewPartDetails.part_name} style={{ width: '100%', maxHeight: '250px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #cbd5e0', marginBottom: '15px' }} />
             <h4 style={{ margin: '0 0 6px 0', fontSize: '18px', color: '#2d3748' }}>
               <AITranslatedText text={previewPartDetails.part_name} lang={lang} />
@@ -1221,3 +1249,5 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     </div>
   );
 };
+
+export default GarageDashboard;
