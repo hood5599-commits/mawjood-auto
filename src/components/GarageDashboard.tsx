@@ -88,7 +88,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [uploadingImages, setUploadingImages] = useState(false);
 
   const [showExcelModal, setShowExcelModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false); // 💡 نافذة التعديل المنبثقة
+  const [showEditModal, setShowEditModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [myParts, setMyParts] = useState<any[]>([]);
@@ -229,7 +229,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
-  // 📝 نشر أو تحديث القطعة الكامل
+  // 📝 نشر أو تحديث القطعة الكامل دون أخطاء Schema Cache
   const handlePublishSingle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId || userId === 'garage_unknown') return alert(isRtl ? 'يرجى تسجيل الدخول مجدداً' : 'Please login again');
@@ -239,11 +239,11 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     try {
       const isEditing = !!editingPart;
       const method = isEditing ? 'PATCH' : 'POST';
-      // 🎯 إضافة user_id لضمان عدم الرفض من قواعد الحماية RLS
       const url = isEditing 
         ? `${supabaseUrl}/parts?id=eq.${editingPart.id}&user_id=eq.${userId}` 
         : `${supabaseUrl}/parts`;
 
+      // 🎯 الحقول المتوفرة حتماً في قاعدة بياناتك
       const payload = {
         name: partName,
         part_number: partNumber.trim() || null,
@@ -257,7 +257,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         year: partYear,
         engine: partEngine || (isRtl ? 'عام' : 'General'),
         image_url: partImages[0] || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-        additional_images: partImages, 
         user_id: userId
       };
 
