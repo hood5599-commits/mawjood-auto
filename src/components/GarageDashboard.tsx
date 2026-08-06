@@ -13,7 +13,7 @@ interface GarageProps {
   onSuccess: () => void;
 }
 
-// 🌐 القاموس الهجين لترجمة الأقسام الرئيسية دون إيموجي
+// 🌐 القاموس الهجين لترجمة الأقسام الرئيسية
 const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   "Belt Drive": { ar: "نظام السيور والمكرات", en: "Belt Drive" },
   "Body & Lamp Assembly": { ar: "الهيكل والإضاءة", en: "Body & Lamp Assembly" },
@@ -21,11 +21,11 @@ const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   "Cooling System": { ar: "نظام التبريد والرديتر", en: "Cooling System" },
   "Drivetrain": { ar: "نظام الدفع والمحاور", en: "Drivetrain" },
   "Electrical": { ar: "الكهرباء والكهربائيات", en: "Electrical" },
-  "Electrical-Bulb & Socket": { ar: "اللمبات واللمبات والسوكتات", en: "Electrical-Bulb & Socket" },
-  "Electrical-Connector": { ar: "الفيش والتوصيلات الكهربائية", en: "Electrical-Connector" },
-  "Electrical-Switch & Relay": { ar: "المفاتيح والكتاوت والريليهات", en: "Electrical-Switch & Relay" },
+  "Electrical-Bulb & Socket": { ar: "اللمبات والسوكتات", en: "Electrical-Bulb & Socket" },
+  "Electrical-Connector": { ar: "الفيش والتوصيلات", en: "Electrical-Connector" },
+  "Electrical-Switch & Relay": { ar: "المفاتيح والكتاوت", en: "Electrical-Switch & Relay" },
   "Engine": { ar: "المحرك ومكوناته", en: "Engine" },
-  "Exhaust & Emission": { ar: "العادم والانبعاثات (الكزوز)", en: "Exhaust & Emission" },
+  "Exhaust & Emission": { ar: "العادم والانبعاثات", en: "Exhaust & Emission" },
   "Fuel & Air": { ar: "الوقود وهواء المحرك", en: "Fuel & Air" },
   "Heat & Air Conditioning": { ar: "التكييف والتدفئة", en: "Heat & Air Conditioning" },
   "Ignition": { ar: "نظام الاشتعال (البواجي)", en: "Ignition" },
@@ -65,8 +65,9 @@ const FULL_CATEGORY_TREE: Record<string, string[]> = {
 };
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('add_part');
+  const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('my_parts');
 
+  // نموذج الإضافة والتعديل
   const [partName, setPartName] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [partPrice, setPartPrice] = useState('');
@@ -87,15 +88,16 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [uploadingImages, setUploadingImages] = useState(false);
 
   const [showExcelModal, setShowExcelModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false); // 💡 نافذة التعديل المنبثقة
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [myParts, setMyParts] = useState<any[]>([]);
   const [myOrders, setMyOrders] = useState<any[]>([]);
   const [myInquiries, setMyInquiries] = useState<any[]>([]);
   const [customRequests, setCustomRequests] = useState<any[]>([]);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingPart, setEditingPart] = useState<any | null>(null);
 
-  // 🚀 حالات البحث والفلترة والعرض لقائمة الـ 10,000+ قطعة
+  // حالات البحث والعرض والتعديل السريع
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [inlineEditingPartId, setInlineEditingPartId] = useState<number | null>(null);
@@ -127,7 +129,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchCustomRequests();
   }, [userId]);
 
-  // 🔍 البحث التلقائي والتصحيح الإملائي الذكي للربط مع القوائم المنسدلة الهجينة
   const handlePartNameChange = (name: string) => {
     setPartName(name);
     const lower = name.toLowerCase().trim();
@@ -228,6 +229,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
+  // 📝 نشر أو تحديث القطعة الكامل
   const handlePublishSingle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId || userId === 'garage_unknown') return alert(isRtl ? 'يرجى تسجيل الدخول مجدداً' : 'Please login again');
@@ -235,13 +237,17 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     const fullCategoryPath = [mainCategory, subCategory].filter(Boolean).join(' > ');
 
     try {
-      const method = editingId ? 'PATCH' : 'POST';
-      const url = editingId ? `${supabaseUrl}/parts?id=eq.${editingId}` : `${supabaseUrl}/parts`;
+      const isEditing = !!editingPart;
+      const method = isEditing ? 'PATCH' : 'POST';
+      // 🎯 إضافة user_id لضمان عدم الرفض من قواعد الحماية RLS
+      const url = isEditing 
+        ? `${supabaseUrl}/parts?id=eq.${editingPart.id}&user_id=eq.${userId}` 
+        : `${supabaseUrl}/parts`;
 
       const payload = {
         name: partName,
         part_number: partNumber.trim() || null,
-        price: parseFloat(partPrice),
+        price: parseFloat(partPrice) || 0,
         stock: parseInt(partStock) || 1,
         part_type: partType,
         part_condition: partCondition,
@@ -250,7 +256,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         model: partModel,
         year: partYear,
         engine: partEngine || (isRtl ? 'عام' : 'General'),
-        image_url: partImages[0] || 'https://via.placeholder.com/400',
+        image_url: partImages[0] || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
         additional_images: partImages, 
         user_id: userId
       };
@@ -267,19 +273,25 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
 
       if (response.ok) {
-        setToastMessage(isRtl ? 'تم حفظ بيانات القطعة بنجاح! ✅' : 'Part saved successfully');
+        setToastMessage(isEditing ? (isRtl ? 'تم حفظ تعديلات القطعة بنجاح! ✅' : 'Updated successfully') : (isRtl ? 'تم نشر القطعة للبيع بنجاح! ✅' : 'Part published'));
         resetForm();
+        setShowEditModal(false);
         fetchMyParts();
         onSuccess();
         setActiveTab('my_parts');
+      } else {
+        const errData = await response.json();
+        alert(isRtl ? `حدث خطأ أثناء الحفظ: ${errData?.message || 'تأكد من البيانات'}` : 'Failed to save part');
       }
-    } catch (error) {}
+    } catch (error) {
+      alert(isRtl ? 'حدث خطأ بالاتصال أثناء الحفظ' : 'Connection error');
+    }
   };
 
-  // ✏️ التعديل المباشر والسريع في نفس السطر (In-Line Quick Edit)
+  // ⚡ التعديل المباشر السريع للسعر والمخزون في الجدول
   const handleQuickSaveInline = async (partId: number) => {
     try {
-      const response = await fetch(`${supabaseUrl}/parts?id=eq.${partId}`, {
+      const response = await fetch(`${supabaseUrl}/parts?id=eq.${partId}&user_id=eq.${userId}`, {
         method: 'PATCH',
         headers: {
           'apikey': apiKey,
@@ -288,7 +300,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           'Prefer': 'return=representation'
         },
         body: JSON.stringify({
-          price: parseFloat(inlinePrice),
+          price: parseFloat(inlinePrice) || 0,
           stock: parseInt(inlineStock) || 0
         })
       });
@@ -298,6 +310,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         setInlineEditingPartId(null);
         fetchMyParts();
         if (onSuccess) onSuccess();
+      } else {
+        alert(isRtl ? 'تعذر التعديل السريع، يرجى إعادة المحاولة' : 'Quick edit failed');
       }
     } catch (err) {
       console.error(err);
@@ -401,7 +415,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const handleDelete = async (id: number) => {
     if (!window.confirm(isRtl ? 'هل أنت متأكد من حذف هذه القطعة؟' : 'Are you sure you want to delete this part?')) return;
     try {
-      const response = await fetch(`${supabaseUrl}/parts?id=eq.${id}`, {
+      const response = await fetch(`${supabaseUrl}/parts?id=eq.${id}&user_id=eq.${userId}`, {
         method: 'DELETE',
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
@@ -409,12 +423,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
+  // ✏️ فتح نافذة التعديل المنبثقة للقطعة دون مغادرة جدول المعروضات
   const handleEdit = (part: any) => {
+    setEditingPart(part);
     setPartName(part.name); setPartNumber(part.part_number || ''); setPartPrice(part.price ? part.price.toString() : ''); 
     setPartStock((part.stock ?? 1).toString()); setPartType(part.part_type || 'مستعمل أصلي'); setPartCondition(part.part_condition || 'نظيف');
     setPartMake(part.make); setPartModel(part.model || ''); setPartYear(part.year); setPartEngine(part.engine || ''); 
     
-    // استخراج التصنيف
     if (part.category && part.category.includes('>')) {
       const parts = part.category.split('>');
       setMainCategory(parts[0].trim());
@@ -424,16 +439,17 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       setSubCategory('');
     }
 
-    setPartImages(part.additional_images || [part.image_url]); setEditingId(part.id); 
-    setActiveTab('add_part'); window.scrollTo({ top: 0, behavior: 'smooth' });
+    setPartImages(part.additional_images || [part.image_url]); 
+    setShowEditModal(true);
   };
 
   const resetForm = () => {
+    setEditingPart(null);
     setPartName(''); setPartNumber(''); setPartPrice(''); setPartStock('1'); 
     setPartType('مستعمل أصلي'); setPartCondition('نظيف');
     setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); 
     setMainCategory(''); setSubCategory('');
-    setPartImages([]); setEditingId(null);
+    setPartImages([]);
   };
 
   // ⚡ التصفية الفورية اللحظية لقائمة الـ 10,000+ قطعة
@@ -452,11 +468,256 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const pendingInquiriesCount = myInquiries.filter(i => i.status === 'pending_check').length;
   const pendingCustomRequestsCount = customRequests.filter(r => r.status === 'pending' || r.status === 'offers_received').length;
 
+  // مكون فورم الإضافة والتعديل الموحد
+  const renderPartForm = () => (
+    <form onSubmit={handlePublishSingle} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
+            {isRtl ? 'اسم قطعة الغيار (اكتب الاسم للربط الآلي) *' : 'Part Name *'}
+          </label>
+          <input
+            type="text"
+            placeholder={isRtl ? "مثال: مساعدات أمامية، Oil Filter..." : "E.g., Oil Filter, Bumper..."}
+            value={partName}
+            onChange={(e) => handlePartNameChange(e.target.value)}
+            style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }}
+            required
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
+            {isRtl ? 'رقم القطعة الأصلي OEM (اخياري):' : 'Part Number OEM (Optional):'}
+          </label>
+          <input
+            type="text"
+            placeholder="مثال: 90915-YZZD1"
+            value={partNumber}
+            onChange={(e) => setPartNumber(e.target.value)}
+            style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', fontFamily: 'monospace' }}
+          />
+        </div>
+      </div>
+
+      <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold', color: '#1f3a5f' }}>
+          تصنيف وموقع القطعة (Hybrid Category Selector):
+        </label>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#475569' }}>الفرع الرئيسي (Primary Category)</label>
+            <select
+              value={mainCategory}
+              onChange={(e) => { setMainCategory(e.target.value); setSubCategory(''); }}
+              style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+            >
+              <option value="">-- اختر الفرع الرئيسي --</option>
+              {Object.keys(FULL_CATEGORY_TREE).map((cat) => (
+                <option key={cat} value={cat}>
+                  {CATEGORY_TRANSLATIONS[cat] ? `${CATEGORY_TRANSLATIONS[cat].ar} — ${cat}` : cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#475569' }}>الفرع الفرعي (Sub-Category)</label>
+            <select
+              value={subCategory}
+              onChange={(e) => setSubCategory(e.target.value)}
+              disabled={!mainCategory}
+              style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+            >
+              <option value="">-- اختر الفرع الفرعي --</option>
+              {mainCategory && FULL_CATEGORY_TREE[mainCategory]?.map((sub) => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الماركة *</label>
+          <select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); }} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
+            <option value="">اختر الماركة</option>
+            {Object.keys(carData).map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الموديل *</label>
+          <select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required disabled={!partMake}>
+            <option value="">اختر الموديل</option>
+            {partMake && carData[partMake]?.models.map((m: string) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>السنة *</label>
+          <select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
+            <option value="">السنة</option>
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>المحرك</label>
+          <select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} disabled={!partMake}>
+            <option value="">المحرك</option>
+            {partMake && carData[partMake]?.engines.map((eng: string) => <option key={eng} value={eng}>{eng}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold' }}>
+          نوع / حالة القطعة:
+        </label>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+          {[
+            { label: 'مستعمل أصلي', val: 'مستعمل أصلي', color: '#16a34a', bg: '#f0fff4' },
+            { label: 'جديد أصلي (OEM)', val: 'جديد أصلي (OEM)', color: '#2563eb', bg: '#eff6ff' },
+            { label: 'جديد تجاري', val: 'جديد تجاري', color: '#e0872a', bg: '#fff7ed' },
+            { label: 'مستعمل تجاري', val: 'مستعمل تجاري', color: '#dc2626', bg: '#fef2f2' }
+          ].map((item) => (
+            <button
+              key={item.val}
+              type="button"
+              onClick={() => setPartType(item.val)}
+              style={{
+                padding: '12px 8px',
+                borderRadius: '10px',
+                border: partType === item.val ? `2px solid ${item.color}` : '1px solid #cbd5e0',
+                backgroundColor: partType === item.val ? item.bg : '#ffffff',
+                color: partType === item.val ? item.color : '#475569',
+                fontWeight: 'bold',
+                fontSize: '12.5px',
+                cursor: 'pointer'
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>
+            حالة المنتج (Condition) *
+          </label>
+          <select
+            value={partCondition}
+            onChange={(e) => setPartCondition(e.target.value)}
+            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+          >
+            <option value="جديد">جديد</option>
+            <option value="شبه جديد">شبه جديد</option>
+            <option value="نظيف">نظيف</option>
+            <option value="وسط">وسط</option>
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>
+            السعر (QAR) *
+          </label>
+          <input
+            type="number"
+            placeholder="350"
+            value={partPrice}
+            onChange={(e) => setPartPrice(e.target.value)}
+            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}
+            required
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>
+            الكمية المتوفرة *
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={partStock}
+            onChange={(e) => setPartStock(e.target.value)}
+            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}
+            required
+          />
+        </div>
+      </div>
+
+      <div>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+          صور القطعة:
+        </label>
+
+        <div style={{ border: '2px dashed #94a3b8', padding: '20px', borderRadius: '12px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleMultipleImagesUpload}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+            disabled={uploadingImages}
+          />
+          <p style={{ margin: 0, color: '#475569', fontWeight: 'bold', fontSize: '13px' }}>
+            {uploadingImages ? 'جاري رفع الصور...' : 'اضغط هنا لاختيار صورة أو أكثر من جهازك'}
+          </p>
+        </div>
+
+        {partImages.length > 0 && (
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+            {partImages.map((img, index) => (
+              <div key={index} style={{ position: 'relative', width: '80px', height: '80px' }}>
+                <img src={img} alt={`Preview ${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+        <button
+          type="submit"
+          style={{ flex: 1, padding: '14px', backgroundColor: editingPart ? '#1f3a5f' : '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(22,163,74,0.25)' }}
+        >
+          {editingPart ? 'حفظ التعديلات' : 'نشر القطعة للبيع الآن'}
+        </button>
+        {editingPart && (
+          <button
+            type="button"
+            onClick={() => { resetForm(); setShowEditModal(false); }}
+            style={{ padding: '14px 20px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            إلغاء
+          </button>
+        )}
+      </div>
+    </form>
+  );
+
   return (
     <div style={{ maxWidth: '1000px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
       {/* 🚀 الهيدر التنفيذي وعناوين التبويب */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', flexWrap: 'wrap' }}>
+        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'my_parts' ? '#1f3a5f' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
+          {isRtl ? `معروضاتي (${myParts.length})` : `My Ads (${myParts.length})`}
+        </button>
+
         <button onClick={() => { resetForm(); setActiveTab('add_part'); }} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'add_part' ? '#1f3a5f' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
           {isRtl ? 'إضافة قطعة جديدة' : 'Add Part'}
         </button>
@@ -479,256 +740,24 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           )}
         </button>
 
-        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'my_parts' ? '#1f3a5f' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
-          {isRtl ? `معروضاتي (${myParts.length})` : `My Ads (${myParts.length})`}
-        </button>
-
         <button onClick={() => setActiveTab('orders')} style={{ flex: 1, minWidth: '130px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', fontWeight: 'bold', cursor: 'pointer', fontSize: '13.5px' }}>
           {isRtl ? `الطلبات (${myOrders.length})` : `Orders (${myOrders.length})`}
         </button>
       </div>
 
-      {/* 1️⃣ تبويب إضافة قطعة غيار جديدة (مع القوائم الهجينة النقية بدون إيموجي) */}
+      {/* 1️⃣ تبويب إضافة قطعة غيار جديدة */}
       {activeTab === 'add_part' && (
         <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
             <h2 style={{ color: '#1f3a5f', margin: 0, fontSize: '20px', fontWeight: 'bold' }}>
-              {editingId ? (isRtl ? 'تعديل بيانات القطعة' : 'Edit Part') : (isRtl ? 'إضافة قطعة غيار جديدة' : 'Add New Spare Part')}
+              {isRtl ? 'إضافة قطعة غيار جديدة للكتالوج' : 'Add New Spare Part'}
             </h2>
           </div>
-
-          <form onSubmit={handlePublishSingle} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
-                  {isRtl ? 'اسم قطعة الغيار (اكتب الاسم للربط الآلي) *' : 'Part Name *'}
-                </label>
-                <input
-                  type="text"
-                  placeholder={isRtl ? "مثال: مساعدات أمامية، Oil Filter..." : "E.g., Oil Filter, Bumper..."}
-                  value={partName}
-                  onChange={(e) => handlePartNameChange(e.target.value)}
-                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
-                  {isRtl ? 'رقم القطعة الأصلي OEM (اخياري):' : 'Part Number OEM (Optional):'}
-                </label>
-                <input
-                  type="text"
-                  placeholder="مثال: 90915-YZZD1"
-                  value={partNumber}
-                  onChange={(e) => setPartNumber(e.target.value)}
-                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', fontFamily: 'monospace' }}
-                />
-              </div>
-            </div>
-
-            {/* 🌐 القوائم المنسدلة الهجينة النظيفة بدون إيموجي (Bilingual Dropdowns) */}
-            <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold', color: '#1f3a5f' }}>
-                تصنيف وموقع القطعة (Hybrid Category Selector):
-              </label>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#475569' }}>الفرع الرئيسي (Primary Category)</label>
-                  <select
-                    value={mainCategory}
-                    onChange={(e) => { setMainCategory(e.target.value); setSubCategory(''); }}
-                    style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
-                  >
-                    <option value="">-- اختر الفرع الرئيسي --</option>
-                    {Object.keys(FULL_CATEGORY_TREE).map((cat) => (
-                      <option key={cat} value={cat}>
-                        {CATEGORY_TRANSLATIONS[cat] ? `${CATEGORY_TRANSLATIONS[cat].ar} — ${cat}` : cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#475569' }}>الفرع الفرعي (Sub-Category)</label>
-                  <select
-                    value={subCategory}
-                    onChange={(e) => setSubCategory(e.target.value)}
-                    disabled={!mainCategory}
-                    style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
-                  >
-                    <option value="">-- اختر الفرع الفرعي --</option>
-                    {mainCategory && FULL_CATEGORY_TREE[mainCategory]?.map((sub) => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الماركة *</label>
-                <select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); }} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
-                  <option value="">اختر الماركة</option>
-                  {Object.keys(carData).map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الموديل *</label>
-                <select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required disabled={!partMake}>
-                  <option value="">اختر الموديل</option>
-                  {partMake && carData[partMake]?.models.map((m: string) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>السنة *</label>
-                <select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
-                  <option value="">السنة</option>
-                  {years.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>المحرك</label>
-                <select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} disabled={!partMake}>
-                  <option value="">المحرك</option>
-                  {partMake && carData[partMake]?.engines.map((eng: string) => <option key={eng} value={eng}>{eng}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold' }}>
-                نوع / حالة القطعة:
-              </label>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-                {[
-                  { label: 'مستعمل أصلي', val: 'مستعمل أصلي', color: '#16a34a', bg: '#f0fff4' },
-                  { label: 'جديد أصلي (OEM)', val: 'جديد أصلي (OEM)', color: '#2563eb', bg: '#eff6ff' },
-                  { label: 'جديد تجاري', val: 'جديد تجاري', color: '#e0872a', bg: '#fff7ed' },
-                  { label: 'مستعمل تجاري', val: 'مستعمل تجاري', color: '#dc2626', bg: '#fef2f2' }
-                ].map((item) => (
-                  <button
-                    key={item.val}
-                    type="button"
-                    onClick={() => setPartType(item.val)}
-                    style={{
-                      padding: '12px 8px',
-                      borderRadius: '10px',
-                      border: partType === item.val ? `2px solid ${item.color}` : '1px solid #cbd5e0',
-                      backgroundColor: partType === item.val ? item.bg : '#ffffff',
-                      color: partType === item.val ? item.color : '#475569',
-                      fontWeight: 'bold',
-                      fontSize: '12.5px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>
-                  حالة المنتج (Condition) *
-                </label>
-                <select
-                  value={partCondition}
-                  onChange={(e) => setPartCondition(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
-                >
-                  <option value="جديد">جديد</option>
-                  <option value="شبه جديد">شبه جديد</option>
-                  <option value="نظيف">نظيف</option>
-                  <option value="وسط">وسط</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>
-                  السعر (QAR) *
-                </label>
-                <input
-                  type="number"
-                  placeholder="350"
-                  value={partPrice}
-                  onChange={(e) => setPartPrice(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>
-                  الكمية المتوفرة *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={partStock}
-                  onChange={(e) => setPartStock(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                صور القطعة:
-              </label>
-
-              <div style={{ border: '2px dashed #94a3b8', padding: '20px', borderRadius: '12px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleMultipleImagesUpload}
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
-                  disabled={uploadingImages}
-                />
-                <p style={{ margin: 0, color: '#475569', fontWeight: 'bold', fontSize: '13px' }}>
-                  {uploadingImages ? 'جاري رفع الصور...' : 'اضغط هنا لاختيار صورة أو أكثر من جهازك'}
-                </p>
-              </div>
-
-              {partImages.length > 0 && (
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
-                  {partImages.map((img, index) => (
-                    <div key={index} style={{ position: 'relative', width: '80px', height: '80px' }}>
-                      <img src={img} alt={`Preview ${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              style={{ width: '100%', padding: '14px', backgroundColor: editingId ? '#1f3a5f' : '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', marginTop: '10px', boxShadow: '0 4px 12px rgba(22,163,74,0.25)' }}
-            >
-              {editingId ? 'حفظ التعديلات' : 'نشر القطعة للبيع الآن'}
-            </button>
-          </form>
+          {renderPartForm()}
         </div>
       )}
 
-      {/* 2️⃣ تبويب معروضاتي - لوحة المحرك السريع لمعالجة 10,000+ قطعة (Compact Table + Live Search) */}
+      {/* 2️⃣ تبويب معروضاتي - لوحة المحرك السريع لمعالجة 10,000+ قطعة */}
       {activeTab === 'my_parts' && (
         <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           
@@ -739,7 +768,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </h3>
             </div>
 
-            {/* أزرار نمط العرض (جدول مدمج vs بطاقات) + رفع الإكسل */}
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <div style={{ display: 'flex', backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '3px' }}>
                 <button
@@ -764,7 +792,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             </div>
           </div>
 
-          {/* 🔍 شريط البحث اللحظي السريع في الـ 10,000+ قطعة */}
           <div style={{ marginBottom: '16px' }}>
             <input
               type="text"
@@ -775,7 +802,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             />
           </div>
 
-          {/* 📊 1. نمط العرض الأول: جدول مدمج عالي الأداء (Compact Table) */}
           {viewMode === 'table' ? (
             <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13px' }}>
@@ -876,7 +902,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </table>
             </div>
           ) : (
-            /* 🎴 2. نمط العرض الثاني: بطاقات المعرض التقليدية */
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' }}>
               {filteredMyParts.map(part => (
                 <div key={part.id} style={{ border: '1px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden', backgroundColor: '#f8fafc', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -908,7 +933,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 3️⃣ باقي التبويبات والمودالات بنفس استقرارها وقوتها */}
+      {/* 3️⃣ باقي التبويبات والمودالات */}
       {activeTab === 'custom_requests' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
@@ -1116,6 +1141,21 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* 🛠️ نافذة التعديل المنبثقة (Edit Modal) - لتعديل القطعة دون مغادرة جدول المعروضات */}
+      {showEditModal && editingPart && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200, padding: '20px' }}>
+          <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '20px', maxWidth: '650px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '18px' }}>
+              <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
+                ✏️ تعديل بيانات القطعة رقم #{editingPart.id}
+              </h3>
+              <button onClick={() => { resetForm(); setShowEditModal(false); }} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
+            </div>
+            {renderPartForm()}
+          </div>
         </div>
       )}
 
