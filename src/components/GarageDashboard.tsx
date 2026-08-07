@@ -82,7 +82,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [editingPart, setEditingPart] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // 🛠️ حالات نافذة التوافق والمعاينة المطلوبة
+  // 🛠️ حالات المعاينة والضمان
   const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [returnDays, setReturnDays] = useState<number>(3);
@@ -90,6 +90,10 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || 'garage_unknown';
   const isRtl = lang === 'ar';
+
+  // 🛡️ توحيد مخرج رابط Supabase لمنع مشكلة "Failed to fetch"
+  const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+  const restUrl = `${cleanBaseUrl}/rest/v1`;
 
   useEffect(() => {
     fetchMyParts();
@@ -102,7 +106,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const fetchMyParts = async () => {
     if (!userId || userId === 'garage_unknown') return;
     try {
-      const response = await fetch(`${supabaseUrl}/parts?user_id=eq.${userId}&order=id.desc`, {
+      const response = await fetch(`${restUrl}/parts?user_id=eq.${userId}&order=id.desc`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
       if (response.ok) setMyParts(await response.json());
@@ -112,7 +116,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const fetchMyOrders = async () => {
     if (!userId || userId === 'garage_unknown') return;
     try {
-      const response = await fetch(`${supabaseUrl}/orders?garage_id=eq.${userId}&order=id.desc`, {
+      const response = await fetch(`${restUrl}/orders?garage_id=eq.${userId}&order=id.desc`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
       if (response.ok) setMyOrders(await response.json());
@@ -122,7 +126,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const fetchMyInquiries = async () => {
     if (!userId || userId === 'garage_unknown') return;
     try {
-      const response = await fetch(`${supabaseUrl}/fitment_inquiries?garage_id=eq.${userId}&order=id.desc`, {
+      const response = await fetch(`${restUrl}/fitment_inquiries?garage_id=eq.${userId}&order=id.desc`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
       if (response.ok) setMyInquiries(await response.json());
@@ -131,7 +135,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const fetchCustomRequests = async () => {
     try {
-      const response = await fetch(`${supabaseUrl}/custom_part_requests?order=id.desc`, {
+      const response = await fetch(`${restUrl}/custom_part_requests?order=id.desc`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
       if (response.ok) setCustomRequests(await response.json());
@@ -142,9 +146,14 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const handleConfirmFitment = async () => {
     if (!selectedInquiry) return;
     try {
-      const response = await fetch(`${supabaseUrl}/fitment_inquiries?id=eq.${selectedInquiry.id}`, {
+      const response = await fetch(`${restUrl}/fitment_inquiries?id=eq.${selectedInquiry.id}`, {
         method: 'PATCH',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        headers: { 
+          'apikey': apiKey, 
+          'Authorization': `Bearer ${session?.token || apiKey}`, 
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
         body: JSON.stringify({
           status: 'confirmed_compatible',
           return_days: returnDays,
@@ -156,6 +165,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         setToastMessage(isRtl ? 'تم تأكيد التوافق والضمان بنجاح ✅' : 'Fitment confirmed');
         setSelectedInquiry(null);
         fetchMyInquiries();
+      } else {
+        setToastMessage(isRtl ? 'حدث خطأ أثناء حفظ التوافق ❌' : 'Error saving fitment');
       }
     } catch (error) {
       console.error("Error confirming fitment:", error);
@@ -166,14 +177,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const handleRejectFitment = async (inquiryId: number) => {
     if (!window.confirm(isRtl ? 'هل أنت متأكد أن القطعة لا تركب على سيارة العميل؟' : 'Are you sure this part does not fit?')) return;
     try {
-      const response = await fetch(`${supabaseUrl}/fitment_inquiries?id=eq.${inquiryId}`, {
+      const response = await fetch(`${restUrl}/fitment_inquiries?id=eq.${inquiryId}`, {
         method: 'PATCH',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        headers: { 
+          'apikey': apiKey, 
+          'Authorization': `Bearer ${session?.token || apiKey}`, 
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
         body: JSON.stringify({ status: 'rejected' })
       });
 
       if (response.ok) {
-        setToastMessage(isRtl ? 'تم رفض طلب التوافق' : 'Inquiry rejected');
+        setToastMessage(isRtl ? 'تم رفض طلب التوافق ❌' : 'Inquiry rejected');
         fetchMyInquiries();
       }
     } catch (error) {
@@ -181,13 +197,38 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
+  // 🔍 المعاينة الشاملة للقطعة (تجلب تفاصيل القطعة من جدول parts إذا توفر part_id)
+  const handlePreviewPart = async (inquiry: any) => {
+    if (inquiry.part_id) {
+      try {
+        const response = await fetch(`${restUrl}/parts?id=eq.${inquiry.part_id}`, {
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
+        });
+        if (response.ok) {
+          const parts = await response.json();
+          if (parts && parts.length > 0) {
+            setPreviewPartDetails(parts[0]);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+    // احتياطي: عرض بيانات الاستفسار إذا لم تُجلب القطعة
+    setPreviewPartDetails({
+      name: inquiry.part_name,
+      part_number: inquiry.part_number,
+      price: inquiry.part_price,
+      image_url: inquiry.part_image || inquiry.image_url
+    });
+  };
+
   const handlePublishSingle = async (formData: any) => {
     try {
       const isEditing = !!editingPart;
       const method = isEditing ? 'PATCH' : 'POST';
       const url = isEditing 
-        ? `${supabaseUrl}/parts?id=eq.${editingPart.id}&user_id=eq.${userId}` 
-        : `${supabaseUrl}/parts`;
+        ? `${restUrl}/parts?id=eq.${editingPart.id}&user_id=eq.${userId}` 
+        : `${restUrl}/parts`;
 
       const payload = {
         name: formData.partName,
@@ -237,7 +278,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const handleDeletePart = async (id: number) => {
     if (!window.confirm('هل أنت متأكد من حذف هذه القطعة؟')) return;
     try {
-      const response = await fetch(`${supabaseUrl}/parts?id=eq.${id}&user_id=eq.${userId}`, {
+      const response = await fetch(`${restUrl}/parts?id=eq.${id}&user_id=eq.${userId}`, {
         method: 'DELETE',
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
@@ -247,7 +288,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const handleQuickSaveInline = async (partId: number, price: string, stock: string) => {
     try {
-      const response = await fetch(`${supabaseUrl}/parts?id=eq.${partId}&user_id=eq.${userId}`, {
+      const response = await fetch(`${restUrl}/parts?id=eq.${partId}&user_id=eq.${userId}`, {
         method: 'PATCH',
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ price: parseFloat(price) || 0, stock: parseInt(stock) || 0 })
@@ -258,7 +299,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const handleUpdateOrderStatus = async (orderId: number, status: string) => {
     try {
-      const response = await fetch(`${supabaseUrl}/orders?id=eq.${orderId}`, {
+      const response = await fetch(`${restUrl}/orders?id=eq.${orderId}`, {
         method: 'PATCH',
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -324,7 +365,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         />
       )}
 
-      {/* 👈 تم إرسال الدوال الفعالة هنا ليعمل التفاعل بالكامل */}
       {activeTab === 'inquiries' && (
         <FitmentInquiriesTab 
           isRtl={isRtl} 
@@ -332,7 +372,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           myInquiries={myInquiries} 
           onSelectInquiry={(inquiry) => setSelectedInquiry(inquiry)} 
           onRejectInquiry={(inquiryId) => handleRejectFitment(inquiryId)} 
-          onPreviewPart={(inquiry) => setPreviewPartDetails(inquiry)} 
+          onPreviewPart={(inquiry) => handlePreviewPart(inquiry)} 
         />
       )}
 
@@ -354,12 +394,21 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', maxWidth: '500px', width: '100%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', direction: isRtl ? 'rtl' : 'ltr' }}>
             <button onClick={() => setPreviewPartDetails(null)} style={{ position: 'absolute', top: '15px', [isRtl ? 'left' : 'right']: '15px', border: 'none', background: '#edf2f7', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
             <h3 style={{ margin: '0 0 15px 0', color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>{isRtl ? 'معاينة وتفاصيل قطعة المعرض' : 'Part Details Preview'}</h3>
-            <img src={previewPartDetails.part_image || previewPartDetails.image_url || 'https://via.placeholder.com/300'} alt={previewPartDetails.part_name} style={{ width: '100%', maxHeight: '230px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #cbd5e0', marginBottom: '15px' }} />
+            <img src={previewPartDetails.image_url || previewPartDetails.part_image || 'https://via.placeholder.com/300'} alt={previewPartDetails.name || previewPartDetails.part_name} style={{ width: '100%', maxHeight: '230px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #cbd5e0', marginBottom: '15px' }} />
             <h4 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#2d3748' }}>
-              <AITranslatedText text={previewPartDetails.part_name} lang={lang} />
+              <AITranslatedText text={previewPartDetails.name || previewPartDetails.part_name} lang={lang} />
             </h4>
-            {previewPartDetails.part_number && <div style={{ fontSize: '13px', color: '#718096', marginBottom: '8px' }}>{isRtl ? 'رقم القطعة الأصلي:' : 'Part Number:'} <strong>{previewPartDetails.part_number}</strong></div>}
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20', marginBottom: '15px' }}>{previewPartDetails.part_price || 0} QAR</div>
+            {(previewPartDetails.part_number || previewPartDetails.code) && (
+              <div style={{ fontSize: '13px', color: '#718096', marginBottom: '8px' }}>
+                {isRtl ? 'رقم القطعة الأصلي:' : 'Part Number:'} <strong>{previewPartDetails.part_number || previewPartDetails.code}</strong>
+              </div>
+            )}
+            {previewPartDetails.description && (
+              <p style={{ fontSize: '13px', color: '#4a5568', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', marginBottom: '12px', textAlign: isRtl ? 'right' : 'left' }}>
+                {previewPartDetails.description}
+              </p>
+            )}
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20', marginBottom: '15px' }}>{previewPartDetails.price || previewPartDetails.part_price || 0} QAR</div>
             <button onClick={() => setPreviewPartDetails(null)} style={{ width: '100%', padding: '11px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>{isRtl ? 'إغلاق المعاينة' : 'Close Preview'}</button>
           </div>
         </div>
