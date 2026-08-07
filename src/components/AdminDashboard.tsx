@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AdminErrorMonitor } from './AdminErrorMonitor';
 
 interface AdminDashboardProps {
   lang: 'ar' | 'en';
@@ -18,8 +19,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const isRtl = lang === 'ar';
   
-  // 📌 التبويب النشط
-  const [tab, setTab] = useState<'payouts' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment' | 'logs'>('payouts');
+  // 📌 التبويب النشط (تمت إضافة تبويب errors للمراقبة)
+  const [tab, setTab] = useState<'payouts' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment' | 'logs' | 'errors'>('payouts');
 
   // 🔍 متغيرات البحث بطلبات المباشرة (Search-On-Demand)
   const [userQuery, setUserQuery] = useState('');
@@ -73,6 +74,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     fetchAllOrdersForPayouts();
     fetchSystemLogs();
+    // eslint-disable-next-line
   }, []);
 
   // جلب الطلبات الخاصة بجدول الحسابات
@@ -196,7 +198,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setSearching(true);
     setMsg(null);
     try {
-      let url = `${supabaseUrl}/parts?or=(id.eq.${isNaN(Number(partQuery)) ? 0 : Number(partQuery)},part_number.ilike.*${partQuery}*,name.ilike.*${partQuery}*)`;
+      const url = `${supabaseUrl}/parts?or=(id.eq.${isNaN(Number(partQuery)) ? 0 : Number(partQuery)},part_number.ilike.*${partQuery}*,name.ilike.*${partQuery}*)`;
       
       const res = await fetch(url, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
@@ -290,7 +292,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       enableGooglePay,
       enableCards,
       enableCOD,
-      enableBNPL // 👈 حفظ حالة الدفع الآجل والتقسيط
+      enableBNPL
     };
     onUpdateSettings(updated);
     setMsg({ text: isRtl ? 'تم حفظ التحديثات والإعدادات بنجاح' : 'Settings saved successfully!', type: 'success' });
@@ -321,6 +323,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
         {[
           { id: 'payouts', label: isRtl ? 'حسابات ومستحقات الكراجات' : 'Vendor Payouts' },
+          { id: 'errors', label: isRtl ? '🛡️ كاشف الأخطاء الحية' : 'Live Error Detector' },
           { id: 'logs', label: isRtl ? `الصيانة الذكية (${systemLogs.filter(l => !l.auto_resolved).length})` : `AI Health Monitor (${systemLogs.filter(l => !l.auto_resolved).length})` },
           { id: 'users', label: isRtl ? 'بحث واستعلام الحسابات' : 'Search Users' },
           { id: 'parts', label: isRtl ? 'بحث قطع الغيار بالإعلان/الرمز' : 'Search Parts' },
@@ -334,7 +337,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={() => setTab(item.id as any)}
             style={{
               padding: '10px 18px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '13.5px', whiteSpace: 'nowrap',
-              backgroundColor: tab === item.id ? '#1f3a5f' : '#f1f5f9',
+              backgroundColor: tab === item.id ? (item.id === 'errors' ? '#dc2626' : '#1f3a5f') : '#f1f5f9',
               color: tab === item.id ? '#ffffff' : '#64748b',
               transition: 'all 0.2s'
             }}
@@ -348,6 +351,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div style={{ padding: '12px', borderRadius: '12px', marginBottom: '20px', fontWeight: 'bold', fontSize: '13.5px', textAlign: 'center', backgroundColor: msg.type === 'success' ? '#e8f9f1' : '#fdecec', color: msg.type === 'success' ? '#1e9d6b' : '#d1453b', border: `1px solid ${msg.type === 'success' ? '#a3e6cd' : '#f8b4b4'}` }}>
           {msg.text}
         </div>
+      )}
+
+      {/* 🛡️ 0️⃣ تبويب كاشف الأخطاء والمراقبة الحية */}
+      {tab === 'errors' && (
+        <AdminErrorMonitor 
+          supabaseUrl={supabaseUrl} 
+          apiKey={apiKey} 
+        />
       )}
 
       {/* 💰 1️⃣ تبويب حسابات ومستحقات الكراجات */}
