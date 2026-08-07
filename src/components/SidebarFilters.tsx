@@ -88,7 +88,7 @@ const nodeStyle: React.CSSProperties = {
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
     lang, carData, categories, inventory, 
-    searchTerm, setSearchTerm, addToCart, siteSettings 
+    searchTerm, setSearchTerm, addToCart, onInquire, siteSettings 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -108,7 +108,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'default'>('default');
   const [partImageIndexes, setPartImageIndex] = useState<Record<number, number>>({});
 
-  const [popupPart, setPopupPart] = useState<any | null>(null);
+  // 🔽 متابعة الكروت المتمددة لأسفل { [partId]: boolean }
+  const [expandedPartCards, setExpandedPartCards] = useState<Record<number, boolean>>({});
+
+  // 📄 صفحة المواصفات المستقلة (More Info)
   const [detailedPart, setDetailedPart] = useState<any | null>(null);
 
   const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
@@ -153,6 +156,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       navigator.clipboard.writeText(shareUrl);
       alert(isRtl ? 'تم نسخ رابط القطعة حافظة الجهاز!' : 'Part link copied to clipboard!');
     }
+  };
+
+  const togglePartCardExpand = (partId: number) => {
+    setExpandedPartCards(prev => ({ ...prev, [partId]: !prev[partId] }));
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -353,6 +360,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
+  // 🎴 رسم كرت القطعة المربع الأصلي الصغير مع خاصية التمدد لأسفل (Expandable Card)
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -360,6 +368,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     const isOutOfStock = maxStock <= 0;
 
     const tierInfo = classifyPartTier(part);
+    const isExpanded = !!expandedPartCards[part.id];
 
     const allImages: string[] = part.additional_images && part.additional_images.length > 0 
       ? part.additional_images 
@@ -374,6 +383,36 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       image: activeImage
     };
 
+    // 🚘 جدول التوافق المباشر
+    const rawVehicles = inventory.filter(p => {
+      const modalPN = (partNo || '').toString().trim().toLowerCase();
+      const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
+      return modalPN && itemPN ? modalPN === itemPN : p.id === part.id;
+    });
+
+    const groupedFitmentMap: Record<string, { make: string; model: string; years: number[] }> = {};
+    rawVehicles.forEach(v => {
+      const key = `${v.make}_${v.model || 'عام'}`;
+      if (!groupedFitmentMap[key]) {
+        groupedFitmentMap[key] = { make: v.make, model: v.model || (isRtl ? 'عام' : 'General'), years: [] };
+      }
+      if (v.year && !isNaN(Number(v.year))) {
+        groupedFitmentMap[key].years.push(Number(v.year));
+      }
+    });
+
+    const formattedFitmentList = Object.values(groupedFitmentMap).map(item => {
+      const sortedYears = Array.from(new Set(item.years)).sort((a, b) => a - b);
+      let yearRangeStr = '';
+      if (sortedYears.length === 0) yearRangeStr = String(part.year || (isRtl ? 'جميع السنوات' : 'All Years'));
+      else if (sortedYears.length === 1) yearRangeStr = String(sortedYears[0]);
+      else yearRangeStr = `${sortedYears[0]}-${sortedYears[sortedYears.length - 1]}`;
+
+      return { make: item.make, model: item.model, yearRange: yearRangeStr };
+    });
+
+    const installmentValue = (Number(part.price || 0) / 4).toFixed(2);
+
     return (
       <div 
         key={part.id} 
@@ -386,9 +425,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           flexDirection: 'column',
           gap: '12px',
           boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-          position: 'relative'
+          position: 'relative',
+          transition: 'all 0.25s ease-in-out'
         }}
       >
+        {/* زر المشاركة */}
         <button 
           onClick={(e) => handleSharePart(part, e)} 
           title={isRtl ? "مشاركة القطعة" : "Share Part"}
@@ -397,9 +438,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           🔗
         </button>
 
+        {/* 📐 المربع الصغير العلوي (صورة + اسم + سعر + زر فحص) */}
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
           
-          <div style={{ position: 'relative', width: '90px', height: '90px', flexShrink: 0 }}>
+          <div style={{ position: 'relative', width: '85px', height: '85px', flexShrink: 0 }}>
             <img 
               src={activeImage} 
               alt={part.name} 
@@ -421,9 +463,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 >
                   ›
                 </button>
-                <span style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '9px', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>
-                  {currentImgIndex + 1}/{allImages.length}
-                </span>
               </>
             )}
           </div>
@@ -453,28 +492,92 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f1f5f9' }}>
+        {/* 🔻 🛠️ التفاصيل المتمددة لأسفل (تظهر فقط عند ضغط المزيد من التفاصيل) */}
+        {isExpanded && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e0' }}>
+            
+            {/* 📊 جدول التوافق Mapped Fitment Guide */}
+            <div style={{ border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', borderBottom: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between' }}>
+                <span>🚘 {isRtl ? 'توافق القطعة (Buyer\'s Guide):' : 'Part Fitment Guide:'}</span>
+                <span style={{ color: '#0284c7' }}>({formattedFitmentList.length})</span>
+              </div>
+              <div style={{ maxHeight: '90px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: isRtl ? 'right' : 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc', color: '#64748b' }}>
+                      <th style={{ padding: '4px 8px' }}>الشركة</th>
+                      <th style={{ padding: '4px 8px' }}>السيارة</th>
+                      <th style={{ padding: '4px 8px' }}>السنوات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formattedFitmentList.map((fit, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{fit.make}</td>
+                        <td style={{ padding: '4px 8px' }}>{fit.model}</td>
+                        <td style={{ padding: '4px 8px', color: '#e0872a', fontWeight: 'bold' }}>{fit.yearRange}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* الشحن والتقسيط */}
+            <div style={{ backgroundColor: '#fafafa', padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '11.5px' }}>
+              <div style={{ color: '#16a34a', fontWeight: 'bold' }}>⚡ {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}</div>
+              {isBNPLEnabled && (
+                <div style={{ color: '#854d0e', fontWeight: 'bold', marginTop: '4px' }}>
+                  🛒 {isRtl ? `أو قسمها على 4 دفعات بقيمة ${installmentValue} ر.ق` : `Or 4 payments of ${installmentValue} QAR`}
+                </div>
+              )}
+            </div>
+
+            {/* 📄 الزر الرئيسي للصفحة المستقلة كاملة المواصفات */}
+            <button 
+              onClick={() => setDetailedPart(part)}
+              style={{ width: '100%', padding: '10px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '12.5px', cursor: 'pointer' }}
+            >
+              📄 {isRtl ? 'صفحة المواصفات الفنية الكاملة (More Info)' : 'Full Technical Specifications (More Info)'}
+            </button>
+
+          </div>
+        )}
+
+        {/* 🔘 الأزرار السفلية (الكمية + أضف للسلة + فحص/اسأل + المزيد) */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-            <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '28px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-            <span style={{ width: '28px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px' }}>{isOutOfStock ? 0 : qty}</span>
-            <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+            <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '26px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
+            <span style={{ width: '26px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px' }}>{isOutOfStock ? 0 : qty}</span>
+            <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '26px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
           </div>
 
           {addToCart && (
             <button 
               onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(formattedPart, qty); }}
               disabled={isOutOfStock}
-              style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ flex: '1 1 90px', backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
             >
               🛒 {isOutOfStock ? (isRtl ? 'غير متوفر' : 'Unavailable') : (isRtl ? 'أضف للسلة' : 'Add to Cart')}
             </button>
           )}
 
+          {/* 🔍 زر فحص / اسأل التفاعلي للربط مع البائع */}
           <button 
-            onClick={() => setPopupPart(part)}
-            style={{ backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', borderRadius: '8px', padding: '8px 12px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={(e) => { e.stopPropagation(); if (onInquire) onInquire(formattedPart); else if (addToCart && !isOutOfStock) addToCart(formattedPart, qty); }}
+            disabled={isOutOfStock}
+            style={{ padding: '8px 10px', backgroundColor: '#f1f5f9', color: '#1f3a5f', border: '1px solid #cbd5e0', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            🔍 {isRtl ? 'المزيد من التفاصيل' : 'More Details'}
+            🔍 {isRtl ? 'فحص / اسأل' : 'Inquire'}
+          </button>
+
+          {/* 🔻 زر التمدد لأسفل المربع */}
+          <button 
+            onClick={() => togglePartCardExpand(part.id)}
+            style={{ padding: '8px 10px', backgroundColor: isExpanded ? '#feefe8' : '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            {isExpanded ? (isRtl ? 'إغلاق ▲' : 'Less ▲') : (isRtl ? 'المزيد 🔍' : 'More 🔍')}
           </button>
         </div>
 
@@ -718,70 +821,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         )}
 
       </div>
-
-      {popupPart && (
-        <div onClick={() => setPopupPart(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px' }}><AITranslatedText text={popupPart.name} lang={lang} /></h3>
-              <button onClick={() => setPopupPart(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <span style={{ fontSize: '12px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {popupPart.part_number || popupPart.id}
-              </span>
-              <span style={{ fontSize: '11px', color: '#15803d', backgroundColor: '#f0fff4', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
-                ✨ {popupPart.part_condition || 'نظيف'}
-              </span>
-            </div>
-
-            <div style={{ border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff', marginBottom: '14px' }}>
-              <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', borderBottom: '1px solid #cbd5e0' }}>
-                🚘 {isRtl ? 'جدول توافق القطعة المباشر (Buyer\'s Guide):' : 'Part Fitment Guide:'}
-              </div>
-              <div style={{ maxHeight: '110px', overflowY: 'auto', padding: '6px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: isRtl ? 'right' : 'left' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', color: '#64748b' }}>
-                      <th style={{ padding: '4px' }}>الشركة</th>
-                      <th style={{ padding: '4px' }}>السيارة</th>
-                      <th style={{ padding: '4px' }}>السنوات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '4px', fontWeight: 'bold' }}>{popupPart.make}</td>
-                      <td style={{ padding: '4px' }}>{popupPart.model}</td>
-                      <td style={{ padding: '4px', color: '#e0872a', fontWeight: 'bold' }}>{popupPart.year}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#fafafa', padding: '12px', borderRadius: '12px', border: '1px dashed #cbd5e0', marginBottom: '16px' }}>
-              <div style={{ color: '#e0872a', fontWeight: '900', fontSize: '20px' }}>{popupPart.price} {isRtl ? 'ر.ق' : 'QAR'}</div>
-              <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>⚡ {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}</div>
-              
-              {isBNPLEnabled && (
-                <div style={{ backgroundColor: '#fffdf5', border: '1px solid #fef08a', padding: '6px 10px', borderRadius: '8px', marginTop: '8px' }}>
-                  <span style={{ fontSize: '11.5px', color: '#854d0e', fontWeight: 'bold' }}>🛒 أو قسمها على 4 دفعات بقيمة {(Number(popupPart.price || 0)/4).toFixed(2)} ر.ق</span>
-                </div>
-              )}
-            </div>
-
-            <button 
-              onClick={() => { setDetailedPart(popupPart); setPopupPart(null); }}
-              style={{ width: '100%', padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '13.5px', cursor: 'pointer' }}
-            >
-              📄 {isRtl ? 'صفحة المواصفات الفنية الكاملة (More Info)' : 'Full Technical Specifications (More Info)'}
-            </button>
-
-          </div>
-        </div>
-      )}
 
       {showRequestModal && (
         <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
