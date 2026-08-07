@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExcelPartUploader } from './ExcelPartUploader';
 import { Toast } from './Toast';
+import { AITranslatedText } from './AITranslatedText';
 
 import { PartFormModal } from './garage/PartFormModal';
 import { MyPartsTab } from './garage/MyPartsTab';
@@ -28,7 +29,7 @@ const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   "Electrical-Connector": { ar: "الفيش والتوصيلات", en: "Electrical-Connector" },
   "Electrical-Switch & Relay": { ar: "المفاتيح والكتاوت", en: "Electrical-Switch & Relay" },
   "Engine": { ar: "المحرك ومكوناته", en: "Engine" },
-  "Exhaust & Emission": { ar: "العادم والانبعاثات", en: "Exhaust & Emission" },
+  "Exhaust & Emission": { ar: "العادم للانبعاثات", en: "Exhaust & Emission" },
   "Fuel & Air": { ar: "الوقود وهواء المحرك", en: "Fuel & Air" },
   "Heat & Air Conditioning": { ar: "التكييف والتدفئة", en: "Heat & Air Conditioning" },
   "Ignition": { ar: "نظام الاشتعال (البواجي)", en: "Ignition" },
@@ -81,6 +82,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [editingPart, setEditingPart] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // 🛠️ حالات نافذة التوافق والمعاينة المطلوبة
+  const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
+  const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
+  const [returnDays, setReturnDays] = useState<number>(3);
+  const [warrantyDays, setWarrantyDays] = useState<number>(14);
+
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || 'garage_unknown';
   const isRtl = lang === 'ar';
 
@@ -131,6 +138,49 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
+  // ⚡ تأكيد التوافق والضمان للطلب
+  const handleConfirmFitment = async () => {
+    if (!selectedInquiry) return;
+    try {
+      const response = await fetch(`${supabaseUrl}/fitment_inquiries?id=eq.${selectedInquiry.id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'confirmed_compatible',
+          return_days: returnDays,
+          warranty_days: warrantyDays
+        })
+      });
+
+      if (response.ok) {
+        setToastMessage(isRtl ? 'تم تأكيد التوافق والضمان بنجاح ✅' : 'Fitment confirmed');
+        setSelectedInquiry(null);
+        fetchMyInquiries();
+      }
+    } catch (error) {
+      console.error("Error confirming fitment:", error);
+    }
+  };
+
+  // ❌ رفض طلب التوافق
+  const handleRejectFitment = async (inquiryId: number) => {
+    if (!window.confirm(isRtl ? 'هل أنت متأكد أن القطعة لا تركب على سيارة العميل؟' : 'Are you sure this part does not fit?')) return;
+    try {
+      const response = await fetch(`${supabaseUrl}/fitment_inquiries?id=eq.${inquiryId}`, {
+        method: 'PATCH',
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected' })
+      });
+
+      if (response.ok) {
+        setToastMessage(isRtl ? 'تم رفض طلب التوافق' : 'Inquiry rejected');
+        fetchMyInquiries();
+      }
+    } catch (error) {
+      console.error("Error rejecting fitment:", error);
+    }
+  };
+
   const handlePublishSingle = async (formData: any) => {
     try {
       const isEditing = !!editingPart;
@@ -139,7 +189,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         ? `${supabaseUrl}/parts?id=eq.${editingPart.id}&user_id=eq.${userId}` 
         : `${supabaseUrl}/parts`;
 
-      // 🧹 تم تنظيف المكونات من الجهة والوزن وعدد الفيش بناءً على طلبك
       const payload = {
         name: formData.partName,
         part_number: formData.partNumber || null,
@@ -178,12 +227,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         onSuccess();
         setActiveTab('my_parts');
       } else {
-        const errorData = await response.text();
-        console.error("Error saving part:", errorData);
         setToastMessage('حدث خطأ أثناء الحفظ، يرجى مراجعة المدخلات ❌');
       }
     } catch (err) {
-      console.error("Crash in handlePublishSingle:", err);
       setToastMessage('حدث خطأ غير متوقع في النظام ❌');
     }
   };
@@ -278,14 +324,15 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         />
       )}
 
+      {/* 👈 تم إرسال الدوال الفعالة هنا ليعمل التفاعل بالكامل */}
       {activeTab === 'inquiries' && (
         <FitmentInquiriesTab 
           isRtl={isRtl} 
           lang={lang} 
           myInquiries={myInquiries} 
-          onSelectInquiry={() => {}} 
-          onRejectInquiry={() => {}} 
-          onPreviewPart={() => {}} 
+          onSelectInquiry={(inquiry) => setSelectedInquiry(inquiry)} 
+          onRejectInquiry={(inquiryId) => handleRejectFitment(inquiryId)} 
+          onPreviewPart={(inquiry) => setPreviewPartDetails(inquiry)} 
         />
       )}
 
@@ -299,6 +346,62 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           onSelectCustomRequest={() => {}} 
           onUpdateOrderStatus={handleUpdateOrderStatus} 
         />
+      )}
+
+      {/* 🔍 1️⃣ نافذة معاينة بيانات القطعة بالتفصيل عند ضغط الكراج على الإعلان */}
+      {previewPartDetails && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1250, padding: '20px' }}>
+          <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', maxWidth: '500px', width: '100%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', direction: isRtl ? 'rtl' : 'ltr' }}>
+            <button onClick={() => setPreviewPartDetails(null)} style={{ position: 'absolute', top: '15px', [isRtl ? 'left' : 'right']: '15px', border: 'none', background: '#edf2f7', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+            <h3 style={{ margin: '0 0 15px 0', color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>{isRtl ? 'معاينة وتفاصيل قطعة المعرض' : 'Part Details Preview'}</h3>
+            <img src={previewPartDetails.part_image || previewPartDetails.image_url || 'https://via.placeholder.com/300'} alt={previewPartDetails.part_name} style={{ width: '100%', maxHeight: '230px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #cbd5e0', marginBottom: '15px' }} />
+            <h4 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#2d3748' }}>
+              <AITranslatedText text={previewPartDetails.part_name} lang={lang} />
+            </h4>
+            {previewPartDetails.part_number && <div style={{ fontSize: '13px', color: '#718096', marginBottom: '8px' }}>{isRtl ? 'رقم القطعة الأصلي:' : 'Part Number:'} <strong>{previewPartDetails.part_number}</strong></div>}
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#dd6b20', marginBottom: '15px' }}>{previewPartDetails.part_price || 0} QAR</div>
+            <button onClick={() => setPreviewPartDetails(null)} style={{ width: '100%', padding: '11px', backgroundColor: '#3182ce', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>{isRtl ? 'إغلاق المعاينة' : 'Close Preview'}</button>
+          </div>
+        </div>
+      )}
+
+      {/* 🛡️ 2️⃣ نافذة تحديد فترة الضمان والإرجاع عند ضغط زر "تركب" */}
+      {selectedInquiry && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1250, padding: '20px', direction: isRtl ? 'rtl' : 'ltr' }}>
+          <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '20px', maxWidth: '480px', width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#16a34a', fontSize: '18px', fontWeight: 'bold' }}>{isRtl ? 'تأكيد التوافق وتحديد شروط الضمان' : 'Set Warranty Terms'}</h3>
+            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
+              {isRtl ? `أنت تؤكد توافق هذه القطعة مع سيارة العميل: (${selectedInquiry.car_make} ${selectedInquiry.car_model})` : `Confirming fitment for ${selectedInquiry.car_make}`}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '22px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>1. {isRtl ? 'مهلة الإرجاع قبل/عند التركيب (أيام):' : 'Return Window (Days):'}</label>
+                <select value={returnDays} onChange={(e) => setReturnDays(Number(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}>
+                  <option value={1}>{isRtl ? 'يوم واحد' : '1 Day'}</option>
+                  <option value={3}>{isRtl ? '3 أيام (موصى به)' : '3 Days'}</option>
+                  <option value={5}>{isRtl ? '5 أيام' : '5 Days'}</option>
+                  <option value={7}>{isRtl ? '7 أيام' : '7 Days'}</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>2. {isRtl ? 'فترة ضمان التشغيل بعد التركيب (أيام):' : 'Operational Warranty Period:'}</label>
+                <select value={warrantyDays} onChange={(e) => setWarrantyDays(Number(e.target.value))} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}>
+                  <option value={7}>{isRtl ? '7 أيام' : '7 Days'}</option>
+                  <option value={14}>{isRtl ? '14 يوماً (موصى به)' : '14 Days'}</option>
+                  <option value={30}>{isRtl ? 'شهر كامل' : '1 Month'}</option>
+                  <option value={90}>{isRtl ? '3 أشهر' : '3 Months'}</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={handleConfirmFitment} style={{ flex: 1, padding: '12px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>{isRtl ? 'تأكيد وإرسال للعميل 🚀' : 'Confirm & Send'}</button>
+              <button onClick={() => setSelectedInquiry(null)} style={{ padding: '12px 20px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>{isRtl ? 'إلغاء' : 'Cancel'}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showEditModal && editingPart && (
