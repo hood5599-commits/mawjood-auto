@@ -54,13 +54,11 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
     editingPart?.category?.includes('>') ? editingPart.category.split('>')[1].trim() : ''
   );
 
-  // 📸 حالات الصور المدمجة
   const [partImages, setPartImages] = useState<string[]>(
     editingPart?.additional_images || (editingPart?.image_url ? [editingPart.image_url] : [])
   );
   const [uploadingImages, setUploadingImages] = useState(false);
 
-  // 🛠️ حقول More Info الاختيارية
   const [showMoreInfoForm, setShowMoreInfoForm] = useState(
     !!(editingPart?.description || editingPart?.warranty || editingPart?.interchange_numbers || editingPart?.position || editingPart?.weight_kg || editingPart?.pin_count)
   );
