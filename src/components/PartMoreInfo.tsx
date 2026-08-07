@@ -28,77 +28,13 @@ export const PartMoreInfo: React.FC<PartMoreInfoProps> = ({
   const isBNPLEnabled = siteSettings?.enableBNPL ?? true;
   const installmentValue = (Number(part.price || 0) / 4).toFixed(2);
 
-  // 🧠 دالة ذكية لتوليد جدول المواصفات الفنية المناسب بناءً على اسم أو قسم القطعة
-  const getDynamicSpecs = (item: any) => {
-    const name = (item.name || '').toLowerCase();
-    const category = (item.category || '').toLowerCase();
-
-    // 1. إذا كان لدى القطعة مواصفات مخصصة قادمة من الإكسل كـ Object أو JSON
-    if (item.specifications && typeof item.specifications === 'object') {
-      return Object.entries(item.specifications).map(([key, val]) => ({
-        label: key,
-        value: String(val)
-      }));
-    }
-
-    // 2. إذا كانت قطعة فرامل (Brake Pads / Rotors)
-    if (name.includes('فرامل') || name.includes('قماش') || category.includes('brake')) {
-      return [
-        { label: isRtl ? 'نوع المنتج' : 'Product Type', value: 'Brake System Assembly / Component' },
-        { label: isRtl ? 'حساس الاحتكاك' : 'Wear Sensor Included', value: 'Yes' },
-        { label: isRtl ? 'مادة التصنيع' : 'Friction Material', value: 'Ceramic / Semi-Metallic' },
-        { label: isRtl ? 'معيار التوافق' : 'Fitment Standard', value: 'Direct Fit OEM Replacement' },
-        { label: isRtl ? 'محتويات العبوة' : 'Package Contents', value: 'Front / Rear Pad Set' }
-      ];
-    }
-
-    // 3. إذا كانت مروحة تبريد أو رديتر (Cooling Fan / Radiator)
-    if (name.includes('مروحة') || name.includes('رديتر') || category.includes('cooling')) {
-      return [
-        { label: isRtl ? 'التكاوين / التركيب' : 'Configuration', value: 'Radiator & Condenser Assembly; Direct OEM Fit' },
-        { label: isRtl ? 'عدد الفيش' : 'Connector Quantity', value: '1 or 2 Plug Assembly' },
-        { label: isRtl ? 'نوع الفيشة' : 'Connector Type', value: 'Male Terminal' },
-        { label: isRtl ? 'مادة التصنيع' : 'Blade / Shroud Material', value: 'PA+GF / PP+GF Heavy Duty Plastic' },
-        { label: isRtl ? 'شامل الغطاء' : 'Shroud Included', value: 'Yes' }
-      ];
-    }
-
-    // 4. إذا كانت دينمو أو كهرباء (Alternator / Starter / Electrical)
-    if (name.includes('دينمو') || name.includes('سلف') || category.includes('electrical')) {
-      return [
-        { label: isRtl ? 'الجهد الكهربائي' : 'Voltage', value: '12V Nominal Standard' },
-        { label: isRtl ? 'التوافق الأوتوماتيكي' : 'Rotation Direction', value: 'Clockwise (CW)' },
-        { label: isRtl ? 'نوع التوصيل' : 'Terminal Type', value: 'OEM Multi-Pin Plug' },
-        { label: isRtl ? 'نوع التصميم' : 'Design Type', value: 'Heavy Duty Replacement' }
-      ];
-    }
-
-    // 5. إذا كانت مساعدات أو تعليق (Shocks / Struts / Suspension)
-    if (name.includes('مساعد') || name.includes('مقص') || category.includes('suspension')) {
-      return [
-        { label: isRtl ? 'نوع المساعد' : 'Shock Absorber Type', value: 'Gas-Pressurized / Twin-Tube' },
-        { label: isRtl ? 'نوع التثبيت' : 'Mounting Standard', value: 'OEM Factory Mounting Points' },
-        { label: isRtl ? 'مادة الهيكل' : 'Body Material', value: 'High Grade Alloy Steel' },
-        { label: isRtl ? 'طريقة التركيب' : 'Fitment Type', value: 'Direct Bolt-On' }
-      ];
-    }
-
-    // 6. المواصفات الفنية الموحدة لأي قطعة غيار أخرى (Default Specs)
-    return [
-      { label: isRtl ? 'القسم والفرع' : 'Category Path', value: item.category || 'قطع غيار عامة' },
-      { label: isRtl ? 'نوع التوافق' : 'Fitment Specification', value: 'Direct OEM Replacement Fit' },
-      { label: isRtl ? 'حالة المنتج' : 'Condition Status', value: item.part_condition || 'نظيف / مختبر' },
-      { label: isRtl ? 'نوع القطعة' : 'Part Grade', value: item.part_type || 'أصلي' },
-      { label: isRtl ? 'معيار الجودة' : 'Quality Control', value: '100% Tested Before Dispatch' }
-    ];
-  };
-
-  const dynamicSpecsList = getDynamicSpecs(part);
+  // 🎯 فحص وجود وصف حقيقي مدخل بملف الإكسل أو الكراج فقط (بدون أي توليد وهمي)
+  const hasRealDescription = typeof part.description === 'string' && part.description.trim().length > 0;
 
   return (
     <div style={{ maxWidth: '1000px', margin: '20px auto', padding: '24px', backgroundColor: '#ffffff', borderRadius: '20px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', fontFamily: 'Cairo, sans-serif', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      {/* ↩️ شريط العودة والشراء المباشر */}
+      {/* ↩️ شريط العودة والشراء المباشر العلوي */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #f1f5f9', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
         <button 
           onClick={onBack} 
@@ -160,7 +96,7 @@ export const PartMoreInfo: React.FC<PartMoreInfoProps> = ({
           </div>
         </div>
 
-        {/* 📝 تفاصيل وصف الذكاء الاصطناعي والمصنع */}
+        {/* 📝 التفاصيل الحقيقية للقطعة */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <h2 style={{ margin: '0 0 4px 0', color: '#1f3a5f', fontSize: '22px' }}>
@@ -169,14 +105,17 @@ export const PartMoreInfo: React.FC<PartMoreInfoProps> = ({
             <span style={{ fontSize: '13.5px', color: '#64748b', fontWeight: 'bold' }}>{part.make} - {part.model} ({part.year})</span>
           </div>
 
-          <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-            <h4 style={{ margin: '0 0 8px 0', color: '#1f3a5f', fontSize: '14px' }}>💡 {isRtl ? 'وصف الذكاء الاصطناعي والمواصفات:' : 'AI Overview:'}</h4>
-            <p style={{ margin: 0, fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
-              {part.description || (isRtl ? `قطعة غيار مطابقة للكتالوج الأصلي تم فحص جودتها للتوافق التام مع سيارات ${part.make} ${part.model}. تضمن أداءً مستقراً وعمراً افتراضياً ممتازا.` : `High quality part engineered for ${part.make} ${part.model}.`)}
-            </p>
-          </div>
+          {/* 📝 يظهر صندوق الوصف فقط في حالة وجود وصف حقيقي مرفوع بالإكسل/الكراج */}
+          {hasRealDescription && (
+            <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: '0 0 8px 0', color: '#1f3a5f', fontSize: '14px' }}>📝 {isRtl ? 'الوصف:' : 'Description:'}</h4>
+              <p style={{ margin: 0, fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
+                {part.description}
+              </p>
+            </div>
+          )}
 
-          {/* 🛡️ معلومات الضمان والتجربة */}
+          {/* 🛡️ معلومات الضمان والتجربة الحقيقية */}
           <div style={{ backgroundColor: '#f0fdf4', padding: '14px', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
             <strong style={{ fontSize: '13px', color: '#166534', display: 'block', marginBottom: '4px' }}>🛡️ {isRtl ? 'معلومات الضمان والتجربة:' : 'Warranty Information:'}</strong>
             <span style={{ fontSize: '12.5px', color: '#15803d' }}>
@@ -199,25 +138,37 @@ export const PartMoreInfo: React.FC<PartMoreInfoProps> = ({
 
       </div>
 
-      {/* 📊 ⚙️ جدول المواصفات الفنية الديناميكي الذكي (يتغير حركياً حسب نوع القطعة) */}
+      {/* 📊 ⚙️ جدول المواصفات الفنية الحقيقي الموحد لجميع القطع دون زيف */}
       <div style={{ border: '1px solid #cbd5e0', borderRadius: '14px', overflow: 'hidden' }}>
         <div style={{ backgroundColor: '#1f3a5f', color: 'white', padding: '12px 18px', fontWeight: 'bold', fontSize: '14.5px' }}>
           ⚙️ {isRtl ? `المواصفات الفنية لـ ${part.name} (${partNo})` : `Technical Specifications for ${part.name}`}
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: isRtl ? 'right' : 'left' }}>
           <tbody>
-            {dynamicSpecsList.map((spec, index) => (
-              <tr 
-                key={index} 
-                style={{ 
-                  borderBottom: index === dynamicSpecsList.length - 1 ? 'none' : '1px solid #edf2f7', 
-                  backgroundColor: index % 2 === 0 ? '#f8fafc' : '#ffffff' 
-                }}
-              >
-                <td style={{ padding: '10px 16px', fontWeight: 'bold', color: '#475569', width: '220px' }}>{spec.label}</td>
-                <td style={{ padding: '10px 16px', color: '#1e293b', fontWeight: '500' }}>{spec.value}</td>
-              </tr>
-            ))}
+            <tr style={{ borderBottom: '1px solid #edf2f7', backgroundColor: '#f8fafc' }}>
+              <td style={{ padding: '10px 16px', fontWeight: 'bold', color: '#475569', width: '220px' }}>{isRtl ? 'رقم القطعة OEM' : 'OEM Part Number'}</td>
+              <td style={{ padding: '10px 16px', color: '#1e293b', fontWeight: 'bold', fontFamily: 'monospace' }}>{partNo}</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid #edf2f7' }}>
+              <td style={{ padding: '10px 16px', fontWeight: 'bold', color: '#475569' }}>{isRtl ? 'السيارة المخصصة' : 'Compatible Vehicle'}</td>
+              <td style={{ padding: '10px 16px', color: '#1e293b' }}>{part.make} - {part.model} ({part.year})</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid #edf2f7', backgroundColor: '#f8fafc' }}>
+              <td style={{ padding: '10px 16px', fontWeight: 'bold', color: '#475569' }}>{isRtl ? 'القسم والفرع' : 'Category'}</td>
+              <td style={{ padding: '10px 16px', color: '#1e293b' }}>{part.category || (isRtl ? 'قطع غيار عامة' : 'General Parts')}</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid #edf2f7' }}>
+              <td style={{ padding: '10px 16px', fontWeight: 'bold', color: '#475569' }}>{isRtl ? 'نوع القطعة' : 'Part Tier'}</td>
+              <td style={{ padding: '10px 16px', color: '#1e293b' }}>{part.part_type || (isRtl ? 'أصلي' : 'Original OEM')}</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid #edf2f7', backgroundColor: '#f8fafc' }}>
+              <td style={{ padding: '10px 16px', fontWeight: 'bold', color: '#475569' }}>{isRtl ? 'حالة المنتج' : 'Condition'}</td>
+              <td style={{ padding: '10px 16px', color: '#1e293b' }}>{part.part_condition || (isRtl ? 'نظيف / مختبر' : 'Tested / Clean')}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '10px 16px', fontWeight: 'bold', color: '#475569' }}>{isRtl ? 'التوصيل المتوقع' : 'Estimated Delivery'}</td>
+              <td style={{ padding: '10px 16px', color: '#16a34a', fontWeight: 'bold' }}>{isRtl ? 'خلال 24 - 48 ساعة' : 'Within 24-48 Hours'}</td>
+            </tr>
           </tbody>
         </table>
       </div>
