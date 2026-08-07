@@ -69,7 +69,7 @@ const FULL_CATEGORY_TREE: Record<string, string[]> = {
 };
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('my_parts');
+  const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders' | 'profile'>('my_parts');
   
   const [myParts, setMyParts] = useState<any[]>([]);
   const [myOrders, setMyOrders] = useState<any[]>([]);
@@ -82,12 +82,20 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [editingPart, setEditingPart] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // 📍 حالات موقع الكراج الملاحي
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || 'garage_unknown';
-  const [garageAddress, setGarageAddress] = useState<string>(() => {
-    return localStorage.getItem(`garage_location_${userId}`) || 'المنطقة الصناعية - الدوحة، قطر';
-  });
-  const [isEditingLocation, setIsEditingLocation] = useState(false);
+
+  // 📍 🔐 حالات بيانات الكراج الخاصة والأمان
+  const [garageName, setGarageName] = useState<string>(() => localStorage.getItem(`garage_name_${userId}`) || 'كراج التخصصي للسيارات');
+  const [commercialReg, setCommercialReg] = useState<string>(() => localStorage.getItem(`garage_cr_${userId}`) || '');
+  const [garagePhone, setGaragePhone] = useState<string>(() => localStorage.getItem(`garage_phone_${userId}`) || session?.phone || '');
+  const [garageEmail, setGarageEmail] = useState<string>(() => localStorage.getItem(`garage_email_${userId}`) || session?.email || '');
+  const [garageAddress, setGarageAddress] = useState<string>(() => localStorage.getItem(`garage_location_${userId}`) || 'المنطقة الصناعية - الدوحة، قطر');
+  const [garageNotes, setGarageNotes] = useState<string>(() => localStorage.getItem(`garage_notes_${userId}`) || '');
+
+  // 🔒 حالات تغيير كلمة المرور
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // 🛠️ حالات المعاينة والضمان
   const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
@@ -97,7 +105,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const isRtl = lang === 'ar';
 
-  // 🛡️ توحيد مخرج رابط Supabase لمنع مشكلة "Failed to fetch"
+  // 🛡️ توحيد مخرج رابط Supabase
   const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
   const restUrl = `${cleanBaseUrl}/rest/v1`;
 
@@ -109,11 +117,15 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     // eslint-disable-next-line
   }, [userId]);
 
-  // 📍 حفظ موقع الكراج في localStorage وسيرفر Supabase
-  const handleSaveGarageLocation = async (newLocation: string) => {
-    setGarageAddress(newLocation);
-    localStorage.setItem(`garage_location_${userId}`, newLocation);
-    setIsEditingLocation(false);
+  // 📍 💾 حفظ وتحديث ملف الكراج في Supabase والـ LocalStorage
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem(`garage_name_${userId}`, garageName);
+    localStorage.setItem(`garage_cr_${userId}`, commercialReg);
+    localStorage.setItem(`garage_phone_${userId}`, garagePhone);
+    localStorage.setItem(`garage_email_${userId}`, garageEmail);
+    localStorage.setItem(`garage_location_${userId}`, garageAddress);
+    localStorage.setItem(`garage_notes_${userId}`, garageNotes);
 
     try {
       await fetch(`${restUrl}/profiles?id=eq.${userId}`, {
@@ -123,15 +135,59 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           'Authorization': `Bearer ${session?.token || apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ garage_address: newLocation })
+        body: JSON.stringify({
+          garage_name: garageName,
+          commercial_registration: commercialReg,
+          phone: garagePhone,
+          email: garageEmail,
+          garage_address: garageAddress,
+          notes: garageNotes,
+          updated_at: new Date().toISOString()
+        })
       });
-      setToastMessage(isRtl ? 'تم حفظ موقع الكراج بنجاح 📍' : 'Garage location saved');
-    } catch (e) {
-      setToastMessage(isRtl ? 'تم حفظ الموقع أوفلاين 📍' : 'Saved locally');
+      setToastMessage(isRtl ? 'تم تحديث بيانات الكراج بنجاح 🔒 (البيانات مؤمنة للأدمن فقط)' : 'Garage profile updated securely');
+    } catch (err) {
+      setToastMessage(isRtl ? 'تم حفظ البيانات محلياً بنجاح ✅' : 'Saved locally');
     }
   };
 
-  // 📍 تحديد الموقع الجغرافي التلقائي بالكاميرا والـ GPS
+  // 🔒 تغيير كلمة المرور عبر Supabase Auth API
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      return alert(isRtl ? 'كلمة المرور يجب أن لا تقل عن 6 أحرف' : 'Password must be at least 6 characters');
+    }
+    if (newPassword !== confirmPassword) {
+      return alert(isRtl ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match');
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const res = await fetch(`${cleanBaseUrl}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: newPassword })
+      });
+
+      if (res.ok) {
+        setToastMessage(isRtl ? 'تم تغيير كلمة المرور بنجاح 🔑' : 'Password changed successfully');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        alert(isRtl ? 'فشل تغيير كلمة المرور، يرجى إعادة تسجيل الدخول والتحقق' : 'Failed to update password');
+      }
+    } catch (err) {
+      alert(isRtl ? 'حدث خطأ غير متوقع' : 'Error updating password');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  // 🎯 تحديد موقع GPS الجغرافي
   const handleDetectGPSLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -139,10 +195,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
-          handleSaveGarageLocation(mapLink);
+          setGarageAddress(mapLink);
+          localStorage.setItem(`garage_location_${userId}`, mapLink);
+          setToastMessage(isRtl ? 'تم التقاط الموقع التلقائي بنجاح 📍' : 'GPS Location detected');
         },
         () => {
-          alert(isRtl ? 'لم نتمكن من التقاط الموقع التلقائي، يرجى كتابة عنوان الكراج أو لصق رابط جوجل ماب' : 'GPS detection failed');
+          alert(isRtl ? 'تعذر التقاط الموقع، يرجى كتابة العنوان أو إلصاق رابط خرائط جوجل يدوياً' : 'GPS failed');
         }
       );
     }
@@ -187,7 +245,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
-  // ⚡ تأكيد التوافق والضمان للطلب مع إرسال موقع الكراج للمندوب
+  // ⚡ تأكيد التوافق والضمان للطلب مع إرسال موقع الكراج
   const handleConfirmFitment = async () => {
     if (!selectedInquiry) return;
     try {
@@ -203,12 +261,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           status: 'confirmed_compatible',
           return_days: returnDays,
           warranty_days: warrantyDays,
-          garage_address: garageAddress // 👈 تمرير موقع الكراج المحفوظ للمندوب
+          garage_address: garageAddress
         })
       });
 
       if (response.ok) {
-        setToastMessage(isRtl ? 'تم تأكيد التوافق والضمان وإرسال موقع الكراج للمندوب بنجاح ✅' : 'Fitment confirmed with location');
+        setToastMessage(isRtl ? 'تم تأكيد التوافق والضمان بنجاح ✅' : 'Fitment confirmed');
         setSelectedInquiry(null);
         fetchMyInquiries();
       } else {
@@ -243,7 +301,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
-  // 🔍 المعاينة الشاملة للقطعة
   const handlePreviewPart = async (inquiry: any) => {
     if (inquiry.part_id) {
       try {
@@ -292,7 +349,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         description: formData.partDescription || null,
         warranty: formData.partWarranty || null,
         interchange_numbers: formData.interchangeNumbers || null,
-        garage_address: garageAddress, // 👈 حفظ عنوان وموقع الكراج بالقطعة
+        garage_address: garageAddress,
         user_id: userId
       };
 
@@ -348,10 +405,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       const response = await fetch(`${restUrl}/orders?id=eq.${orderId}`, {
         method: 'PATCH',
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          status,
-          garage_address: garageAddress // 👈 ربط موقع الكراج مع الطلب عند التأكيد والتجهيز
-        })
+        body: JSON.stringify({ status, garage_address: garageAddress })
       });
       if (response.ok) fetchMyOrders();
     } catch (error) {}
@@ -360,74 +414,195 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   return (
     <div style={{ maxWidth: '1000px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
-      {/* 📍 شريط إعدادات موقع الكراج الملاحي الدائم */}
-      <div style={{ backgroundColor: '#ffffff', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '22px' }}>📍</span>
-          <div>
-            <strong style={{ fontSize: '14px', color: '#1f3a5f', display: 'block' }}>{isRtl ? 'موقع ومقر الكراج الحالي (يظهر للمندوب):' : 'Saved Garage Location:'}</strong>
-            <span style={{ fontSize: '12.5px', color: '#64748b' }}>{garageAddress}</span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            onClick={handleDetectGPSLocation}
-            style={{ padding: '8px 14px', backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-          >
-            🎯 تحديد موقعي التلقائي (GPS)
-          </button>
-          <button
-            onClick={() => setIsEditingLocation(!isEditingLocation)}
-            style={{ padding: '8px 14px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-          >
-            ✏️ {isEditingLocation ? 'إلغاء' : 'تعديل العنوان/الرابط'}
-          </button>
-        </div>
-
-        {isEditingLocation && (
-          <div style={{ width: '100%', marginTop: '10px', display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              placeholder="اكتب اسم المنطقه أوالصناعية أو يلصق رابط Google Maps هنا..."
-              defaultValue={garageAddress}
-              id="garage_location_input"
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
-            />
-            <button
-              onClick={() => {
-                const input = document.getElementById('garage_location_input') as HTMLInputElement;
-                if (input && input.value) handleSaveGarageLocation(input.value);
-              }}
-              style={{ padding: '10px 18px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
-            >
-              حفظ الموقع 💾
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 🚀 هيدر التبويبات المكتمل */}
-      <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', flexWrap: 'wrap' }}>
-        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'my_parts' ? '#1f3a5f' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+      {/* 🚀 هيدر التبويبات المكتمل بما فيها تبويب البيانات والملف الشخصي */}
+      <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', flexWrap: 'wrap', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+        <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'my_parts' ? '#1f3a5f' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           معروضاتي ({myParts.length})
         </button>
-        <button onClick={() => { setEditingPart(null); setActiveTab('add_part'); }} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'add_part' ? '#1f3a5f' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+        <button onClick={() => { setEditingPart(null); setActiveTab('add_part'); }} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'add_part' ? '#1f3a5f' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           إضافة قطعة جديدة
         </button>
         <button onClick={() => setShowExcelModal(true)} style={{ padding: '12px 16px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           📄 رفع إكسل
         </button>
-        <button onClick={() => setActiveTab('custom_requests')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'custom_requests' ? '#e0872a' : 'transparent', color: activeTab === 'custom_requests' ? 'white' : '#4a5568', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+        <button onClick={() => setActiveTab('custom_requests')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'custom_requests' ? '#e0872a' : 'transparent', color: activeTab === 'custom_requests' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           طلبات التسعير ({customRequests.length})
         </button>
-        <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+        <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           فحص التوافق ({myInquiries.length})
         </button>
-        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           الطلبات ({myOrders.length})
         </button>
+        <button onClick={() => setActiveTab('profile')} style={{ padding: '12px 18px', backgroundColor: activeTab === 'profile' ? '#0284c7' : '#f0f9ff', color: activeTab === 'profile' ? 'white' : '#0369a1', border: '1px solid #bae6fd', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+          ⚙️ بيانات الكراج والأمان
+        </button>
       </div>
+
+      {/* 🔐 1. تبويب إدارة بيانات الكراج والأمان والحساب */}
+      {activeTab === 'profile' && (
+        <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+          
+          {/* تحذير وتنويه الأمان لبيانات الكراج */}
+          <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <span style={{ fontSize: '24px' }}>🛡️</span>
+            <div>
+              <strong style={{ color: '#c2410c', fontSize: '14.5px', display: 'block', marginBottom: '2px' }}>
+                {isRtl ? 'منطقة البيانات الخاصة والمؤمنة' : 'Secure Private Garage Data'}
+              </strong>
+              <p style={{ margin: 0, fontSize: '12.5px', color: '#9a3412' }}>
+                {isRtl ? 'ملاحظة: السجل التجاري ورقم التواصل الخاص وهيئة الحساب لا تظهر للزوار أو العملاء العامين. البيانات تستخدم فقط لعمليات التوثيق الإدارية لدى إدارة المنصة (Admin).' : 'Notice: Commercial registration and private contact details are visible to Admin only for compliance.'}
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '35px' }}>
+            <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>
+              🏪 {isRtl ? 'تحديث بيانات ومقر الكراج' : 'Update Garage Profile & Location'}
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>
+                  {isRtl ? 'اسم الكراج التجاري / المعرض:' : 'Garage Name:'}
+                </label>
+                <input
+                  type="text"
+                  value={garageName}
+                  onChange={(e) => setGarageName(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>
+                  {isRtl ? 'رقم السجل التجاري (CR Number):' : 'Commercial Reg. Number:'}
+                </label>
+                <input
+                  type="text"
+                  value={commercialReg}
+                  onChange={(e) => setCommercialReg(e.target.value)}
+                  placeholder="مثال: 123456"
+                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>
+                  {isRtl ? 'رقم هاتف الكراج المباشر:' : 'Garage Phone Number:'}
+                </label>
+                <input
+                  type="text"
+                  value={garagePhone}
+                  onChange={(e) => setGaragePhone(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px', direction: 'ltr', textAlign: isRtl ? 'right' : 'left' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>
+                  {isRtl ? 'البريد الإلكتروني المعتمد:' : 'Official Garage Email:'}
+                </label>
+                <input
+                  type="email"
+                  value={garageEmail}
+                  onChange={(e) => setGarageEmail(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px', direction: 'ltr', textAlign: isRtl ? 'right' : 'left' }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
+                  📍 {isRtl ? 'عنوان وموقع الكراج على الخريطة (يظهر للمندوب لتسلم الشحنة):' : 'Garage Google Maps Address:'}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleDetectGPSLocation}
+                  style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: '6px', fontSize: '11.5px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  🎯 تحديد موقعي التلقائي (GPS)
+                </button>
+              </div>
+              <input
+                type="text"
+                value={garageAddress}
+                onChange={(e) => setGarageAddress(e.target.value)}
+                placeholder="مثال: الصناعية الشارع 24 أو رابط Google Maps..."
+                style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>
+                📝 {isRtl ? 'معلومات أو ملاحظات إضافية للإدارة:' : 'Additional Garage Notes:'}
+              </label>
+              <textarea
+                rows={3}
+                value={garageNotes}
+                onChange={(e) => setGarageNotes(e.target.value)}
+                placeholder="أوقات العمل، الماركات المتخصص بها..."
+                style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              style={{ padding: '13px', backgroundColor: '#0284c7', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14.5px', cursor: 'pointer' }}
+            >
+              💾 {isRtl ? 'حفظ وتحديث بيانات الكراج' : 'Save Garage Details'}
+            </button>
+          </form>
+
+          {/* 🔑 قسم تغيير كلمة المرور */}
+          <form onSubmit={handleChangePassword} style={{ borderTop: '2px solid #f1f5f9', paddingTop: '25px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '17px' }}>
+              🔑 {isRtl ? 'تغيير كلمة مرور الحساب' : 'Change Account Password'}
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>
+                  {isRtl ? 'كلمة المرور الجديدة:' : 'New Password:'}
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="******"
+                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px', color: '#334155' }}>
+                  {isRtl ? 'تأكيد كلمة المرور الجديدة:' : 'Confirm New Password:'}
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="******"
+                  style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isUpdatingPassword}
+              style={{ padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', maxWidth: '250px' }}
+            >
+              {isUpdatingPassword ? (isRtl ? 'جاري التحديث...' : 'Updating...') : (isRtl ? 'تحديث كلمة المرور 🔒' : 'Update Password 🔒')}
+            </button>
+          </form>
+
+        </div>
+      )}
 
       {activeTab === 'add_part' && (
         <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px' }}>
@@ -484,7 +659,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         />
       )}
 
-      {/* 🔍 1️⃣ نافذة معاينة بيانات القطعة بالتفصيل عند ضغط الكراج على الإعلان */}
+      {/* 🔍 المعاينة الشاملة للقطعة */}
       {previewPartDetails && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1250, padding: '20px' }}>
           <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', maxWidth: '500px', width: '100%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', direction: isRtl ? 'rtl' : 'ltr' }}>
@@ -510,7 +685,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 🛡️ 2️⃣ نافذة تحديد فترة الضمان والإرجاع عند ضغط زر "تركب" */}
+      {/* 🛡️ نافذة شروط الضمان الإرجاع */}
       {selectedInquiry && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1250, padding: '20px', direction: isRtl ? 'rtl' : 'ltr' }}>
           <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '20px', maxWidth: '480px', width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
