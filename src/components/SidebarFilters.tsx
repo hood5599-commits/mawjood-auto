@@ -5,7 +5,7 @@ import {
   classifyPartTier 
 } from '../utils/categoryHelper';
 import { AITranslatedText } from './AITranslatedText';
-import { PartMoreInfo } from './PartMoreInfo'; // 👈 استدعاء مكون الطبقة الثالثة (الصفحة التفصيلية)
+import { PartMoreInfo } from './PartMoreInfo';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
@@ -88,7 +88,7 @@ const nodeStyle: React.CSSProperties = {
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
     lang, carData, categories, inventory, 
-    searchTerm, setSearchTerm, addToCart, onInquire, siteSettings 
+    searchTerm, setSearchTerm, addToCart, siteSettings 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -105,13 +105,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [isSubmittingReq, setIsSubmittingReq] = useState(false);
   const [reqSubmitted, setReqSubmitted] = useState(false);
 
-  // 🔃 حالة الترتيب (من الأرخص للأغلى / من الأعلى للأرخص)
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'default'>('default');
-
-  // 🖼️ متابعة مؤشر الصورة الحالية لكل قطعة { [partId]: activeImageIndex }
   const [partImageIndexes, setPartImageIndex] = useState<Record<number, number>>({});
 
-  // 📑 حالات التحكم بالطبقة الثانية (النافذة المنبثقة) والطبقة الثالثة (الصفحة المنفصلة)
   const [popupPart, setPopupPart] = useState<any | null>(null);
   const [detailedPart, setDetailedPart] = useState<any | null>(null);
 
@@ -128,7 +124,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setPartQuantities(prev => ({ ...prev, [part.id]: newQty }));
   };
 
-  // 🖼️ التنقل بين الصور (يمين / يسار)
   const handleNextImage = (partId: number, totalImages: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setPartImageIndex(prev => ({
@@ -145,7 +140,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }));
   };
 
-  // 🔗 مشاركة رابط القطعة
   const handleSharePart = (part: any, e: React.MouseEvent) => {
     e.stopPropagation();
     const shareUrl = `${window.location.origin}?partId=${part.id}`;
@@ -323,7 +317,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }
   };
 
-  // 🔄 معالجة نتائج البحث مع الترتيب (من الأرخص للأغلى والعكس)
   const processAndSortParts = (partsList: any[]) => {
     if (sortBy === 'price_asc') {
       return [...partsList].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
@@ -360,7 +353,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
-  // 🎴 1️⃣ رسم بطاقة العرض السريعة (الطبقة الأولى المدمجة بالصفحة تحت بعضها)
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -369,7 +361,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     const tierInfo = classifyPartTier(part);
 
-    // تجميع كافة الصور المتوفرة للقطعة
     const allImages: string[] = part.additional_images && part.additional_images.length > 0 
       ? part.additional_images 
       : [part.image_url || part.image || DEFAULT_IMAGE];
@@ -398,7 +389,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           position: 'relative'
         }}
       >
-        {/* زر المشاركة العلوي السريع */}
         <button 
           onClick={(e) => handleSharePart(part, e)} 
           title={isRtl ? "مشاركة القطعة" : "Share Part"}
@@ -409,7 +399,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
           
-          {/* معرض الصور مع أسهم التنقل (يمين/يسار) ومؤشر الأرقام */}
           <div style={{ position: 'relative', width: '90px', height: '90px', flexShrink: 0 }}>
             <img 
               src={activeImage} 
@@ -439,7 +428,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             )}
           </div>
 
-          {/* معلومات القطعة الأساسية خفيفة الوزن */}
           <div style={{ flex: 1 }}>
             <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
               <AITranslatedText text={part.name} lang={lang} />
@@ -465,7 +453,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
         </div>
 
-        {/* أزرار السلة وتوسيع التفاصيل (الطبقة 2) */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f1f5f9' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '28px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
@@ -495,7 +482,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     );
   };
 
-  // 📄 إذا تم فتح الطبقة الثالثة (صفحة التفاصيل الشاملة More Info)، تعرض مكون التفاصيل المستقل
   if (detailedPart) {
     return (
       <PartMoreInfo 
@@ -504,7 +490,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         lang={lang} 
         siteSettings={siteSettings}
         onAddToCart={addToCart}
-        onBack={() => setDetailedPart(null)} // 👈 عند العودة، يرجع للبحث بدون مسح الفلترة!
+        onBack={() => setDetailedPart(null)}
       />
     );
   }
@@ -513,7 +499,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
         
-        {/* شريط البحث المباشر السريع مع زر الترتيب السريع */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
             <input 
@@ -528,7 +513,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             </button>
           </form>
 
-          {/* 🔃 زر الترتيب السريع (من الأرخص للأغلى والعكس) */}
           <select 
             value={sortBy} 
             onChange={(e) => setSortBy(e.target.value as any)}
@@ -562,7 +546,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             )}
           </div>
         ) : (
-          /* شجرة البحث المباشرة */
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
             {Object.keys(carData).map(make => {
               const makeKey = `make_${make}`;
@@ -736,7 +719,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
       </div>
 
-      {/* 🎴 2️⃣ الطبقة الثانية: النافذة المنبثقة (Pop-Up Modal عند الضغط على المزيد) */}
       {popupPart && (
         <div onClick={() => setPopupPart(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
@@ -755,7 +737,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </span>
             </div>
 
-            {/* 📊 جدول التوافق Mapped Fitment Guide */}
             <div style={{ border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff', marginBottom: '14px' }}>
               <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', borderBottom: '1px solid #cbd5e0' }}>
                 🚘 {isRtl ? 'جدول توافق القطعة المباشر (Buyer\'s Guide):' : 'Part Fitment Guide:'}
@@ -780,7 +761,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </div>
             </div>
 
-            {/* السعر والتقسيط والتوصيل */}
             <div style={{ backgroundColor: '#fafafa', padding: '12px', borderRadius: '12px', border: '1px dashed #cbd5e0', marginBottom: '16px' }}>
               <div style={{ color: '#e0872a', fontWeight: '900', fontSize: '20px' }}>{popupPart.price} {isRtl ? 'ر.ق' : 'QAR'}</div>
               <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>⚡ {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}</div>
@@ -792,7 +772,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               )}
             </div>
 
-            {/* 📄 الزر الرئيسي للانتقال للطبقة الثالثة (الصفحة المنفصلة الكاملة) */}
             <button 
               onClick={() => { setDetailedPart(popupPart); setPopupPart(null); }}
               style={{ width: '100%', padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '13.5px', cursor: 'pointer' }}
