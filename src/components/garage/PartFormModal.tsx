@@ -1,148 +1,293 @@
 import React, { useState } from 'react';
-import { AITranslatedText } from '../AITranslatedText';
 
-interface MyPartsTabProps {
+interface PartFormModalProps {
   isRtl: boolean;
-  lang: 'ar' | 'en';
-  myParts: any[];
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
-  onOpenExcelModal: () => void;
-  onEditPart: (part: any) => void;
-  onDeletePart: (id: number) => void;
-  onQuickSaveInline: (partId: number, price: string, stock: string) => void;
+  editingPart: any | null;
+  FULL_CATEGORY_TREE: Record<string, string[]>;
+  CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }>;
+  carData: any;
+  years: string[];
+  onSubmit: (formData: any) => void;
+  onCancel: () => void;
+  uploadingImages: boolean;
+  onUploadImages: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export const MyPartsTab: React.FC<MyPartsTabProps> = ({
+export const PartFormModal: React.FC<PartFormModalProps> = ({
   isRtl,
-  lang,
-  myParts,
-  searchQuery,
-  setSearchQuery,
-  onOpenExcelModal,
-  onEditPart,
-  onDeletePart,
-  onQuickSaveInline
+  editingPart,
+  FULL_CATEGORY_TREE,
+  CATEGORY_TRANSLATIONS,
+  carData,
+  years,
+  onSubmit,
+  onCancel
 }) => {
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
-  const [inlineEditingPartId, setInlineEditingPartId] = useState<number | null>(null);
-  const [inlinePrice, setInlinePrice] = useState('');
-  const [inlineStock, setInlineStock] = useState('');
+  const [partName, setPartName] = useState(editingPart?.name || '');
+  const [partNumber, setPartNumber] = useState(editingPart?.part_number || '');
+  const [partPrice, setPartPrice] = useState(editingPart?.price ? String(editingPart.price) : '');
+  const [partStock, setPartStock] = useState(editingPart ? String(editingPart.stock ?? 1) : '1');
+  const [partType, setPartType] = useState(editingPart?.part_type || 'مستعمل أصلي');
+  const [partCondition, setPartCondition] = useState(editingPart?.part_condition || 'نظيف');
+  const [partMake, setPartMake] = useState(editingPart?.make || '');
+  const [partModel, setPartModel] = useState(editingPart?.model || '');
 
-  const filteredParts = myParts.filter(p => 
-    String(p.name || '').toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-    String(p.part_number || '').toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-    String(p.make || '').toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
-    String(p.model || '').toLowerCase().includes(searchQuery.toLowerCase().trim())
+  const [partYearFrom, setPartYearFrom] = useState(
+    editingPart?.year?.includes('-') ? editingPart.year.split('-')[0] : editingPart?.year || ''
+  );
+  const [partYearTo, setPartYearTo] = useState(
+    editingPart?.year?.includes('-') ? editingPart.year.split('-')[1] : editingPart?.year || ''
   );
 
-  return (
-    <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', direction: isRtl ? 'rtl' : 'ltr' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
-        <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
-          {isRtl ? `إدارة معروضات الكراج (${filteredParts.length} / ${myParts.length})` : `Manage Ads (${filteredParts.length})`}
-        </h3>
+  const [partEngine, setPartEngine] = useState(editingPart?.engine || '');
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '3px' }}>
-            <button onClick={() => setViewMode('table')} style={{ padding: '6px 12px', border: 'none', borderRadius: '6px', backgroundColor: viewMode === 'table' ? '#1f3a5f' : 'transparent', color: viewMode === 'table' ? '#ffffff' : '#64748b', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>📄 جدول مدمج</button>
-            <button onClick={() => setViewMode('cards')} style={{ padding: '6px 12px', border: 'none', borderRadius: '6px', backgroundColor: viewMode === 'cards' ? '#1f3a5f' : 'transparent', color: viewMode === 'cards' ? '#ffffff' : '#64748b', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>🎴 بطاقات</button>
-          </div>
-          <button onClick={onOpenExcelModal} style={{ padding: '8px 14px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12.5px' }}>📄 رفع إكسل</button>
+  const [mainCategory, setMainCategory] = useState(
+    editingPart?.category?.includes('>') ? editingPart.category.split('>')[0].trim() : editingPart?.category || ''
+  );
+  const [subCategory, setSubCategory] = useState(
+    editingPart?.category?.includes('>') ? editingPart.category.split('>')[1].trim() : ''
+  );
+
+  const [partImages] = useState<string[]>(
+    editingPart?.additional_images || (editingPart?.image_url ? [editingPart.image_url] : [])
+  );
+
+  // حقول More Info الاختيارية
+  const [showMoreInfoForm, setShowMoreInfoForm] = useState(
+    !!(editingPart?.description || editingPart?.warranty || editingPart?.interchange_numbers || editingPart?.position || editingPart?.weight_kg || editingPart?.pin_count)
+  );
+  const [partDescription, setPartDescription] = useState(editingPart?.description || '');
+  const [partWarranty, setPartWarranty] = useState(editingPart?.warranty || '');
+  const [interchangeNumbers, setInterchangeNumbers] = useState(editingPart?.interchange_numbers || '');
+  const [partPosition, setPartPosition] = useState(editingPart?.position || '');
+  const [partWeight, setPartWeight] = useState(editingPart?.weight_kg ? String(editingPart.weight_kg) : '');
+  const [partPinCount, setPartPinCount] = useState(editingPart?.pin_count ? String(editingPart.pin_count) : '');
+
+  const handlePartNameChange = (name: string) => {
+    setPartName(name);
+    const lower = name.toLowerCase().trim();
+    if (!lower) return;
+
+    for (const [mainCat, subCats] of Object.entries(FULL_CATEGORY_TREE)) {
+      for (const subCat of subCats) {
+        if (lower.includes(subCat.toLowerCase())) {
+          setMainCategory(mainCat);
+          setSubCategory(subCat);
+          return;
+        }
+      }
+    }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const fullCategoryPath = [mainCategory, subCategory].filter(Boolean).join(' > ');
+    const computedYear = (partYearFrom && partYearTo && partYearFrom !== partYearTo)
+      ? `${Math.min(Number(partYearFrom), Number(partYearTo))}-${Math.max(Number(partYearFrom), Number(partYearTo))}`
+      : (partYearFrom || '');
+
+    onSubmit({
+      partName,
+      partNumber,
+      partPrice,
+      partStock,
+      partType,
+      partCondition,
+      partMake,
+      partModel,
+      computedYear,
+      partEngine,
+      fullCategoryPath,
+      partImages,
+      partDescription,
+      partWarranty,
+      interchangeNumbers,
+      partPosition,
+      partWeight,
+      partPinCount
+    });
+  };
+
+  return (
+    <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px', direction: isRtl ? 'rtl' : 'ltr' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
+            {isRtl ? 'اسم قطعة الغيار *' : 'Part Name *'}
+          </label>
+          <input
+            type="text"
+            placeholder={isRtl ? "مثال: مساعدات أمامية..." : "E.g., Oil Filter..."}
+            value={partName}
+            onChange={(e) => handlePartNameChange(e.target.value)}
+            style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }}
+            required
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
+            {isRtl ? 'رقم القطعة الأصلي OEM:' : 'Part Number OEM:'}
+          </label>
+          <input
+            type="text"
+            placeholder="مثال: 90915-YZZD1"
+            value={partNumber}
+            onChange={(e) => setPartNumber(e.target.value)}
+            style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box', fontFamily: 'monospace' }}
+          />
         </div>
       </div>
 
-      <input
-        type="text"
-        placeholder={isRtl ? "🔍 بحث سريع برقم القطعة OEM، اسمها، أو ماركة السيارة..." : "🔍 Search by PN, Name, or Make..."}
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', marginBottom: '16px', boxSizing: 'border-box', backgroundColor: '#f8fafc' }}
-      />
+      <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>الفرع الرئيسي</label>
+            <select value={mainCategory} onChange={(e) => { setMainCategory(e.target.value); setSubCategory(''); }} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+              <option value="">-- اختر الفرع الرئيسي --</option>
+              {Object.keys(FULL_CATEGORY_TREE).map((cat) => (
+                <option key={cat} value={cat}>
+                  {CATEGORY_TRANSLATIONS[cat] ? `${CATEGORY_TRANSLATIONS[cat].ar} — ${cat}` : cat}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      {viewMode === 'table' ? (
-        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f1f5f9', color: '#1f3a5f', borderBottom: '2px solid #cbd5e0' }}>
-                <th style={{ padding: '12px 10px' }}>الصورة</th>
-                <th style={{ padding: '12px 10px' }}>اسم القطعة / OEM</th>
-                <th style={{ padding: '12px 10px' }}>التوافق</th>
-                <th style={{ padding: '12px 10px' }}>السعر</th>
-                <th style={{ padding: '12px 10px' }}>المخزون</th>
-                <th style={{ padding: '12px 10px', textAlign: 'center' }}>إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredParts.map(part => {
-                const isInline = inlineEditingPartId === part.id;
-                return (
-                  <tr key={part.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '8px 10px' }}>
-                      <img src={part.image_url || 'https://via.placeholder.com/40'} alt={part.name} style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px' }} />
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <strong style={{ color: '#1f3a5f', display: 'block' }}><AITranslatedText text={part.name} lang={lang} /></strong>
-                      {part.part_number && <span style={{ fontSize: '11px', color: '#e0872a', fontFamily: 'monospace' }}>PN: {part.part_number}</span>}
-                    </td>
-                    <td style={{ padding: '8px 10px', color: '#475569' }}>{part.make} - {part.model} ({part.year})</td>
-                    <td style={{ padding: '8px 10px' }}>
-                      {isInline ? (
-                        <input type="number" value={inlinePrice} onChange={(e) => setInlinePrice(e.target.value)} style={{ width: '70px', padding: '4px', borderRadius: '4px', border: '1px solid #e0872a' }} />
-                      ) : (
-                        <span style={{ fontWeight: 'bold', color: '#16a34a' }}>{part.price} QAR</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>
-                      {isInline ? (
-                        <input type="number" value={inlineStock} onChange={(e) => setInlineStock(e.target.value)} style={{ width: '50px', padding: '4px', borderRadius: '4px', border: '1px solid #e0872a' }} />
-                      ) : (
-                        <span style={{ fontWeight: 'bold', color: (part.stock || 1) > 0 ? '#1f3a5f' : '#dc2626' }}>{part.stock ?? 1}</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                      {isInline ? (
-                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                          <button onClick={() => { onQuickSaveInline(part.id, inlinePrice, inlineStock); setInlineEditingPartId(null); }} style={{ backgroundColor: '#16a34a', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>حفظ</button>
-                          <button onClick={() => setInlineEditingPartId(null)} style={{ backgroundColor: '#94a3b8', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px' }}>إلغاء</button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                          <button onClick={() => { setInlineEditingPartId(part.id); setInlinePrice(String(part.price)); setInlineStock(String(part.stock ?? 1)); }} style={{ backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', padding: '4px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 'bold' }}>⚡ تعديل سريع</button>
-                          <button onClick={() => onEditPart(part)} style={{ padding: '4px 8px', backgroundColor: '#ebf8ff', color: '#2b6cb0', border: '1px solid #bee3f8', borderRadius: '6px', fontWeight: 'bold', fontSize: '11.5px' }}>تعديل كامل</button>
-                          <button onClick={() => onDeletePart(part.id)} style={{ padding: '4px 8px', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', fontWeight: 'bold', fontSize: '11.5px' }}>حذف</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>الفرع الفرعي</label>
+            <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)} disabled={!mainCategory} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+              <option value="">-- اختر الفرع الفرعي --</option>
+              {mainCategory && FULL_CATEGORY_TREE[mainCategory]?.map((sub) => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
+          </div>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' }}>
-          {filteredParts.map(part => (
-            <div key={part.id} style={{ border: '1px solid #e2e8f0', borderRadius: '14px', backgroundColor: '#f8fafc', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <img src={part.image_url || 'https://via.placeholder.com/70'} alt={part.name} style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '10px' }} />
-                <div>
-                  <h4 style={{ margin: '0 0 4px 0', color: '#1f3a5f', fontSize: '14.5px' }}><AITranslatedText text={part.name} lang={lang} /></h4>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>{part.make} - {part.model} ({part.year})</span>
-                </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr 1fr', gap: '10px', alignItems: 'flex-end' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الماركة *</label>
+          <select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); }} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
+            <option value="">اختر الماركة</option>
+            {Object.keys(carData).map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الموديل *</label>
+          <select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required disabled={!partMake}>
+            <option value="">اختر الموديل</option>
+            {partMake && carData[partMake]?.models.map((m: string) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>سنوات التوافق (من - إلى) *</label>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <select value={partYearFrom} onChange={(e) => { setPartYearFrom(e.target.value); if (!partYearTo) setPartYearTo(e.target.value); }} style={{ flex: 1, padding: '10px 4px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }} required>
+              <option value="">من</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <span>-</span>
+            <select value={partYearTo} onChange={(e) => setPartYearTo(e.target.value)} style={{ flex: 1, padding: '10px 4px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }}>
+              <option value="">إلى</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>المحرك</label>
+          <select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} disabled={!partMake}>
+            <option value="">المحرك</option>
+            {partMake && carData[partMake]?.engines.map((eng: string) => <option key={eng} value={eng}>{eng}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>حالة المنتج *</label>
+          <select value={partCondition} onChange={(e) => setPartCondition(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+            <option value="جديد">جديد</option>
+            <option value="شبه جديد">شبه جديد</option>
+            <option value="نظيف">نظيف</option>
+            <option value="وسط">وسط</option>
+          </select>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>السعر (QAR) *</label>
+          <input type="number" placeholder="350" value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>الكمية *</label>
+          <input type="number" min="1" value={partStock} onChange={(e) => setPartStock(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required />
+        </div>
+      </div>
+
+      {/* 🚀 الزر الاختياري المنبثق لـ More Info */}
+      <div style={{ borderTop: '1px dashed #cbd5e0', paddingTop: '15px' }}>
+        <button
+          type="button"
+          onClick={() => setShowMoreInfoForm(!showMoreInfoForm)}
+          style={{ width: '100%', padding: '12px', backgroundColor: showMoreInfoForm ? '#f8fafc' : '#eff6ff', color: '#1d4ed8', border: '1px dashed #bfdbfe', borderRadius: '10px', fontWeight: 'bold', fontSize: '13.5px', cursor: 'pointer' }}
+        >
+          {showMoreInfoForm ? '🔼 إخفاء البيانات الإضافية' : '➕ إضافة مواصفات ومعلومات إضافية (More Info - اختياري)'}
+        </button>
+
+        {showMoreInfoForm && (
+          <div style={{ backgroundColor: '#f8fafc', padding: '18px', borderRadius: '12px', marginTop: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>📝 وصف حقيقي تفصيلي للقطعة:</label>
+              <textarea placeholder="اكتب وصفاً حقيقياً..." value={partDescription} onChange={(e) => setPartDescription(e.target.value)} rows={3} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>🛡️ شروط الضمان المخصصة:</label>
+                <input type="text" placeholder="مثال: ضمان تجربة 14 يوم" value={partWarranty} onChange={(e) => setPartWarranty(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12.5px' }} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
-                <strong style={{ color: '#16a34a' }}>{part.price} QAR</strong>
-                <span>المخزون: {part.stock ?? 1}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => onEditPart(part)} style={{ flex: 1, padding: '8px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>تعديل</button>
-                <button onClick={() => onDeletePart(part.id)} style={{ padding: '8px 12px', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '8px', fontWeight: 'bold' }}>حذف</button>
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>🔗 أرقام بديلة (Interchange OEM):</label>
+                <input type="text" placeholder="مثال: 15780789, TO3115169" value={interchangeNumbers} onChange={(e) => setInterchangeNumbers(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12.5px', fontFamily: 'monospace' }} />
               </div>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold' }}>📍 الجهة / الموضع:</label>
+                <select value={partPosition} onChange={(e) => setPartPosition(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }}>
+                  <option value="">غير محدد</option>
+                  <option value="أمامي يمين">أمامي يمين</option>
+                  <option value="أمامي يسار">أمامي يسار</option>
+                  <option value="خلفي يمين">خلفي يمين</option>
+                  <option value="خلفي يسار">خلفي يسار</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold' }}>⚖️ الوزن التقديري (كجم):</label>
+                <input type="number" step="0.1" placeholder="2.5" value={partWeight} onChange={(e) => setPartWeight(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold' }}>🔌 عدد أسنان الفيشة:</label>
+                <input type="number" placeholder="6" value={partPinCount} onChange={(e) => setPartPinCount(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+        <button type="submit" style={{ flex: 1, padding: '14px', backgroundColor: editingPart ? '#1f3a5f' : '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+          {editingPart ? 'حفظ التعديلات' : 'نشر القطعة للبيع الآن'}
+        </button>
+        <button type="button" onClick={onCancel} style={{ padding: '14px 20px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+          إلغاء
+        </button>
+      </div>
+    </form>
   );
 };
