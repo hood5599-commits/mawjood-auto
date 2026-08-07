@@ -34,7 +34,7 @@ interface SidebarProps {
   setFilterEngine?: (engine: string) => void;
   addToCart?: (item: any, quantity: number) => void;
   onInquire?: (item: any) => void;
-  siteSettings?: any; // 👈 إعدادات الأدمن للتحكم بـ Pay Later
+  siteSettings?: any;
 }
 
 const CATEGORY_TRANSLATION: Record<string, string> = {
@@ -109,7 +109,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const isRtl = lang === 'ar';
 
-  // 💳 التحكم بظهور خدمة التقسيط من إعدادات الأدمن (تلقائياً تكون مفعالة وقريباً)
   const isBNPLEnabled = siteSettings?.enableBNPL ?? true;
 
   const getQty = (id: number) => partQuantities[id] || 1;
@@ -309,14 +308,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
-// 🎴 رسم كرت القطعة المحسّن بالجدول المدمج ذو المدى الزمني
+  // 🎴 رسم كرت القطعة المحسّن بالجدول المدمج ذو المدى الزمني
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
     const maxStock = typeof part.stock !== 'undefined' && part.stock !== null ? Number(part.stock) : 5;
     const isOutOfStock = maxStock <= 0;
 
-    const { alternatives } = findSmartInterchangeParts(part, inventory);
     const tierInfo = classifyPartTier(part);
 
     const formattedPart = {
