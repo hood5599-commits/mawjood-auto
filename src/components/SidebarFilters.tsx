@@ -87,7 +87,7 @@ const nodeStyle: React.CSSProperties = {
 
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
-    lang, carData, categories, inventory, 
+    lang, carData, inventory, 
     searchTerm, setSearchTerm, addToCart, onInquire, siteSettings 
   } = props;
 
@@ -159,7 +159,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setActiveSearchQuery('');
   };
 
-  // 1️⃣ فك تجميع النطاقات الزمنية (2003-2006) إلى سنوات منفصلة
   const fetchYearsForMake = async (make: string) => {
     const cacheKey = `years_${make}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -262,8 +261,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [lang === 'ar' ? 'عام' : 'General'];
   };
 
-  const fetchCategoriesForEngine = async (make: string, year: string, model: string, engine: string) => {
-    const cacheKey = `categories_${make}_${year}_${model}_${engine}`;
+  // 📁 جلب الأقسام الرئيسية (Main Categories)
+  const fetchMainCategoriesForEngine = async (make: string, year: string, model: string, engine: string) => {
+    const cacheKey = `maincats_${make}_${year}_${model}_${engine}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
@@ -285,12 +285,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           return matchYear && matchEngine;
         });
 
-        const activeCategories = categories.filter(cat => {
-          return filteredParts.some((p: any) => p.category === cat || getPartCategory(p.name) === cat || (p.category && p.category.includes(cat)));
+        const mainCategories = new Set<string>();
+        filteredParts.forEach(p => {
+          const pCat = p.category || getPartCategory(p.name) || '';
+          const mainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
+          if (mainCat) mainCategories.add(mainCat);
         });
 
-        setNodeDataCache(prev => ({ ...prev, [cacheKey]: activeCategories }));
-        return activeCategories;
+        const result = Array.from(mainCategories);
+        setNodeDataCache(prev => ({ ...prev, [cacheKey]: result }));
+        return result;
       }
     } catch (e) {
     } finally {
@@ -299,8 +303,55 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [];
   };
 
-  const fetchPartsForLeafNode = async (make: string, year: string, model: string, engine: string, category: string) => {
-    const cacheKey = `parts_${make}_${year}_${model}_${engine}_${category}`;
+  // 📂 جلب الأقسام الفرعية (Sub-Categories) للقسم الرئيسي المختار
+  const fetchSubCategoriesForMain = async (make: string, year: string, model: string, engine: string, mainCategory: string) => {
+    const cacheKey = `subcats_${make}_${year}_${model}_${engine}_${mainCategory}`;
+    if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
+
+    setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
+    try {
+      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&model=eq.${encodeURIComponent(model)}&select=name,category,engine,year`;
+      const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const filteredParts = data.filter((p: any) => {
+          const yStr = String(p.year || '').trim();
+          let matchYear = yStr === year;
+          if (yStr.includes('-')) {
+            const [start, end] = yStr.split('-').map(Number);
+            const target = Number(year);
+            matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
+          }
+          const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
+          const matchEngine = pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
+          
+          const pCat = p.category || getPartCategory(p.name) || '';
+          const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
+          
+          return matchYear && matchEngine && pMainCat === mainCategory;
+        });
+
+        const subCategories = new Set<string>();
+        filteredParts.forEach(p => {
+          const pCat = p.category || getPartCategory(p.name) || '';
+          const subCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (lang === 'ar' ? 'عام / أخرى' : 'General / Other');
+          subCategories.add(subCat);
+        });
+
+        const result = Array.from(subCategories);
+        setNodeDataCache(prev => ({ ...prev, [cacheKey]: result }));
+        return result;
+      }
+    } catch (e) {
+    } finally {
+      setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
+    }
+    return [];
+  };
+
+  // 🛠️ جلب القطع المرتبطة بالقسم الفرعي المختار
+  const fetchPartsForSubCategory = async (make: string, year: string, model: string, engine: string, mainCategory: string, subCategory: string) => {
+    const cacheKey = `parts_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
@@ -319,8 +370,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           }
           const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
           const matchEngine = pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
-          const matchCat = getPartCategory(p.name) === category || p.category === category || (p.category && p.category.includes(category));
-          return matchYear && matchEngine && matchCat;
+          
+          const pCat = p.category || getPartCategory(p.name) || '';
+          const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
+          const pSubCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (lang === 'ar' ? 'عام / أخرى' : 'General / Other');
+          
+          return matchYear && matchEngine && pMainCat === mainCategory && pSubCat === subCategory;
         });
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: filtered }));
         return filtered;
@@ -346,7 +401,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
       setNodeDataCache(prev => {
         const nextCache = { ...prev };
-        const cleanPattern = nodeKey.replace(/^(make|year|model|eng|cat)_/, '');
+        const cleanPattern = nodeKey.replace(/^(make|year|model|eng|maincat|subcat)_/, '');
         Object.keys(nextCache).forEach(cacheKey => {
           if (cacheKey.includes(cleanPattern) || cacheKey.includes(nodeKey)) delete nextCache[cacheKey];
         });
@@ -486,7 +541,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         </div>
 
-        {/* 🔻 المربع المتمدد لأسفل عند ضغط المزيد */}
         {isExpanded && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e0' }}>
             <div style={{ border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
@@ -566,7 +620,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             {isExpanded ? (isRtl ? 'إغلاق ▲' : 'Less ▲') : (isRtl ? 'المزيد 🔍' : 'More 🔍')}
           </button>
         </div>
-
       </div>
     );
   };
@@ -592,7 +645,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
             <input 
               type="text" 
-              placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم (مثل: فلتر زيت)..." : "Search by Part Number, Code, or Name..."} 
+              placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم..." : "Search by Part Number, Code, or Name..."} 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
               style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px' }} 
@@ -707,81 +760,106 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                 availableEngines.map((engine: string) => {
                                                   const engineKey = `eng_${make}_${year}_${model}_${engine}`;
                                                   const isEngineOpen = !!expandedNodes[engineKey];
-                                                  const categoriesCacheKey = `categories_${make}_${year}_${model}_${engine}`;
-                                                  const isCategoriesLoading = !!loadingNodes[categoriesCacheKey];
-                                                  const availableCategories = nodeDataCache[categoriesCacheKey] || [];
+                                                  
+                                                  const mainCatsCacheKey = `maincats_${make}_${year}_${model}_${engine}`;
+                                                  const isMainCatsLoading = !!loadingNodes[mainCatsCacheKey];
+                                                  const availableMainCategories = nodeDataCache[mainCatsCacheKey] || [];
 
                                                   return (
                                                     <li key={engine} style={{ marginBottom: '6px' }}>
-                                                      <div onClick={() => toggleNode(engineKey, () => fetchCategoriesForEngine(make, year, model, engine))} style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#e8f2fc' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: '500' }}>
-                                                        <span>⚡ {engine} {isCategoriesLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
+                                                      <div onClick={() => toggleNode(engineKey, () => fetchMainCategoriesForEngine(make, year, model, engine))} style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#e8f2fc' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: '500' }}>
+                                                        <span>⚡ {engine} {isMainCatsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                                                         <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                       </div>
 
                                                       {isEngineOpen && (
                                                         <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
-                                                          {isCategoriesLoading ? (
-                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص الأقسام...' : 'Checking categories...'}</li>
-                                                          ) : availableCategories.length === 0 ? (
+                                                          {isMainCatsLoading ? (
+                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص الأقسام الرئيسية...' : 'Checking main categories...'}</li>
+                                                          ) : availableMainCategories.length === 0 ? (
                                                             <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد أقسام متوفرة.' : 'No categories.'}</li>
                                                           ) : (
-                                                            availableCategories.map((category: string) => {
-                                                              const categoryKey = `cat_${make}_${year}_${model}_${engine}_${category}`;
-                                                              const isCategoryOpen = !!expandedNodes[categoryKey];
-                                                              const translatedCategory = CATEGORY_TRANSLATION[category] || category;
-                                                              const partsCacheKey = `parts_${make}_${year}_${model}_${engine}_${category}`;
-                                                              const isPartsLoading = !!loadingNodes[partsCacheKey];
-                                                              const categoryParts = processAndSortParts(nodeDataCache[partsCacheKey] || []);
+                                                            availableMainCategories.map((mainCategory: string) => {
+                                                              const mainCatKey = `maincat_${make}_${year}_${model}_${engine}_${mainCategory}`;
+                                                              const isMainCatOpen = !!expandedNodes[mainCatKey];
+                                                              const translatedMainCategory = CATEGORY_TRANSLATION[mainCategory] || mainCategory;
+                                                              
+                                                              const subCatsCacheKey = `subcats_${make}_${year}_${model}_${engine}_${mainCategory}`;
+                                                              const isSubCatsLoading = !!loadingNodes[subCatsCacheKey];
+                                                              const availableSubCategories = nodeDataCache[subCatsCacheKey] || [];
 
                                                               return (
-                                                                <li key={category} style={{ marginBottom: '6px' }}>
-                                                                  <div onClick={() => toggleNode(categoryKey, () => fetchPartsForLeafNode(make, year, model, engine, category))} style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fff7ed' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: 'bold' }}>
-                                                                    <span>{translatedCategory} {isPartsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(جلب القطع...)' : '(Fetching...)'}</small>}</span>
-                                                                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                                <li key={mainCategory} style={{ marginBottom: '6px' }}>
+                                                                  <div onClick={() => toggleNode(mainCatKey, () => fetchSubCategoriesForMain(make, year, model, engine, mainCategory))} style={{ ...nodeStyle, backgroundColor: isMainCatOpen ? '#fff7ed' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: 'bold' }}>
+                                                                    <span>{translatedMainCategory} {isSubCatsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
+                                                                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isMainCatOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                                   </div>
 
-                                                                  {isCategoryOpen && (
-                                                                    <div style={{ padding: '16px', backgroundColor: '#fff7ed', borderRadius: '14px', border: '1px solid #ffedd5', marginTop: '8px', marginBottom: '12px' }}>
-                                                                      {isPartsLoading ? (
-                                                                        <p style={{ textAlign: 'center', color: '#64748b', margin: 0 }}>🔄 {isRtl ? 'جاري تحميل القطع المتاحة...' : 'Loading available parts...'}</p>
-                                                                      ) : categoryParts.length === 0 ? (
-                                                                        <p style={{ textAlign: 'center', color: '#94a3b8', margin: 0 }}>{isRtl ? 'لا توجد قطع معروضة حالياً.' : 'No parts available currently.'}</p>
+                                                                  {isMainCatOpen && (
+                                                                    <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
+                                                                      {isSubCatsLoading ? (
+                                                                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص الأقسام الفرعية...' : 'Checking sub-categories...'}</li>
+                                                                      ) : availableSubCategories.length === 0 ? (
+                                                                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد أقسام فرعية.' : 'No sub-categories.'}</li>
                                                                       ) : (
-                                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
-                                                                          {categoryParts.map((part: any) => renderPartCard(part))}
-                                                                        </div>
-                                                                      )}
-                                                                    </div>
-                                                                  )}
+                                                                        availableSubCategories.map((subCategory: string) => {
+                                                                          const subCatKey = `subcat_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
+                                                                          const isSubCatOpen = !!expandedNodes[subCatKey];
+                                                                          
+                                                                          const partsCacheKey = `parts_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
+                                                                          const isPartsLoading = !!loadingNodes[partsCacheKey];
+                                                                          const subCategoryParts = processAndSortParts(nodeDataCache[partsCacheKey] || []);
 
+                                                                          return (
+                                                                            <li key={subCategory} style={{ marginBottom: '6px' }}>
+                                                                              <div onClick={() => toggleNode(subCatKey, () => fetchPartsForSubCategory(make, year, model, engine, mainCategory, subCategory))} style={{ ...nodeStyle, backgroundColor: isSubCatOpen ? '#f0fdf4' : 'transparent', fontSize: '12.5px', color: '#166534', padding: '6px 10px', fontWeight: 'bold', borderLeft: isRtl ? 'none' : '3px solid #4ade80', borderRight: isRtl ? '3px solid #4ade80' : 'none' }}>
+                                                                                <span>🔸 {subCategory} {isPartsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(جلب...)' : '(Fetching...)'}</small>}</span>
+                                                                                <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isSubCatOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                                              </div>
+
+                                                                              {isSubCatOpen && (
+                                                                                <div style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '14px', border: '1px solid #e2e8f0', marginTop: '8px', marginBottom: '12px' }}>
+                                                                                  {isPartsLoading ? (
+                                                                                    <p style={{ textAlign: 'center', color: '#64748b', margin: 0 }}>🔄 {isRtl ? 'جاري تحميل القطع المتاحة...' : 'Loading available parts...'}</p>
+                                                                                  ) : subCategoryParts.length === 0 ? (
+                                                                                    <p style={{ textAlign: 'center', color: '#94a3b8', margin: 0 }}>{isRtl ? 'لا توجد قطع معروضة حالياً.' : 'No parts available currently.'}</p>
+                                                                                  ) : (
+                                                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
+                                                                                      {subCategoryParts.map((part: any) => renderPartCard(part))}
+                                                                                    </div>
+                                                                                  )}
+                                                                                </div>
+                                                                              )}
+                                                                            </li>
+                                                                          );
+                                                                        })
+                                                                      )}
+                                                                    </ul>
+                                                                  )}
                                                                 </li>
                                                               );
                                                             })
                                                           )}
                                                         </ul>
                                                       )}
-
                                                     </li>
                                                   );
                                                 })
                                               )}
                                             </ul>
                                           )}
-
                                         </li>
                                       );
                                     })
                                   )}
                                 </ul>
                               )}
-
                             </li>
                           );
                         })
                       )}
                     </ul>
                   )}
-
                 </li>
               );
             })}
@@ -818,7 +896,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         </div>
       )}
-
     </aside>
   );
 };
