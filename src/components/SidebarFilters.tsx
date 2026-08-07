@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   getPartCategory, 
   matchesSmartSearch, 
-  findSmartInterchangeParts, 
   classifyPartTier 
 } from '../utils/categoryHelper';
 import { AITranslatedText } from './AITranslatedText';
