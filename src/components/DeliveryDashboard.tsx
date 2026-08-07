@@ -21,16 +21,21 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
   const isRtl = lang === 'ar';
   const driverId = session?.user?.id || session?.phone || session?.email || 'driver_1';
 
+  // 🛡️ توحيد وتنظيف رابط Supabase لمنع أخطاء Failed to fetch
+  const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+  const restUrl = `${cleanBaseUrl}/rest/v1`;
+
   useEffect(() => {
     fetchOrders();
     const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line
   }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${supabaseUrl}/orders?select=*&order=id.desc`, {
+      const response = await fetch(`${restUrl}/orders?select=*&order=id.desc`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
       if (response.ok) {
@@ -43,16 +48,14 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     }
   };
 
-  // 📸 رفع صورة الإثبات المباشر إلى Supabase Storage Bucket
+  // 📷 التقاط صورة الإثبات بفتح الكاميرا ورفعها إلى Supabase Storage Bucket
   const handleImageUpload = async (file: File, key: string): Promise<string | null> => {
     setUploadingState(prev => ({ ...prev, [key]: true }));
     const fileExt = file.name.split('.').pop() || 'jpg';
     const fileName = `proof-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
 
     try {
-      // استخراج رابط السيرفر الرئيسي
-      const baseUrl = supabaseUrl.replace('/rest/v1', '');
-      const uploadUrl = `${baseUrl}/storage/v1/object/delivery-proofs/${fileName}`;
+      const uploadUrl = `${cleanBaseUrl}/storage/v1/object/delivery-proofs/${fileName}`;
 
       const response = await fetch(uploadUrl, {
         method: 'POST',
@@ -65,38 +68,51 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       });
 
       if (response.ok) {
-        // إرجاع رابط الصورة العام الحقيقي من Storage
-        const publicUrl = `${baseUrl}/storage/v1/object/public/delivery-proofs/${fileName}`;
+        const publicUrl = `${cleanBaseUrl}/storage/v1/object/public/delivery-proofs/${fileName}`;
         return publicUrl;
       } else {
-        const errData = await response.json().catch(() => ({}));
-        console.error('Storage Upload Error:', errData);
-        alert(isRtl ? 'فشل رفع الصورة إلى Storage، تأكد من إنشاء Bucket باسم delivery-proofs وجعله Public' : 'Failed to upload image to storage bucket');
-        return null;
+        // إذا كان Storage ممتلئاً أو غير مفعّل، نستخدم تحويل Base64 كبديل لضمان عدم توقف المندوب
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onloadend = () => resolve(reader.result as string);
+        });
       }
     } catch (e) {
       console.error(e);
-      alert(isRtl ? 'خطأ في الاتصال بالسيرفر' : 'Connection error');
-      return null;
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => resolve(reader.result as string);
+      });
     } finally {
       setUploadingState(prev => ({ ...prev, [key]: false }));
     }
+  };
+
+  // 💬 إرسال إشعار الواتساب التلقائي
+  const handleSendWhatsApp = (phone: string, message: string) => {
+    if (!phone) return alert(isRtl ? 'رقم الهاتف غير مسجل' : 'Phone number missing');
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const formattedPhone = cleanPhone.startsWith('974') ? cleanPhone : `974${cleanPhone}`;
+    window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   // 🚚 1. استلام الشحنة من الكراج مع صورة الإثبات
   const handleAcceptDelivery = async (orderId: number) => {
     const pickupImgUrl = pickupImages[orderId];
     if (!pickupImgUrl) {
-      return alert(isRtl ? '📸 يرجى تصوير/رفع صورة القطعة في الكراج أولاً لتأكيد الاستلام!' : 'Please take/upload a pickup photo first!');
+      return alert(isRtl ? '📸 يرجى تصوير/التقاط صورة القطعة في الكراج أولاً لتأكيد الاستلام!' : 'Please take a pickup photo first!');
     }
 
     try {
-      const response = await fetch(`${supabaseUrl}/orders?id=eq.${orderId}`, {
+      const response = await fetch(`${restUrl}/orders?id=eq.${orderId}`, {
         method: 'PATCH',
         headers: {
           'apikey': apiKey,
           'Authorization': `Bearer ${session?.token || apiKey}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
           status: 'handed_to_driver',
@@ -107,7 +123,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       });
 
       if (response.ok) {
-        alert(isRtl ? 'تم استلام القطعة وتوثيق الصورة في Supabase Storage بنجاح! 🛵' : 'Pickup confirmed with storage photo proof!');
+        alert(isRtl ? 'تم استلام القطعة وتوثيق الصورة بنجاح! 🛵' : 'Pickup confirmed with photo proof!');
         fetchOrders();
         setActiveTab('active');
       }
@@ -126,16 +142,17 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     }
 
     if (!deliveryImgUrl) {
-      return alert(isRtl ? '📸 يرجى تصوير/رفع صورة القطعة عند التسليم للعميل أولاً!' : 'Please take/upload a delivery photo first!');
+      return alert(isRtl ? '📸 يرجى تصوير/التقاط صورة القطعة عند التسليم للعميل أولاً!' : 'Please take a delivery photo first!');
     }
 
     try {
-      const response = await fetch(`${supabaseUrl}/orders?id=eq.${order.id}`, {
+      const response = await fetch(`${restUrl}/orders?id=eq.${order.id}`, {
         method: 'PATCH',
         headers: {
           'apikey': apiKey,
           'Authorization': `Bearer ${session?.token || apiKey}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
           status: 'delivered',
@@ -145,7 +162,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       });
 
       if (response.ok) {
-        alert(isRtl ? '🎉 تم تسليم الطلب للعميل بنجاح وتوثيق صور الإثبات في Storage!' : 'Order delivered successfully with storage proof!');
+        alert(isRtl ? '🎉 تم تسليم الطلب للعميل بنجاح وتوثيق صور الإثبات!' : 'Order delivered successfully!');
         fetchOrders();
       }
     } catch (e) {
@@ -153,18 +170,18 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     }
   };
 
-  const availableOrders = orders.filter(o => o.status === 'ready_for_pickup' && o.delivery_type === 'delivery');
+  const availableOrders = orders.filter(o => (o.status === 'ready' || o.status === 'ready_for_pickup' || o.status === 'confirmed_compatible') && (o.delivery_type === 'delivery' || !o.delivery_type));
   const activeDeliveries = orders.filter(o => o.status === 'handed_to_driver' && (o.driver_id === driverId || !o.driver_id));
-  const completedOrders = orders.filter(o => o.status === 'delivered');
+  const completedOrders = orders.filter(o => o.status === 'delivered' || o.status === 'completed');
 
   return (
-    <div style={{ maxWidth: '900px', margin: '30px auto', padding: '0 15px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'sans-serif' }}>
+    <div style={{ maxWidth: '900px', margin: '30px auto', padding: '0 15px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
       {/* هيدر الصفحة */}
       <div style={{ backgroundColor: '#1F3A5F', color: 'white', padding: '20px', borderRadius: '18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>🛵 {isRtl ? 'لوحة المندوب والتوصيل' : 'Driver Dashboard'}</h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#cfe3ff' }}>{isRtl ? 'استلام وتوصيل الطلبات مع توثيق الصور عبر Supabase Storage' : 'Manage deliveries with Storage photo proof'}</p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#cfe3ff' }}>{isRtl ? 'استلام وتوصيل الطلبات مع توثيق الكاميرا المباشرة والخرائط' : 'Manage deliveries with live camera & map navigation'}</p>
         </div>
         <button onClick={fetchOrders} style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
           🔄 {loading ? (isRtl ? 'جاري التحديث...' : 'Loading...') : (isRtl ? 'تحديث' : 'Refresh')}
@@ -222,24 +239,45 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                   <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#ebf8ff', color: '#2b6cb0', padding: '3px 8px', borderRadius: '6px' }}>
                     {order.order_code || `#ORD-${order.id}`}
                   </span>
-                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#dd6b20' }}>{order.price} QAR</span>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#dd6b20' }}>{order.price || order.part_price || 0} QAR</span>
                 </div>
 
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#2d3748' }}>📦 {order.part_name}</h3>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#2d3748' }}>📦 {order.part_name || 'قطعة غيار'}</h3>
 
+                {/* 📍 تفاصيل موقع الكراج وتفاصيل العميل */}
                 <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', fontSize: '13px', color: '#4a5568', marginBottom: '14px', border: '1px solid #edf2f7' }}>
-                  <div style={{ marginBottom: '4px' }}>📍 عنوان التسليم: <strong>{order.address_details || 'غير محدد'}</strong></div>
-                  <div>📞 هاتف العميل: <a href={`tel:${order.customer_phone}`} style={{ color: '#3182ce', fontWeight: 'bold' }}>{order.customer_phone}</a></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span>🏪 <strong>الكراج:</strong> {order.garage_name || order.garage_id || 'كراج الصناعية'}</span>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.garage_address || 'Industrial Area Doha Qatar')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', fontSize: '12px', backgroundColor: '#eff6ff', padding: '4px 8px', borderRadius: '6px' }}
+                    >
+                      🗺️ موقع الكراج (Google Maps)
+                    </a>
+                  </div>
+
+                  <div style={{ marginTop: '6px' }}>📍 عنوان التسليم: <strong>{order.address_details || order.delivery_address || 'الدوحة - قطر'}</strong></div>
+                  <div style={{ marginTop: '4px' }}>📞 هاتف العميل: <a href={`tel:${order.customer_phone}`} style={{ color: '#3182ce', fontWeight: 'bold' }}>{order.customer_phone || 'غير مسجل'}</a></div>
                 </div>
 
-                {/* التقاط صورة الإثبات في الكراج */}
+                {/* 💬 زر إرسال تنبيه الواتساب */}
+                <button
+                  onClick={() => handleSendWhatsApp(order.customer_phone || '55000000', `مرحباً، معك مندوب منصة موجود أوتو بشأن طلبك رقم (#ORD-${order.id}). أنا في طريقي لاستلام القطعة من الكراج وتوصيلها لك.`)}
+                  style={{ width: '100%', padding: '9px', backgroundColor: '#25d366', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '12.5px', cursor: 'pointer', marginBottom: '14px' }}
+                >
+                  💬 إشعار العميل عبر الواتساب (تنبيه بالوصول)
+                </button>
+
+                {/* 📷 التقاط صورة الإثبات للكاميرا المباشرة */}
                 <div style={{ marginBottom: '14px', padding: '12px', border: '2px dashed #cbd5e0', borderRadius: '10px', textAlign: 'center', backgroundColor: '#faf5ff' }}>
                   <label style={{ display: 'block', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', color: '#553c9a' }}>
-                    📷 {uploadingState[`pickup_${order.id}`] ? (isRtl ? 'جاري رفع الصورة إلى Storage...' : 'Uploading...') : (isRtl ? 'اضغط لتصوير/رفع صورة القطعة في الكراج' : 'Take Garage Pickup Photo')}
+                    📷 {uploadingState[`pickup_${order.id}`] ? (isRtl ? 'جاري رفع الصورة...' : 'Uploading...') : (isRtl ? 'اضغط لفتح الكاميرا المباشرة وتصوير القطعة في الكراج' : 'Take Garage Camera Photo')}
                     <input
                       type="file"
                       accept="image/*"
-                      capture="environment"
+                      capture="environment" // 👈 فتح الكاميرا المباشرة بالجوال فوراً
                       style={{ display: 'none' }}
                       onChange={async (e) => {
                         if (e.target.files && e.target.files[0]) {
@@ -252,7 +290,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                   {pickupImages[order.id] && (
                     <div style={{ marginTop: '8px' }}>
                       <img src={pickupImages[order.id]} alt="Pickup Proof" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #38a169' }} />
-                      <span style={{ display: 'block', fontSize: '11px', color: '#38a169', fontWeight: 'bold' }}>✅ تم الرفع على Storage</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#38a169', fontWeight: 'bold', marginTop: '2px' }}>✅ تم التقاط الصورة بنجاح</span>
                     </div>
                   )}
                 </div>
@@ -284,39 +322,38 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                   <span style={{ fontSize: '12px', fontWeight: 'bold', backgroundColor: '#fffaf0', color: '#dd6b20', padding: '3px 8px', borderRadius: '6px' }}>
                     قيد التوصيل {order.order_code || `#ORD-${order.id}`}
                   </span>
-                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#2d3748' }}>{order.price} QAR</span>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#2d3748' }}>{order.price || order.part_price || 0} QAR</span>
                 </div>
 
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '16.5px', color: '#1a365d' }}>📦 {order.part_name}</h3>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '16.5px', color: '#1a365d' }}>📦 {order.part_name || 'قطعة غيار'}</h3>
 
                 <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', fontSize: '13px', color: '#4a5568', marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div>📞 العميل: <a href={`tel:${order.customer_phone}`} style={{ color: '#3182ce', fontWeight: 'bold' }}>{order.customer_phone}</a></div>
-                  <div>📍 العنوان: <strong>{order.address_details || 'غير محدد'}</strong></div>
+                  <div>📍 العنوان: <strong>{order.address_details || order.delivery_address || 'غير محدد'}</strong></div>
 
-                  {order.location_lat && order.location_lng && (
-                    <a
-                      href={`https://www.google.com/maps?q=${order.location_lat},${order.location_lng}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center',
-                        backgroundColor: '#3182ce', color: 'white', padding: '8px 12px', borderRadius: '8px',
-                        textDecoration: 'none', fontWeight: 'bold', fontSize: '12.5px', marginTop: '6px'
-                      }}
-                    >
-                      🗺️ فتح موقع العميل في Google Maps
-                    </a>
-                  )}
+                  {/* 🗺️ فتح خرائط جوجل لموقع العميل */}
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address_details || order.delivery_address || 'Doha Qatar')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center',
+                      backgroundColor: '#3182ce', color: 'white', padding: '8px 12px', borderRadius: '8px',
+                      textDecoration: 'none', fontWeight: 'bold', fontSize: '12.5px', marginTop: '6px'
+                    }}
+                  >
+                    🗺️ فتح موقع العميل في Google Maps
+                  </a>
                 </div>
 
-                {/* تصوير إثبات التسليم للعميل */}
+                {/* تصوير إثبات التسليم للعميل بالكلميرا المباشرة */}
                 <div style={{ marginBottom: '14px', padding: '12px', border: '2px dashed #cbd5e0', borderRadius: '10px', textAlign: 'center', backgroundColor: '#f0fff4' }}>
                   <label style={{ display: 'block', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', color: '#276749' }}>
-                    📷 {uploadingState[`delivery_${order.id}`] ? (isRtl ? 'جاري رفع الصورة إلى Storage...' : 'Uploading...') : (isRtl ? 'اضغط لتصوير/رفع صورة القطعة عند تسليم العميل' : 'Take Delivery Photo Proof')}
+                    📷 {uploadingState[`delivery_${order.id}`] ? (isRtl ? 'جاري رفع الصورة...' : 'Uploading...') : (isRtl ? 'اضغط لفتح الكاميرا المباشرة وتصوير تسليم العميل' : 'Take Delivery Camera Photo')}
                     <input
                       type="file"
                       accept="image/*"
-                      capture="environment"
+                      capture="environment" // 👈 فتح الكاميرا المباشرة للجوال
                       style={{ display: 'none' }}
                       onChange={async (e) => {
                         if (e.target.files && e.target.files[0]) {
@@ -329,7 +366,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                   {deliveryImages[order.id] && (
                     <div style={{ marginTop: '8px' }}>
                       <img src={deliveryImages[order.id]} alt="Delivery Proof" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #38a169' }} />
-                      <span style={{ display: 'block', fontSize: '11px', color: '#38a169', fontWeight: 'bold' }}>✅ تم الرفع على Storage</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: '#38a169', fontWeight: 'bold', marginTop: '2px' }}>✅ تم التقاط الصورة بنجاح</span>
                     </div>
                   )}
                 </div>
@@ -338,7 +375,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
-                    placeholder={isRtl ? 'أدخل كود العميل (DEL-XXX)' : 'Enter customer code'}
+                    placeholder={isRtl ? 'أدخل كود العميل (إن وجد)' : 'Enter customer code'}
                     value={deliveryCodeInputs[order.id] || ''}
                     onChange={(e) => setDeliveryCodeInputs({ ...deliveryCodeInputs, [order.id]: e.target.value })}
                     style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
@@ -357,7 +394,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
         </div>
       )}
 
-      {/* 3️⃣ السجل المكتمل مع روابط صور Storage */}
+      {/* 3️⃣ السجل المكتمل */}
       {activeTab === 'completed' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {completedOrders.length === 0 ? (
@@ -370,19 +407,18 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
               <div key={order.id} style={{ backgroundColor: 'white', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div>
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748' }}>{order.part_name}</h4>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#2d3748' }}>{order.part_name || 'قطعة غيار'}</h4>
                     <span style={{ fontSize: '12px', color: '#718096' }}>كود: {order.order_code || `#ORD-${order.id}`} | 📞 {order.customer_phone}</span>
                   </div>
-                  <span style={{ backgroundColor: '#f0fff4', color: '#2f855a', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}>✅ مكتمل وموثق في Storage</span>
+                  <span style={{ backgroundColor: '#f0fff4', color: '#2f855a', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}>✅ مكتمل وموثق</span>
                 </div>
 
-                {/* عرض مصغرات صور Storage */}
                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px', borderTop: '1px dashed #edf2f7', paddingTop: '10px' }}>
-                  {order.pickup_image_url && (
+                  {(order.pickup_image_url || order.pickup_proof_img) && (
                     <div>
                       <span style={{ display: 'block', fontSize: '10.5px', color: '#718096', marginBottom: '3px' }}>صورة الكراج</span>
-                      <a href={order.pickup_image_url} target="_blank" rel="noreferrer">
-                        <img src={order.pickup_image_url} alt="Pickup" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e0' }} />
+                      <a href={order.pickup_image_url || order.pickup_proof_img} target="_blank" rel="noreferrer">
+                        <img src={order.pickup_image_url || order.pickup_proof_img} alt="Pickup" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e0' }} />
                       </a>
                     </div>
                   )}
@@ -404,3 +440,5 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     </div>
   );
 };
+
+export default DeliveryDashboard;
