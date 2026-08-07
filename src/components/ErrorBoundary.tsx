@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { ErrorSentry } from '../utils/errorSentry';
 
 interface Props {
@@ -22,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
     ErrorSentry.reportError({
       error_type: 'UI_BUG',
       message: error.message,
-      stack_trace: errorInfo.componentStack,
+      stack_trace: errorInfo.componentStack || undefined, // 👈 تم التعديل لمنع استناد قيمة null
       page_url: window.location.href,
       severity: 'CRITICAL'
     });
