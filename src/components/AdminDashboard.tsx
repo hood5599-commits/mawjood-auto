@@ -18,7 +18,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const isRtl = lang === 'ar';
   
-  // 📌 التبويب النشط (تم إضافة تبويب سجلات النظام والصيانة الذكية logs)
+  // 📌 التبويب النشط
   const [tab, setTab] = useState<'payouts' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment' | 'logs'>('payouts');
 
   // 🔍 متغيرات البحث بطلبات المباشرة (Search-On-Demand)
@@ -53,7 +53,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [privacyContent, setPrivacyContent] = useState(siteSettings?.privacy || '');
   const [aboutContent, setAboutContent] = useState(siteSettings?.about || '');
 
-  // 💳 حالات إعدادات بوابة الدفع
+  // 💳 حالات إعدادات بوابة الدفع والتقسيط
   const [enableOnlinePayment, setEnableOnlinePayment] = useState<boolean>(siteSettings?.enableOnlinePayment ?? true);
   const [paymentProvider, setPaymentProvider] = useState<string>(siteSettings?.paymentProvider || 'skipcash');
   const [merchantId, setMerchantId] = useState<string>(siteSettings?.merchantId || '');
@@ -63,6 +63,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [enableGooglePay, setEnableGooglePay] = useState<boolean>(siteSettings?.enableGooglePay ?? true);
   const [enableCards, setEnableCards] = useState<boolean>(siteSettings?.enableCards ?? true);
   const [enableCOD, setEnableCOD] = useState<boolean>(siteSettings?.enableCOD ?? true);
+  
+  // 🛒 مفتاح التحكم بخدمة الدفع الآجل والتقسيط (BNPL)
+  const [enableBNPL, setEnableBNPL] = useState<boolean>(siteSettings?.enableBNPL ?? true);
 
   const [searching, setSearching] = useState(false);
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -265,7 +268,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // 💾 حفظ كافة الإعدادات (السوشال ميديا، السياسات، العمولات، وبوابات الدفع)
+  // 💾 حفظ كافة الإعدادات
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     const updated = {
@@ -286,7 +289,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       enableApplePay,
       enableGooglePay,
       enableCards,
-      enableCOD
+      enableCOD,
+      enableBNPL // 👈 حفظ حالة الدفع الآجل والتقسيط
     };
     onUpdateSettings(updated);
     setMsg({ text: isRtl ? 'تم حفظ التحديثات والإعدادات بنجاح' : 'Settings saved successfully!', type: 'success' });
@@ -346,7 +350,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 💰 1️⃣ تبويب حسابات ومستحقات الكراجات (Vendor Payouts) */}
+      {/* 💰 1️⃣ تبويب حسابات ومستحقات الكراجات */}
       {tab === 'payouts' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
@@ -463,7 +467,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 🛠️ 2️⃣ تبويب مركز مراقبة جودة النظام والصيانة الذكية (AI Health Monitor) */}
+      {/* 🛠️ 2️⃣ تبويب مركز مراقبة جودة النظام والصيانة الذكية */}
       {tab === 'logs' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', padding: '18px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
@@ -689,14 +693,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 6️⃣ 💳 تبويب إعدادات بوابة الدفع والربط البنكي */}
+      {/* 6️⃣ 💳 تبويب إعدادات بوابة الدفع والربط البنكي والتقسيط */}
       {tab === 'payment' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px' }}>
           <div>
-            <h3 style={{ margin: '0 0 6px 0', color: '#1f3a5f' }}>{isRtl ? 'إعدادات بوابات الدفع الإلكتروني (Apple Pay / Google Pay / Cards)' : 'Payment Gateway Settings'}</h3>
+            <h3 style={{ margin: '0 0 6px 0', color: '#1f3a5f' }}>{isRtl ? 'إعدادات بوابات الدفع الإلكتروني والتقسيط' : 'Payment & Installment Gateway Settings'}</h3>
             <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-              {isRtl ? 'يمكنك التحكم بجميع خيارات الدفع الإلكتروني وتغذيتها بمفاتيح الربط (API Keys) فور التعاقد مع الشركة أو البنك.' : 'Configure online payment methods and API keys.'}
+              {isRtl ? 'يمكنك التحكم بجميع خيارات الدفع والتقسيط الإلكتروني وتغذيتها بمفاتيح الربط فور التعاقد مع الشركة أو البنك.' : 'Configure online payment methods, BNPL, and API keys.'}
             </p>
+          </div>
+
+          {/* ⚡ مفتاح تفعيل/تعطيل إظهار شريط الدفع الآجل والتقسيط في كروت القطع */}
+          <div style={{ backgroundColor: '#fffdf5', padding: '16px 20px', borderRadius: '14px', border: '1px solid #fef08a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <strong style={{ fontSize: '14.5px', color: '#854d0e', display: 'block' }}>
+                🛒 {isRtl ? 'إظهار شريط (قسّمها على 4 دفعات - قريباً)' : 'Show (Pay in 4 Installments - Coming Soon)'}
+              </strong>
+              <span style={{ fontSize: '12.5px', color: '#a16207' }}>
+                {isRtl ? 'عند التفعيل، سيظهر خيار الشراء والتقسيط الترويجي للعميل على جميع بطاقات قطع الغيار.' : 'When enabled, the BNPL installment teaser will be shown on part cards.'}
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={enableBNPL}
+              onChange={(e) => setEnableBNPL(e.target.checked)}
+              style={{ width: '22px', height: '22px', cursor: 'pointer' }}
+            />
           </div>
 
           <div style={{ backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
