@@ -7,10 +7,11 @@ interface PartFormModalProps {
   CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }>;
   carData: any;
   years: string[];
+  supabaseUrl: string;
+  apiKey: string;
+  session: any;
   onSubmit: (formData: any) => void;
   onCancel: () => void;
-  uploadingImages: boolean;
-  onUploadImages: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const PartFormModal: React.FC<PartFormModalProps> = ({
@@ -20,6 +21,9 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
   CATEGORY_TRANSLATIONS,
   carData,
   years,
+  supabaseUrl,
+  apiKey,
+  session,
   onSubmit,
   onCancel
 }) => {
@@ -27,8 +31,10 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
   const [partNumber, setPartNumber] = useState(editingPart?.part_number || '');
   const [partPrice, setPartPrice] = useState(editingPart?.price ? String(editingPart.price) : '');
   const [partStock, setPartStock] = useState(editingPart ? String(editingPart.stock ?? 1) : '1');
+  
   const [partType, setPartType] = useState(editingPart?.part_type || 'مستعمل أصلي');
   const [partCondition, setPartCondition] = useState(editingPart?.part_condition || 'نظيف');
+  
   const [partMake, setPartMake] = useState(editingPart?.make || '');
   const [partModel, setPartModel] = useState(editingPart?.model || '');
 
@@ -48,11 +54,13 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
     editingPart?.category?.includes('>') ? editingPart.category.split('>')[1].trim() : ''
   );
 
-  const [partImages] = useState<string[]>(
+  // 📸 حالات الصور المدمجة
+  const [partImages, setPartImages] = useState<string[]>(
     editingPart?.additional_images || (editingPart?.image_url ? [editingPart.image_url] : [])
   );
+  const [uploadingImages, setUploadingImages] = useState(false);
 
-  // حقول More Info الاختيارية
+  // 🛠️ حقول More Info الاختيارية
   const [showMoreInfoForm, setShowMoreInfoForm] = useState(
     !!(editingPart?.description || editingPart?.warranty || editingPart?.interchange_numbers || editingPart?.position || editingPart?.weight_kg || editingPart?.pin_count)
   );
@@ -77,6 +85,43 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
         }
       }
     }
+  };
+
+  const handleMultipleImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImages(true);
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+
+      try {
+        const uploadUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/part-images/${fileName}`;
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': file.type },
+          body: file
+        });
+
+        if (response.ok) {
+          const publicUrl = `${supabaseUrl.replace('/rest/v1', '/storage/v1')}/object/public/part-images/${fileName}`;
+          uploadedUrls.push(publicUrl);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    setPartImages((prev) => [...prev, ...uploadedUrls]);
+    setUploadingImages(false);
+  };
+
+  const removeImage = (indexToRemove: number) => {
+    setPartImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -206,6 +251,36 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
         </div>
       </div>
 
+      <div>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '13.5px', fontWeight: 'bold' }}>نوع القطعة:</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+          {[
+            { label: 'مستعمل أصلي', val: 'مستعمل أصلي', color: '#16a34a', bg: '#f0fff4' },
+            { label: 'جديد أصلي (OEM)', val: 'جديد أصلي (OEM)', color: '#2563eb', bg: '#eff6ff' },
+            { label: 'جديد تجاري', val: 'جديد تجاري', color: '#e0872a', bg: '#fff7ed' },
+            { label: 'مستعمل تجاري', val: 'مستعمل تجاري', color: '#dc2626', bg: '#fef2f2' }
+          ].map((item) => (
+            <button
+              key={item.val}
+              type="button"
+              onClick={() => setPartType(item.val)}
+              style={{
+                padding: '12px 8px',
+                borderRadius: '10px',
+                border: partType === item.val ? `2px solid ${item.color}` : '1px solid #cbd5e0',
+                backgroundColor: partType === item.val ? item.bg : '#ffffff',
+                color: partType === item.val ? item.color : '#475569',
+                fontWeight: 'bold',
+                fontSize: '12.5px',
+                cursor: 'pointer'
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
         <div>
           <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>حالة المنتج *</label>
@@ -216,16 +291,32 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
             <option value="وسط">وسط</option>
           </select>
         </div>
-
         <div>
           <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>السعر (QAR) *</label>
           <input type="number" placeholder="350" value={partPrice} onChange={(e) => setPartPrice(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required />
         </div>
-
         <div>
           <label style={{ display: 'block', marginBottom: '4px', fontSize: '12.5px', fontWeight: 'bold' }}>الكمية *</label>
           <input type="number" min="1" value={partStock} onChange={(e) => setPartStock(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required />
         </div>
+      </div>
+
+      <div>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>صور القطعة:</label>
+        <div style={{ border: '2px dashed #94a3b8', padding: '20px', borderRadius: '12px', textAlign: 'center', backgroundColor: '#f8fafc', position: 'relative' }}>
+          <input type="file" multiple accept="image/*" onChange={handleMultipleImagesUpload} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} disabled={uploadingImages} />
+          <p style={{ margin: 0, color: '#475569', fontWeight: 'bold', fontSize: '13px' }}>{uploadingImages ? 'جاري رفع الصور...' : 'اضغط هنا لاختيار صورة أو أكثر من جهازك'}</p>
+        </div>
+        {partImages.length > 0 && (
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+            {partImages.map((img, index) => (
+              <div key={index} style={{ position: 'relative', width: '80px', height: '80px' }}>
+                <img src={img} alt={`Preview ${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
+                <button type="button" onClick={() => removeImage(index)} style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 🚀 الزر الاختياري المنبثق لـ More Info */}
@@ -281,7 +372,7 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        <button type="submit" style={{ flex: 1, padding: '14px', backgroundColor: editingPart ? '#1f3a5f' : '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+        <button type="submit" disabled={uploadingImages} style={{ flex: 1, padding: '14px', backgroundColor: editingPart ? '#1f3a5f' : '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: uploadingImages ? 'not-allowed' : 'pointer' }}>
           {editingPart ? 'حفظ التعديلات' : 'نشر القطعة للبيع الآن'}
         </button>
         <button type="button" onClick={onCancel} style={{ padding: '14px 20px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
