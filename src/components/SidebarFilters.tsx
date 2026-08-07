@@ -261,7 +261,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [lang === 'ar' ? 'عام' : 'General'];
   };
 
-  // 📁 جلب الأقسام الرئيسية (Main Categories)
+  // 📁 جلب الأقسام الرئيسية (Main Categories) وتخطي خطأ الـ TypeScript
   const fetchMainCategoriesForEngine = async (make: string, year: string, model: string, engine: string) => {
     const cacheKey = `maincats_${make}_${year}_${model}_${engine}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -286,7 +286,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         });
 
         const mainCategories = new Set<string>();
-        filteredParts.forEach(p => {
+        // إضافة (p: any) لحل خطأ الـ Build
+        filteredParts.forEach((p: any) => {
           const pCat = p.category || getPartCategory(p.name) || '';
           const mainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
           if (mainCat) mainCategories.add(mainCat);
@@ -332,7 +333,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         });
 
         const subCategories = new Set<string>();
-        filteredParts.forEach(p => {
+        // إضافة (p: any) لحل خطأ الـ Build
+        filteredParts.forEach((p: any) => {
           const pCat = p.category || getPartCategory(p.name) || '';
           const subCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (lang === 'ar' ? 'عام / أخرى' : 'General / Other');
           subCategories.add(subCat);
@@ -421,7 +423,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   };
 
   const searchResults = activeSearchQuery 
-    ? processAndSortParts(inventory.filter(part => matchesSmartSearch(part, activeSearchQuery)))
+    ? processAndSortParts(inventory.filter((part: any) => matchesSmartSearch(part, activeSearchQuery)))
     : [];
 
   const handleInAppRequestSubmit = async (e: React.FormEvent) => {
@@ -464,14 +466,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     const formattedPart = { ...part, image_url: activeImage, image: activeImage };
 
-    const rawVehicles = inventory.filter(p => {
+    const rawVehicles = inventory.filter((p: any) => {
       const modalPN = (partNo || '').toString().trim().toLowerCase();
       const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
       return modalPN && itemPN ? modalPN === itemPN : p.id === part.id;
     });
 
     const groupedFitmentMap: Record<string, { make: string; model: string; years: number[] }> = {};
-    rawVehicles.forEach(v => {
+    rawVehicles.forEach((v: any) => {
       const key = `${v.make}_${v.model || 'عام'}`;
       if (!groupedFitmentMap[key]) groupedFitmentMap[key] = { make: v.make, model: v.model || (isRtl ? 'عام' : 'General'), years: [] };
       if (v.year && !isNaN(Number(v.year))) groupedFitmentMap[key].years.push(Number(v.year));
@@ -620,6 +622,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             {isExpanded ? (isRtl ? 'إغلاق ▲' : 'Less ▲') : (isRtl ? 'المزيد 🔍' : 'More 🔍')}
           </button>
         </div>
+
       </div>
     );
   };
@@ -683,7 +686,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
-                {searchResults.map(part => renderPartCard(part))}
+                {searchResults.map((part: any) => renderPartCard(part))}
               </div>
             )}
           </div>
@@ -761,6 +764,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                   const engineKey = `eng_${make}_${year}_${model}_${engine}`;
                                                   const isEngineOpen = !!expandedNodes[engineKey];
                                                   
+                                                  // تحديث: جلب القسم الرئيسي بدلاً من الفئات مباشرة
                                                   const mainCatsCacheKey = `maincats_${make}_${year}_${model}_${engine}`;
                                                   const isMainCatsLoading = !!loadingNodes[mainCatsCacheKey];
                                                   const availableMainCategories = nodeDataCache[mainCatsCacheKey] || [];
