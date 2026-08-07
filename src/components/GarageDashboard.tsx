@@ -67,7 +67,6 @@ const FULL_CATEGORY_TREE: Record<string, string[]> = {
   "Wiper & Washer": ["Washer Fluid Reservoir", "Washer Pump", "Wiper Arm", "Wiper Blade", "Wiper Motor"]
 };
 
-
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('my_parts');
   
@@ -152,8 +151,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         model: formData.partModel,
         year: formData.computedYear,
         engine: formData.partEngine || 'عام',
-        image_url: formData.partImages[0] || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-        additional_images: formData.partImages,
+        // ✅ حماية إضافية لمصفوفة الصور لتجنب توقف الكود إذا كانت فارغة أو غير معرّفة
+        image_url: formData.partImages?.[0] || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
+        additional_images: formData.partImages || [],
         description: formData.partDescription || null,
         warranty: formData.partWarranty || null,
         interchange_numbers: formData.interchangeNumbers || null,
@@ -176,8 +176,17 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         fetchMyParts();
         onSuccess();
         setActiveTab('my_parts');
+      } else {
+        // ✅ تنبيه في حال رفض السيرفر للتعديلات
+        const errorData = await response.text();
+        console.error("Error updating part:", errorData);
+        setToastMessage('فشل الحفظ: يرجى التأكد من البيانات ❌');
       }
-    } catch (err) {}
+    } catch (err) {
+      // ✅ طباعة الخطأ في الكونسول بدلاً من تجاهله، وإظهار رسالة للمستخدم
+      console.error("Crash in handlePublishSingle:", err);
+      setToastMessage('حدث خطأ في النظام ❌');
+    }
   };
 
   const handleDeletePart = async (id: number) => {
