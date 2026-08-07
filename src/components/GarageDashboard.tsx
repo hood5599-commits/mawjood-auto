@@ -82,13 +82,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [editingPart, setEditingPart] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // 📍 حالات موقع الكراج الملاحي
+  const userId = session?.user?.id || session?.id || session?.phone || session?.email || 'garage_unknown';
+  const [garageAddress, setGarageAddress] = useState<string>(() => {
+    return localStorage.getItem(`garage_location_${userId}`) || 'المنطقة الصناعية - الدوحة، قطر';
+  });
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+
   // 🛠️ حالات المعاينة والضمان
   const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [returnDays, setReturnDays] = useState<number>(3);
   const [warrantyDays, setWarrantyDays] = useState<number>(14);
 
-  const userId = session?.user?.id || session?.id || session?.phone || session?.email || 'garage_unknown';
   const isRtl = lang === 'ar';
 
   // 🛡️ توحيد مخرج رابط Supabase لمنع مشكلة "Failed to fetch"
@@ -102,6 +108,45 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchCustomRequests();
     // eslint-disable-next-line
   }, [userId]);
+
+  // 📍 حفظ موقع الكراج في localStorage وسيرفر Supabase
+  const handleSaveGarageLocation = async (newLocation: string) => {
+    setGarageAddress(newLocation);
+    localStorage.setItem(`garage_location_${userId}`, newLocation);
+    setIsEditingLocation(false);
+
+    try {
+      await fetch(`${restUrl}/profiles?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ garage_address: newLocation })
+      });
+      setToastMessage(isRtl ? 'تم حفظ موقع الكراج بنجاح 📍' : 'Garage location saved');
+    } catch (e) {
+      setToastMessage(isRtl ? 'تم حفظ الموقع أوفلاين 📍' : 'Saved locally');
+    }
+  };
+
+  // 📍 تحديد الموقع الجغرافي التلقائي بالكاميرا والـ GPS
+  const handleDetectGPSLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+          handleSaveGarageLocation(mapLink);
+        },
+        () => {
+          alert(isRtl ? 'لم نتمكن من التقاط الموقع التلقائي، يرجى كتابة عنوان الكراج أو لصق رابط جوجل ماب' : 'GPS detection failed');
+        }
+      );
+    }
+  };
 
   const fetchMyParts = async () => {
     if (!userId || userId === 'garage_unknown') return;
@@ -142,7 +187,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
-  // ⚡ تأكيد التوافق والضمان للطلب
+  // ⚡ تأكيد التوافق والضمان للطلب مع إرسال موقع الكراج للمندوب
   const handleConfirmFitment = async () => {
     if (!selectedInquiry) return;
     try {
@@ -157,12 +202,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         body: JSON.stringify({
           status: 'confirmed_compatible',
           return_days: returnDays,
-          warranty_days: warrantyDays
+          warranty_days: warrantyDays,
+          garage_address: garageAddress // 👈 تمرير موقع الكراج المحفوظ للمندوب
         })
       });
 
       if (response.ok) {
-        setToastMessage(isRtl ? 'تم تأكيد التوافق والضمان بنجاح ✅' : 'Fitment confirmed');
+        setToastMessage(isRtl ? 'تم تأكيد التوافق والضمان وإرسال موقع الكراج للمندوب بنجاح ✅' : 'Fitment confirmed with location');
         setSelectedInquiry(null);
         fetchMyInquiries();
       } else {
@@ -197,7 +243,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
-  // 🔍 المعاينة الشاملة للقطعة (تجلب تفاصيل القطعة من جدول parts إذا توفر part_id)
+  // 🔍 المعاينة الشاملة للقطعة
   const handlePreviewPart = async (inquiry: any) => {
     if (inquiry.part_id) {
       try {
@@ -213,7 +259,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         }
       } catch (e) {}
     }
-    // احتياطي: عرض بيانات الاستفسار إذا لم تُجلب القطعة
     setPreviewPartDetails({
       name: inquiry.part_name,
       part_number: inquiry.part_number,
@@ -247,6 +292,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         description: formData.partDescription || null,
         warranty: formData.partWarranty || null,
         interchange_numbers: formData.interchangeNumbers || null,
+        garage_address: garageAddress, // 👈 حفظ عنوان وموقع الكراج بالقطعة
         user_id: userId
       };
 
@@ -302,15 +348,65 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       const response = await fetch(`${restUrl}/orders?id=eq.${orderId}`, {
         method: 'PATCH',
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ 
+          status,
+          garage_address: garageAddress // 👈 ربط موقع الكراج مع الطلب عند التأكيد والتجهيز
+        })
       });
       if (response.ok) fetchMyOrders();
     } catch (error) {}
   };
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr' }}>
+    <div style={{ maxWidth: '1000px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
+      {/* 📍 شريط إعدادات موقع الكراج الملاحي الدائم */}
+      <div style={{ backgroundColor: '#ffffff', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '22px' }}>📍</span>
+          <div>
+            <strong style={{ fontSize: '14px', color: '#1f3a5f', display: 'block' }}>{isRtl ? 'موقع ومقر الكراج الحالي (يظهر للمندوب):' : 'Saved Garage Location:'}</strong>
+            <span style={{ fontSize: '12.5px', color: '#64748b' }}>{garageAddress}</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            onClick={handleDetectGPSLocation}
+            style={{ padding: '8px 14px', backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+          >
+            🎯 تحديد موقعي التلقائي (GPS)
+          </button>
+          <button
+            onClick={() => setIsEditingLocation(!isEditingLocation)}
+            style={{ padding: '8px 14px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+          >
+            ✏️ {isEditingLocation ? 'إلغاء' : 'تعديل العنوان/الرابط'}
+          </button>
+        </div>
+
+        {isEditingLocation && (
+          <div style={{ width: '100%', marginTop: '10px', display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              placeholder="اكتب اسم المنطقه أوالصناعية أو يلصق رابط Google Maps هنا..."
+              defaultValue={garageAddress}
+              id="garage_location_input"
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+            />
+            <button
+              onClick={() => {
+                const input = document.getElementById('garage_location_input') as HTMLInputElement;
+                if (input && input.value) handleSaveGarageLocation(input.value);
+              }}
+              style={{ padding: '10px 18px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              حفظ الموقع 💾
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* 🚀 هيدر التبويبات المكتمل */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', flexWrap: 'wrap' }}>
         <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'my_parts' ? '#1f3a5f' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
