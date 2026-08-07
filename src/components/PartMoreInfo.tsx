@@ -3,16 +3,15 @@ import { AITranslatedText } from './AITranslatedText';
 
 interface PartMoreInfoProps {
   part: any;
-  inventory: any[];
+  inventory?: any[];
   lang: 'ar' | 'en';
   siteSettings: any;
   onAddToCart?: (part: any, quantity: number) => void;
-  onBack: () => void; // 👈 دالة العودة للنتائج بنفس فلتراتها
+  onBack: () => void;
 }
 
 export const PartMoreInfo: React.FC<PartMoreInfoProps> = ({
   part,
-  inventory,
   lang,
   siteSettings,
   onAddToCart,
@@ -20,7 +19,6 @@ export const PartMoreInfo: React.FC<PartMoreInfoProps> = ({
 }) => {
   const isRtl = lang === 'ar';
   const [activeImgIdx, setActiveImgIndex] = useState(0);
-  const [qty, setQty] = useState(1);
 
   const images: string[] = part.additional_images && part.additional_images.length > 0 
     ? part.additional_images 
@@ -47,7 +45,7 @@ export const PartMoreInfo: React.FC<PartMoreInfoProps> = ({
           <strong style={{ color: '#1f3a5f', fontSize: '14px' }}>PN: {partNo}</strong>
           <span style={{ color: '#e0872a', fontWeight: '900', fontSize: '16px' }}>{part.price} QAR</span>
           <button 
-            onClick={() => onAddToCart && onAddToCart(part, qty)}
+            onClick={() => onAddToCart && onAddToCart(part, 1)}
             style={{ padding: '8px 16px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
           >
             🛒 {isRtl ? 'أضف للسلة' : 'Add to Cart'}
