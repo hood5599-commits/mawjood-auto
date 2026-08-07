@@ -78,7 +78,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const [partMake, setPartMake] = useState('');
   const [partModel, setPartModel] = useState('');
+  
+  // 📅 حالات المدى الزمني للسنوات لتسهيل الإضافة لكراجات السكراب والتشليح
+  const [partYearFrom, setPartYearFrom] = useState('');
+  const [partYearTo, setPartYearTo] = useState('');
   const [partYear, setPartYear] = useState('');
+
   const [partEngine, setPartEngine] = useState('');
 
   const [mainCategory, setMainCategory] = useState('');
@@ -229,12 +234,17 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
-  // 📝 نشر أو تحديث القطعة الكامل دون أخطاء Schema Cache
+  // 📝 نشر أو تحديث القطعة الكامل
   const handlePublishSingle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId || userId === 'garage_unknown') return alert(isRtl ? 'يرجى تسجيل الدخول مجدداً' : 'Please login again');
 
     const fullCategoryPath = [mainCategory, subCategory].filter(Boolean).join(' > ');
+
+    // 🧠 حساب المدى الزمني المتوافق (مثال: 2008-2011) لتفهمه شجرة البحث
+    const computedYear = (partYearFrom && partYearTo && partYearFrom !== partYearTo)
+      ? `${Math.min(Number(partYearFrom), Number(partYearTo))}-${Math.max(Number(partYearFrom), Number(partYearTo))}`
+      : (partYearFrom || partYear);
 
     try {
       const isEditing = !!editingPart;
@@ -243,7 +253,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         ? `${supabaseUrl}/parts?id=eq.${editingPart.id}&user_id=eq.${userId}` 
         : `${supabaseUrl}/parts`;
 
-      // 🎯 الحقول المتوفرة حتماً في قاعدة بياناتك
       const payload = {
         name: partName,
         part_number: partNumber.trim() || null,
@@ -254,7 +263,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         category: fullCategoryPath || 'عام',
         make: partMake,
         model: partModel,
-        year: partYear,
+        year: computedYear,
         engine: partEngine || (isRtl ? 'عام' : 'General'),
         image_url: partImages[0] || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
         user_id: userId
@@ -422,12 +431,30 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
-  // ✏️ فتح نافذة التعديل المنبثقة للقطعة دون مغادرة جدول المعروضات
+  // ✏️ فتح نافذة التعديل المنبثقة للقطعة
   const handleEdit = (part: any) => {
     setEditingPart(part);
-    setPartName(part.name); setPartNumber(part.part_number || ''); setPartPrice(part.price ? part.price.toString() : ''); 
-    setPartStock((part.stock ?? 1).toString()); setPartType(part.part_type || 'مستعمل أصلي'); setPartCondition(part.part_condition || 'نظيف');
-    setPartMake(part.make); setPartModel(part.model || ''); setPartYear(part.year); setPartEngine(part.engine || ''); 
+    setPartName(part.name); 
+    setPartNumber(part.part_number || ''); 
+    setPartPrice(part.price ? part.price.toString() : ''); 
+    setPartStock((part.stock ?? 1).toString()); 
+    setPartType(part.part_type || 'مستعمل أصلي'); 
+    setPartCondition(part.part_condition || 'نظيف');
+    setPartMake(part.make); 
+    setPartModel(part.model || ''); 
+
+    // قراءة السنوات الحالية وقسمتها إذا كانت مدى زمني
+    if (part.year && part.year.includes('-')) {
+      const yearParts = part.year.split('-');
+      setPartYearFrom(yearParts[0]);
+      setPartYearTo(yearParts[1]);
+    } else {
+      setPartYearFrom(part.year || '');
+      setPartYearTo(part.year || '');
+    }
+    setPartYear(part.year || '');
+
+    setPartEngine(part.engine || ''); 
     
     if (part.category && part.category.includes('>')) {
       const parts = part.category.split('>');
@@ -446,7 +473,9 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setEditingPart(null);
     setPartName(''); setPartNumber(''); setPartPrice(''); setPartStock('1'); 
     setPartType('مستعمل أصلي'); setPartCondition('نظيف');
-    setPartMake(''); setPartModel(''); setPartYear(''); setPartEngine(''); 
+    setPartMake(''); setPartModel(''); 
+    setPartYearFrom(''); setPartYearTo(''); setPartYear('');
+    setPartEngine(''); 
     setMainCategory(''); setSubCategory('');
     setPartImages([]);
   };
@@ -487,7 +516,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
         <div>
           <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>
-            {isRtl ? 'رقم القطعة الأصلي OEM (اخياري):' : 'Part Number OEM (Optional):'}
+            {isRtl ? 'رقم القطعة الأصلي OEM (اختياري):' : 'Part Number OEM (Optional):'}
           </label>
           <input
             type="text"
@@ -538,7 +567,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr 1fr', gap: '10px', alignItems: 'flex-end' }}>
         <div>
           <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الماركة *</label>
           <select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); }} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
@@ -555,12 +584,37 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           </select>
         </div>
 
+        {/* 📅 اختيار المدى الزمني للسنوات لتسهيل الإضافة لكراجات التشليح والسكراب */}
         <div>
-          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>السنة *</label>
-          <select value={partYear} onChange={(e) => setPartYear(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
-            <option value="">السنة</option>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+          <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>
+            {isRtl ? 'سنوات التوافق (من - إلى) *' : 'Years Range (From - To) *'}
+          </label>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <select 
+              value={partYearFrom} 
+              onChange={(e) => {
+                setPartYearFrom(e.target.value);
+                if (!partYearTo) setPartYearTo(e.target.value);
+                setPartYear(e.target.value);
+              }} 
+              style={{ flex: 1, padding: '10px 4px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }} 
+              required
+            >
+              <option value="">{isRtl ? 'من سنة' : 'From'}</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+
+            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>-</span>
+
+            <select 
+              value={partYearTo} 
+              onChange={(e) => setPartYearTo(e.target.value)} 
+              style={{ flex: 1, padding: '10px 4px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }}
+            >
+              <option value="">{isRtl ? 'إلى سنة' : 'To'}</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
         </div>
 
         <div>
