@@ -88,7 +88,7 @@ export const AdminErrorMonitor: React.FC<AdminErrorMonitorProps> = ({ supabaseUr
         <p style={{ textAlign: 'center', color: '#64748b', padding: '30px 0' }}>🔄 جاري فحص ومراجعة سجلات الأخطاء...</p>
       ) : filteredLogs.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '35px', backgroundColor: '#f0fff4', color: '#166534', borderRadius: '12px', border: '1px solid #bbf7d0', fontWeight: 'bold' }}>
-          ✅ ممتاز! لا توجد أخطاء مسجلة طابق الشروط الحالية، المنصة تعمل بكفاءة.
+          ✅ ممتاز! لا توجد أخطاء مسجلة تطابق الشروط الحالية، المنصة تعمل بكفاءة.
         </div>
       ) : (
         <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
@@ -132,7 +132,7 @@ export const AdminErrorMonitor: React.FC<AdminErrorMonitorProps> = ({ supabaseUr
                     <div style={{ color: '#64748b', fontSize: '11px', marginTop: '2px' }}>👤 {log.user_info || 'زائر'}</div>
                   </td>
 
-                  <td style={{ padding: '10px', color: '#64748b', fontSize: '11.5px', whitespace: 'nowrap' }}>
+                  <td style={{ padding: '10px', color: '#64748b', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
                     {log.created_at ? new Date(log.created_at).toLocaleString('ar-QA') : '-'}
                   </td>
                 </tr>
