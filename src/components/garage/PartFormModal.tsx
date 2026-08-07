@@ -60,14 +60,11 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
   const [uploadingImages, setUploadingImages] = useState(false);
 
   const [showMoreInfoForm, setShowMoreInfoForm] = useState(
-    !!(editingPart?.description || editingPart?.warranty || editingPart?.interchange_numbers || editingPart?.position || editingPart?.weight_kg || editingPart?.pin_count)
+    !!(editingPart?.description || editingPart?.warranty || editingPart?.interchange_numbers)
   );
   const [partDescription, setPartDescription] = useState(editingPart?.description || '');
   const [partWarranty, setPartWarranty] = useState(editingPart?.warranty || '');
   const [interchangeNumbers, setInterchangeNumbers] = useState(editingPart?.interchange_numbers || '');
-  const [partPosition, setPartPosition] = useState(editingPart?.position || '');
-  const [partWeight, setPartWeight] = useState(editingPart?.weight_kg ? String(editingPart.weight_kg) : '');
-  const [partPinCount, setPartPinCount] = useState(editingPart?.pin_count ? String(editingPart.pin_count) : '');
 
   const handlePartNameChange = (name: string) => {
     setPartName(name);
@@ -144,10 +141,7 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
       partImages,
       partDescription,
       partWarranty,
-      interchangeNumbers,
-      partPosition,
-      partWeight,
-      partPinCount
+      interchangeNumbers
     });
   };
 
@@ -342,27 +336,6 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
               <div>
                 <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>🔗 أرقام بديلة (Interchange OEM):</label>
                 <input type="text" placeholder="مثال: 15780789, TO3115169" value={interchangeNumbers} onChange={(e) => setInterchangeNumbers(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12.5px', fontFamily: 'monospace' }} />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold' }}>📍 الجهة / الموضع:</label>
-                <select value={partPosition} onChange={(e) => setPartPosition(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }}>
-                  <option value="">غير محدد</option>
-                  <option value="أمامي يمين">أمامي يمين</option>
-                  <option value="أمامي يسار">أمامي يسار</option>
-                  <option value="خلفي يمين">خلفي يمين</option>
-                  <option value="خلفي يسار">خلفي يسار</option>
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold' }}>⚖️ الوزن التقديري (كجم):</label>
-                <input type="number" step="0.1" placeholder="2.5" value={partWeight} onChange={(e) => setPartWeight(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold' }}>🔌 عدد أسنان الفيشة:</label>
-                <input type="number" placeholder="6" value={partPinCount} onChange={(e) => setPartPinCount(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }} />
               </div>
             </div>
           </div>
