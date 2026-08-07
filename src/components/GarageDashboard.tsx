@@ -139,6 +139,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         ? `${supabaseUrl}/parts?id=eq.${editingPart.id}&user_id=eq.${userId}` 
         : `${supabaseUrl}/parts`;
 
+      // 🧹 تم تنظيف المكونات من الجهة والوزن وعدد الفيش بناءً على طلبك
       const payload = {
         name: formData.partName,
         part_number: formData.partNumber || null,
@@ -151,41 +152,39 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         model: formData.partModel,
         year: formData.computedYear,
         engine: formData.partEngine || 'عام',
-        // ✅ حماية إضافية لمصفوفة الصور لتجنب توقف الكود إذا كانت فارغة أو غير معرّفة
         image_url: formData.partImages?.[0] || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
         additional_images: formData.partImages || [],
         description: formData.partDescription || null,
         warranty: formData.partWarranty || null,
         interchange_numbers: formData.interchangeNumbers || null,
-        position: formData.partPosition || null,
-        weight_kg: parseFloat(formData.partWeight) || null,
-        pin_count: parseInt(formData.partPinCount) || null,
         user_id: userId
       };
 
       const response = await fetch(url, {
         method,
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+        headers: { 
+          'apikey': apiKey, 
+          'Authorization': `Bearer ${session?.token || apiKey}`, 
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify(payload)
       });
 
       if (response.ok) {
-        setToastMessage(isEditing ? 'تم الحفظ ✅' : 'تم النشر للبيع ✅');
+        setToastMessage(isEditing ? 'تم حفظ التعديلات بنجاح ✅' : 'تم نشر القطعة للبيع بنجاح ✅');
         setShowEditModal(false);
         setEditingPart(null);
         fetchMyParts();
         onSuccess();
         setActiveTab('my_parts');
       } else {
-        // ✅ تنبيه في حال رفض السيرفر للتعديلات
         const errorData = await response.text();
-        console.error("Error updating part:", errorData);
-        setToastMessage('فشل الحفظ: يرجى التأكد من البيانات ❌');
+        console.error("Error saving part:", errorData);
+        setToastMessage('حدث خطأ أثناء الحفظ، يرجى مراجعة المدخلات ❌');
       }
     } catch (err) {
-      // ✅ طباعة الخطأ في الكونسول بدلاً من تجاهله، وإظهار رسالة للمستخدم
       console.error("Crash in handlePublishSingle:", err);
-      setToastMessage('حدث خطأ في النظام ❌');
+      setToastMessage('حدث خطأ غير متوقع في النظام ❌');
     }
   };
 
@@ -311,7 +310,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </h3>
               <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
             </div>
-            {/* إرسال editingPart يضمن تحميل البيانات الحالية للتعديل! */}
             <PartFormModal 
               isRtl={isRtl} 
               editingPart={editingPart} 
