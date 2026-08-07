@@ -5,6 +5,7 @@ import {
   classifyPartTier 
 } from '../utils/categoryHelper';
 import { AITranslatedText } from './AITranslatedText';
+import { PartMoreInfo } from './PartMoreInfo'; // 👈 استدعاء مكون الطبقة الثالثة (الصفحة التفصيلية)
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
@@ -104,10 +105,18 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [isSubmittingReq, setIsSubmittingReq] = useState(false);
   const [reqSubmitted, setReqSubmitted] = useState(false);
 
+  // 🔃 حالة الترتيب (من الأرخص للأغلى / من الأعلى للأرخص)
+  const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'default'>('default');
+
+  // 🖼️ متابعة مؤشر الصورة الحالية لكل قطعة { [partId]: activeImageIndex }
+  const [partImageIndexes, setPartImageIndex] = useState<Record<number, number>>({});
+
+  // 📑 حالات التحكم بالطبقة الثانية (النافذة المنبثقة) والطبقة الثالثة (الصفحة المنفصلة)
+  const [popupPart, setPopupPart] = useState<any | null>(null);
+  const [detailedPart, setDetailedPart] = useState<any | null>(null);
+
   const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
-
   const isRtl = lang === 'ar';
-
   const isBNPLEnabled = siteSettings?.enableBNPL ?? true;
 
   const getQty = (id: number) => partQuantities[id] || 1;
@@ -117,6 +126,39 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     const current = getQty(part.id);
     const newQty = Math.max(1, Math.min(maxStock, current + delta));
     setPartQuantities(prev => ({ ...prev, [part.id]: newQty }));
+  };
+
+  // 🖼️ التنقل بين الصور (يمين / يسار)
+  const handleNextImage = (partId: number, totalImages: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPartImageIndex(prev => ({
+      ...prev,
+      [partId]: ((prev[partId] || 0) + 1) % totalImages
+    }));
+  };
+
+  const handlePrevImage = (partId: number, totalImages: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPartImageIndex(prev => ({
+      ...prev,
+      [partId]: ((prev[partId] || 0) - 1 + totalImages) % totalImages
+    }));
+  };
+
+  // 🔗 مشاركة رابط القطعة
+  const handleSharePart = (part: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}?partId=${part.id}`;
+    if (navigator.share) {
+      navigator.share({
+        title: part.name,
+        text: `قطعة غيار: ${part.name} - ${part.price} ر.ق`,
+        url: shareUrl,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      alert(isRtl ? 'تم نسخ رابط القطعة حافظة الجهاز!' : 'Part link copied to clipboard!');
+    }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -281,8 +323,19 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }
   };
 
+  // 🔄 معالجة نتائج البحث مع الترتيب (من الأرخص للأغلى والعكس)
+  const processAndSortParts = (partsList: any[]) => {
+    if (sortBy === 'price_asc') {
+      return [...partsList].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    }
+    if (sortBy === 'price_desc') {
+      return [...partsList].sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    }
+    return partsList;
+  };
+
   const searchResults = activeSearchQuery 
-    ? inventory.filter(part => matchesSmartSearch(part, activeSearchQuery))
+    ? processAndSortParts(inventory.filter(part => matchesSmartSearch(part, activeSearchQuery)))
     : [];
 
   const handleInAppRequestSubmit = async (e: React.FormEvent) => {
@@ -307,7 +360,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
-  // 🎴 رسم كرت القطعة المحسّن بالجدول المدمج ذو المدى الزمني
+  // 🎴 1️⃣ رسم بطاقة العرض السريعة (الطبقة الأولى المدمجة بالصفحة تحت بعضها)
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -316,221 +369,176 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     const tierInfo = classifyPartTier(part);
 
+    // تجميع كافة الصور المتوفرة للقطعة
+    const allImages: string[] = part.additional_images && part.additional_images.length > 0 
+      ? part.additional_images 
+      : [part.image_url || part.image || DEFAULT_IMAGE];
+
+    const currentImgIndex = partImageIndexes[part.id] || 0;
+    const activeImage = allImages[currentImgIndex] || DEFAULT_IMAGE;
+
     const formattedPart = {
       ...part,
-      image_url: part.image_url || part.image || part.part_image || DEFAULT_IMAGE,
-      image: part.image_url || part.image || part.part_image || DEFAULT_IMAGE
+      image_url: activeImage,
+      image: activeImage
     };
-
-    // 🚘 1. جلب كافة السيارات المتوافقة من قاعدة البيانات
-    const rawVehicles = inventory.filter(p => {
-      const modalPN = (partNo || '').toString().trim().toLowerCase();
-      const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
-      return modalPN && itemPN ? modalPN === itemPN : p.id === part.id;
-    });
-
-    // 🧠 2. دمج السنوات المتتالية تلقائياً لكل (شركة + موديل) مثل نظام RockAuto (مثال: 2008-2021)
-    const groupedFitmentMap: Record<string, { make: string; model: string; years: number[] }> = {};
-
-    rawVehicles.forEach(v => {
-      const key = `${v.make}_${v.model || 'عام'}`;
-      if (!groupedFitmentMap[key]) {
-        groupedFitmentMap[key] = { make: v.make, model: v.model || (isRtl ? 'عام' : 'General'), years: [] };
-      }
-      if (v.year && !isNaN(Number(v.year))) {
-        groupedFitmentMap[key].years.push(Number(v.year));
-      }
-    });
-
-    const formattedFitmentList = Object.values(groupedFitmentMap).map(item => {
-      const sortedYears = Array.from(new Set(item.years)).sort((a, b) => a - b);
-      let yearRangeStr = '';
-
-      if (sortedYears.length === 0) {
-        yearRangeStr = String(part.year || (isRtl ? 'جميع السنوات' : 'All Years'));
-      } else if (sortedYears.length === 1) {
-        yearRangeStr = String(sortedYears[0]);
-      } else {
-        const minYear = sortedYears[0];
-        const maxYear = sortedYears[sortedYears.length - 1];
-        yearRangeStr = `${minYear}-${maxYear}`;
-      }
-
-      return {
-        make: item.make,
-        model: item.model,
-        yearRange: yearRangeStr
-      };
-    });
-
-    const installmentValue = (Number(part.price || 0) / 4).toFixed(2);
 
     return (
       <div 
         key={part.id} 
         style={{ 
           backgroundColor: 'white', 
-          padding: '18px', 
-          borderRadius: '18px', 
+          padding: '16px', 
+          borderRadius: '16px', 
           border: '1px solid #e2e8f0', 
           display: 'flex', 
           flexDirection: 'column',
-          justifyContent: 'space-between', 
-          gap: '14px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
+          gap: '12px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+          position: 'relative'
         }}
       >
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {/* زر المشاركة العلوي السريع */}
+        <button 
+          onClick={(e) => handleSharePart(part, e)} 
+          title={isRtl ? "مشاركة القطعة" : "Share Part"}
+          style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#f1f5f9', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', zIndex: 2 }}
+        >
+          🔗
+        </button>
+
+        <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
           
-          {/* تفاصيل القطعة وصورتها ورقمها الصريح */}
-          <div style={{ display: 'flex', gap: '12px', flex: '1 1 230px', alignItems: 'flex-start' }}>
+          {/* معرض الصور مع أسهم التنقل (يمين/يسار) ومؤشر الأرقام */}
+          <div style={{ position: 'relative', width: '90px', height: '90px', flexShrink: 0 }}>
             <img 
-              src={formattedPart.image_url} 
+              src={activeImage} 
               alt={part.name} 
               onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }}
-              style={{ width: '85px', height: '85px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #edf2f7', flexShrink: 0 }} 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px', border: '1px solid #edf2f7' }} 
             />
-            <div style={{ flex: 1 }}>
-              <h4 style={{ margin: '0 0 6px 0', fontSize: '15.5px', color: '#1f3a5f', fontWeight: 'bold', lineHeight: '1.4' }}>
-                <AITranslatedText text={part.name} lang={lang} />
-              </h4>
 
-              {/* النص الصريح لرقم القطعة */}
-              <div style={{ fontSize: '12px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', display: 'inline-block', marginBottom: '6px', border: '1px solid #bae6fd', fontFamily: 'monospace' }}>
-                🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {partNo}
-              </div>
-
-              {/* نوع وحالة القطعة بالكامل دون اختصار */}
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ 
-                  fontSize: '11px', fontWeight: 'bold', 
-                  color: tierInfo.tier === 'oem' ? '#0369a1' : '#c2410c', 
-                  backgroundColor: tierInfo.badgeColor, 
-                  padding: '2px 8px', borderRadius: '6px',
-                  whiteSpace: 'nowrap',
-                  border: tierInfo.tier === 'oem' ? '1px solid #bae6fd' : '1px solid #ffedd5'
-                }}>
-                  {part.part_type || (tierInfo.tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? tierInfo.label : 'Aftermarket'))}
+            {allImages.length > 1 && (
+              <>
+                <button 
+                  onClick={(e) => handlePrevImage(part.id, allImages.length, e)}
+                  style={{ position: 'absolute', top: '35%', left: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  ‹
+                </button>
+                <button 
+                  onClick={(e) => handleNextImage(part.id, allImages.length, e)}
+                  style={{ position: 'absolute', top: '35%', right: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  ›
+                </button>
+                <span style={{ position: 'absolute', bottom: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '9px', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>
+                  {currentImgIndex + 1}/{allImages.length}
                 </span>
-
-                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}>
-                  ✨ {part.part_condition || (isRtl ? 'نظيف' : 'Good Condition')}
-                </span>
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
-          {/* 📊 3. جدول التوافق المندمج الأنيق (المصمم بأسلوب RockAuto + العربي الحديث) */}
-          <div style={{ flex: '1 1 240px', border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
-            <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', borderBottom: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between' }}>
-              <span>🚘 {isRtl ? 'توافق القطعة (Buyer\'s Guide):' : 'Part Fitment Guide:'}</span>
-              <span style={{ color: '#0284c7' }}>({formattedFitmentList.length})</span>
+          {/* معلومات القطعة الأساسية خفيفة الوزن */}
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
+              <AITranslatedText text={part.name} lang={lang} />
+            </h4>
+
+            <div style={{ fontSize: '11.5px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold', display: 'inline-block', marginBottom: '4px', border: '1px solid #bae6fd', fontFamily: 'monospace' }}>
+              🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {partNo}
             </div>
 
-            <div style={{ maxHeight: '95px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: isRtl ? 'right' : 'left' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f8fafc', color: '#64748b', borderBottom: '1px solid #edf2f7' }}>
-                    <th style={{ padding: '4px 8px' }}>{isRtl ? 'الشركة' : 'Make'}</th>
-                    <th style={{ padding: '4px 8px' }}>{isRtl ? 'السيارة' : 'Model'}</th>
-                    <th style={{ padding: '4px 8px' }}>{isRtl ? 'السنوات' : 'Years'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {formattedFitmentList.map((fit, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                      <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#1e293b' }}>{fit.make}</td>
-                      <td style={{ padding: '4px 8px', color: '#475569' }}>{fit.model}</td>
-                      <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#e0872a', fontFamily: 'monospace' }}>{fit.yearRange}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: tierInfo.tier === 'oem' ? '#0369a1' : '#c2410c', backgroundColor: tierInfo.badgeColor, padding: '1px 6px', borderRadius: '4px' }}>
+                {part.part_type || (tierInfo.tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? tierInfo.label : 'Aftermarket'))}
+              </span>
+              <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: '#475569', backgroundColor: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
+                ✨ {part.part_condition || (isRtl ? 'نظيف' : 'Good Condition')}
+              </span>
             </div>
-          </div>
 
-        </div>
-
-        {/* 4. تفاصيل السعر، وقسم فاتورتك، والكمية */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', backgroundColor: '#fafafa', padding: '10px 14px', borderRadius: '12px', border: '1px dashed #cbd5e0' }}>
-          <div>
-            <div style={{ color: '#e0872a', fontWeight: '900', fontSize: '18px' }}>
+            <div style={{ color: '#e0872a', fontWeight: '900', fontSize: '16.5px', marginTop: '4px' }}>
               {part.price} {isRtl ? 'ر.ق' : 'QAR'}
             </div>
-            <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>
-              ⚡ {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}
-            </div>
           </div>
 
-          {/* 💳 شريط التقسيط الذكي الآجل (الذي يتحكم به الأدمن) */}
-          {isBNPLEnabled && (
-            <div style={{ backgroundColor: '#fffdf5', border: '1px solid #fef08a', padding: '6px 12px', borderRadius: '10px', textAlign: isRtl ? 'right' : 'left' }}>
-              <span style={{ fontSize: '11.5px', color: '#854d0e', fontWeight: 'bold', display: 'block' }}>
-                🛒 {isRtl ? `أو قسمها على 4 دفعات بقيمة ${installmentValue} ر.ق` : `Or 4 payments of ${installmentValue} QAR`}
-              </span>
-              <span style={{ fontSize: '10px', backgroundColor: '#fef08a', color: '#a16207', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'inline-block', marginTop: '2px' }}>
-                ⏳ {isRtl ? 'خدمة الدفع الآجل (قريباً)' : 'Pay Later (Coming Soon)'}
-              </span>
-            </div>
-          )}
-
-          <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', color: isOutOfStock ? '#ef4444' : '#16a34a', backgroundColor: isOutOfStock ? '#fef2f2' : '#f0fff4', padding: '3px 8px', borderRadius: '6px' }}>
-              {isOutOfStock ? (isRtl ? 'نفدت من المخزون' : 'Out of Stock') : (isRtl ? `المتوفر: ${maxStock} قطعة` : `In Stock: ${maxStock}`)}
-            </span>
-          </div>
         </div>
 
-        {/* أزرار الإضافة والشراء */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-            <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '32px', height: '36px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-            <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px' }}>{isOutOfStock ? 0 : qty}</span>
-            <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '32px', height: '36px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+        {/* أزرار السلة وتوسيع التفاصيل (الطبقة 2) */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+            <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '28px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
+            <span style={{ width: '28px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px' }}>{isOutOfStock ? 0 : qty}</span>
+            <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '32px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
-            {addToCart && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(formattedPart, qty); }}
-                disabled={isOutOfStock}
-                style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', padding: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                🛒 {isOutOfStock ? (isRtl ? 'غير متوفر' : 'Unavailable') : (isRtl ? 'أضف للسلة' : 'Add to Cart')}
-              </button>
-            )}
-
+          {addToCart && (
             <button 
-              onClick={(e) => { e.stopPropagation(); if (onInquire) onInquire(formattedPart); else if (addToCart && !isOutOfStock) addToCart(formattedPart, qty); }}
+              onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(formattedPart, qty); }}
               disabled={isOutOfStock}
-              style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#f1f5f9', color: '#1f3a5f', border: '1px solid #cbd5e0', borderRadius: '10px', padding: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              🔍 {isRtl ? 'فحص / اسأل' : 'Inquire'}
+              🛒 {isOutOfStock ? (isRtl ? 'غير متوفر' : 'Unavailable') : (isRtl ? 'أضف للسلة' : 'Add to Cart')}
             </button>
-          </div>
+          )}
+
+          <button 
+            onClick={() => setPopupPart(part)}
+            style={{ backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', borderRadius: '8px', padding: '8px 12px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            🔍 {isRtl ? 'المزيد من التفاصيل' : 'More Details'}
+          </button>
         </div>
 
       </div>
     );
   };
 
+  // 📄 إذا تم فتح الطبقة الثالثة (صفحة التفاصيل الشاملة More Info)، تعرض مكون التفاصيل المستقل
+  if (detailedPart) {
+    return (
+      <PartMoreInfo 
+        part={detailedPart} 
+        inventory={inventory} 
+        lang={lang} 
+        siteSettings={siteSettings}
+        onAddToCart={addToCart}
+        onBack={() => setDetailedPart(null)} // 👈 عند العودة، يرجع للبحث بدون مسح الفلترة!
+      />
+    );
+  }
+
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
         
-        {/* شريط البحث المباشر السريع */}
-        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-          <input 
-            type="text" 
-            placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم (مثل: فلتر زيت، دينمو)..." : "Search by Part Number, Code, or Name..."} 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-            style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px' }} 
-          />
-          <button type="submit" style={{ padding: '0 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
-            🔍 {isRtl ? 'بحث' : 'Search'}
-          </button>
-        </form>
+        {/* شريط البحث المباشر السريع مع زر الترتيب السريع */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
+            <input 
+              type="text" 
+              placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم (مثل: فلتر زيت)..." : "Search by Part Number, Code, or Name..."} 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px' }} 
+            />
+            <button type="submit" style={{ padding: '0 20px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
+              🔍 {isRtl ? 'بحث' : 'Search'}
+            </button>
+          </form>
+
+          {/* 🔃 زر الترتيب السريع (من الأرخص للأغلى والعكس) */}
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value as any)}
+            style={{ padding: '10px 14px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13px', backgroundColor: '#f8fafc', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            <option value="default">↕️ {isRtl ? 'الترتيب الافتراضي' : 'Default Sort'}</option>
+            <option value="price_asc">📉 {isRtl ? 'السعر: من الأرخص للأغلى' : 'Price: Low to High'}</option>
+            <option value="price_desc">📈 {isRtl ? 'السعر: من الأعلى للأرخص' : 'Price: High to Low'}</option>
+          </select>
+        </div>
 
         {activeSearchQuery ? (
           <div>
@@ -554,7 +562,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             )}
           </div>
         ) : (
-          /* شجرة البحث المباشرة المنظمة حسب الماركة والسنوات */
+          /* شجرة البحث المباشرة */
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
             {Object.keys(carData).map(make => {
               const makeKey = `make_${make}`;
@@ -666,7 +674,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                               const translatedCategory = CATEGORY_TRANSLATION[category] || category;
                                                               const partsCacheKey = `parts_${make}_${year}_${model}_${engine}_${category}`;
                                                               const isPartsLoading = !!loadingNodes[partsCacheKey];
-                                                              const categoryParts = nodeDataCache[partsCacheKey] || [];
+                                                              const categoryParts = processAndSortParts(nodeDataCache[partsCacheKey] || []);
 
                                                               return (
                                                                 <li key={category} style={{ marginBottom: '6px' }}>
@@ -727,6 +735,74 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         )}
 
       </div>
+
+      {/* 🎴 2️⃣ الطبقة الثانية: النافذة المنبثقة (Pop-Up Modal عند الضغط على المزيد) */}
+      {popupPart && (
+        <div onClick={() => setPopupPart(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '20px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
+              <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px' }}><AITranslatedText text={popupPart.name} lang={lang} /></h3>
+              <button onClick={() => setPopupPart(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '12px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {popupPart.part_number || popupPart.id}
+              </span>
+              <span style={{ fontSize: '11px', color: '#15803d', backgroundColor: '#f0fff4', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                ✨ {popupPart.part_condition || 'نظيف'}
+              </span>
+            </div>
+
+            {/* 📊 جدول التوافق Mapped Fitment Guide */}
+            <div style={{ border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff', marginBottom: '14px' }}>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', borderBottom: '1px solid #cbd5e0' }}>
+                🚘 {isRtl ? 'جدول توافق القطعة المباشر (Buyer\'s Guide):' : 'Part Fitment Guide:'}
+              </div>
+              <div style={{ maxHeight: '110px', overflowY: 'auto', padding: '6px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: isRtl ? 'right' : 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc', color: '#64748b' }}>
+                      <th style={{ padding: '4px' }}>الشركة</th>
+                      <th style={{ padding: '4px' }}>السيارة</th>
+                      <th style={{ padding: '4px' }}>السنوات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '4px', fontWeight: 'bold' }}>{popupPart.make}</td>
+                      <td style={{ padding: '4px' }}>{popupPart.model}</td>
+                      <td style={{ padding: '4px', color: '#e0872a', fontWeight: 'bold' }}>{popupPart.year}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* السعر والتقسيط والتوصيل */}
+            <div style={{ backgroundColor: '#fafafa', padding: '12px', borderRadius: '12px', border: '1px dashed #cbd5e0', marginBottom: '16px' }}>
+              <div style={{ color: '#e0872a', fontWeight: '900', fontSize: '20px' }}>{popupPart.price} {isRtl ? 'ر.ق' : 'QAR'}</div>
+              <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>⚡ {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}</div>
+              
+              {isBNPLEnabled && (
+                <div style={{ backgroundColor: '#fffdf5', border: '1px solid #fef08a', padding: '6px 10px', borderRadius: '8px', marginTop: '8px' }}>
+                  <span style={{ fontSize: '11.5px', color: '#854d0e', fontWeight: 'bold' }}>🛒 أو قسمها على 4 دفعات بقيمة {(Number(popupPart.price || 0)/4).toFixed(2)} ر.ق</span>
+                </div>
+              )}
+            </div>
+
+            {/* 📄 الزر الرئيسي للانتقال للطبقة الثالثة (الصفحة المنفصلة الكاملة) */}
+            <button 
+              onClick={() => { setDetailedPart(popupPart); setPopupPart(null); }}
+              style={{ width: '100%', padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '13.5px', cursor: 'pointer' }}
+            >
+              📄 {isRtl ? 'صفحة المواصفات الفنية الكاملة (More Info)' : 'Full Technical Specifications (More Info)'}
+            </button>
+
+          </div>
+        </div>
+      )}
 
       {showRequestModal && (
         <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
