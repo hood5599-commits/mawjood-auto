@@ -22,51 +22,14 @@ const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   "Body & Lamp Assembly": { ar: "الهيكل والإضاءة", en: "Body & Lamp Assembly" },
   "Brake & Wheel Hub": { ar: "الفرامل والفرامات", en: "Brake & Wheel Hub" },
   "Cooling System": { ar: "نظام التبريد والرديتر", en: "Cooling System" },
-  "Drivetrain": { ar: "نظام الدفع والمحاور", en: "Drivetrain" },
-  "Electrical": { ar: "الكهرباء والكهربائيات", en: "Electrical" },
-  "Electrical-Bulb & Socket": { ar: "اللمبات والسوكتات", en: "Electrical-Bulb & Socket" },
-  "Electrical-Connector": { ar: "الفيش والتوصيلات", en: "Electrical-Connector" },
-  "Electrical-Switch & Relay": { ar: "المفاتيح والكتاوت", en: "Electrical-Switch & Relay" },
-  "Engine": { ar: "المحرك ومكوناته", en: "Engine" },
-  "Exhaust & Emission": { ar: "العادم والانبعاثات", en: "Exhaust & Emission" },
-  "Fuel & Air": { ar: "الوقود وهواء المحرك", en: "Fuel & Air" },
-  "Heat & Air Conditioning": { ar: "التكييف والتدفئة", en: "Heat & Air Conditioning" },
-  "Ignition": { ar: "نظام الاشتعال (البواجي)", en: "Ignition" },
-  "Interior": { ar: "المقصورة والديكور الداخلي", en: "Interior" },
-  "Literature": { ar: "الكتالوجات والكتيبات", en: "Literature" },
-  "Steering": { ar: "نظام التوجيه (الدركسون)", en: "Steering" },
-  "Suspension": { ar: "المساعدات ونظام التعليق", en: "Suspension" },
-  "Transmission-Automatic": { ar: "القير الأوتوماتيك", en: "Transmission-Automatic" },
-  "Transmission-Manual": { ar: "القير العادي", en: "Transmission-Manual" },
-  "Wheel": { ar: "الإطارات والجنوط", en: "Wheel" },
-  "Wiper & Washer": { ar: "المساحات ومساحات الزجاج", en: "Wiper & Washer" }
+  "Engine": { ar: "المحرك ومكوناته", en: "Engine" }
 };
 
 const FULL_CATEGORY_TREE: Record<string, string[]> = {
-  "Belt Drive": ["Belt", "Belt Removal / Installation Tool", "Belt Tensioner", "Belt Tensioner Bolt", "Idler Pulley"],
-  "Body & Lamp Assembly": ["Air Deflector", "Antenna", "Bumper Cover", "Bumper Insert", "Fender", "Fog / Driving Lamp Assembly", "Grille", "Headlamp Assembly", "Hood", "Outside Mirror Glass", "Radiator Support", "Tail Lamp Assembly", "Trunk Lock Actuator"],
-  "Brake & Wheel Hub": ["ABS Control Module", "ABS Wheel Speed Sensor", "Brake Bleeder Screw", "Brake Fluid", "Brake Hose", "Brake Pad", "Caliper", "Master Cylinder", "Parking Brake Shoe", "Power Brake Booster", "Rotor", "Wheel Bearing & Hub"],
-  "Cooling System": ["Coolant / Antifreeze", "Coolant Hose / Pipe", "Coolant Reservoir", "Radiator", "Radiator Cap", "Radiator Fan Assembly", "Temperature Sender / Sensor", "Thermostat", "Water Pump"],
-  "Drivetrain": ["Axle Shaft Seal", "CV Axle", "CV Joint Boot", "Differential Carrier", "Drive Shaft", "Gear Oil"],
-  "Electrical": ["Alternator / Generator", "Battery", "Engine Control Module (ECM Computer)", "Fuse", "Horn", "Speed Sensor", "Starter Motor"],
-  "Electrical-Bulb & Socket": ["Back Up / Reverse Lamp Bulb", "Brake Light Bulb", "Fog / Driving Lamp Bulb", "Headlamp Bulb", "Tail Lamp Bulb"],
-  "Electrical-Connector": ["ABS Wheel Speed Sensor Connector", "Brake Light Switch Connector", "Camshaft Position Sensor Connector", "Crankshaft Position Sensor Connector", "Fuel Injector Connector", "Ignition Coil Connector"],
-  "Electrical-Switch & Relay": ["A/C System Relay", "Blower Motor Relay", "Door Lock Switch", "Fuel Pump / Circuit Opening Relay", "Headlamp Switch", "Ignition Starter Switch", "Power Window Switch"],
-  "Engine": ["Camshaft", "Connecting Rod", "Crankshaft", "Cylinder Head", "Cylinder Head Gasket", "Engine Block Heater", "Exhaust Valve", "Harmonic Balancer", "Intake Manifold", "Intake Valve", "Motor Mount", "Oil Cooler", "Oil Filter", "Oil Pan", "Oil Pump", "Piston", "Piston Ring", "Rocker Arm", "Timing Chain", "Valve Cover", "Variable Valve Timing (VVT) Solenoid / Actuator"],
-  "Exhaust & Emission": ["Catalytic Converter", "Exhaust Header Gasket", "Exhaust Manifold", "Mass Air Flow (MAF) Sensor", "Oxygen (O2) Sensor", "Vapor Canister Purge Valve / Solenoid"],
-  "Fuel & Air": ["Air Filter", "Fuel Injection Pressure Sensor", "Fuel Injector", "Fuel Line / Hose", "Fuel Pump & Housing Assembly", "Fuel Tank Cap", "Throttle Body"],
-  "Heat & Air Conditioning": ["A/C Compressor", "A/C Condenser", "A/C Evaporator Core", "A/C Expansion Valve", "Ambient Air Temperature Sensor", "Blower Motor", "Cabin Air Filter", "Heater Core"],
-  "Ignition": ["Camshaft Position Sensor", "Crankshaft Position Sensor", "Ignition Coil", "Spark Plug", "Spark Plug Wire"],
-  "Interior": ["Accelerator Pedal Position Sensor", "Air Bag Clockspring", "Floor Mat", "Inside Door Handle", "Steering Wheel", "Window Motor", "Window Regulator"],
-  "Literature": ["Repair Manual"],
-  "Steering": ["Power Steering Fluid", "Rack and Pinion", "Steering Wheel Position Sensor", "Tie Rod End"],
-  "Suspension": ["Alignment Bolt / Camber Plate", "Coil Spring", "Control Arm", "Control Arm Bushing", "Shock / Strut", "Shock / Strut Mount", "Sway Bar Bushing", "Sway Bar Link"],
-  "Transmission-Automatic": ["Automatic Transmission Control Unit (TCU)", "Clutch Housing", "Filter", "Flexplate", "Fluid Pan", "Torque Converter", "Transmission Fluid", "Transmission Mount", "Valve Body"],
-  "Transmission-Manual": ["Clutch Kit", "Clutch Master Cylinder", "Clutch Slave Cylinder", "Flywheel", "Manual Transmission Fluid", "Shift Fork", "Synchro Ring"],
-  "Wheel": ["Lug Nut", "Lug Stud", "Tire Pressure Monitoring System (TPMS) Sensor", "Wheel"],
-  "Wiper & Washer": ["Washer Fluid Reservoir", "Washer Pump", "Wiper Arm", "Wiper Blade", "Wiper Motor"]
+  "Belt Drive": ["Belt", "Belt Tensioner"],
+  "Cooling System": ["Radiator", "Radiator Fan Assembly"],
+  "Engine": ["Oil Filter", "Piston"]
 };
-
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('my_parts');
@@ -130,6 +93,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       });
       if (response.ok) setCustomRequests(await response.json());
     } catch (error) {}
+  };
+
+  // ✏️ دالة فتح التعديل الكامل عند الضغط على زر التعديل
+  const handleEditPart = (part: any) => {
+    setEditingPart(part);
+    setShowEditModal(true);
   };
 
   const handlePublishSingle = async (formData: any) => {
@@ -264,7 +233,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery} 
           onOpenExcelModal={() => setShowExcelModal(true)} 
-          onEditPart={(part) => { setEditingPart(part); setShowEditModal(true); }} 
+          onEditPart={handleEditPart} // 👈 يربط التعديل الكامل فوراً
           onDeletePart={handleDeletePart} 
           onQuickSaveInline={handleQuickSaveInline} 
         />
@@ -302,7 +271,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </h3>
               <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
             </div>
-            {/* إرسال editingPart يضمن تحميل البيانات الحالية للتعديل! */}
             <PartFormModal 
               isRtl={isRtl} 
               editingPart={editingPart} 
