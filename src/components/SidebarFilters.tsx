@@ -108,10 +108,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'default'>('default');
   const [partImageIndexes, setPartImageIndex] = useState<Record<number, number>>({});
 
-  // 🔽 متابعة الكروت المتمددة لأسفل { [partId]: boolean }
   const [expandedPartCards, setExpandedPartCards] = useState<Record<number, boolean>>({});
-
-  // 📄 صفحة المواصفات المستقلة (More Info)
   const [detailedPart, setDetailedPart] = useState<any | null>(null);
 
   const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
@@ -129,29 +126,19 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const handleNextImage = (partId: number, totalImages: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    setPartImageIndex(prev => ({
-      ...prev,
-      [partId]: ((prev[partId] || 0) + 1) % totalImages
-    }));
+    setPartImageIndex(prev => ({ ...prev, [partId]: ((prev[partId] || 0) + 1) % totalImages }));
   };
 
   const handlePrevImage = (partId: number, totalImages: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    setPartImageIndex(prev => ({
-      ...prev,
-      [partId]: ((prev[partId] || 0) - 1 + totalImages) % totalImages
-    }));
+    setPartImageIndex(prev => ({ ...prev, [partId]: ((prev[partId] || 0) - 1 + totalImages) % totalImages }));
   };
 
   const handleSharePart = (part: any, e: React.MouseEvent) => {
     e.stopPropagation();
     const shareUrl = `${window.location.origin}?partId=${part.id}`;
     if (navigator.share) {
-      navigator.share({
-        title: part.name,
-        text: `قطعة غيار: ${part.name} - ${part.price} ر.ق`,
-        url: shareUrl,
-      }).catch(() => {});
+      navigator.share({ title: part.name, text: `قطعة غيار: ${part.name} - ${part.price} ر.ق`, url: shareUrl }).catch(() => {});
     } else {
       navigator.clipboard.writeText(shareUrl);
       alert(isRtl ? 'تم نسخ رابط القطعة حافظة الجهاز!' : 'Part link copied to clipboard!');
@@ -172,6 +159,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setActiveSearchQuery('');
   };
 
+  // 1️⃣ فك تجميع النطاقات الزمنية (2003-2006) إلى سنوات منفصلة
   const fetchYearsForMake = async (make: string) => {
     const cacheKey = `years_${make}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -182,8 +170,25 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const availableYears = Array.from(new Set(data.map((item: any) => String(item.year)).filter(Boolean)))
-          .sort((a, b) => Number(b) - Number(a));
+        const expandedYearsSet = new Set<string>();
+
+        data.forEach((item: any) => {
+          const yStr = String(item.year || '').trim();
+          if (yStr.includes('-')) {
+            const [start, end] = yStr.split('-').map(Number);
+            if (!isNaN(start) && !isNaN(end)) {
+              for (let y = Math.min(start, end); y <= Math.max(start, end); y++) {
+                expandedYearsSet.add(String(y));
+              }
+            } else {
+              expandedYearsSet.add(yStr);
+            }
+          } else if (yStr) {
+            expandedYearsSet.add(yStr);
+          }
+        });
+
+        const availableYears = Array.from(expandedYearsSet).sort((a, b) => Number(b) - Number(a));
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: availableYears }));
         return availableYears;
       }
@@ -200,11 +205,22 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&year=eq.${encodeURIComponent(year)}&select=model`;
+      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&select=model,year`;
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const availableModels = Array.from(new Set(data.map((item: any) => item.model).filter(Boolean))) as string[];
+        const availableModels = Array.from(new Set(
+          data.filter((item: any) => {
+            const yStr = String(item.year || '').trim();
+            if (yStr.includes('-')) {
+              const [start, end] = yStr.split('-').map(Number);
+              const target = Number(year);
+              return target >= Math.min(start, end) && target <= Math.max(start, end);
+            }
+            return yStr === year;
+          }).map((item: any) => item.model).filter(Boolean)
+        )) as string[];
+
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: availableModels }));
         return availableModels;
       }
@@ -221,11 +237,21 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&year=eq.${encodeURIComponent(year)}&model=eq.${encodeURIComponent(model)}&select=engine`;
+      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&model=eq.${encodeURIComponent(model)}&select=engine,year`;
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const uniqueEngines = Array.from(new Set(data.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (lang === 'ar' ? 'عام' : 'General')))) as string[];
+        const filteredData = data.filter((item: any) => {
+          const yStr = String(item.year || '').trim();
+          if (yStr.includes('-')) {
+            const [start, end] = yStr.split('-').map(Number);
+            const target = Number(year);
+            return target >= Math.min(start, end) && target <= Math.max(start, end);
+          }
+          return yStr === year;
+        });
+
+        const uniqueEngines = Array.from(new Set(filteredData.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (lang === 'ar' ? 'عام' : 'General')))) as string[];
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: uniqueEngines }));
         return uniqueEngines;
       }
@@ -242,13 +268,21 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&year=eq.${encodeURIComponent(year)}&model=eq.${encodeURIComponent(model)}&select=name,category,engine`;
+      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&model=eq.${encodeURIComponent(model)}&select=name,category,engine,year`;
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
         const filteredParts = data.filter((p: any) => {
+          const yStr = String(p.year || '').trim();
+          let matchYear = yStr === year;
+          if (yStr.includes('-')) {
+            const [start, end] = yStr.split('-').map(Number);
+            const target = Number(year);
+            matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
+          }
           const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
-          return pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
+          const matchEngine = pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
+          return matchYear && matchEngine;
         });
 
         const activeCategories = categories.filter(cat => {
@@ -271,15 +305,22 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&year=eq.${encodeURIComponent(year)}&model=eq.${encodeURIComponent(model)}&select=*`;
-      
+      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&model=eq.${encodeURIComponent(model)}&select=*`;
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
         const filtered = data.filter((p: any) => {
+          const yStr = String(p.year || '').trim();
+          let matchYear = yStr === year;
+          if (yStr.includes('-')) {
+            const [start, end] = yStr.split('-').map(Number);
+            const target = Number(year);
+            matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
+          }
           const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
           const matchEngine = pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
-          return matchEngine && (getPartCategory(p.name) === category || p.category === category || (p.category && p.category.includes(category)));
+          const matchCat = getPartCategory(p.name) === category || p.category === category || (p.category && p.category.includes(category));
+          return matchYear && matchEngine && matchCat;
         });
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: filtered }));
         return filtered;
@@ -298,9 +339,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setExpandedNodes(prev => {
         const nextState = { ...prev };
         Object.keys(nextState).forEach(key => {
-          if (key === nodeKey || key.startsWith(nodeKey)) {
-            delete nextState[key];
-          }
+          if (key === nodeKey || key.startsWith(nodeKey)) delete nextState[key];
         });
         return nextState;
       });
@@ -309,28 +348,20 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         const nextCache = { ...prev };
         const cleanPattern = nodeKey.replace(/^(make|year|model|eng|cat)_/, '');
         Object.keys(nextCache).forEach(cacheKey => {
-          if (cacheKey.includes(cleanPattern) || cacheKey.includes(nodeKey)) {
-            delete nextCache[cacheKey];
-          }
+          if (cacheKey.includes(cleanPattern) || cacheKey.includes(nodeKey)) delete nextCache[cacheKey];
         });
         return nextCache;
       });
 
     } else {
       setExpandedNodes(prev => ({ ...prev, [nodeKey]: true }));
-      if (fetchAction) {
-        await fetchAction();
-      }
+      if (fetchAction) await fetchAction();
     }
   };
 
   const processAndSortParts = (partsList: any[]) => {
-    if (sortBy === 'price_asc') {
-      return [...partsList].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-    }
-    if (sortBy === 'price_desc') {
-      return [...partsList].sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-    }
+    if (sortBy === 'price_asc') return [...partsList].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    if (sortBy === 'price_desc') return [...partsList].sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
     return partsList;
   };
 
@@ -356,11 +387,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         }])
       });
 
-      if (response.ok) { setReqSubmitted(true); } else { alert(lang === 'ar' ? 'حدث خطأ في إرسال الطلب' : 'Error sending request'); }
-    } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
+      if (response.ok) setReqSubmitted(true);
+    } catch (err) {} finally { setIsSubmittingReq(false); }
   };
 
-  // 🎴 رسم كرت القطعة المربع الأصلي الصغير مع خاصية التمدد لأسفل (Expandable Card)
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -377,13 +407,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     const currentImgIndex = partImageIndexes[part.id] || 0;
     const activeImage = allImages[currentImgIndex] || DEFAULT_IMAGE;
 
-    const formattedPart = {
-      ...part,
-      image_url: activeImage,
-      image: activeImage
-    };
+    const formattedPart = { ...part, image_url: activeImage, image: activeImage };
 
-    // 🚘 جدول التوافق المباشر
     const rawVehicles = inventory.filter(p => {
       const modalPN = (partNo || '').toString().trim().toLowerCase();
       const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
@@ -393,12 +418,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     const groupedFitmentMap: Record<string, { make: string; model: string; years: number[] }> = {};
     rawVehicles.forEach(v => {
       const key = `${v.make}_${v.model || 'عام'}`;
-      if (!groupedFitmentMap[key]) {
-        groupedFitmentMap[key] = { make: v.make, model: v.model || (isRtl ? 'عام' : 'General'), years: [] };
-      }
-      if (v.year && !isNaN(Number(v.year))) {
-        groupedFitmentMap[key].years.push(Number(v.year));
-      }
+      if (!groupedFitmentMap[key]) groupedFitmentMap[key] = { make: v.make, model: v.model || (isRtl ? 'عام' : 'General'), years: [] };
+      if (v.year && !isNaN(Number(v.year))) groupedFitmentMap[key].years.push(Number(v.year));
     });
 
     const formattedFitmentList = Object.values(groupedFitmentMap).map(item => {
@@ -417,19 +438,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       <div 
         key={part.id} 
         style={{ 
-          backgroundColor: 'white', 
-          padding: '16px', 
-          borderRadius: '16px', 
-          border: '1px solid #e2e8f0', 
-          display: 'flex', 
-          flexDirection: 'column',
-          gap: '12px',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-          position: 'relative',
-          transition: 'all 0.25s ease-in-out'
+          backgroundColor: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', 
+          display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', 
+          position: 'relative', transition: 'all 0.25s ease-in-out' 
         }}
       >
-        {/* زر المشاركة */}
         <button 
           onClick={(e) => handleSharePart(part, e)} 
           title={isRtl ? "مشاركة القطعة" : "Share Part"}
@@ -438,31 +451,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           🔗
         </button>
 
-        {/* 📐 المربع الصغير العلوي (صورة + اسم + سعر + زر فحص) */}
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-          
           <div style={{ position: 'relative', width: '85px', height: '85px', flexShrink: 0 }}>
-            <img 
-              src={activeImage} 
-              alt={part.name} 
-              onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px', border: '1px solid #edf2f7' }} 
-            />
-
+            <img src={activeImage} alt={part.name} onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px', border: '1px solid #edf2f7' }} />
             {allImages.length > 1 && (
               <>
-                <button 
-                  onClick={(e) => handlePrevImage(part.id, allImages.length, e)}
-                  style={{ position: 'absolute', top: '35%', left: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  ‹
-                </button>
-                <button 
-                  onClick={(e) => handleNextImage(part.id, allImages.length, e)}
-                  style={{ position: 'absolute', top: '35%', right: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  ›
-                </button>
+                <button onClick={(e) => handlePrevImage(part.id, allImages.length, e)} style={{ position: 'absolute', top: '35%', left: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>‹</button>
+                <button onClick={(e) => handleNextImage(part.id, allImages.length, e)} style={{ position: 'absolute', top: '35%', right: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>›</button>
               </>
             )}
           </div>
@@ -489,14 +484,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               {part.price} {isRtl ? 'ر.ق' : 'QAR'}
             </div>
           </div>
-
         </div>
 
-        {/* 🔻 🛠️ التفاصيل المتمددة لأسفل (تظهر فقط عند ضغط المزيد من التفاصيل) */}
+        {/* 🔻 المربع المتمدد لأسفل عند ضغط المزيد */}
         {isExpanded && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e0' }}>
-            
-            {/* 📊 جدول التوافق Mapped Fitment Guide */}
             <div style={{ border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
               <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', borderBottom: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between' }}>
                 <span>🚘 {isRtl ? 'توافق القطعة (Buyer\'s Guide):' : 'Part Fitment Guide:'}</span>
@@ -524,7 +516,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </div>
             </div>
 
-            {/* الشحن والتقسيط */}
             <div style={{ backgroundColor: '#fafafa', padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '11.5px' }}>
               <div style={{ color: '#16a34a', fontWeight: 'bold' }}>⚡ {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}</div>
               {isBNPLEnabled && (
@@ -534,18 +525,15 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               )}
             </div>
 
-            {/* 📄 الزر الرئيسي للصفحة المستقلة كاملة المواصفات */}
             <button 
               onClick={() => setDetailedPart(part)}
               style={{ width: '100%', padding: '10px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '12.5px', cursor: 'pointer' }}
             >
               📄 {isRtl ? 'صفحة المواصفات الفنية الكاملة (More Info)' : 'Full Technical Specifications (More Info)'}
             </button>
-
           </div>
         )}
 
-        {/* 🔘 الأزرار السفلية (الكمية + أضف للسلة + فحص/اسأل + المزيد) */}
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '26px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
@@ -563,7 +551,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             </button>
           )}
 
-          {/* 🔍 زر فحص / اسأل التفاعلي للربط مع البائع */}
           <button 
             onClick={(e) => { e.stopPropagation(); if (onInquire) onInquire(formattedPart); else if (addToCart && !isOutOfStock) addToCart(formattedPart, qty); }}
             disabled={isOutOfStock}
@@ -572,7 +559,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             🔍 {isRtl ? 'فحص / اسأل' : 'Inquire'}
           </button>
 
-          {/* 🔻 زر التمدد لأسفل المربع */}
           <button 
             onClick={() => togglePartCardExpand(part.id)}
             style={{ padding: '8px 10px', backgroundColor: isExpanded ? '#feefe8' : '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
@@ -660,17 +646,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
               return (
                 <li key={make} style={{ marginBottom: '8px' }}>
-                  
-                  <div 
-                    onClick={() => toggleNode(makeKey, () => fetchYearsForMake(make))} 
-                    style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e8f2fc' : '#f8fafc', fontWeight: 'bold', padding: '10px 14px' }}
-                  >
+                  <div onClick={() => toggleNode(makeKey, () => fetchYearsForMake(make))} style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e8f2fc' : '#f8fafc', fontWeight: 'bold', padding: '10px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       {!imgErrors[make] ? (
                         <img src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`} alt={make} style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={() => setImgErrors(prev => ({...prev, [make]: true}))} />
-                      ) : (
-                        <span style={{ fontSize: '16px' }}>🚗</span>
-                      )}
+                      ) : (<span style={{ fontSize: '16px' }}>🚗</span>)}
                       <span style={{ fontSize: '14.5px', color: '#1f3a5f' }}>{makeName} {isYearsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                     </div>
                     <span style={{ fontSize: '12px', color: '#64748b' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
@@ -692,10 +672,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                           return (
                             <li key={year} style={{ marginBottom: '6px' }}>
-                              <div 
-                                onClick={() => toggleNode(yearKey, () => fetchModelsForYear(make, year))} 
-                                style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#f0f7ff' : 'transparent', fontSize: '13.5px', color: '#0284c7', padding: '7px 12px', fontWeight: 'bold' }}
-                              >
+                              <div onClick={() => toggleNode(yearKey, () => fetchModelsForYear(make, year))} style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#f0f7ff' : 'transparent', fontSize: '13.5px', color: '#0284c7', padding: '7px 12px', fontWeight: 'bold' }}>
                                 <span>📅 {year} {isModelsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                                 <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                               </div>
@@ -703,9 +680,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                               {isYearOpen && (
                                 <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                   {isModelsLoading ? (
-                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري البحث عن الموديلات المتاحة...' : 'Checking available models...'}</li>
+                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري البحث عن الموديلات...' : 'Checking models...'}</li>
                                   ) : availableModels.length === 0 ? (
-                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد معروضات لموديلات هذه السنة.' : 'No items available for this year.'}</li>
+                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد معروضات لهذه السنة.' : 'No items.'}</li>
                                   ) : (
                                     availableModels.map((model: string) => {
                                       const modelKey = `model_${make}_${year}_${model}`;
@@ -717,10 +694,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                       return (
                                         <li key={model} style={{ marginBottom: '6px' }}>
-                                          <div 
-                                            onClick={() => toggleNode(modelKey, () => fetchEnginesForVehicle(make, year, model))} 
-                                            style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#f1f5f9' : 'transparent', fontSize: '13.5px', padding: '7px 12px' }}
-                                          >
+                                          <div onClick={() => toggleNode(modelKey, () => fetchEnginesForVehicle(make, year, model))} style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#f1f5f9' : 'transparent', fontSize: '13.5px', padding: '7px 12px' }}>
                                             <span>🚘 {modelName} {isEnginesLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                                             <span style={{ fontSize: '10px', color: '#64748b' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                           </div>
@@ -739,10 +713,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                                   return (
                                                     <li key={engine} style={{ marginBottom: '6px' }}>
-                                                      <div 
-                                                        onClick={() => toggleNode(engineKey, () => fetchCategoriesForEngine(make, year, model, engine))} 
-                                                        style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#e8f2fc' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: '500' }}
-                                                      >
+                                                      <div onClick={() => toggleNode(engineKey, () => fetchCategoriesForEngine(make, year, model, engine))} style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#e8f2fc' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: '500' }}>
                                                         <span>⚡ {engine} {isCategoriesLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                                                         <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                       </div>
@@ -752,7 +723,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                           {isCategoriesLoading ? (
                                                             <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص الأقسام...' : 'Checking categories...'}</li>
                                                           ) : availableCategories.length === 0 ? (
-                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد أقسام متوفرة لهذا المحرك.' : 'No categories available for this engine.'}</li>
+                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد أقسام متوفرة.' : 'No categories.'}</li>
                                                           ) : (
                                                             availableCategories.map((category: string) => {
                                                               const categoryKey = `cat_${make}_${year}_${model}_${engine}_${category}`;
@@ -764,10 +735,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                                               return (
                                                                 <li key={category} style={{ marginBottom: '6px' }}>
-                                                                  <div 
-                                                                    onClick={() => toggleNode(categoryKey, () => fetchPartsForLeafNode(make, year, model, engine, category))} 
-                                                                    style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fff7ed' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: 'bold' }}
-                                                                  >
+                                                                  <div onClick={() => toggleNode(categoryKey, () => fetchPartsForLeafNode(make, year, model, engine, category))} style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fff7ed' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: 'bold' }}>
                                                                     <span>{translatedCategory} {isPartsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(جلب القطع...)' : '(Fetching...)'}</small>}</span>
                                                                     <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                                   </div>
