@@ -67,7 +67,7 @@ const FULL_CATEGORY_TREE: Record<string, string[]> = {
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('my_parts');
 
-  // نموذج الإضافة والتعديل
+  // نموذج الإضافة والتعديل الأساسي
   const [partName, setPartName] = useState('');
   const [partNumber, setPartNumber] = useState('');
   const [partPrice, setPartPrice] = useState('');
@@ -79,7 +79,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [partMake, setPartMake] = useState('');
   const [partModel, setPartModel] = useState('');
   
-  // 📅 حالات المدى الزمني للسنوات لتسهيل الإضافة لكراجات السكراب والتشليح
+  // 📅 حالات المدى الزمني للسنوات
   const [partYearFrom, setPartYearFrom] = useState('');
   const [partYearTo, setPartYearTo] = useState('');
   const [partYear, setPartYear] = useState('');
@@ -91,6 +91,15 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const [partImages, setPartImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+
+  // 🛠️ حالات اختيارية إضافية لزر More Info لعدم ملء الواجهة
+  const [showMoreInfoForm, setShowMoreInfoForm] = useState(false);
+  const [partDescription, setPartDescription] = useState('');
+  const [partWarranty, setPartWarranty] = useState('');
+  const [interchangeNumbers, setInterchangeNumbers] = useState('');
+  const [partPosition, setPartPosition] = useState('');
+  const [partWeight, setPartWeight] = useState('');
+  const [partPinCount, setPartPinCount] = useState('');
 
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -241,7 +250,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
     const fullCategoryPath = [mainCategory, subCategory].filter(Boolean).join(' > ');
 
-    // 🧠 حساب المدى الزمني المتوافق (مثال: 2008-2011) لتفهمه شجرة البحث
     const computedYear = (partYearFrom && partYearTo && partYearFrom !== partYearTo)
       ? `${Math.min(Number(partYearFrom), Number(partYearTo))}-${Math.max(Number(partYearFrom), Number(partYearTo))}`
       : (partYearFrom || partYear);
@@ -266,6 +274,16 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         year: computedYear,
         engine: partEngine || (isRtl ? 'عام' : 'General'),
         image_url: partImages[0] || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
+        additional_images: partImages,
+
+        // 🎯 البيانات الاختيارية المتقدمة لـ More Info
+        description: partDescription.trim() || null,
+        warranty: partWarranty.trim() || null,
+        interchange_numbers: interchangeNumbers.trim() || null,
+        position: partPosition || null,
+        weight_kg: parseFloat(partWeight) || null,
+        pin_count: parseInt(partPinCount) || null,
+
         user_id: userId
       };
 
@@ -443,7 +461,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartMake(part.make); 
     setPartModel(part.model || ''); 
 
-    // قراءة السنوات الحالية وقسمتها إذا كانت مدى زمني
     if (part.year && part.year.includes('-')) {
       const yearParts = part.year.split('-');
       setPartYearFrom(yearParts[0]);
@@ -466,6 +483,21 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
 
     setPartImages(part.additional_images || [part.image_url]); 
+
+    // قراءة الحقول الاختيارية More Info عند التعديل
+    setPartDescription(part.description || '');
+    setPartWarranty(part.warranty || '');
+    setInterchangeNumbers(part.interchange_numbers || '');
+    setPartPosition(part.position || '');
+    setPartWeight(part.weight_kg ? String(part.weight_kg) : '');
+    setPartPinCount(part.pin_count ? String(part.pin_count) : '');
+    
+    if (part.description || part.warranty || part.interchange_numbers || part.position || part.weight_kg || part.pin_count) {
+      setShowMoreInfoForm(true);
+    } else {
+      setShowMoreInfoForm(false);
+    }
+
     setShowEditModal(true);
   };
 
@@ -478,9 +510,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     setPartEngine(''); 
     setMainCategory(''); setSubCategory('');
     setPartImages([]);
+
+    setPartDescription(''); setPartWarranty(''); setInterchangeNumbers('');
+    setPartPosition(''); setPartWeight(''); setPartPinCount('');
+    setShowMoreInfoForm(false);
   };
 
-  // ⚡ التصفية الفورية اللحظية لقائمة الـ 10,000+ قطعة
   const filteredMyParts = useMemo(() => {
     if (!searchQuery.trim()) return myParts;
     const q = searchQuery.toLowerCase().trim();
@@ -584,7 +619,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           </select>
         </div>
 
-        {/* 📅 اختيار المدى الزمني للسنوات لتسهيل الإضافة لكراجات التشليح والسكراب */}
         <div>
           <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>
             {isRtl ? 'سنوات التوافق (من - إلى) *' : 'Years Range (From - To) *'}
@@ -738,6 +772,128 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
                 </button>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* 🚀 زر اختياري منبثق لإضافة المواصفات المتقدمة (More Info) لعدم ملء الواجهة */}
+      <div style={{ borderTop: '1px dashed #cbd5e0', paddingTop: '15px' }}>
+        <button
+          type="button"
+          onClick={() => setShowMoreInfoForm(!showMoreInfoForm)}
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: showMoreInfoForm ? '#f8fafc' : '#eff6ff',
+            color: '#1d4ed8',
+            border: '1px dashed #bfdbfe',
+            borderRadius: '10px',
+            fontWeight: 'bold',
+            fontSize: '13.5px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          {showMoreInfoForm ? '🔼 إخفاء البيانات الإضافية' : '➕ إضافة مواصفات ومعلومات إضافية (More Info - اختياري)'}
+        </button>
+
+        {/* 📦 حقول More Info المتقدمة (تظهر فقط عند الضغط) */}
+        {showMoreInfoForm && (
+          <div style={{ backgroundColor: '#f8fafc', padding: '18px', borderRadius: '12px', marginTop: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>
+                📝 وصف حقيقي تفصيلي للقطعة (الوصف):
+              </label>
+              <textarea
+                placeholder="اكتب وصفاً حقيقياً للقطعة، الملاحظات، أو أي عيوب أو تفاصيل إن وجدت..."
+                value={partDescription}
+                onChange={(e) => setPartDescription(e.target.value)}
+                rows={3}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>
+                  🛡️ شروط الضمان المخصصة:
+                </label>
+                <input
+                  type="text"
+                  placeholder="مثال: ضمان تجربة 14 يوم أو ضمان تشغيل"
+                  value={partWarranty}
+                  onChange={(e) => setPartWarranty(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12.5px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>
+                  🔗 أرقام بديلة متوافقة (Interchange OEM):
+                </label>
+                <input
+                  type="text"
+                  placeholder="مثال: 15780789, TO3115169"
+                  value={interchangeNumbers}
+                  onChange={(e) => setInterchangeNumbers(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12.5px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
+            {/* ⚙️ حقول المواصفات التقنية لتغذية الـ AI والشحن مستقبلاً */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold', color: '#475569' }}>
+                  📍 الجهة / الموضع بالسيارة:
+                </label>
+                <select 
+                  value={partPosition} 
+                  onChange={(e) => setPartPosition(e.target.value)}
+                  style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }}
+                >
+                  <option value="">غير محدد</option>
+                  <option value="أمامي يمين">أمامي يمين (Front Right)</option>
+                  <option value="أمامي يسار">أمامي يسار (Front Left)</option>
+                  <option value="خلفي يمين">خلفي يمين (Rear Right)</option>
+                  <option value="خلفي يسار">خلفي يسار (Rear Left)</option>
+                  <option value="أمامي عام">أمامي طقم (Front Set)</option>
+                  <option value="خلفي عام">خلفي طقم (Rear Set)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold', color: '#475569' }}>
+                  ⚖️ الوزن التقديري (كجم):
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="مثال: 2.5"
+                  value={partWeight}
+                  onChange={(e) => setPartWeight(e.target.value)}
+                  style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '11.5px', fontWeight: 'bold', color: '#475569' }}>
+                  🔌 عدد أسنان/أسطر الفيشة (Pin Count):
+                </label>
+                <input
+                  type="number"
+                  placeholder="مثال: 2 أو 6"
+                  value={partPinCount}
+                  onChange={(e) => setPartPinCount(e.target.value)}
+                  style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
           </div>
         )}
       </div>
@@ -1130,7 +1286,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
       {activeTab === 'orders' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f' }}>{isRtl ? 'الطلبات الواردة للشحن والاستلام' : 'Incoming Orders for Delivery/Pickup'}</h3>
+          <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f' }}>{isRtl ? 'الطلبات الواردة للشحن واستلام' : 'Incoming Orders for Delivery/Pickup'}</h3>
           {myOrders.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>{isRtl ? 'لا توجد طلبات جديدة حالياً.' : 'No new orders currently.'}</p>
           ) : (
