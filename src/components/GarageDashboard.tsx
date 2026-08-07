@@ -67,6 +67,7 @@ const FULL_CATEGORY_TREE: Record<string, string[]> = {
   "Wiper & Washer": ["Washer Fluid Reservoir", "Washer Pump", "Wiper Arm", "Wiper Blade", "Wiper Motor"]
 };
 
+
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
   const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders'>('my_parts');
   
@@ -301,6 +302,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               </h3>
               <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
             </div>
+            {/* إرسال editingPart يضمن تحميل البيانات الحالية للتعديل! */}
             <PartFormModal 
               isRtl={isRtl} 
               editingPart={editingPart} 
