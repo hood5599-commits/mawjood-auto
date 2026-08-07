@@ -309,7 +309,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
-  // 🎴 رسم كرت القطعة المحسّن بالجدول السكرول الجانبي والمعلومات المفتوحة المباشرة
+// 🎴 رسم كرت القطعة المحسّن بالجدول المدمج ذو المدى الزمني
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -325,11 +325,45 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       image: part.image_url || part.image || part.part_image || DEFAULT_IMAGE
     };
 
-    // جلب باقي السيارات المتوافقة من المخزون
-    const compatibleVehicles = inventory.filter(p => {
+    // 🚘 1. جلب كافة السيارات المتوافقة من قاعدة البيانات
+    const rawVehicles = inventory.filter(p => {
       const modalPN = (partNo || '').toString().trim().toLowerCase();
       const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
       return modalPN && itemPN ? modalPN === itemPN : p.id === part.id;
+    });
+
+    // 🧠 2. دمج السنوات المتتالية تلقائياً لكل (شركة + موديل) مثل نظام RockAuto (مثال: 2008-2021)
+    const groupedFitmentMap: Record<string, { make: string; model: string; years: number[] }> = {};
+
+    rawVehicles.forEach(v => {
+      const key = `${v.make}_${v.model || 'عام'}`;
+      if (!groupedFitmentMap[key]) {
+        groupedFitmentMap[key] = { make: v.make, model: v.model || (isRtl ? 'عام' : 'General'), years: [] };
+      }
+      if (v.year && !isNaN(Number(v.year))) {
+        groupedFitmentMap[key].years.push(Number(v.year));
+      }
+    });
+
+    const formattedFitmentList = Object.values(groupedFitmentMap).map(item => {
+      const sortedYears = Array.from(new Set(item.years)).sort((a, b) => a - b);
+      let yearRangeStr = '';
+
+      if (sortedYears.length === 0) {
+        yearRangeStr = String(part.year || (isRtl ? 'جميع السنوات' : 'All Years'));
+      } else if (sortedYears.length === 1) {
+        yearRangeStr = String(sortedYears[0]);
+      } else {
+        const minYear = sortedYears[0];
+        const maxYear = sortedYears[sortedYears.length - 1];
+        yearRangeStr = `${minYear}-${maxYear}`;
+      }
+
+      return {
+        make: item.make,
+        model: item.model,
+        yearRange: yearRangeStr
+      };
     });
 
     const installmentValue = (Number(part.price || 0) / 4).toFixed(2);
@@ -351,8 +385,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       >
         <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
           
-          {/* صورة القطعة ورقمها والتصنيف */}
-          <div style={{ display: 'flex', gap: '12px', flex: '1 1 240px', alignItems: 'flex-start' }}>
+          {/* تفاصيل القطعة وصورتها ورقمها الصريح */}
+          <div style={{ display: 'flex', gap: '12px', flex: '1 1 230px', alignItems: 'flex-start' }}>
             <img 
               src={formattedPart.image_url} 
               alt={part.name} 
@@ -364,12 +398,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 <AITranslatedText text={part.name} lang={lang} />
               </h4>
 
-              {/* 1️⃣ إظهار النص الصريح: رقم القطعة بدلاً من اختصار PN */}
+              {/* النص الصريح لرقم القطعة */}
               <div style={{ fontSize: '12px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', display: 'inline-block', marginBottom: '6px', border: '1px solid #bae6fd', fontFamily: 'monospace' }}>
                 🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {partNo}
               </div>
 
-              {/* حالة ونوع القطعة بشكل كامل دون اقتطاع */}
+              {/* نوع وحالة القطعة بالكامل دون اختصار */}
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <span style={{ 
                   fontSize: '11px', fontWeight: 'bold', 
@@ -389,27 +423,39 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             </div>
           </div>
 
-          {/* 2️⃣ جدول التوافق الداخلي المباشر مع التمرير لأعلى وأسفل (Scrollable Fitment Box) */}
-          <div style={{ flex: '1 1 200px', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '110px', overflowY: 'auto' }}>
-            <div style={{ fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', marginBottom: '6px', borderBottom: '1px solid #e2e8f0', paddingBottom: '3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🚘 {isRtl ? 'توافق القطعة المباشر:' : 'Direct Compatibility:'}</span>
-              <span style={{ fontSize: '10px', color: '#64748b' }}>({compatibleVehicles.length})</span>
+          {/* 📊 3. جدول التوافق المندمج الأنيق (المصمم بأسلوب RockAuto + العربي الحديث) */}
+          <div style={{ flex: '1 1 240px', border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
+            <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', borderBottom: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between' }}>
+              <span>🚘 {isRtl ? 'توافق القطعة (Buyer\'s Guide):' : 'Part Fitment Guide:'}</span>
+              <span style={{ color: '#0284c7' }}>({formattedFitmentList.length})</span>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {compatibleVehicles.map((v, idx) => (
-                <div key={idx} style={{ fontSize: '11.5px', color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '3px 8px', borderRadius: '6px', border: '1px solid #edf2f7' }}>
-                  <span style={{ fontWeight: '600' }}>{v.make} {v.model || ''}</span>
-                  <span style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '10.5px' }}>📅 {v.year}</span>
-                </div>
-              ))}
+
+            <div style={{ maxHeight: '95px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: isRtl ? 'right' : 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8fafc', color: '#64748b', borderBottom: '1px solid #edf2f7' }}>
+                    <th style={{ padding: '4px 8px' }}>{isRtl ? 'الشركة' : 'Make'}</th>
+                    <th style={{ padding: '4px 8px' }}>{isRtl ? 'السيارة' : 'Model'}</th>
+                    <th style={{ padding: '4px 8px' }}>{isRtl ? 'السنوات' : 'Years'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {formattedFitmentList.map((fit, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                      <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#1e293b' }}>{fit.make}</td>
+                      <td style={{ padding: '4px 8px', color: '#475569' }}>{fit.model}</td>
+                      <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#e0872a', fontFamily: 'monospace' }}>{fit.yearRange}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
         </div>
 
-        {/* 3️⃣ تفاصيل السعر، وقت التوصيل، وزر التقسيط الفوري */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', backgroundColor: '#fafafg', padding: '10px 14px', borderRadius: '12px', border: '1px dashed #cbd5e0' }}>
+        {/* 4. تفاصيل السعر، وقسم فاتورتك، والكمية */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', backgroundColor: '#fafafa', padding: '10px 14px', borderRadius: '12px', border: '1px dashed #cbd5e0' }}>
           <div>
             <div style={{ color: '#e0872a', fontWeight: '900', fontSize: '18px' }}>
               {part.price} {isRtl ? 'ر.ق' : 'QAR'}
@@ -419,7 +465,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             </div>
           </div>
 
-          {/* 💳 قسم فاتورتك على 4 دفعات (مبني ليتحكم به الأدمن) */}
+          {/* 💳 شريط التقسيط الذكي الآجل (الذي يتحكم به الأدمن) */}
           {isBNPLEnabled && (
             <div style={{ backgroundColor: '#fffdf5', border: '1px solid #fef08a', padding: '6px 12px', borderRadius: '10px', textAlign: isRtl ? 'right' : 'left' }}>
               <span style={{ fontSize: '11.5px', color: '#854d0e', fontWeight: 'bold', display: 'block' }}>
@@ -438,26 +484,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         </div>
 
-        {/* البدائل المطابقة */}
-        {alternatives.length > 0 && (
-          <div style={{ backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '10px', border: '1px dashed #cbd5e0' }}>
-            <strong style={{ fontSize: '11px', color: '#0369a1', display: 'block', marginBottom: '4px' }}>
-              💡 {isRtl ? `متوفر (${alternatives.length}) بدائل متوافقة مع هذا البارت نمبر:` : `Available (${alternatives.length}) compatible alternatives:`}
-            </strong>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              {alternatives.slice(0, 2).map((alt) => (
-                <div key={alt.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#334155' }}>
-                  <span>
-                    <AITranslatedText text={alt.name} lang={lang} /> ({classifyPartTier(alt).tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? 'بديل' : 'Aftermarket')})
-                  </span>
-                  <strong style={{ color: '#e0872a' }}>{alt.price} {isRtl ? 'ر.ق' : 'QAR'}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 🛠️ أزرار التحكم والطلب والكمية */}
+        {/* أزرار الإضافة والشراء */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
             <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '32px', height: '36px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
@@ -470,7 +497,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               <button 
                 onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(formattedPart, qty); }}
                 disabled={isOutOfStock}
-                style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', padding: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', padding: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
               >
                 🛒 {isOutOfStock ? (isRtl ? 'غير متوفر' : 'Unavailable') : (isRtl ? 'أضف للسلة' : 'Add to Cart')}
               </button>
