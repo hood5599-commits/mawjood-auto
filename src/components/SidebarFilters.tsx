@@ -34,6 +34,7 @@ interface SidebarProps {
   setFilterEngine?: (engine: string) => void;
   addToCart?: (item: any, quantity: number) => void;
   onInquire?: (item: any) => void;
+  siteSettings?: any; // 👈 إعدادات الأدمن للتحكم بـ Pay Later
 }
 
 const CATEGORY_TRANSLATION: Record<string, string> = {
@@ -86,8 +87,8 @@ const nodeStyle: React.CSSProperties = {
 
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
-    lang, carData, translateMake, translateModel, categories, inventory, 
-    searchTerm, setSearchTerm, addToCart, onInquire 
+    lang, carData, categories, inventory, 
+    searchTerm, setSearchTerm, addToCart, onInquire, siteSettings 
   } = props;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -96,7 +97,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
-  const [fitmentModalPart, setFitmentModalPart] = useState<any | null>(null);
 
   const [activeSearchQuery, setActiveSearchQuery] = useState<string>('');
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -108,6 +108,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
 
   const isRtl = lang === 'ar';
+
+  // 💳 التحكم بظهور خدمة التقسيط من إعدادات الأدمن (تلقائياً تكون مفعالة وقريباً)
+  const isBNPLEnabled = siteSettings?.enableBNPL ?? true;
 
   const getQty = (id: number) => partQuantities[id] || 1;
 
@@ -284,14 +287,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     ? inventory.filter(part => matchesSmartSearch(part, activeSearchQuery))
     : [];
 
-  const compatibleVehicles = fitmentModalPart
-    ? inventory.filter(p => {
-        const modalPN = (fitmentModalPart.part_number || fitmentModalPart.code || fitmentModalPart.sku || '').toString().trim().toLowerCase();
-        const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
-        return modalPN && itemPN ? modalPN === itemPN : p.id === fitmentModalPart.id;
-      })
-    : [];
-
   const handleInAppRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!custPhone.trim()) return alert(lang === 'ar' ? 'يرجى إدخال رقم الهاتف' : 'Please enter phone number');
@@ -314,6 +309,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) { alert(lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Connection error'); } finally { setIsSubmittingReq(false); }
   };
 
+  // 🎴 رسم كرت القطعة المحسّن بالجدول السكرول الجانبي والمعلومات المفتوحة المباشرة
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const qty = getQty(part.id);
@@ -329,109 +325,167 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       image: part.image_url || part.image || part.part_image || DEFAULT_IMAGE
     };
 
+    // جلب باقي السيارات المتوافقة من المخزون
+    const compatibleVehicles = inventory.filter(p => {
+      const modalPN = (partNo || '').toString().trim().toLowerCase();
+      const itemPN = (p.part_number || p.code || p.sku || '').toString().trim().toLowerCase();
+      return modalPN && itemPN ? modalPN === itemPN : p.id === part.id;
+    });
+
+    const installmentValue = (Number(part.price || 0) / 4).toFixed(2);
+
     return (
       <div 
         key={part.id} 
         style={{ 
           backgroundColor: 'white', 
-          padding: '16px', 
-          borderRadius: '16px', 
+          padding: '18px', 
+          borderRadius: '18px', 
           border: '1px solid #e2e8f0', 
           display: 'flex', 
           flexDirection: 'column',
           justifyContent: 'space-between', 
-          gap: '12px',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.03)'
+          gap: '14px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
         }}
       >
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-          <img 
-            src={formattedPart.image_url} 
-            alt={part.name} 
-            onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }}
-            style={{ width: '75px', height: '75px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #edf2f7' }} 
-          />
-          <div style={{ flex: 1 }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
-              <AITranslatedText text={part.name} lang={lang} />
-            </h4>
-            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>
-              🚗 {translateMake[part.make] || part.make} - {translateModel[part.model] || part.model} ({part.year})
-            </div>
-            
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' }}>
-              <div 
-                onClick={(e) => { e.stopPropagation(); setFitmentModalPart(part); }}
-                style={{ fontSize: '11px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '2px 8px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #bae6fd' }}
-              >
-                🔍 PN: {partNo}
+        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          
+          {/* صورة القطعة ورقمها والتصنيف */}
+          <div style={{ display: 'flex', gap: '12px', flex: '1 1 240px', alignItems: 'flex-start' }}>
+            <img 
+              src={formattedPart.image_url} 
+              alt={part.name} 
+              onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }}
+              style={{ width: '85px', height: '85px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #edf2f7', flexShrink: 0 }} 
+            />
+            <div style={{ flex: 1 }}>
+              <h4 style={{ margin: '0 0 6px 0', fontSize: '15.5px', color: '#1f3a5f', fontWeight: 'bold', lineHeight: '1.4' }}>
+                <AITranslatedText text={part.name} lang={lang} />
+              </h4>
+
+              {/* 1️⃣ إظهار النص الصريح: رقم القطعة بدلاً من اختصار PN */}
+              <div style={{ fontSize: '12px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', display: 'inline-block', marginBottom: '6px', border: '1px solid #bae6fd', fontFamily: 'monospace' }}>
+                🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {partNo}
               </div>
 
-              <span style={{ 
-                fontSize: '11px', fontWeight: 'bold', 
-                color: tierInfo.tier === 'oem' ? '#0369a1' : '#c2410c', 
-                backgroundColor: tierInfo.badgeColor, 
-                padding: '2px 8px', borderRadius: '6px',
-                border: tierInfo.tier === 'oem' ? '1px solid #bae6fd' : '1px solid #ffedd5'
-              }}>
-                {tierInfo.tier === 'oem' ? (lang === 'ar' ? 'أصلي' : 'OEM') : (lang === 'ar' ? tierInfo.label : 'Aftermarket')}
-              </span>
-            </div>
+              {/* حالة ونوع القطعة بشكل كامل دون اقتطاع */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ 
+                  fontSize: '11px', fontWeight: 'bold', 
+                  color: tierInfo.tier === 'oem' ? '#0369a1' : '#c2410c', 
+                  backgroundColor: tierInfo.badgeColor, 
+                  padding: '2px 8px', borderRadius: '6px',
+                  whiteSpace: 'nowrap',
+                  border: tierInfo.tier === 'oem' ? '1px solid #bae6fd' : '1px solid #ffedd5'
+                }}>
+                  {part.part_type || (tierInfo.tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? tierInfo.label : 'Aftermarket'))}
+                </span>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#e0872a', fontWeight: 'bold', fontSize: '16.5px' }}>{part.price} {lang === 'ar' ? 'ر.ق' : 'QAR'}</span>
-              <span style={{ fontSize: '11px', fontWeight: 'bold', color: isOutOfStock ? '#ef4444' : '#16a34a', backgroundColor: isOutOfStock ? '#fef2f2' : '#f0fff4', padding: '2px 6px', borderRadius: '5px' }}>
-                {isOutOfStock ? (lang === 'ar' ? 'نفدت' : 'Out of Stock') : (lang === 'ar' ? `المتوفر: ${maxStock}` : `In Stock: ${maxStock}`)}
+                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}>
+                  ✨ {part.part_condition || (isRtl ? 'نظيف' : 'Good Condition')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 2️⃣ جدول التوافق الداخلي المباشر مع التمرير لأعلى وأسفل (Scrollable Fitment Box) */}
+          <div style={{ flex: '1 1 200px', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '12px', border: '1px solid #e2e8f0', maxHeight: '110px', overflowY: 'auto' }}>
+            <div style={{ fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', marginBottom: '6px', borderBottom: '1px solid #e2e8f0', paddingBottom: '3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>🚘 {isRtl ? 'توافق القطعة المباشر:' : 'Direct Compatibility:'}</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>({compatibleVehicles.length})</span>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {compatibleVehicles.map((v, idx) => (
+                <div key={idx} style={{ fontSize: '11.5px', color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '3px 8px', borderRadius: '6px', border: '1px solid #edf2f7' }}>
+                  <span style={{ fontWeight: '600' }}>{v.make} {v.model || ''}</span>
+                  <span style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '10.5px' }}>📅 {v.year}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+        {/* 3️⃣ تفاصيل السعر، وقت التوصيل، وزر التقسيط الفوري */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', backgroundColor: '#fafafg', padding: '10px 14px', borderRadius: '12px', border: '1px dashed #cbd5e0' }}>
+          <div>
+            <div style={{ color: '#e0872a', fontWeight: '900', fontSize: '18px' }}>
+              {part.price} {isRtl ? 'ر.ق' : 'QAR'}
+            </div>
+            <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: 'bold', marginTop: '2px' }}>
+              ⚡ {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}
+            </div>
+          </div>
+
+          {/* 💳 قسم فاتورتك على 4 دفعات (مبني ليتحكم به الأدمن) */}
+          {isBNPLEnabled && (
+            <div style={{ backgroundColor: '#fffdf5', border: '1px solid #fef08a', padding: '6px 12px', borderRadius: '10px', textAlign: isRtl ? 'right' : 'left' }}>
+              <span style={{ fontSize: '11.5px', color: '#854d0e', fontWeight: 'bold', display: 'block' }}>
+                🛒 {isRtl ? `أو قسمها على 4 دفعات بقيمة ${installmentValue} ر.ق` : `Or 4 payments of ${installmentValue} QAR`}
+              </span>
+              <span style={{ fontSize: '10px', backgroundColor: '#fef08a', color: '#a16207', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'inline-block', marginTop: '2px' }}>
+                ⏳ {isRtl ? 'خدمة الدفع الآجل (قريباً)' : 'Pay Later (Coming Soon)'}
               </span>
             </div>
+          )}
+
+          <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
+            <span style={{ fontSize: '11px', fontWeight: 'bold', color: isOutOfStock ? '#ef4444' : '#16a34a', backgroundColor: isOutOfStock ? '#fef2f2' : '#f0fff4', padding: '3px 8px', borderRadius: '6px' }}>
+              {isOutOfStock ? (isRtl ? 'نفدت من المخزون' : 'Out of Stock') : (isRtl ? `المتوفر: ${maxStock} قطعة` : `In Stock: ${maxStock}`)}
+            </span>
           </div>
         </div>
 
+        {/* البدائل المطابقة */}
         {alternatives.length > 0 && (
-          <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '10px', border: '1px dashed #cbd5e0' }}>
-            <strong style={{ fontSize: '11.5px', color: '#0369a1', display: 'block', marginBottom: '6px' }}>
-              💡 {lang === 'ar' ? `متوفر (${alternatives.length}) بدائل متوافقة مع هذا البارت نمبر:` : `Available (${alternatives.length}) compatible alternatives:`}
+          <div style={{ backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '10px', border: '1px dashed #cbd5e0' }}>
+            <strong style={{ fontSize: '11px', color: '#0369a1', display: 'block', marginBottom: '4px' }}>
+              💡 {isRtl ? `متوفر (${alternatives.length}) بدائل متوافقة مع هذا البارت نمبر:` : `Available (${alternatives.length}) compatible alternatives:`}
             </strong>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
               {alternatives.slice(0, 2).map((alt) => (
                 <div key={alt.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#334155' }}>
                   <span>
-                    <AITranslatedText text={alt.name} lang={lang} /> ({classifyPartTier(alt).tier === 'oem' ? (lang === 'ar' ? 'أصلي' : 'OEM') : (lang === 'ar' ? 'بديل' : 'Aftermarket')})
+                    <AITranslatedText text={alt.name} lang={lang} /> ({classifyPartTier(alt).tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? 'بديل' : 'Aftermarket')})
                   </span>
-                  <strong style={{ color: '#e0872a' }}>{alt.price} {lang === 'ar' ? 'ر.ق' : 'QAR'}</strong>
+                  <strong style={{ color: '#e0872a' }}>{alt.price} {isRtl ? 'ر.ق' : 'QAR'}</strong>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', justifyContent: 'center' }}>
-            <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '30px', height: '30px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-            <span style={{ width: '30px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px' }}>{isOutOfStock ? 0 : qty}</span>
-            <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '30px', height: '30px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+        {/* 🛠️ أزرار التحكم والطلب والكمية */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
+            <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '32px', height: '36px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
+            <span style={{ width: '32px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px' }}>{isOutOfStock ? 0 : qty}</span>
+            <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '32px', height: '36px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
             {addToCart && (
               <button 
                 onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(formattedPart, qty); }}
                 disabled={isOutOfStock}
-                style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', padding: '9px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', padding: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s ease' }}
               >
-                🛒 {isOutOfStock ? (lang === 'ar' ? 'غير متوفر' : 'Unavailable') : (lang === 'ar' ? 'أضف للسلة' : 'Add to Cart')}
+                🛒 {isOutOfStock ? (isRtl ? 'غير متوفر' : 'Unavailable') : (isRtl ? 'أضف للسلة' : 'Add to Cart')}
               </button>
             )}
 
             <button 
               onClick={(e) => { e.stopPropagation(); if (onInquire) onInquire(formattedPart); else if (addToCart && !isOutOfStock) addToCart(formattedPart, qty); }}
               disabled={isOutOfStock}
-              style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#f1f5f9', color: '#1f3a5f', border: '1px solid #cbd5e0', borderRadius: '8px', padding: '9px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ flex: 1, backgroundColor: isOutOfStock ? '#94a3b8' : '#f1f5f9', color: '#1f3a5f', border: '1px solid #cbd5e0', borderRadius: '10px', padding: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              🔍 {lang === 'ar' ? 'فحص / اسأل' : 'Inquire'}
+              🔍 {isRtl ? 'فحص / اسأل' : 'Inquire'}
             </button>
           </div>
         </div>
+
       </div>
     );
   };
@@ -440,46 +494,48 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
         
+        {/* شريط البحث المباشر السريع */}
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
           <input 
             type="text" 
-            placeholder={lang === 'ar' ? "ابحث برقم القطعة (PN)، الكود، أو الاسم (مثل: فلتر زيت، دينمو)..." : "Search by PN, Code, or Name..."} 
+            placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم (مثل: فلتر زيت، دينمو)..." : "Search by Part Number, Code, or Name..."} 
             value={searchTerm} 
             onChange={(e) => setSearchTerm(e.target.value)} 
             style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px' }} 
           />
           <button type="submit" style={{ padding: '0 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
-            🔍 {lang === 'ar' ? 'بحث' : 'Search'}
+            🔍 {isRtl ? 'بحث' : 'Search'}
           </button>
         </form>
 
         {activeSearchQuery ? (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ color: '#1f3a5f', margin: 0 }}>🔎 {lang === 'ar' ? 'نتائج البحث عن:' : 'Search results for:'} "{activeSearchQuery}"</h3>
+              <h3 style={{ color: '#1f3a5f', margin: 0 }}>🔎 {isRtl ? 'نتائج البحث عن:' : 'Search results for:'} "{activeSearchQuery}"</h3>
               <button onClick={clearSearch} style={{ padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', border: '1px solid #cbd5e0', backgroundColor: '#ffffff', fontWeight: 'bold', fontSize: '12.5px' }}>
-                ↩️ {lang === 'ar' ? 'العودة للكتالوج' : 'Back to Catalog'}
+                ↩️ {isRtl ? 'العودة للكتالوج' : 'Back to Catalog'}
               </button>
             </div>
             {searchResults.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <p style={{ color: '#64748b', fontWeight: 'bold' }}>{lang === 'ar' ? 'عفواً، لا توجد قطع متوفرة لهذا البحث حالياً.' : 'Sorry, no parts found for this search.'}</p>
+                <p style={{ color: '#64748b', fontWeight: 'bold' }}>{isRtl ? 'عفواً، لا توجد قطع متوفرة لهذا البحث حالياً.' : 'Sorry, no parts found for this search.'}</p>
                 <button onClick={() => { setReqSubmitted(false); setShowRequestModal(true); }} style={{ padding: '10px 20px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
-                  📩 {lang === 'ar' ? 'إرسال طلب قطعة داخل البرنامج' : 'Request a part in-app'}
+                  📩 {isRtl ? 'إرسال طلب قطعة داخل البرنامج' : 'Request a part in-app'}
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
                 {searchResults.map(part => renderPartCard(part))}
               </div>
             )}
           </div>
         ) : (
+          /* شجرة البحث المباشرة المنظمة حسب الماركة والسنوات */
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
             {Object.keys(carData).map(make => {
               const makeKey = `make_${make}`;
               const isMakeOpen = !!expandedNodes[makeKey];
-              const makeName = isRtl ? make : (translateMake[make] || make);
+              const makeName = make;
               const yearsCacheKey = `years_${make}`;
               const isYearsLoading = !!loadingNodes[yearsCacheKey];
               const availableYears = nodeDataCache[yearsCacheKey] || [];
@@ -497,7 +553,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                       ) : (
                         <span style={{ fontSize: '16px' }}>🚗</span>
                       )}
-                      <span style={{ fontSize: '14.5px', color: '#1f3a5f' }}>{makeName} {isYearsLoading && <small style={{ color: '#e0872a' }}>{lang === 'ar' ? '(فحص...)' : '(Checking...)'}</small>}</span>
+                      <span style={{ fontSize: '14.5px', color: '#1f3a5f' }}>{makeName} {isYearsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                     </div>
                     <span style={{ fontSize: '12px', color: '#64748b' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                   </div>
@@ -505,9 +561,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   {isMakeOpen && (
                     <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                       {isYearsLoading ? (
-                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {lang === 'ar' ? 'جاري فحص السنوات المتاحة...' : 'Checking available years...'}</li>
+                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص السنوات المتاحة...' : 'Checking available years...'}</li>
                       ) : availableYears.length === 0 ? (
-                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{lang === 'ar' ? 'لا توجد معروضات لهذه الماركة حالياً.' : 'No items available for this make.'}</li>
+                        <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد معروضات لهذه الماركة حالياً.' : 'No items available for this make.'}</li>
                       ) : (
                         availableYears.map((year: string) => {
                           const yearKey = `year_${make}_${year}`;
@@ -522,21 +578,21 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                 onClick={() => toggleNode(yearKey, () => fetchModelsForYear(make, year))} 
                                 style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#f0f7ff' : 'transparent', fontSize: '13.5px', color: '#0284c7', padding: '7px 12px', fontWeight: 'bold' }}
                               >
-                                <span>📅 {year} {isModelsLoading && <small style={{ color: '#e0872a' }}>{lang === 'ar' ? '(فحص...)' : '(Checking...)'}</small>}</span>
+                                <span>📅 {year} {isModelsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                                 <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                               </div>
 
                               {isYearOpen && (
                                 <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                   {isModelsLoading ? (
-                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {lang === 'ar' ? 'جاري البحث عن الموديلات المتاحة...' : 'Checking available models...'}</li>
+                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري البحث عن الموديلات المتاحة...' : 'Checking available models...'}</li>
                                   ) : availableModels.length === 0 ? (
-                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{lang === 'ar' ? 'لا توجد معروضات لموديلات هذه السنة.' : 'No items available for this year.'}</li>
+                                    <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد معروضات لموديلات هذه السنة.' : 'No items available for this year.'}</li>
                                   ) : (
                                     availableModels.map((model: string) => {
                                       const modelKey = `model_${make}_${year}_${model}`;
                                       const isModelOpen = !!expandedNodes[modelKey];
-                                      const modelName = isRtl ? model : (translateModel[model] || model);
+                                      const modelName = model;
                                       const enginesCacheKey = `engines_${make}_${year}_${model}`;
                                       const isEnginesLoading = !!loadingNodes[enginesCacheKey];
                                       const availableEngines = nodeDataCache[enginesCacheKey] || [];
@@ -547,14 +603,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                             onClick={() => toggleNode(modelKey, () => fetchEnginesForVehicle(make, year, model))} 
                                             style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#f1f5f9' : 'transparent', fontSize: '13.5px', padding: '7px 12px' }}
                                           >
-                                            <span>🚘 {modelName} {isEnginesLoading && <small style={{ color: '#e0872a' }}>{lang === 'ar' ? '(فحص...)' : '(Checking...)'}</small>}</span>
+                                            <span>🚘 {modelName} {isEnginesLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                                             <span style={{ fontSize: '10px', color: '#64748b' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                           </div>
 
                                           {isModelOpen && (
                                             <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                               {isEnginesLoading ? (
-                                                <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {lang === 'ar' ? 'جاري الفحص...' : 'Checking...'}</li>
+                                                <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري الفحص...' : 'Checking...'}</li>
                                               ) : (
                                                 availableEngines.map((engine: string) => {
                                                   const engineKey = `eng_${make}_${year}_${model}_${engine}`;
@@ -569,16 +625,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                         onClick={() => toggleNode(engineKey, () => fetchCategoriesForEngine(make, year, model, engine))} 
                                                         style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#e8f2fc' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: '500' }}
                                                       >
-                                                        <span>⚡ {engine} {isCategoriesLoading && <small style={{ color: '#e0872a' }}>{lang === 'ar' ? '(فحص...)' : '(Checking...)'}</small>}</span>
+                                                        <span>⚡ {engine} {isCategoriesLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                                                         <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                       </div>
 
                                                       {isEngineOpen && (
                                                         <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
                                                           {isCategoriesLoading ? (
-                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {lang === 'ar' ? 'جاري فحص الأقسام...' : 'Checking categories...'}</li>
+                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص الأقسام...' : 'Checking categories...'}</li>
                                                           ) : availableCategories.length === 0 ? (
-                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{lang === 'ar' ? 'لا توجد أقسام متوفرة لهذا المحرك.' : 'No categories available for this engine.'}</li>
+                                                            <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد أقسام متوفرة لهذا المحرك.' : 'No categories available for this engine.'}</li>
                                                           ) : (
                                                             availableCategories.map((category: string) => {
                                                               const categoryKey = `cat_${make}_${year}_${model}_${engine}_${category}`;
@@ -594,18 +650,18 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                     onClick={() => toggleNode(categoryKey, () => fetchPartsForLeafNode(make, year, model, engine, category))} 
                                                                     style={{ ...nodeStyle, backgroundColor: isCategoryOpen ? '#fff7ed' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: 'bold' }}
                                                                   >
-                                                                    <span>{translatedCategory} {isPartsLoading && <small style={{ color: '#e0872a' }}>{lang === 'ar' ? '(جلب القطع...)' : '(Fetching...)'}</small>}</span>
+                                                                    <span>{translatedCategory} {isPartsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(جلب القطع...)' : '(Fetching...)'}</small>}</span>
                                                                     <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isCategoryOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                                   </div>
 
                                                                   {isCategoryOpen && (
                                                                     <div style={{ padding: '16px', backgroundColor: '#fff7ed', borderRadius: '14px', border: '1px solid #ffedd5', marginTop: '8px', marginBottom: '12px' }}>
                                                                       {isPartsLoading ? (
-                                                                        <p style={{ textAlign: 'center', color: '#64748b', margin: 0 }}>🔄 {lang === 'ar' ? 'جاري تحميل القطع المتاحة...' : 'Loading available parts...'}</p>
+                                                                        <p style={{ textAlign: 'center', color: '#64748b', margin: 0 }}>🔄 {isRtl ? 'جاري تحميل القطع المتاحة...' : 'Loading available parts...'}</p>
                                                                       ) : categoryParts.length === 0 ? (
-                                                                        <p style={{ textAlign: 'center', color: '#94a3b8', margin: 0 }}>{lang === 'ar' ? 'لا توجد قطع معروضة حالياً.' : 'No parts available currently.'}</p>
+                                                                        <p style={{ textAlign: 'center', color: '#94a3b8', margin: 0 }}>{isRtl ? 'لا توجد قطع معروضة حالياً.' : 'No parts available currently.'}</p>
                                                                       ) : (
-                                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '15px' }}>
+                                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
                                                                           {categoryParts.map((part: any) => renderPartCard(part))}
                                                                         </div>
                                                                       )}
@@ -652,49 +708,27 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '460px', width: '100%', direction: isRtl ? 'rtl' : 'ltr' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#1f3a5f', fontWeight: 'bold' }}>📩 {lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}</h3>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1f3a5f', fontWeight: 'bold' }}>📩 {isRtl ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}</h3>
               <button onClick={() => setShowRequestModal(false)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
             </div>
 
             {reqSubmitted ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <span style={{ fontSize: '50px', display: 'block', marginBottom: '10px' }}>✅</span>
-                <h4 style={{ margin: '0 0 8px 0', color: '#16a34a' }}>{lang === 'ar' ? 'تم إرسال طلبك بنجاح!' : 'Your request was sent successfully!'}</h4>
+                <h4 style={{ margin: '0 0 8px 0', color: '#16a34a' }}>{isRtl ? 'تم إرسال طلبك بنجاح!' : 'Your request was sent successfully!'}</h4>
                 <button onClick={() => setShowRequestModal(false)} style={{ width: '100%', padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {lang === 'ar' ? 'تم' : 'Done'}
+                  {isRtl ? 'تم' : 'Done'}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleInAppRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <input type="tel" placeholder={lang === 'ar' ? 'رقم الهاتف للتواصل' : 'Contact Phone Number'} value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
-                <textarea placeholder={lang === 'ar' ? 'ملاحظات إضافية...' : 'Additional Notes...'} value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+                <input type="tel" placeholder={isRtl ? 'رقم الهاتف للتواصل' : 'Contact Phone Number'} value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
+                <textarea placeholder={isRtl ? 'ملاحظات إضافية...' : 'Additional Notes...'} value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
                 <button type="submit" disabled={isSubmittingReq} style={{ width: '100%', padding: '13px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {isSubmittingReq ? (lang === 'ar' ? 'جاري الإرسال...' : 'Sending...') : (lang === 'ar' ? 'إرسال الطلب الآن 🚀' : 'Submit Request 🚀')}
+                  {isSubmittingReq ? (isRtl ? 'جاري الإرسال...' : 'Sending...') : (isRtl ? 'إرسال الطلب الآن 🚀' : 'Submit Request 🚀')}
                 </button>
               </form>
             )}
-          </div>
-        </div>
-      )}
-
-      {fitmentModalPart && (
-        <div onClick={() => setFitmentModalPart(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '520px', width: '100%', maxHeight: '80vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#1f3a5f', fontWeight: 'bold' }}>🚘 {lang === 'ar' ? 'دليل توافق القطعة مع السيارات' : 'Part Compatibility Guide'}</h3>
-              <button onClick={() => setFitmentModalPart(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {compatibleVehicles.map((v, idx) => (
-                <div key={idx} style={{ padding: '10px 14px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong>{v.make} - {v.model || (lang === 'ar' ? 'عام' : 'General')}</strong>
-                  <span style={{ backgroundColor: '#e8f2fc', color: '#1f3a5f', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold' }}>📅 {v.year}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setFitmentModalPart(null)} style={{ width: '100%', marginTop: '20px', padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-              {lang === 'ar' ? 'إغلاق' : 'Close'}
-            </button>
           </div>
         </div>
       )}
