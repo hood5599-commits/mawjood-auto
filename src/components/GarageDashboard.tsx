@@ -22,13 +22,49 @@ const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   "Body & Lamp Assembly": { ar: "الهيكل والإضاءة", en: "Body & Lamp Assembly" },
   "Brake & Wheel Hub": { ar: "الفرامل والفرامات", en: "Brake & Wheel Hub" },
   "Cooling System": { ar: "نظام التبريد والرديتر", en: "Cooling System" },
-  "Engine": { ar: "المحرك ومكوناته", en: "Engine" }
+  "Drivetrain": { ar: "نظام الدفع والمحاور", en: "Drivetrain" },
+  "Electrical": { ar: "الكهرباء والكهربائيات", en: "Electrical" },
+  "Electrical-Bulb & Socket": { ar: "اللمبات والسوكتات", en: "Electrical-Bulb & Socket" },
+  "Electrical-Connector": { ar: "الفيش والتوصيلات", en: "Electrical-Connector" },
+  "Electrical-Switch & Relay": { ar: "المفاتيح والكتاوت", en: "Electrical-Switch & Relay" },
+  "Engine": { ar: "المحرك ومكوناته", en: "Engine" },
+  "Exhaust & Emission": { ar: "العادم والانبعاثات", en: "Exhaust & Emission" },
+  "Fuel & Air": { ar: "الوقود وهواء المحرك", en: "Fuel & Air" },
+  "Heat & Air Conditioning": { ar: "التكييف والتدفئة", en: "Heat & Air Conditioning" },
+  "Ignition": { ar: "نظام الاشتعال (البواجي)", en: "Ignition" },
+  "Interior": { ar: "المقصورة والديكور الداخلي", en: "Interior" },
+  "Literature": { ar: "الكتالوجات والكتيبات", en: "Literature" },
+  "Steering": { ar: "نظام التوجيه (الدركسون)", en: "Steering" },
+  "Suspension": { ar: "المساعدات ونظام التعليق", en: "Suspension" },
+  "Transmission-Automatic": { ar: "القير الأوتوماتيك", en: "Transmission-Automatic" },
+  "Transmission-Manual": { ar: "القير العادي", en: "Transmission-Manual" },
+  "Wheel": { ar: "الإطارات والجنوط", en: "Wheel" },
+  "Wiper & Washer": { ar: "المساحات ومساحات الزجاج", en: "Wiper & Washer" }
 };
 
 const FULL_CATEGORY_TREE: Record<string, string[]> = {
-  "Belt Drive": ["Belt", "Belt Tensioner"],
-  "Cooling System": ["Radiator", "Radiator Fan Assembly"],
-  "Engine": ["Oil Filter", "Piston"]
+  "Belt Drive": ["Belt", "Belt Removal / Installation Tool", "Belt Tensioner", "Belt Tensioner Bolt", "Idler Pulley"],
+  "Body & Lamp Assembly": ["Air Deflector", "Antenna", "Bumper Cover", "Bumper Insert", "Fender", "Fog / Driving Lamp Assembly", "Grille", "Headlamp Assembly", "Hood", "Outside Mirror Glass", "Radiator Support", "Tail Lamp Assembly", "Trunk Lock Actuator"],
+  "Brake & Wheel Hub": ["ABS Control Module", "ABS Wheel Speed Sensor", "Brake Bleeder Screw", "Brake Fluid", "Brake Hose", "Brake Pad", "Caliper", "Master Cylinder", "Parking Brake Shoe", "Power Brake Booster", "Rotor", "Wheel Bearing & Hub"],
+  "Cooling System": ["Coolant / Antifreeze", "Coolant Hose / Pipe", "Coolant Reservoir", "Radiator", "Radiator Cap", "Radiator Fan Assembly", "Temperature Sender / Sensor", "Thermostat", "Water Pump"],
+  "Drivetrain": ["Axle Shaft Seal", "CV Axle", "CV Joint Boot", "Differential Carrier", "Drive Shaft", "Gear Oil"],
+  "Electrical": ["Alternator / Generator", "Battery", "Engine Control Module (ECM Computer)", "Fuse", "Horn", "Speed Sensor", "Starter Motor"],
+  "Electrical-Bulb & Socket": ["Back Up / Reverse Lamp Bulb", "Brake Light Bulb", "Fog / Driving Lamp Bulb", "Headlamp Bulb", "Tail Lamp Bulb"],
+  "Electrical-Connector": ["ABS Wheel Speed Sensor Connector", "Brake Light Switch Connector", "Camshaft Position Sensor Connector", "Crankshaft Position Sensor Connector", "Fuel Injector Connector", "Ignition Coil Connector"],
+  "Electrical-Switch & Relay": ["A/C System Relay", "Blower Motor Relay", "Door Lock Switch", "Fuel Pump / Circuit Opening Relay", "Headlamp Switch", "Ignition Starter Switch", "Power Window Switch"],
+  "Engine": ["Camshaft", "Connecting Rod", "Crankshaft", "Cylinder Head", "Cylinder Head Gasket", "Engine Block Heater", "Exhaust Valve", "Harmonic Balancer", "Intake Manifold", "Intake Valve", "Motor Mount", "Oil Cooler", "Oil Filter", "Oil Pan", "Oil Pump", "Piston", "Piston Ring", "Rocker Arm", "Timing Chain", "Valve Cover", "Variable Valve Timing (VVT) Solenoid / Actuator"],
+  "Exhaust & Emission": ["Catalytic Converter", "Exhaust Header Gasket", "Exhaust Manifold", "Mass Air Flow (MAF) Sensor", "Oxygen (O2) Sensor", "Vapor Canister Purge Valve / Solenoid"],
+  "Fuel & Air": ["Air Filter", "Fuel Injection Pressure Sensor", "Fuel Injector", "Fuel Line / Hose", "Fuel Pump & Housing Assembly", "Fuel Tank Cap", "Throttle Body"],
+  "Heat & Air Conditioning": ["A/C Compressor", "A/C Condenser", "A/C Evaporator Core", "A/C Expansion Valve", "Ambient Air Temperature Sensor", "Blower Motor", "Cabin Air Filter", "Heater Core"],
+  "Ignition": ["Camshaft Position Sensor", "Crankshaft Position Sensor", "Ignition Coil", "Spark Plug", "Spark Plug Wire"],
+  "Interior": ["Accelerator Pedal Position Sensor", "Air Bag Clockspring", "Floor Mat", "Inside Door Handle", "Steering Wheel", "Window Motor", "Window Regulator"],
+  "Literature": ["Repair Manual"],
+  "Steering": ["Power Steering Fluid", "Rack and Pinion", "Steering Wheel Position Sensor", "Tie Rod End"],
+  "Suspension": ["Alignment Bolt / Camber Plate", "Coil Spring", "Control Arm", "Control Arm Bushing", "Shock / Strut", "Shock / Strut Mount", "Sway Bar Bushing", "Sway Bar Link"],
+  "Transmission-Automatic": ["Automatic Transmission Control Unit (TCU)", "Clutch Housing", "Filter", "Flexplate", "Fluid Pan", "Torque Converter", "Transmission Fluid", "Transmission Mount", "Valve Body"],
+  "Transmission-Manual": ["Clutch Kit", "Clutch Master Cylinder", "Clutch Slave Cylinder", "Flywheel", "Manual Transmission Fluid", "Shift Fork", "Synchro Ring"],
+  "Wheel": ["Lug Nut", "Lug Stud", "Tire Pressure Monitoring System (TPMS) Sensor", "Wheel"],
+  "Wiper & Washer": ["Washer Fluid Reservoir", "Washer Pump", "Wiper Arm", "Wiper Blade", "Wiper Motor"]
 };
 
 export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
@@ -53,6 +89,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchMyOrders();
     fetchMyInquiries();
     fetchCustomRequests();
+    // eslint-disable-next-line
   }, [userId]);
 
   const fetchMyParts = async () => {
@@ -202,32 +239,94 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
       {activeTab === 'add_part' && (
         <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px' }}>
-          <PartFormModal isRtl={isRtl} editingPart={null} FULL_CATEGORY_TREE={FULL_CATEGORY_TREE} CATEGORY_TRANSLATIONS={CATEGORY_TRANSLATIONS} carData={carData} years={years} onSubmit={handlePublishSingle} onCancel={() => setActiveTab('my_parts')} uploadingImages={false} onUploadImages={() => {}} />
+          <PartFormModal 
+            isRtl={isRtl} 
+            editingPart={null} 
+            FULL_CATEGORY_TREE={FULL_CATEGORY_TREE} 
+            CATEGORY_TRANSLATIONS={CATEGORY_TRANSLATIONS} 
+            carData={carData} 
+            years={years} 
+            supabaseUrl={supabaseUrl} 
+            apiKey={apiKey} 
+            session={session} 
+            onSubmit={handlePublishSingle} 
+            onCancel={() => setActiveTab('my_parts')} 
+          />
         </div>
       )}
 
       {activeTab === 'my_parts' && (
-        <MyPartsTab isRtl={isRtl} lang={lang} myParts={myParts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onOpenExcelModal={() => setShowExcelModal(true)} onEditPart={(part) => { setEditingPart(part); setShowEditModal(true); }} onDeletePart={handleDeletePart} onQuickSaveInline={handleQuickSaveInline} />
+        <MyPartsTab 
+          isRtl={isRtl} 
+          lang={lang} 
+          myParts={myParts} 
+          searchQuery={searchQuery} 
+          setSearchQuery={setSearchQuery} 
+          onOpenExcelModal={() => setShowExcelModal(true)} 
+          onEditPart={(part) => { setEditingPart(part); setShowEditModal(true); }} 
+          onDeletePart={handleDeletePart} 
+          onQuickSaveInline={handleQuickSaveInline} 
+        />
       )}
 
       {activeTab === 'inquiries' && (
-        <FitmentInquiriesTab isRtl={isRtl} lang={lang} myInquiries={myInquiries} onSelectInquiry={() => {}} onRejectInquiry={() => {}} onPreviewPart={() => {}} />
+        <FitmentInquiriesTab 
+          isRtl={isRtl} 
+          lang={lang} 
+          myInquiries={myInquiries} 
+          onSelectInquiry={() => {}} 
+          onRejectInquiry={() => {}} 
+          onPreviewPart={() => {}} 
+        />
       )}
 
       {(activeTab === 'custom_requests' || activeTab === 'orders') && (
-        <OrdersAndCustomTab isRtl={isRtl} lang={lang} tabType={activeTab} customRequests={customRequests} myOrders={myOrders} onSelectCustomRequest={() => {}} onUpdateOrderStatus={handleUpdateOrderStatus} />
+        <OrdersAndCustomTab 
+          isRtl={isRtl} 
+          lang={lang} 
+          tabType={activeTab} 
+          customRequests={customRequests} 
+          myOrders={myOrders} 
+          onSelectCustomRequest={() => {}} 
+          onUpdateOrderStatus={handleUpdateOrderStatus} 
+        />
       )}
 
       {showEditModal && editingPart && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200 }}>
-          <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '20px', maxWidth: '650px', width: '100%' }}>
-            <PartFormModal isRtl={isRtl} editingPart={editingPart} FULL_CATEGORY_TREE={FULL_CATEGORY_TREE} CATEGORY_TRANSLATIONS={CATEGORY_TRANSLATIONS} carData={carData} years={years} onSubmit={handlePublishSingle} onCancel={() => setShowEditModal(false)} uploadingImages={false} onUploadImages={() => {}} />
+          <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '20px', maxWidth: '650px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '18px' }}>
+              <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
+                ✏️ تعديل بيانات القطعة رقم #{editingPart.id}
+              </h3>
+              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
+            </div>
+            <PartFormModal 
+              isRtl={isRtl} 
+              editingPart={editingPart} 
+              FULL_CATEGORY_TREE={FULL_CATEGORY_TREE} 
+              CATEGORY_TRANSLATIONS={CATEGORY_TRANSLATIONS} 
+              carData={carData} 
+              years={years} 
+              supabaseUrl={supabaseUrl} 
+              apiKey={apiKey} 
+              session={session} 
+              onSubmit={handlePublishSingle} 
+              onCancel={() => setShowEditModal(false)} 
+            />
           </div>
         </div>
       )}
 
       {showExcelModal && (
-        <ExcelPartUploader lang={lang} supabaseUrl={supabaseUrl} apiKey={apiKey} session={session} onClose={() => setShowExcelModal(false)} onSuccess={() => { setShowExcelModal(false); fetchMyParts(); onSuccess(); }} />
+        <ExcelPartUploader 
+          lang={lang} 
+          supabaseUrl={supabaseUrl} 
+          apiKey={apiKey} 
+          session={session} 
+          onClose={() => setShowExcelModal(false)} 
+          onSuccess={() => { setShowExcelModal(false); fetchMyParts(); onSuccess(); }} 
+        />
       )}
 
       {toastMessage && <Toast message={toastMessage} type="success" onClose={() => setToastMessage(null)} />}
