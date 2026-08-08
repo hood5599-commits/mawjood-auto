@@ -10,7 +10,7 @@ interface HeaderProps {
   onOpenCart: () => void;
   onLogout: () => void;
   onRequestCustomPart?: () => void;
-  onOpenOrdersTracker?: () => void; // 👈 إضافة الخاصية لفتح متابعة الطلبات
+  onOpenOrdersTracker?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -41,11 +41,11 @@ export const Header: React.FC<HeaderProps> = ({
         maxWidth: '1240px',
         margin: '0 auto',
         display: 'flex',
-        justify: 'space-between',
+        justifyContent: 'space-between', // ✅ تم التصحيح هنا
         alignItems: 'center'
       }}>
         
-        {/* 1️⃣ الشعار النصي الفخم */}
+        {/* الشعار */}
         <div 
           onClick={() => setView('shop')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
@@ -61,10 +61,9 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* 2️⃣ عناصر التحكم والأزرار */}
+        {/* عناصر التحكم */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           
-          {/* 🛠️ زر طلب قطعة غير متوفرة */}
           {onRequestCustomPart && (
             <button
               onClick={onRequestCustomPart}
@@ -87,7 +86,6 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* 📦 زر طلباتي السابقة والمتابعة (يظهر عندما يتم تمرير الدالة) */}
           {onOpenOrdersTracker && (
             <button
               onClick={onOpenOrdersTracker}
@@ -109,7 +107,6 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* زر تغيير اللغة */}
           <button
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
             style={{
@@ -126,7 +123,6 @@ export const Header: React.FC<HeaderProps> = ({
             🌐 {lang === 'ar' ? 'English' : 'عربي'}
           </button>
 
-          {/* زر السلة الجانبية */}
           <button
             onClick={onOpenCart}
             style={{
@@ -158,10 +154,8 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* زر الحساب وزر الخروج */}
           {session ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              
               <button
                 onClick={() => {
                   if (session.role === 'admin' || session.email?.endsWith('@admin.mawjood.com')) setView('admin');
@@ -186,7 +180,6 @@ export const Header: React.FC<HeaderProps> = ({
                 👤 {lang === 'ar' ? 'حسابي' : 'Account'}
               </button>
 
-              {/* 🚪 زر الخروج */}
               <button
                 onClick={onLogout}
                 title={lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}
@@ -206,7 +199,6 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 🚪 {lang === 'ar' ? 'خروج' : 'Logout'}
               </button>
-
             </div>
           ) : (
             <button
@@ -227,7 +219,6 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
         </div>
-
       </div>
     </header>
   );
