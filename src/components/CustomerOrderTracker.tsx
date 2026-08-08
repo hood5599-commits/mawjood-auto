@@ -45,23 +45,44 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line
-  }, [customerPhone]);
+  }, [customerPhone, session]);
 
+  // 🚀 دالة جلب البيانات الشاملة والمرنة على كل الأجهزة
   const fetchData = async () => {
-    if (!customerPhone) return;
     setLoading(true);
     try {
+      // 1. استخراج كل المعرفات الممكنة لحساب العميل
+      const userEmail = session?.email || session?.user?.email || '';
+      const rawPhone = customerPhone || session?.phone || session?.user?.phone || session?.user?.user_metadata?.phone || '';
+      
+      // تنظيف رقم الجوال للبحث بجميع الصيغ الدولية والمحلية
+      const cleanPhone = rawPhone.replace(/\D/g, '');
+      const localPhone = cleanPhone.startsWith('974') ? cleanPhone.slice(3) : cleanPhone;
+      const intlPhone = cleanPhone.startsWith('974') ? cleanPhone : `974${cleanPhone}`;
+
+      // بناء قائمة المعرفات الممكنة
+      const targets = Array.from(new Set([rawPhone, cleanPhone, localPhone, intlPhone, userEmail].filter(Boolean)));
+
+      if (targets.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      // إعداد فلتر البحث بجميع صيغ الجوال والبريد
+      const phoneFilter = `customer_phone=in.(${targets.map(t => `"${encodeURIComponent(t)}"`).join(',')})`;
+
+      // 2. طلب البيانات من Supabase
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(`${restUrl}/orders?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${restUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${restUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(`${restUrl}/orders?${phoneFilter}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${restUrl}/fitment_inquiries?${phoneFilter}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${restUrl}/custom_part_requests?${phoneFilter}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
       ]);
 
       if (resOrders.ok) setOrders(await resOrders.json());
       if (resInquiries.ok) setInquiries(await resInquiries.json());
       if (resCustom.ok) setCustomRequests(await resCustom.json());
     } catch (e) {
-      console.error(e);
+      console.error("Error fetching tracker data:", e);
     } finally {
       setLoading(false);
     }
@@ -92,7 +113,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       const payload = {
         garage_id: selectedOrderForReview.garage_id || 'unknown_garage',
         order_id: selectedOrderForReview.id,
-        customer_phone: customerPhone,
+        customer_phone: customerPhone || session?.phone || session?.user?.phone || '',
         garage_rating: garageRating,
         delivery_rating: deliveryRating,
         website_rating: websiteRating,
@@ -412,7 +433,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     {inq.status === 'confirmed_compatible' && (
                       <div className="mwj-ot-confirmed-box">
                         <div style={{ fontWeight: 800, color: '#276749', marginBottom: '4px' }}>
-                          {lang === 'ar' ? '🎉 الكراج تؤكد: القطعة متوافقة 100% مع سيارتك!' : '🎉 Garage confirms: Part is 100% compatible!'}
+                          {lang === 'ar' ? '🎉 الكراج يؤكد: القطعة متوافقة 100% مع سيارتك!' : '🎉 Garage confirms: Part is 100% compatible!'}
                         </div>
                         <div style={{ fontSize: '12px', color: '#4a5568', marginBottom: '4px' }}>
                           {lang === 'ar' ? `🛡️ مهلة الإرجاع: ${inq.return_days || 3} أيام | ضمان التشغيل: ${inq.warranty_days || 14} يوماً` : `🛡️ Return Window: ${inq.return_days || 3} days | Warranty: ${inq.warranty_days || 14} days`}
