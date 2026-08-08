@@ -34,7 +34,6 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {customRequests.map((req) => (
               <div key={req.id} style={{ padding: '20px', border: '1px solid #e0872a', borderRadius: '15px', backgroundColor: '#fffdfa' }}>
-                
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <h4 style={{ margin: 0, color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
                     {req.make || req.car_make} - {req.model || req.car_model} ({req.year || req.car_year})
@@ -72,7 +71,7 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
     );
   }
 
-  // 📦 2. تبويب الطلبات المباشرة الواردة للشحن والاستلام (بدون كشف بيانات العميل للكراج)
+  // 📦 2. تبويب الطلبات المباشرة الواردة للشحن والاستلام (بيانات العميل مخفية للخصوصية)
   return (
     <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', direction: isRtl ? 'rtl' : 'ltr' }}>
       <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', fontSize: '18px', fontWeight: 'bold' }}>
@@ -84,7 +83,7 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {myOrders.map(order => {
-            const isReady = order.status === 'ready' || order.status === 'ready_for_pickup' || order.status === 'completed';
+            const isReady = order.status === 'ready' || order.status === 'ready_for_pickup' || order.status === 'handed_to_driver' || order.status === 'completed';
 
             return (
               <div key={order.id} style={{ border: '1px solid #e2e8f0', borderRadius: '16px', padding: '20px', backgroundColor: '#f8fafc' }}>
@@ -103,7 +102,7 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
                   </span>
                 </div>
 
-                {/* 🖼️ تفاصيل القطعة والصورة والسعر */}
+                {/* تفاصيل القطعة والصورة والسعر */}
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'center', backgroundColor: '#ffffff', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
                   <img 
                     src={order.part_image || order.image_url || order.image || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'} 
@@ -124,7 +123,7 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
 
                 {/* 🔒 تم إخفاء هاتف وعنوان العميل نهائياً عن الكراج للحفاظ على الخصوصية الكاملة */}
 
-                {/* ⚡ زر الإجراء للتأكيد والتجهيز للشحن */}
+                {/* زر تأكيد التوفر والتجهيز */}
                 {!isReady ? (
                   <button 
                     onClick={() => onUpdateOrderStatus(order.id, 'ready_for_pickup')}
