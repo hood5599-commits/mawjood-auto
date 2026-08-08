@@ -79,7 +79,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
-  // ⭐️ دالة حفظ التقييم المصححة وإرسال تحديث للطلب
   // 🔍 دالة جلب عروض الأسعار الخاصة بطلب مخصص معين
   const handleViewQuotes = async (request: any) => {
     try {
