@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { AITranslatedText } from './AITranslatedText';
 
@@ -27,7 +28,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   const [selectedRequestQuotes, setSelectedRequestQuotes] = useState<{ request: any; quotes: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // حالات التقييم الثلاثي
+  // حالات التقييم
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<any | null>(null);
   const [garageRating, setGarageRating] = useState(5);
   const [deliveryRating, setDeliveryRating] = useState(5);
@@ -73,7 +74,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
-  // 🔍 دالة جلب عروض الأسعار الخاصة بطلب مخصص معرّفة بشكل صحيح
   const handleViewQuotes = async (request: any) => {
     try {
       const res = await fetch(`${supabaseUrl}/garage_quotes?request_id=eq.${request.id}&order=id.desc`, {
@@ -141,8 +141,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   };
 
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
-  const confirmedInquiries = activeInquiries.filter(i => i.status === 'confirmed_compatible');
-
   const activeOrders = orders.filter(o => !o.is_reviewed && o.status !== 'cancelled');
   const previousOrders = orders.filter(o => o.is_reviewed || o.status === 'cancelled');
 
@@ -186,64 +184,18 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         .mwj-ot-tab-ord-active { background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(34,163,90,0.3); }
         .mwj-ot-tab-prev-active { background: linear-gradient(135deg, #475569 0%, #334155 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(71,85,105,0.3); }
         .mwj-ot-tab-custom-active { background: linear-gradient(135deg, #e0872a 0%, #c2410c 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(224,135,42,0.3); }
-        .mwj-ot-tab-count {
-          position: absolute; top: -6px; background: #E0872A; color: #0F1720;
-          border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: 800;
-          border: 2px solid white; box-shadow: 0 2px 6px rgba(224,135,42,0.4);
-        }
 
         .mwj-ot-loading, .mwj-ot-empty { text-align: center; color: #94a3b8; padding: 36px 0; font-size: 14px; }
 
-        .mwj-ot-inq-card { padding: 18px; border-radius: 16px; transition: all 0.2s ease; margin-bottom: 15px; }
-        .mwj-ot-inq-confirmed { border: 2px solid #22a35a; background: linear-gradient(135deg, #f0fff4 0%, #e6faec 100%); }
-        .mwj-ot-inq-default { border: 1px solid #e2e8f0; background: #f8fafc; }
-
-        .mwj-ot-inq-code { font-size: 11.5px; font-weight: 800; background: #e9d8fd; color: #553c9a; padding: 3px 9px; border-radius: 7px; }
-        .mwj-ot-inq-status { font-size: 13px; font-weight: 800; }
-
-        .mwj-ot-part-row {
-          display: flex; gap: 12px; align-items: center; background: white; padding: 11px;
-          border-radius: 12px; border: 1px solid #edf2f7; margin-bottom: 11px;
-        }
-        .mwj-ot-part-row img { width: 56px; height: 56px; object-fit: cover; border-radius: 9px; flex-shrink: 0; }
-
-        .mwj-ot-vehicle-line { font-size: 12.5px; color: #718096; margin-bottom: 9px; }
-
-        .mwj-ot-confirmed-box {
-          background: white; padding: 14px; border-radius: 12px; border: 1px solid #c6f6d5;
-          color: #22543d; font-size: 13px; margin-top: 10px;
-        }
-        .mwj-ot-checkout-btn {
-          width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: 800;
-          font-size: 14.5px; cursor: pointer; color: white; margin-top: 6px;
-          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%);
-          box-shadow: 0 8px 20px rgba(34,163,90,0.3);
-          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-        }
-        .mwj-ot-checkout-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
-
-        .mwj-ot-order-card {
-          padding: 18px; border: 1px solid #eef1f5; border-radius: 16px; background: #f8fafc;
-          transition: all 0.2s ease; margin-bottom: 15px;
-        }
-        .mwj-ot-order-card:hover { box-shadow: 0 6px 20px rgba(15,23,32,0.06); }
-        .mwj-ot-order-code { font-size: 11.5px; font-weight: 800; background: #ebf8ff; color: #2b6cb0; padding: 3px 9px; border-radius: 7px; }
-        .mwj-ot-order-status { font-size: 13px; font-weight: 800; }
-
-        .mwj-ot-delivery-code-box {
-          background: linear-gradient(135deg, #fffaf3 0%, #fff3e2 100%); padding: 14px; border-radius: 12px;
-          border: 1px solid #feebc8; display: flex; justify-content: space-between;
-          align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;
-        }
-        .mwj-ot-delivery-code { font-size: 19px; font-weight: 800; font-family: 'Courier New', monospace; color: #c9701c; letter-spacing: 0.5px; }
+        .mwj-ot-inq-card { padding: 18px; border-radius: 16px; transition: all 0.2s ease; margin-bottom: 15px; border: 1px solid #e2e8f0; background: #f8fafc; }
+        .mwj-ot-order-card { padding: 18px; border: 1px solid #eef1f5; border-radius: 16px; background: #f8fafc; margin-bottom: 15px; }
         
         .mwj-ot-review-btn {
           width: 100%; padding: 11px; border: none; border-radius: 10px; font-weight: 800;
           cursor: pointer; font-size: 13.5px; color: white;
           background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%);
-          box-shadow: 0 6px 16px rgba(107,70,193,0.28); transition: all 0.2s ease;
+          box-shadow: 0 6px 16px rgba(107,70,193,0.28);
         }
-        .mwj-ot-review-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
         .mwj-ot-review-btn-secondary { background: linear-gradient(135deg, #64748b 0%, #475569 100%); }
 
         .mwj-ot-review-overlay {
@@ -255,11 +207,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           box-shadow: 0 20px 50px rgba(0,0,0,0.28); max-height: 85vh; overflow-y: auto;
         }
         .mwj-ot-star { font-size: 22px; background: none; border: none; cursor: pointer; padding: 2px; }
-        .mwj-ot-choice-row { display: flex; gap: 10px; }
-        .mwj-ot-choice-btn { flex: 1; padding: 10px; border-radius: 9px; cursor: pointer; font-weight: 800; background: white; border: 1.5px solid #e2e8f0; font-size: 13px; }
-        .mwj-ot-choice-yes-active { border-color: #22a35a !important; background: #f0fff4 !important; color: #276749 !important; }
-        .mwj-ot-choice-no-active { border-color: #e53e3e !important; background: #fff5f5 !important; color: #c53030 !important; }
-        .mwj-ot-review-textarea { width: 100%; padding: 10px 12px; border-radius: 9px; border: 1.5px solid #e2e8f0; height: 64px; resize: vertical; }
         .mwj-ot-review-save { flex: 1; padding: 11px; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; color: white; background: #22a35a; }
         .mwj-ot-review-cancel { padding: 11px 18px; background: #f1f5f9; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; color: #4a5568; }
       `}</style>
@@ -297,14 +244,10 @@ export const CustomerOrderTracker: React.FC<Props> = ({
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {customRequests.map(req => (
                   <div key={req.id} style={{ padding: '18px', border: '1px solid #e0872a', borderRadius: '16px', backgroundColor: '#fffdfa', marginBottom: '15px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 800, backgroundColor: '#fff7ed', color: '#c2410c', padding: '3px 8px', borderRadius: '6px' }}>
-                        #{req.id} - {req.make} {req.model} ({req.year})
-                      </span>
-                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: 800, color: '#c2410c', marginBottom: '6px' }}>#{req.id} - {req.make} {req.model} ({req.year})</div>
                     <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1f3a5f', marginBottom: '8px' }}>🛠️ {req.notes}</div>
                     <button onClick={() => handleViewQuotes(req)} style={{ width: '100%', padding: '10px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                      🔍 {lang === 'ar' ? 'عرض عروض أسعار الكراجات' : 'View Garage Quotes'}
+                      🔍 {lang === 'ar' ? 'عرض عروض الأسعار' : 'View Quotes'}
                     </button>
                   </div>
                 ))}
@@ -316,14 +259,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {activeInquiries.map(inq => (
-                  <div key={inq.id} className={`mwj-ot-inq-card ${inq.status === 'confirmed_compatible' ? 'mwj-ot-inq-confirmed' : 'mwj-ot-inq-default'}`}>
-                    <div className="mwj-ot-part-row">
-                      <img src={inq.part_image || inq.image_url || 'https://via.placeholder.com/60'} alt={inq.part_name} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ fontSize: '15px', color: '#16304f' }}><AITranslatedText text={inq.part_name} lang={lang} /></strong>
-                        <div style={{ fontSize: '13px', color: '#E0872A', fontWeight: 800 }}>{inq.part_price || 0} {lang === 'ar' ? 'ر.ق' : 'QAR'}</div>
-                      </div>
-                    </div>
+                  <div key={inq.id} className="mwj-ot-inq-card">
+                    <strong style={{ fontSize: '15px', color: '#16304f' }}><AITranslatedText text={inq.part_name} lang={lang} /></strong>
+                    <div style={{ fontSize: '13px', color: '#E0872A', fontWeight: 800 }}>{inq.part_price || 0} {lang === 'ar' ? 'ر.ق' : 'QAR'}</div>
                   </div>
                 ))}
               </div>
@@ -370,7 +308,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal" style={{ maxWidth: '600px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h4 style={{ margin: 0, color: '#1f3a5f', fontWeight: 'bold' }}>🏷️ العروض</h4>
+                  <h4 style={{ margin: 0, color: '#1f3a5f', fontWeight: 'bold' }}>🏷️ عروض الأسعار</h4>
                   <button onClick={() => setSelectedRequestQuotes(null)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✖</button>
                 </div>
                 {selectedRequestQuotes.quotes.map((q) => (
