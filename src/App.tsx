@@ -297,7 +297,7 @@ export default function App() {
             cartCount={totalCartCount} 
             onOpenCart={() => setIsCartOpen(true)} 
             onRequestCustomPart={() => setIsCustomPartModalOpen(true)}
-            onOpenOrdersTracker={() => setShowOrderTracker(true)} // 👈 تفعيل فتح شاشة متابعة الطلبات السابقة
+            onOpenOrdersTracker={() => setShowOrderTracker(true)}
             onLogout={() => { 
               setSession(null); 
               setCartItems([]); 
