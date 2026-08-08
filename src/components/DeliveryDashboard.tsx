@@ -53,7 +53,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     }
   };
 
-  const handleImageUpload = async (file: File, key: string): Promise<string | null> => {
+  const handleImageUpload = async (file: File): Promise<string | null> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -61,7 +61,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     });
   };
 
-  // 🚀 🚚 تأكيد الاستلام من الكراج والبدء بالتوصيل
+  // 🚀 🚚 1. تأكيد الاستلام من الكراج والبدء بالتوصيل
   const handleAcceptDelivery = async (order: any) => {
     const pickupImgUrl = pickupImages[order.id] || order.pickup_image_url;
 
@@ -91,10 +91,48 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       } else {
         const errorText = await response.text();
         console.error("Error Patching Order:", errorText);
-        alert(isRtl ? 'فشل التحديث. تأكد من إيقاف RLS في Supabase لجدول orders' : 'PATCH Failed');
+        alert(isRtl ? 'فشل التحديث. تأكد من تشغيل كود SQL في Supabase' : 'PATCH Failed');
       }
     } catch (e) {
       alert(isRtl ? 'خطأ في اتصال الشبكة' : 'Network Error');
+    }
+  };
+
+  // ✅ 2. تأكيد التسليم النهائي للعميل
+  const handleConfirmDelivery = async (order: any) => {
+    const enteredCode = (deliveryCodeInputs[order.id] || '').trim();
+    const deliveryImgUrl = deliveryImages[order.id] || order.delivery_image_url;
+
+    if (order.pickup_code && enteredCode !== order.pickup_code.trim()) {
+      return alert(isRtl ? '❌ كود التسليم غير صحيح، يرجى التأكد من العميل!' : 'Invalid delivery code!');
+    }
+
+    if (!deliveryImgUrl) {
+      return alert(isRtl ? '📸 يرجى تصوير/التقاط صورة القطعة عند التسليم للعميل أولاً!' : 'Please take a delivery photo first!');
+    }
+
+    try {
+      const response = await fetch(`${restUrl}/orders?id=eq.${order.id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'delivered',
+          delivery_image_url: deliveryImgUrl
+        })
+      });
+
+      if (response.ok) {
+        alert(isRtl ? '🎉 تم تسليم الطلب للعميل بنجاح وتوثيق صور الإثبات!' : 'Order delivered successfully!');
+        fetchOrders();
+      } else {
+        alert(isRtl ? 'حدث خطأ أثناء إتمام التسليم' : 'Failed to deliver');
+      }
+    } catch (e) {
+      alert(isRtl ? 'حدث خطأ أثناء تأكيد التسليم' : 'Error completing delivery');
     }
   };
 
@@ -129,54 +167,116 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
 
       {activeTab === 'available' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          {availableOrders.map(order => {
-            const currentImg = pickupImages[order.id] || order.pickup_image_url;
+          {availableOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', backgroundColor: 'white', borderRadius: '16px', color: '#94a3b8' }}>
+              لا توجد شحنات بانتظار الاستلام حالياً
+            </div>
+          ) : (
+            availableOrders.map(order => {
+              const currentImg = pickupImages[order.id] || order.pickup_image_url;
 
-            return (
-              <div key={order.id} style={{ backgroundColor: 'white', padding: '18px', borderRadius: '16px', border: '1px solid #cbd5e0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <strong>ORD-{order.id}#</strong>
-                  <span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{order.price || 0} QAR</span>
+              return (
+                <div key={order.id} style={{ backgroundColor: 'white', padding: '18px', borderRadius: '16px', border: '1px solid #cbd5e0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <strong>ORD-{order.id}#</strong>
+                    <span style={{ color: '#dd6b20', fontWeight: 'bold' }}>{order.price || 0} QAR</span>
+                  </div>
+                  <h3 style={{ margin: '0 0 10px 0' }}>📦 {order.part_name || 'قطعة غيار'}</h3>
+
+                  <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', marginBottom: '12px', fontSize: '13px' }}>
+                    <div>🏪 <strong>الكراج:</strong> {order.garage_name || 'كراج الصناعية'}</div>
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.resolved_garage_address)}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontWeight: 'bold', display: 'inline-block', marginTop: '6px' }}>
+                      🗺️ موقع الكراج في Google Maps
+                    </a>
+                  </div>
+
+                  <div style={{ marginBottom: '12px', textAlign: 'center', border: '2px dashed #cbd5e0', padding: '10px', borderRadius: '8px' }}>
+                    <label style={{ cursor: 'pointer', fontWeight: 'bold', color: '#553c9a' }}>
+                      📷 اضغط لالتقاط صورة القطعة بالكاميرا
+                      <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={async (e) => {
+                        if (e.target.files?.[0]) {
+                          const img = await handleImageUpload(e.target.files[0]);
+                          if (img) setPickupImages(prev => ({ ...prev, [order.id]: img }));
+                        }
+                      }} />
+                    </label>
+                    {currentImg && <img src={currentImg} alt="Proof" style={{ width: '80px', height: '80px', marginTop: '8px', objectFit: 'cover', borderRadius: '6px' }} />}
+                  </div>
+
+                  <button onClick={() => handleAcceptDelivery(order)} style={{ width: '100%', padding: '12px', backgroundColor: currentImg ? '#16a34a' : '#94a3b8', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    🚀 تأكيد الاستلام والبدء بالتوصيل
+                  </button>
                 </div>
-                <h3 style={{ margin: '0 0 10px 0' }}>📦 {order.part_name || 'قطعة غيار'}</h3>
-
-                <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', marginBottom: '12px', fontSize: '13px' }}>
-                  <div>🏪 <strong>الكراج:</strong> {order.garage_name || 'كراج الصناعية'}</div>
-                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.resolved_garage_address)}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontWeight: 'bold', display: 'inline-block', marginTop: '6px' }}>
-                    🗺️ فتح موقع الكراج في Google Maps
-                  </a>
-                </div>
-
-                <div style={{ marginBottom: '12px', textAlign: 'center', border: '2px dashed #cbd5e0', padding: '10px', borderRadius: '8px' }}>
-                  <label style={{ cursor: 'pointer', fontWeight: 'bold', color: '#553c9a' }}>
-                    📷 اضغط لالتقاط صورة القطعة بالكاميرا
-                    <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={async (e) => {
-                      if (e.target.files?.[0]) {
-                        const img = await handleImageUpload(e.target.files[0], `p_${order.id}`);
-                        if (img) setPickupImages(prev => ({ ...prev, [order.id]: img }));
-                      }
-                    }} />
-                  </label>
-                  {currentImg && <img src={currentImg} alt="Proof" style={{ width: '80px', height: '80px', marginTop: '8px', objectFit: 'cover', borderRadius: '6px' }} />}
-                </div>
-
-                <button onClick={() => handleAcceptDelivery(order)} style={{ width: '100%', padding: '12px', backgroundColor: currentImg ? '#16a34a' : '#94a3b8', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  🚀 تأكيد الاستلام والبدء بالتوصيل
-                </button>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 
       {activeTab === 'active' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          {activeDeliveries.map(order => (
-            <div key={order.id} style={{ backgroundColor: 'white', padding: '18px', borderRadius: '16px', border: '2px solid #dd6b20' }}>
-              <h3>📦 {order.part_name}</h3>
-              <p>📍 العنوان: {order.delivery_address || 'الدوحة'}</p>
+          {activeDeliveries.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', backgroundColor: 'white', borderRadius: '16px', color: '#94a3b8' }}>
+              لا توجد شحنات قيد التوصيل حالياً
             </div>
-          ))}
+          ) : (
+            activeDeliveries.map(order => {
+              const currentDelImg = deliveryImages[order.id] || order.delivery_image_url;
+
+              return (
+                <div key={order.id} style={{ backgroundColor: 'white', padding: '18px', borderRadius: '16px', border: '2px solid #dd6b20' }}>
+                  <h3 style={{ margin: '0 0 8px 0' }}>📦 {order.part_name}</h3>
+                  <p style={{ fontSize: '13px', color: '#475569', margin: '0 0 12px 0' }}>📍 العنوان: {order.delivery_address || 'الدوحة'}</p>
+
+                  <div style={{ marginBottom: '12px', textAlign: 'center', border: '2px dashed #cbd5e0', padding: '10px', borderRadius: '8px', backgroundColor: '#f0fff4' }}>
+                    <label style={{ cursor: 'pointer', fontWeight: 'bold', color: '#15803d' }}>
+                      📷 اضغط لتصوير إثبات التسليم للعميل
+                      <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={async (e) => {
+                        if (e.target.files?.[0]) {
+                          const img = await handleImageUpload(e.target.files[0]);
+                          if (img) setDeliveryImages(prev => ({ ...prev, [order.id]: img }));
+                        }
+                      }} />
+                    </label>
+                    {currentDelImg && <img src={currentDelImg} alt="Delivery Proof" style={{ width: '80px', height: '80px', marginTop: '8px', objectFit: 'cover', borderRadius: '6px' }} />}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="كود العميل (إن وجد)"
+                      value={deliveryCodeInputs[order.id] || ''}
+                      onChange={(e) => setDeliveryCodeInputs({ ...deliveryCodeInputs, [order.id]: e.target.value })}
+                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+                    />
+                    <button onClick={() => handleConfirmDelivery(order)} style={{ backgroundColor: currentDelImg ? '#16a34a' : '#94a3b8', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                      ✅ إتمام التسليم
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {activeTab === 'completed' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {completedOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', backgroundColor: 'white', borderRadius: '16px', color: '#94a3b8' }}>
+              لا توجد طلبات مكتملة بعد
+            </div>
+          ) : (
+            completedOrders.map(order => (
+              <div key={order.id} style={{ backgroundColor: 'white', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong>{order.part_name}</strong>
+                  <span style={{ fontSize: '12px', color: '#64748b', display: 'block' }}>ORD-{order.id}#</span>
+                </div>
+                <span style={{ color: '#16a34a', fontWeight: 'bold', fontSize: '13px' }}>مكتمل ✅</span>
+              </div>
+            ))
+          )}
         </div>
       )}
 
