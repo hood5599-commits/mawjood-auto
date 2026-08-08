@@ -373,7 +373,7 @@ export default function App() {
                       color: '#64748b',
                       display: 'flex',
                       alignItems: 'center',
-                      justify: 'center'
+                      justifyContent: 'center'
                     }}
                   >
                     ✖
