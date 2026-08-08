@@ -72,7 +72,7 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
     );
   }
 
-  // 📦 2. تبويب الطلبات المباشرة الواردة للشحن والاستلام
+  // 📦 2. تبويب الطلبات المباشرة الواردة للشحن والاستلام (بدون كشف بيانات العميل للكراج)
   return (
     <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', direction: isRtl ? 'rtl' : 'ltr' }}>
       <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', fontSize: '18px', fontWeight: 'bold' }}>
@@ -103,7 +103,7 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
                   </span>
                 </div>
 
-                {/* 🖼️ تفاصيل القطعة والصورة والسعر المحدثة */}
+                {/* 🖼️ تفاصيل القطعة والصورة والسعر */}
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'center', backgroundColor: '#ffffff', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
                   <img 
                     src={order.part_image || order.image_url || order.image || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'} 
@@ -122,13 +122,7 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
                   </div>
                 </div>
 
-                {/* 📞 بيانات العميل والهاتف والعنوان */}
-                {(order.customer_phone || order.delivery_address) && (
-                  <div style={{ backgroundColor: '#ffffff', padding: '12px', borderRadius: '10px', border: '1px solid #edf2f7', marginBottom: '14px', fontSize: '13px', color: '#475569' }}>
-                    {order.customer_phone && <div>📞 {isRtl ? 'جوال العميل:' : 'Customer Phone:'} <strong>{order.customer_phone}</strong></div>}
-                    {order.delivery_address && <div style={{ marginTop: '4px' }}>📍 {isRtl ? 'العنوان:' : 'Address:'} {order.delivery_address}</div>}
-                  </div>
-                )}
+                {/* 🔒 تم إخفاء هاتف وعنوان العميل نهائياً عن الكراج للحفاظ على الخصوصية الكاملة */}
 
                 {/* ⚡ زر الإجراء للتأكيد والتجهيز للشحن */}
                 {!isReady ? (
