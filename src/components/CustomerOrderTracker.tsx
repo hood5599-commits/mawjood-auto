@@ -44,14 +44,29 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   }, [customerPhone]);
 
   // 🚀 استخدام supabaseUrl المباشر والأصيل لضمان جلب البيانات بنجاح
-  const fetchData = async () => {
-    if (!customerPhone) return;
+ const fetchData = async () => {
     setLoading(true);
     try {
+      // 1. استخراج رقم الهاتف والبريد الإلكتروني للعميل من الجلسة أو البروبس
+      const email = session?.email || session?.user?.email || '';
+      const phone = customerPhone || session?.phone || session?.user?.phone || '';
+
+      // 2. بناء استعلام مرن يبحث بالهاتف أو بالبريد الإلكتروني معاً
+      let queryUrl = `${supabaseUrl}/orders?order=id.desc`;
+      
+      const conditions = [];
+      if (phone) conditions.push(`customer_phone=eq.${encodeURIComponent(phone)}`);
+      if (email) conditions.push(`customer_email=eq.${encodeURIComponent(email)}`);
+
+      if (conditions.length > 0) {
+        // البحث بأي منهما لضمان جلب الطلبات بغض النظر عن طريقة التسجيل
+        queryUrl = `${supabaseUrl}/orders?or=(${conditions.join(',')})&order=id.desc`;
+      }
+
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(`${supabaseUrl}/orders?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(queryUrl, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(phone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(phone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
       ]);
 
       if (resOrders.ok) setOrders(await resOrders.json());
@@ -61,21 +76,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       console.error(e);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // جلب عروض الأسعار الخاصة بطلب مخصص معين
-  const handleViewQuotes = async (request: any) => {
-    try {
-      const res = await fetch(`${supabaseUrl}/garage_quotes?request_id=eq.${request.id}&order=id.desc`, {
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
-      });
-      if (res.ok) {
-        const quotes = await res.json();
-        setSelectedRequestQuotes({ request, quotes });
-      }
-    } catch (e) {
-      console.error(e);
     }
   };
 
