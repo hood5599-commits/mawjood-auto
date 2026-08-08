@@ -18,8 +18,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   supabaseUrl,
   apiKey,
   session,
-  onClose,
-  onSelectPartForCheckout
+  onClose
 }) => {
   const [activeTab, setActiveTab] = useState<'inquiries' | 'orders' | 'previous_orders' | 'custom_requests'>('orders');
   const [orders, setOrders] = useState<any[]>([]);
@@ -28,12 +27,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   const [selectedRequestQuotes, setSelectedRequestQuotes] = useState<{ request: any; quotes: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // حالات التقييم
+  // حالة تقييم الكراج الفعالة
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<any | null>(null);
   const [garageRating, setGarageRating] = useState(5);
-  const [deliveryRating, setDeliveryRating] = useState(5);
-  const [websiteRating, setWebsiteRating] = useState(5);
-  const [asDescribed, setAsDescribed] = useState(true);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
@@ -99,9 +95,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         order_id: selectedOrderForReview.id,
         customer_phone: customerPhone,
         garage_rating: garageRating,
-        delivery_rating: deliveryRating,
-        website_rating: websiteRating,
-        as_described: asDescribed,
         comment: reviewComment.trim() || null
       };
 
