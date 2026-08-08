@@ -99,8 +99,15 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
-  // 🚀 الحصول على رقم هاتف العميل تلقائياً
-  const currentCustomerPhone = session?.phone || session?.user?.phone || session?.user?.user_metadata?.phone || session?.email || localStorage.getItem('customer_phone') || '';
+  // 🚀 الحصول المباشر والدقيق على رقم هاتف أو بريد العميل من كافة مسارات الـ Auth الممكنة
+  const currentCustomerPhone = 
+    session?.user?.user_metadata?.phone || 
+    session?.phone || 
+    session?.user?.phone || 
+    session?.email || 
+    session?.user?.email || 
+    localStorage.getItem('customer_phone') || 
+    '';
 
   // 🚀 تفعيل كاشف الأخطاء التلقائي والمراقبة عند بداية التشغيل
   useEffect(() => {
@@ -373,7 +380,7 @@ export default function App() {
                       color: '#64748b',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justify: 'center'
                     }}
                   >
                     ✖
