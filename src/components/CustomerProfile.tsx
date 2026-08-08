@@ -11,23 +11,26 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
   const isRtl = lang === 'ar';
   const role = session?.role || session?.user?.user_metadata?.role || 'customer';
 
-  // 1. البيانات الشخصية العامة
+  // 1. البيانات الشخصية العامة والعنوان
   const [fullName, setFullName] = useState(session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.garage_name || '');
   const [phone, setPhone] = useState(session?.phone || session?.user?.user_metadata?.phone || '');
   const [garageName, setGarageName] = useState(session?.user?.user_metadata?.garage_name || '');
   const [address, setAddress] = useState(session?.user?.user_metadata?.address || '');
+
+  // 📍 حالة تحديد موقع الـ GPS التلقائي
+  const [isDetectingGPS, setIsDetectingGPS] = useState(false);
 
   // 2. بيانات المندوب الخاصة
   const [vehicleType, setVehicleType] = useState(session?.user?.user_metadata?.vehicle_type || '');
   const [plateNumber, setPlateNumber] = useState(session?.user?.user_metadata?.plate_number || '');
   const [isDriverOnline, setIsDriverOnline] = useState<boolean>(session?.user?.user_metadata?.is_online ?? true);
 
-  // 3. الصور والتوثيق (السجل التجاري / البطاقة الشخصية)
+  // 3. الصور والتوثيق
   const [documentImage, setDocumentImage] = useState<string>(
     session?.user?.user_metadata?.cr_image || session?.user?.user_metadata?.id_card_image || ''
   );
 
-  // 4. سيارات العميل (خاصة بالعملاء)
+  // 4. سيارات العميل
   const [cars, setCars] = useState<any[]>(session?.user?.user_metadata?.cars || []);
   const [newCarMake, setNewCarMake] = useState('');
   const [newCarModel, setNewCarModel] = useState('');
@@ -57,7 +60,44 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
     }
   }, [session]);
 
-  // 📸 معالجة رفع الصور بتحويلها لـ Base64 للمعاينة والحفظ التلقائي
+  // 🎯 1. دالة التحديد التلقائي لموقع العميل الجغرافي (GPS Auto-Detect)
+  const handleAutoDetectGPS = () => {
+    if (!navigator.geolocation) {
+      return setMsg({
+        text: isRtl ? 'خاصية تحديد الموقع الجغرافي غير مدعومة في متصفحك' : 'Geolocation is not supported by your browser',
+        type: 'error'
+      });
+    }
+
+    setIsDetectingGPS(true);
+    setMsg(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const mapUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+        
+        setAddress(mapUrl);
+        setIsDetectingGPS(false);
+        setMsg({
+          text: isRtl ? '🎯 تم التقاط موقعك الجغرافي بنجاح! اضغط "حفظ التحديثات" للتأكيد' : 'GPS location detected! Click save to confirm',
+          type: 'success'
+        });
+      },
+      (error) => {
+        setIsDetectingGPS(false);
+        console.error("GPS Detection Error:", error);
+        setMsg({
+          text: isRtl ? '⚠️ تعذر التقاط موقعك تلقائياً، تأكد من تفعيل الـ GPS بالجوال أو ادخل العنوان يدوياً' : 'Failed to detect location automatically',
+          type: 'error'
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  // 📸 رفع الصور
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -72,7 +112,7 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
     }
   };
 
-  // 🚗 إضافة سيارة جديدة للعميل
+  // 🚗 إضافة سيارة جديدة
   const handleAddCar = () => {
     if (!newCarMake || !newCarModel || !newCarYear) {
       return setMsg({ text: isRtl ? 'يرجى تعبئة كافة بيانات السيارة' : 'Please fill all car details', type: 'error' });
@@ -85,12 +125,12 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
     setMsg({ text: isRtl ? 'تم إضافة السيارة للقائمة، احفظ التغييرات لتأكيدها' : 'Car added to list', type: 'success' });
   };
 
-  // 🗑️ حذف سيارة من القائمة
+  // 🗑️ حذف سيارة
   const handleRemoveCar = (carId: number) => {
     setCars(cars.filter(c => c.id !== carId));
   };
 
-  // 💾 حفظ تحديثات البيانات الشخصية والملف
+  // 💾 حفظ تحديثات الملف الشخصي وموقع العميل
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -99,7 +139,7 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
     const updatedData: any = {
       full_name: fullName,
       phone: phone,
-      address: address,
+      address: address, // 👈 حفظ رابط أو عنوان الـ GPS التلقائي
       updated_at: new Date().toISOString()
     };
 
@@ -128,9 +168,8 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
       });
 
       if (response.ok) {
-        setMsg({ text: isRtl ? 'تم حفظ التحديثات بنجاح 🎉' : 'Profile updated successfully!', type: 'success' });
+        setMsg({ text: isRtl ? 'تم حفظ التحديثات والموقع بنجاح 🎉' : 'Profile and location updated successfully!', type: 'success' });
         
-        // تحديث الجلسة المحلية
         const savedSession = JSON.parse(localStorage.getItem('mawjood_session') || '{}');
         if (savedSession.user) {
           savedSession.user.user_metadata = { ...savedSession.user.user_metadata, ...updatedData };
@@ -157,7 +196,7 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
     }
 
     if (newPassword !== confirmPassword) {
-      return setMsg({ text: isRtl ? 'كلمة المرور الجديدة وغير متطابقة' : 'Passwords do not match', type: 'error' });
+      return setMsg({ text: isRtl ? 'كلمة المرور الجديدة غير متطابقة' : 'Passwords do not match', type: 'error' });
     }
 
     setPasswordLoading(true);
@@ -193,7 +232,7 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
   return (
     <div style={{ maxWidth: '820px', margin: '20px auto', padding: '0 15px', fontFamily: 'Cairo, sans-serif', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      {/* 👤 الهيدر الرئيسي مع الشارة */}
+      {/* 👤 الهيدر الرئيسي */}
       <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '24px', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px', marginBottom: '24px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '18px', backgroundColor: '#1f3a5f', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', fontWeight: 'bold' }}>
@@ -209,7 +248,6 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
           </div>
         </div>
 
-        {/* شارة نوع الحساب والحالة للمندوب */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {role === 'driver' && (
             <button
@@ -240,10 +278,10 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
         </div>
       )}
 
-      {/* 📝 1. نموذج تعديل البيانات الشخصية */}
+      {/* 📝 1. نموذج تعديل البيانات وتحديد موقع التسليم الـ GPS */}
       <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '26px', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: '24px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
         <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 'bold', color: 'var(--mw-ink, #131c26)', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-          📝 {isRtl ? 'تعديل البيانات الأساسية' : 'Edit Personal Details'}
+          📝 {isRtl ? 'تعديل البيانات الأساسية وموقع التسليم' : 'Edit Personal Details & Delivery Location'}
         </h3>
 
         <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
@@ -289,13 +327,39 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
             />
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
-              {isRtl ? 'العنوان / المنطقة' : 'Address / Location'}
-            </label>
+          {/* 📍 حقل العنوان التلقائي مع زر الـ GPS الفوري */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569' }}>
+                📍 {isRtl ? 'عنوان وموقع التسليم (يظهر للمندوب مباشرة):' : 'Delivery Address:'}
+              </label>
+
+              {/* 🎯 زر الالتقاط التلقائي لموقع GPS العميل */}
+              <button
+                type="button"
+                onClick={handleAutoDetectGPS}
+                disabled={isDetectingGPS}
+                style={{
+                  backgroundColor: '#f0fdf4',
+                  color: '#16a34a',
+                  border: '1px solid #bbf7d0',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                🎯 {isDetectingGPS ? (isRtl ? 'جاري التقاط الموقع...' : 'Detecting...') : (isRtl ? 'تحديد موقعي التلقائي (GPS)' : 'Auto-Detect Location')}
+              </button>
+            </div>
+
             <input
               type="text"
-              placeholder={isRtl ? 'مثال: الدوحة - الصناعية شارع 10' : 'e.g., Doha, Industrial Area'}
+              placeholder={isRtl ? 'اضغط زر التحديد التلقائي أعلاه أو ادخل رابط/عنوان منطقتك...' : 'Enter your address or use auto-detect above'}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', boxSizing: 'border-box' }}
@@ -339,24 +403,18 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
               disabled={loading}
               style={{ padding: '12px 28px', backgroundColor: '#1f3a5f', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '14.5px', cursor: 'pointer' }}
             >
-              {loading ? (isRtl ? 'جاري الحفظ...' : 'Saving...') : (isRtl ? 'حفظ التحديثات 💾' : 'Save Changes')}
+              {loading ? (isRtl ? 'جاري الحفظ...' : 'Saving...') : (isRtl ? 'حفظ التحديثات والموقع 💾' : 'Save Changes & Location')}
             </button>
           </div>
         </form>
       </div>
 
-      {/* 📄 2. قسم التوثيق والوثائق (خاص بالكراج والمندوب) */}
+      {/* 📄 2. قسم التوثيق (خاص بالكراج والمندوب) */}
       {(role === 'garage' || role === 'driver') && (
         <div style={{ backgroundColor: 'var(--mw-surface, #ffffff)', padding: '26px', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: '24px', border: '1px solid var(--mw-border, #e2e8f0)' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 'bold', color: 'var(--mw-ink, #131c26)', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
             📄 {role === 'garage' ? (isRtl ? 'صورة السجل التجاري' : 'Commercial Registration (CR)') : (isRtl ? 'صورة البطاقة الشخصية' : 'Civil ID Card')}
           </h3>
-
-          <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0' }}>
-            {role === 'garage'
-              ? (isRtl ? 'يرجى إرفاق صورة واضحة من السجل التجاري للكراج لتوثيق الحساب' : 'Upload a clear image of your Commercial Registration')
-              : (isRtl ? 'يرجى إرفاق صورة من البطاقة الشخصية القطرية لتأكيد هوية المندوب' : 'Upload a clear image of your Qatar Civil ID')}
-          </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <input
@@ -389,7 +447,6 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
             🚗 {isRtl ? 'سياراتي المحفوظة' : 'My Saved Cars'}
           </h3>
 
-          {/* إضافة سيارة جديدة */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', marginBottom: '20px' }}>
             <input
               type="text"
@@ -421,7 +478,6 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
             </button>
           </div>
 
-          {/* عرض السيارات الحالية */}
           {cars.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13.5px', margin: '10px 0' }}>
               {isRtl ? 'لم تقم بإضافة أية سيارات لملفك بعد.' : 'No saved cars yet.'}
@@ -511,3 +567,5 @@ export const CustomerProfile: React.FC<CustomerProfileProps> = ({ lang, supabase
     </div>
   );
 };
+
+export default CustomerProfile;
