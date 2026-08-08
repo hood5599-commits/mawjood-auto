@@ -80,22 +80,20 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   };
 
   // ⭐️ دالة حفظ التقييم المصححة وإرسال تحديث للطلب
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOrderForReview) return;
-    setSubmittingReview(true);
-
+  // 🔍 دالة جلب عروض الأسعار الخاصة بطلب مخصص معين
+  const handleViewQuotes = async (request: any) => {
     try {
-      const payload = {
-        garage_id: selectedOrderForReview.garage_id,
-        order_id: selectedOrderForReview.id,
-        customer_phone: customerPhone,
-        garage_rating: garageRating,
-        delivery_rating: deliveryRating,
-        website_rating: websiteRating,
-        as_described: asDescribed,
-        comment: reviewComment.trim() || null
-      };
+      const res = await fetch(`${supabaseUrl}/garage_quotes?request_id=eq.${request.id}&order=id.desc`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
+      });
+      if (res.ok) {
+        const quotes = await res.json();
+        setSelectedRequestQuotes({ request, quotes });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
       // 1. تسجيل التقييم في جدول garage_reviews
       const response = await fetch(`${supabaseUrl}/garage_reviews`, {
