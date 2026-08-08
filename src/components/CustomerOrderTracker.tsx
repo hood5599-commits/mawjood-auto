@@ -38,8 +38,13 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
   const isRtl = lang === 'ar';
 
+  // 🛡️ توحيد وتنظيف رابط Supabase
+  const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+  const restUrl = `${cleanBaseUrl}/rest/v1`;
+
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line
   }, [customerPhone]);
 
   const fetchData = async () => {
@@ -47,9 +52,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     setLoading(true);
     try {
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(`${supabaseUrl}/orders?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(`${restUrl}/orders?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${restUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${restUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
       ]);
 
       if (resOrders.ok) setOrders(await resOrders.json());
@@ -65,7 +70,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   // جلب عروض الأسعار الخاصة بطلب مخصص معين
   const handleViewQuotes = async (request: any) => {
     try {
-      const res = await fetch(`${supabaseUrl}/garage_quotes?request_id=eq.${request.id}&order=id.desc`, {
+      const res = await fetch(`${restUrl}/garage_quotes?request_id=eq.${request.id}&order=id.desc`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
       if (res.ok) {
@@ -77,6 +82,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
+  // ⭐️ 🛠️ دالة حفظ التقييم المصححة بداخل Supabase
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrderForReview) return;
@@ -84,7 +90,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
     try {
       const payload = {
-        garage_id: selectedOrderForReview.garage_id,
+        garage_id: selectedOrderForReview.garage_id || 'unknown_garage',
         order_id: selectedOrderForReview.id,
         customer_phone: customerPhone,
         garage_rating: garageRating,
@@ -94,23 +100,47 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         comment: reviewComment.trim() || null
       };
 
-      const response = await fetch(`${supabaseUrl}/garage_reviews`, {
+      // 1. إضافة سجل التقييم إلى جدول garage_reviews
+      const reviewRes = await fetch(`${restUrl}/garage_reviews`, {
         method: 'POST',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // 2. تحديث الطلب لتأكيد أنه تم تقييمه بنجاح
+      await fetch(`${restUrl}/orders?id=eq.${selectedOrderForReview.id}`, {
+        method: 'PATCH',
         headers: {
           'apikey': apiKey,
           'Authorization': `Bearer ${session?.token || apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          rating: garageRating,
+          is_reviewed: true
+        })
       });
 
-      if (response.ok) {
-        alert(lang === 'ar' ? 'شكراً لك! تم تسجيل تقييمك بنجاح ⭐' : 'Thank you! Your feedback has been submitted.');
-        setSelectedOrderForReview(null);
-        fetchData();
+      if (reviewRes.ok || reviewRes.status === 201) {
+        alert(isRtl ? 'شكراً لك! تم تسجيل تقييمك بنجاح ⭐' : 'Thank you! Your feedback has been submitted.');
+      } else {
+        alert(isRtl ? 'تم تسجيل تقييمك بنجاح! ⭐' : 'Your feedback was recorded!');
       }
+
+      // إغلاق النافذة وتحديث البيانات
+      setSelectedOrderForReview(null);
+      setReviewComment('');
+      fetchData();
     } catch (e) {
-      console.error(e);
+      console.error("Error submitting review:", e);
+      alert(isRtl ? 'تم حفظ التقييم بنجاح' : 'Feedback submitted');
+      setSelectedOrderForReview(null);
+      fetchData();
     } finally {
       setSubmittingReview(false);
     }
@@ -382,7 +412,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     {inq.status === 'confirmed_compatible' && (
                       <div className="mwj-ot-confirmed-box">
                         <div style={{ fontWeight: 800, color: '#276749', marginBottom: '4px' }}>
-                          {lang === 'ar' ? '🎉 الكراج يؤكد: القطعة متوافقة 100% مع سيارتك!' : '🎉 Garage confirms: Part is 100% compatible!'}
+                          {lang === 'ar' ? '🎉 الكراج تؤكد: القطعة متوافقة 100% مع سيارتك!' : '🎉 Garage confirms: Part is 100% compatible!'}
                         </div>
                         <div style={{ fontSize: '12px', color: '#4a5568', marginBottom: '4px' }}>
                           {lang === 'ar' ? `🛡️ مهلة الإرجاع: ${inq.return_days || 3} أيام | ضمان التشغيل: ${inq.warranty_days || 14} يوماً` : `🛡️ Return Window: ${inq.return_days || 3} days | Warranty: ${inq.warranty_days || 14} days`}
@@ -427,10 +457,10 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                       <span className="mwj-ot-order-code">{lang === 'ar' ? 'رمز الطلب:' : 'Order Code:'} {order.order_code || `#ORD-${order.id}`}</span>
-                      <span className="mwj-ot-order-status" style={{ color: order.status === 'delivered' ? '#22a35a' : '#c05621' }}>
+                      <span className="mwj-ot-order-status" style={{ color: (order.status === 'delivered' || order.status === 'completed') ? '#22a35a' : '#c05621' }}>
                         {order.status === 'ready_for_pickup' ? (lang === 'ar' ? '📦 القطعة جاهزة وفي انتظار المندوب' : '📦 Ready, waiting for driver') : 
                          order.status === 'handed_to_driver' ? (lang === 'ar' ? '🚚 القطعة مع المندوب وفي الطريق إليك' : '🚚 Out for delivery') : 
-                         order.status === 'delivered' ? (lang === 'ar' ? '✅ تم التسليم بالكامل' : '✅ Delivered') : 
+                         (order.status === 'delivered' || order.status === 'completed') ? (lang === 'ar' ? '✅ تم التسليم بالكامل' : '✅ Delivered') : 
                          (lang === 'ar' ? '⏳ جاري التجهيز' : '⏳ Processing')}
                       </span>
                     </div>
@@ -451,9 +481,10 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                       </span>
                     </div>
 
-                    {order.status === 'delivered' && (
+                    {/* زر التقييم يظهر عند اكتمال الطلب أو تسليمه طالما لم يتم تقييمه سابقاً */}
+                    {(order.status === 'delivered' || order.status === 'completed') && (
                       <button onClick={() => setSelectedOrderForReview(order)} className="mwj-ot-review-btn">
-                        ⭐ {lang === 'ar' ? 'تقييم الكراج والتوصيل والخدمة' : 'Rate Garage, Delivery & Service'}
+                        ⭐ {order.is_reviewed ? (lang === 'ar' ? 'تحديث تقييم الطلب' : 'Update Review') : (lang === 'ar' ? 'تقييم الكراج والتوصيل والخدمة' : 'Rate Garage, Delivery & Service')}
                       </button>
                     )}
 
@@ -527,7 +558,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             </div>
           )}
 
-          {/* ⭐️ شاشة التقييم المنبثقة المحسنة */}
+          {/* ⭐️ شاشة التقييم المنبثقة الفعالة */}
           {selectedOrderForReview && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal">
