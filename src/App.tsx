@@ -99,19 +99,19 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
- // 1. استخراج رقم الهاتف الحقيقي فقط
-const currentCustomerPhone = 
-  session?.user?.user_metadata?.phone || 
-  session?.phone || 
-  session?.user?.phone || 
-  localStorage.getItem('customer_phone') || 
-  '';
+  // 1. استخراج رقم الهاتف الحقيقي فقط
+  const currentCustomerPhone = 
+    session?.user?.user_metadata?.phone || 
+    session?.phone || 
+    session?.user?.phone || 
+    localStorage.getItem('customer_phone') || 
+    '';
 
-// 2. استخراج البريد الإلكتروني الحقيقي فقط
-const currentCustomerEmail = 
-  session?.user?.email || 
-  session?.email || 
-  '';
+  // 2. استخراج البريد الإلكتروني الحقيقي فقط
+  const currentCustomerEmail = 
+    session?.user?.email || 
+    session?.email || 
+    '';
 
   // 🚀 تفعيل كاشف الأخطاء التلقائي والمراقبة عند بداية التشغيل
   useEffect(() => {
@@ -653,6 +653,7 @@ const currentCustomerEmail =
             <CustomerOrderTracker
               lang={lang}
               customerPhone={currentCustomerPhone}
+              customerEmail={currentCustomerEmail}
               supabaseUrl={SUPABASE_URL}
               apiKey={API_KEY}
               session={session}
