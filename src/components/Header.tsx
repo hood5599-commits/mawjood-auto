@@ -10,6 +10,7 @@ interface HeaderProps {
   onOpenCart: () => void;
   onLogout: () => void;
   onRequestCustomPart?: () => void;
+  onOpenOrdersTracker?: () => void; // 👈 إضافة الخاصية لفتح متابعة الطلبات
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,7 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   cartCount,
   onOpenCart,
   onLogout,
-  onRequestCustomPart
+  onRequestCustomPart,
+  onOpenOrdersTracker
 }) => {
   const isRtl = lang === 'ar';
 
@@ -39,11 +41,11 @@ export const Header: React.FC<HeaderProps> = ({
         maxWidth: '1240px',
         margin: '0 auto',
         display: 'flex',
-        justifyContent: 'space-between',
+        justify: 'space-between',
         alignItems: 'center'
       }}>
         
-        {/* 1️⃣ الشعار النصي الفخم (داعم للغتين العربية والإنجليزية) */}
+        {/* 1️⃣ الشعار النصي الفخم */}
         <div 
           onClick={() => setView('shop')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}
@@ -60,9 +62,9 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* 2️⃣ عناصر التحكم والأزرار */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           
-          {/* 🛠️ زر طلب قطعة غير متوفرة المميز */}
+          {/* 🛠️ زر طلب قطعة غير متوفرة */}
           {onRequestCustomPart && (
             <button
               onClick={onRequestCustomPart}
@@ -82,6 +84,28 @@ export const Header: React.FC<HeaderProps> = ({
               }}
             >
               🛠️ {lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Request Part'}
+            </button>
+          )}
+
+          {/* 📦 زر طلباتي السابقة والمتابعة (يظهر عندما يتم تمرير الدالة) */}
+          {onOpenOrdersTracker && (
+            <button
+              onClick={onOpenOrdersTracker}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid #cbd5e0',
+                backgroundColor: '#f1f5f9',
+                color: '#1f3a5f',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              📦 {lang === 'ar' ? 'طلباتي السابقة' : 'My Orders'}
             </button>
           )}
 
