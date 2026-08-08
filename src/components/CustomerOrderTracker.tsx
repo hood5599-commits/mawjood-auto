@@ -3,7 +3,8 @@ import { AITranslatedText } from './AITranslatedText';
 
 interface Props {
   lang: 'ar' | 'en';
-  customerPhone: string;
+  customerPhone?: string;
+  customerEmail?: string; // 👈 إضافة دعم البريد الإلكتروني
   supabaseUrl: string;
   apiKey: string;
   session: any;
@@ -14,13 +15,13 @@ interface Props {
 export const CustomerOrderTracker: React.FC<Props> = ({
   lang,
   customerPhone,
+  customerEmail,
   supabaseUrl,
   apiKey,
   session,
   onClose,
   onSelectPartForCheckout
 }) => {
-  // ⭐️ تم إضافة تبويب الطلبات السابقة 'previous_orders'
   const [activeTab, setActiveTab] = useState<'inquiries' | 'orders' | 'previous_orders' | 'custom_requests'>('orders');
   const [orders, setOrders] = useState<any[]>([]);
   const [inquiries, setInquiries] = useState<any[]>([]);
@@ -28,7 +29,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   const [selectedRequestQuotes, setSelectedRequestQuotes] = useState<{ request: any; quotes: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ⭐️ حالات التقييم الثلاثي
+  // حالات التقييم الثلاثي
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<any | null>(null);
   const [garageRating, setGarageRating] = useState(5);
   const [deliveryRating, setDeliveryRating] = useState(5);
@@ -41,17 +42,38 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
   useEffect(() => {
     fetchData();
-  }, [customerPhone]);
+  }, [customerPhone, customerEmail]);
 
-  // 🚀 استخدام supabaseUrl المباشر والأصيل لضمان جلب البيانات بنجاح
+  // 🚀 دالة جلب البيانات مع دعم التصفية بالهاتف أو البريد
   const fetchData = async () => {
-    if (!customerPhone) return;
+    if (!customerPhone && !customerEmail) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     try {
+      // بناء الاستعلام بأسلوب Supabase المطابق للهاتف أو البريد
+      let filterParam = '';
+      const conditions: string[] = [];
+      if (customerPhone) conditions.push(`customer_phone.eq.${encodeURIComponent(customerPhone)}`);
+      if (customerEmail) conditions.push(`customer_email.eq.${encodeURIComponent(customerEmail)}`);
+
+      if (conditions.length > 1) {
+        filterParam = `or=(${conditions.join(',')})`;
+      } else if (conditions.length === 1) {
+        filterParam = conditions[0];
+      }
+
+      const headers = { 
+        'apikey': apiKey, 
+        'Authorization': `Bearer ${session?.token || apiKey}` 
+      };
+
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(`${supabaseUrl}/orders?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(`${supabaseUrl}/orders?${filterParam}&order=id.desc`, { headers }),
+        fetch(`${supabaseUrl}/fitment_inquiries?${filterParam}&order=id.desc`, { headers }),
+        fetch(`${supabaseUrl}/custom_part_requests?${filterParam}&order=id.desc`, { headers })
       ]);
 
       if (resOrders.ok) setOrders(await resOrders.json());
@@ -79,7 +101,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
-  // ⭐️ دالة حفظ التقييم المصححة وإرسال تحديث للطلب
+  // دالة حفظ التقييم وإرسال تحديث للطلب
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrderForReview) return;
@@ -89,7 +111,8 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       const payload = {
         garage_id: selectedOrderForReview.garage_id,
         order_id: selectedOrderForReview.id,
-        customer_phone: customerPhone,
+        customer_phone: customerPhone || null,
+        customer_email: customerEmail || null,
         garage_rating: garageRating,
         delivery_rating: deliveryRating,
         website_rating: websiteRating,
@@ -108,7 +131,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         body: JSON.stringify(payload)
       });
 
-      // 2. علم الطلب كـ is_reviewed = true ليختفي تلقائياً من طلبات الشراء وينتقل لـ "طلباتي السابقة"
+      // 2. تحديث حالة الطلب ليكون is_reviewed = true
       await fetch(`${supabaseUrl}/orders?id=eq.${selectedOrderForReview.id}`, {
         method: 'PATCH',
         headers: {
@@ -127,7 +150,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         setSelectedOrderForReview(null);
         setReviewComment('');
         fetchData();
-        setActiveTab('previous_orders'); // تحويل التبويب تلقائياً للطلبات السابقة بعد التقييم
+        setActiveTab('previous_orders');
       }
     } catch (e) {
       console.error(e);
@@ -139,7 +162,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
   const confirmedInquiries = activeInquiries.filter(i => i.status === 'confirmed_compatible');
 
-  // ⭐️ تقسيم الطلبات: طلبات شراء غير مقيمة / طلبات سابقة مقيمة
+  // تقسيم الطلبات: طلبات شراء غير مقيمة / طلبات سابقة مقيمة
   const activeOrders = orders.filter(o => !o.is_reviewed && o.status !== 'cancelled');
   const previousOrders = orders.filter(o => o.is_reviewed || o.status === 'cancelled');
 
@@ -322,7 +345,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           </h3>
 
           <div className="mwj-ot-tabs">
-            {/* 1. طلبات الشراء (النشطة التي لم تُقيّم) */}
+            {/* 1. طلبات الشراء */}
             <button
               onClick={() => setActiveTab('orders')}
               className={`mwj-ot-tab ${activeTab === 'orders' ? 'mwj-ot-tab-ord-active' : ''}`}
@@ -330,7 +353,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
               🛒 {lang === 'ar' ? 'طلبات الشراء' : 'Active Orders'} ({activeOrders.length})
             </button>
 
-            {/* 2. طلباتي السابقة (المُقيّمة) */}
+            {/* 2. طلباتي السابقة */}
             <button
               onClick={() => setActiveTab('previous_orders')}
               className={`mwj-ot-tab ${activeTab === 'previous_orders' ? 'mwj-ot-tab-prev-active' : ''}`}
@@ -495,7 +518,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                       </div>
                     )}
 
-                    {/* عند تسليم الطلب، يظهر زر التقييم لإنهاء الطلب ونقله إلى "طلباتي السابقة" */}
                     {(order.status === 'delivered' || order.status === 'completed') && (
                       <button onClick={() => setSelectedOrderForReview(order)} className="mwj-ot-review-btn">
                         ⭐ {lang === 'ar' ? 'قيّم التجربة لإنهاء الطلب' : 'Rate to complete order'}
@@ -506,7 +528,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                 ))}
               </div>
             )
-          ) : ( // التبويب الرابع المضاف: previous_orders (الطلبات المقيمة السابقة)
+          ) : (
             previousOrders.length === 0 ? (
               <p className="mwj-ot-empty">{lang === 'ar' ? 'لا توجد طلبات سابقة مُقيّمة.' : 'No reviewed past orders found.'}</p>
             ) : (
@@ -537,7 +559,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             )
           )}
 
-          {/* 🏷️ نافذة عرض عروض الأسعار والمقارنة بين الكراجات */}
           {selectedRequestQuotes && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal" style={{ maxWidth: '600px' }}>
@@ -601,7 +622,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             </div>
           )}
 
-          {/* ⭐️ شاشة التقييم المنبثقة */}
+          {/* شاشة التقييم المنبثقة */}
           {selectedOrderForReview && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal">
@@ -611,7 +632,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
                 <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   
-                  {/* 1. تقييم الكراج والجودة */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
                       🏪 {lang === 'ar' ? 'تقييم جودة القطعة وتجاوب الكراج:' : 'Rate part quality & garage response:'}
@@ -623,7 +643,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* 2. تقييم المندوب والتوصيل */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
                       🚚 {lang === 'ar' ? 'تقييم سرعة وأسلوب مندوب التوصيل:' : 'Rate delivery speed & driver behavior:'}
@@ -635,7 +654,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* 3. تقييم تجربة الموقع ورضا العميل */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#334155' }}>
                       🌐 {lang === 'ar' ? 'تقييم موقع موجود أوتو وسهولة الطلب:' : 'Rate Mawjood Auto & ordering ease:'}
@@ -647,7 +665,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* مطابقة الوصف */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px', color: '#334155' }}>
                       {lang === 'ar' ? 'هل طابقت القطعة الوصف تماماً؟' : 'Did the part perfectly match the description?'}
@@ -658,7 +675,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* تعليق إضافي */}
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '7px', color: '#334155' }}>
                       {lang === 'ar' ? 'ملاحظات أو تعليق إضافي (اختياري):' : 'Additional comments (Optional):'}
