@@ -213,7 +213,7 @@ export default function App() {
   const realGaragesCount = Array.from(new Set(inventory.map(p => p.garage_id || p.garage_name || 'عام').filter(Boolean))).length;
 
   return (
-    // 🛡️ تغليف الصفحة بنظام الحماية ومنع التعطل الرئسي
+    // 🛡️ تغليف الصفحة بنظام الحماية ومنع التعطل الرئيسي
     <ErrorBoundary>
       <AIErrorBoundary supabaseUrl={SUPABASE_URL} apiKey={API_KEY}>
         <style>{`
