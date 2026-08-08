@@ -99,14 +99,18 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
-  // ✅ يستخرج رقم الهاتف أو البريد الإلكتروني بدقة من كافة مسارات الـ Session
+ // 1. استخراج رقم الهاتف الحقيقي فقط
 const currentCustomerPhone = 
   session?.user?.user_metadata?.phone || 
   session?.phone || 
   session?.user?.phone || 
-  session?.email || 
-  session?.user?.email || 
   localStorage.getItem('customer_phone') || 
+  '';
+
+// 2. استخراج البريد الإلكتروني الحقيقي فقط
+const currentCustomerEmail = 
+  session?.user?.email || 
+  session?.email || 
   '';
 
   // 🚀 تفعيل كاشف الأخطاء التلقائي والمراقبة عند بداية التشغيل
