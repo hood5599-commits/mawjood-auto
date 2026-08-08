@@ -99,15 +99,15 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
-  // 🚀 الحصول المباشر والدقيق على رقم هاتف أو بريد العميل من كافة مسارات الـ Auth الممكنة
-  const currentCustomerPhone = 
-    session?.user?.user_metadata?.phone || 
-    session?.phone || 
-    session?.user?.phone || 
-    session?.email || 
-    session?.user?.email || 
-    localStorage.getItem('customer_phone') || 
-    '';
+  // ✅ يستخرج رقم الهاتف أو البريد الإلكتروني بدقة من كافة مسارات الـ Session
+const currentCustomerPhone = 
+  session?.user?.user_metadata?.phone || 
+  session?.phone || 
+  session?.user?.phone || 
+  session?.email || 
+  session?.user?.email || 
+  localStorage.getItem('customer_phone') || 
+  '';
 
   // 🚀 تفعيل كاشف الأخطاء التلقائي والمراقبة عند بداية التشغيل
   useEffect(() => {
