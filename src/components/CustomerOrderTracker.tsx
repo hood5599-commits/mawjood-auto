@@ -39,54 +39,35 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
   const isRtl = lang === 'ar';
 
-  // 🛡️ توحيد وتنظيف رابط Supabase
-  const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
-  const restUrl = `${cleanBaseUrl}/rest/v1`;
-
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line
-  }, [customerPhone, session]);
+  }, [customerPhone]);
 
-  // 🚀 دالة جلب البيانات الشاملة والمرنة على كل الأجهزة
+  // 🚀 استخدام supabaseUrl المباشر والأصيل لضمان جلب البيانات بنجاح
   const fetchData = async () => {
+    if (!customerPhone) return;
     setLoading(true);
     try {
-      const userEmail = session?.email || session?.user?.email || '';
-      const rawPhone = customerPhone || session?.phone || session?.user?.phone || session?.user?.user_metadata?.phone || '';
-      
-      const cleanPhone = rawPhone.replace(/\D/g, '');
-      const localPhone = cleanPhone.startsWith('974') ? cleanPhone.slice(3) : cleanPhone;
-      const intlPhone = cleanPhone.startsWith('974') ? cleanPhone : `974${cleanPhone}`;
-
-      const targets = Array.from(new Set([rawPhone, cleanPhone, localPhone, intlPhone, userEmail].filter(Boolean)));
-
-      if (targets.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      const phoneFilter = `customer_phone=in.(${targets.map(t => `"${encodeURIComponent(t)}"`).join(',')})`;
-
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(`${restUrl}/orders?${phoneFilter}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${restUrl}/fitment_inquiries?${phoneFilter}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${restUrl}/custom_part_requests?${phoneFilter}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(`${supabaseUrl}/orders?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
       ]);
 
       if (resOrders.ok) setOrders(await resOrders.json());
       if (resInquiries.ok) setInquiries(await resInquiries.json());
       if (resCustom.ok) setCustomRequests(await resCustom.json());
     } catch (e) {
-      console.error("Error fetching tracker data:", e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
+  // جلب عروض الأسعار الخاصة بطلب مخصص معين
   const handleViewQuotes = async (request: any) => {
     try {
-      const res = await fetch(`${restUrl}/garage_quotes?request_id=eq.${request.id}&order=id.desc`, {
+      const res = await fetch(`${supabaseUrl}/garage_quotes?request_id=eq.${request.id}&order=id.desc`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
       if (res.ok) {
@@ -98,6 +79,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
+  // ⭐️ دالة حفظ التقييم المصححة وإرسال تحديث للطلب
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrderForReview) return;
@@ -105,9 +87,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
     try {
       const payload = {
-        garage_id: selectedOrderForReview.garage_id || 'unknown_garage',
+        garage_id: selectedOrderForReview.garage_id,
         order_id: selectedOrderForReview.id,
-        customer_phone: customerPhone || session?.phone || session?.user?.phone || '',
+        customer_phone: customerPhone,
         garage_rating: garageRating,
         delivery_rating: deliveryRating,
         website_rating: websiteRating,
@@ -115,42 +97,50 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         comment: reviewComment.trim() || null
       };
 
-      await fetch(`${restUrl}/garage_reviews`, {
+      // 1. تسجيل التقييم في جدول garage_reviews
+      const response = await fetch(`${supabaseUrl}/garage_reviews`, {
         method: 'POST',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
 
-      await fetch(`${restUrl}/orders?id=eq.${selectedOrderForReview.id}`, {
+      // 2. علم الطلب كـ is_reviewed = true ليختفي تلقائياً من طلبات الشراء وينتقل لـ "طلباتي السابقة"
+      await fetch(`${supabaseUrl}/orders?id=eq.${selectedOrderForReview.id}`, {
         method: 'PATCH',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating: garageRating, is_reviewed: true })
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${session?.token || apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          rating: garageRating,
+          is_reviewed: true
+        })
       });
 
-      alert(isRtl ? 'شكراً لك! تم تسجيل تقييمك بنجاح ونقل الطلب للسجل السابق ⭐' : 'Thank you! Your feedback has been submitted and order moved to history.');
-      
-      setSelectedOrderForReview(null);
-      setReviewComment('');
-      
-      // التحديث ينقل الطلب فوراً من "طلبات الشراء" إلى "طلباتي السابقة"
-      fetchData();
-      setActiveTab('previous_orders'); // الانتقال التلقائي للتبويب السابق بعد التقييم
-
+      if (response.ok || response.status === 201) {
+        alert(lang === 'ar' ? 'شكراً لك! تم تسجيل تقييمك ونقل الطلب لـ "طلباتي السابقة" ⭐' : 'Thank you! Your feedback has been submitted and order moved to past orders.');
+        setSelectedOrderForReview(null);
+        setReviewComment('');
+        fetchData();
+        setActiveTab('previous_orders'); // تحويل التبويب تلقائياً للطلبات السابقة بعد التقييم
+      }
     } catch (e) {
-      console.error("Error submitting review:", e);
-      alert(isRtl ? 'خطأ في الاتصال' : 'Connection error');
+      console.error(e);
     } finally {
       setSubmittingReview(false);
     }
   };
 
-  // ⭐️ فلترة الطلبات لتوزيعها على التبويبات الجديدة
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
   const confirmedInquiries = activeInquiries.filter(i => i.status === 'confirmed_compatible');
-  
-  // الطلبات التي لم تُقيّم بعد (طلبات نشطة)
+
+  // ⭐️ تقسيم الطلبات: طلبات شراء غير مقيمة / طلبات سابقة مقيمة
   const activeOrders = orders.filter(o => !o.is_reviewed && o.status !== 'cancelled');
-  // الطلبات التي تم تقييمها أو إلغاؤها (طلبات سابقة)
   const previousOrders = orders.filter(o => o.is_reviewed || o.status === 'cancelled');
 
   return (
@@ -189,11 +179,22 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           color: #4a5568; transition: all 0.2s ease; text-align: center;
         }
         .mwj-ot-tab:hover { transform: translateY(-1px); }
-        .mwj-ot-tab-inq-active { background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(107,70,193,0.3); }
-        .mwj-ot-tab-ord-active { background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(34,163,90,0.3); }
-        .mwj-ot-tab-prev-active { background: linear-gradient(135deg, #475569 0%, #334155 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(71,85,105,0.3); }
-        .mwj-ot-tab-custom-active { background: linear-gradient(135deg, #e0872a 0%, #c2410c 100%) !important; color: white !important; box-shadow: 0 6px 16px rgba(224,135,42,0.3); }
-        
+        .mwj-ot-tab-inq-active {
+          background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%) !important;
+          color: white !important; box-shadow: 0 6px 16px rgba(107,70,193,0.3);
+        }
+        .mwj-ot-tab-ord-active {
+          background: linear-gradient(135deg, #22a35a 0%, #1c8a4a 100%) !important;
+          color: white !important; box-shadow: 0 6px 16px rgba(34,163,90,0.3);
+        }
+        .mwj-ot-tab-prev-active {
+          background: linear-gradient(135deg, #475569 0%, #334155 100%) !important;
+          color: white !important; box-shadow: 0 6px 16px rgba(71,85,105,0.3);
+        }
+        .mwj-ot-tab-custom-active {
+          background: linear-gradient(135deg, #e0872a 0%, #c2410c 100%) !important;
+          color: white !important; box-shadow: 0 6px 16px rgba(224,135,42,0.3);
+        }
         .mwj-ot-tab-count {
           position: absolute; top: -6px; background: #E0872A; color: #0F1720;
           border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: 800;
@@ -243,8 +244,10 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           border: 1px solid #feebc8; display: flex; justify-content: space-between;
           align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;
         }
-        .mwj-ot-delivery-code { font-size: 19px; font-weight: 800; font-family: 'Courier New', monospace; color: #c9701c; letter-spacing: 0.5px; }
-        
+        .mwj-ot-delivery-code {
+          font-size: 19px; font-weight: 800; font-family: 'Courier New', monospace; color: #c9701c;
+          letter-spacing: 0.5px;
+        }
         .mwj-ot-review-btn {
           width: 100%; padding: 11px; border: none; border-radius: 10px; font-weight: 800;
           cursor: pointer; font-size: 13.5px; color: white;
@@ -319,7 +322,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           </h3>
 
           <div className="mwj-ot-tabs">
-            {/* 1. طلبات الشراء النشطة */}
+            {/* 1. طلبات الشراء (النشطة التي لم تُقيّم) */}
             <button
               onClick={() => setActiveTab('orders')}
               className={`mwj-ot-tab ${activeTab === 'orders' ? 'mwj-ot-tab-ord-active' : ''}`}
@@ -327,7 +330,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
               🛒 {lang === 'ar' ? 'طلبات الشراء' : 'Active Orders'} ({activeOrders.length})
             </button>
 
-            {/* 2. طلباتي السابقة (بعد التقييم) */}
+            {/* 2. طلباتي السابقة (المُقيّمة) */}
             <button
               onClick={() => setActiveTab('previous_orders')}
               className={`mwj-ot-tab ${activeTab === 'previous_orders' ? 'mwj-ot-tab-prev-active' : ''}`}
@@ -343,12 +346,12 @@ export const CustomerOrderTracker: React.FC<Props> = ({
               🛠️ {lang === 'ar' ? 'طلباتي المخصصة' : 'Custom Requests'} ({customRequests.length})
             </button>
 
-            {/* 4. الاستفسارات */}
+            {/* 4. استفسارات التوافق */}
             <button
               onClick={() => setActiveTab('inquiries')}
               className={`mwj-ot-tab ${activeTab === 'inquiries' ? 'mwj-ot-tab-inq-active' : ''}`}
             >
-              ❓ {lang === 'ar' ? 'الاستفسارات' : 'Inquiries'} ({activeInquiries.length})
+              ❓ {lang === 'ar' ? 'استفسارات التوافق' : 'Fitment Inquiries'} ({activeInquiries.length})
               {confirmedInquiries.length > 0 && (
                 <span className="mwj-ot-tab-count" style={{ [isRtl ? 'left' : 'right']: '-4px' }}>{confirmedInquiries.length}</span>
               )}
@@ -421,7 +424,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                     {inq.status === 'confirmed_compatible' && (
                       <div className="mwj-ot-confirmed-box">
                         <div style={{ fontWeight: 800, color: '#276749', marginBottom: '4px' }}>
-                          {lang === 'ar' ? '🎉 الكراج يؤكد: القطعة متوافقة 100% مع سيارتك!' : '🎉 Garage confirms: Part is 100% compatible!'}
+                          {lang === 'ar' ? '🎉 الكراج تؤكد: القطعة متوافقة 100% مع سيارتك!' : '🎉 Garage confirms: Part is 100% compatible!'}
                         </div>
                         <div style={{ fontSize: '12px', color: '#4a5568', marginBottom: '4px' }}>
                           {lang === 'ar' ? `🛡️ مهلة الإرجاع: ${inq.return_days || 3} أيام | ضمان التشغيل: ${inq.warranty_days || 14} يوماً` : `🛡️ Return Window: ${inq.return_days || 3} days | Warranty: ${inq.warranty_days || 14} days`}
@@ -492,7 +495,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                       </div>
                     )}
 
-                    {/* زر التقييم يظهر عند اكتمال الطلب - بمجرد الضغط عليه وحفظه سيختفي الطلب من هنا */}
+                    {/* عند تسليم الطلب، يظهر زر التقييم لإنهاء الطلب ونقله إلى "طلباتي السابقة" */}
                     {(order.status === 'delivered' || order.status === 'completed') && (
                       <button onClick={() => setSelectedOrderForReview(order)} className="mwj-ot-review-btn">
                         ⭐ {lang === 'ar' ? 'قيّم التجربة لإنهاء الطلب' : 'Rate to complete order'}
@@ -503,13 +506,13 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                 ))}
               </div>
             )
-          ) : ( // التبويب الأخير: previous_orders (الطلبات السابقة المقيمة)
+          ) : ( // التبويب الرابع المضاف: previous_orders (الطلبات المقيمة السابقة)
             previousOrders.length === 0 ? (
               <p className="mwj-ot-empty">{lang === 'ar' ? 'لا توجد طلبات سابقة مُقيّمة.' : 'No reviewed past orders found.'}</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {previousOrders.map(order => (
-                  <div key={order.id} className="mwj-ot-order-card" style={{ opacity: 0.85 }}>
+                  <div key={order.id} className="mwj-ot-order-card" style={{ opacity: 0.88 }}>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                       <span className="mwj-ot-order-code" style={{ backgroundColor: '#e2e8f0', color: '#475569' }}>
@@ -598,7 +601,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             </div>
           )}
 
-          {/* ⭐️ شاشة التقييم المنبثقة الفعالة */}
+          {/* ⭐️ شاشة التقييم المنبثقة */}
           {selectedOrderForReview && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal">
