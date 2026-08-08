@@ -99,6 +99,9 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
+  // 🚀 الحصول على رقم هاتف العميل تلقائياً
+  const currentCustomerPhone = session?.phone || session?.user?.phone || session?.user?.user_metadata?.phone || session?.email || localStorage.getItem('customer_phone') || '';
+
   // 🚀 تفعيل كاشف الأخطاء التلقائي والمراقبة عند بداية التشغيل
   useEffect(() => {
     ErrorSentry.init(session);
@@ -294,6 +297,7 @@ export default function App() {
             cartCount={totalCartCount} 
             onOpenCart={() => setIsCartOpen(true)} 
             onRequestCustomPart={() => setIsCustomPartModalOpen(true)}
+            onOpenOrdersTracker={() => setShowOrderTracker(true)} // 👈 تفعيل فتح شاشة متابعة الطلبات السابقة
             onLogout={() => { 
               setSession(null); 
               setCartItems([]); 
@@ -369,7 +373,7 @@ export default function App() {
                       color: '#64748b',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justify: 'center'
                     }}
                   >
                     ✖
@@ -614,7 +618,7 @@ export default function App() {
               lang={lang}
               part={selectedPartForCheckout.part}
               initialStep={selectedPartForCheckout.initialStep || 'inquire'}
-              customerPhone={session?.phone || session?.email || session?.user?.phone || '55000000'}
+              customerPhone={currentCustomerPhone || '55000000'}
               supabaseUrl={SUPABASE_URL}
               apiKey={API_KEY}
               session={session}
@@ -637,7 +641,7 @@ export default function App() {
           {showOrderTracker && (
             <CustomerOrderTracker
               lang={lang}
-              customerPhone={session?.phone || session?.email || session?.user?.phone || ''}
+              customerPhone={currentCustomerPhone}
               supabaseUrl={SUPABASE_URL}
               apiKey={API_KEY}
               session={session}
@@ -693,7 +697,7 @@ export default function App() {
             onClose={() => setIsCustomPartModalOpen(false)}
             supabaseUrl={SUPABASE_URL}
             supabaseKey={API_KEY}
-            customerPhone={session?.phone || session?.email || session?.user?.phone || ''}
+            customerPhone={currentCustomerPhone}
           />
 
         </div>
