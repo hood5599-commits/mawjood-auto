@@ -4,7 +4,7 @@ import { AITranslatedText } from './AITranslatedText';
 interface Props {
   lang: 'ar' | 'en';
   customerPhone?: string;
-  customerEmail?: string; // 👈 إضافة دعم البريد الإلكتروني
+  customerEmail?: string;
   supabaseUrl: string;
   apiKey: string;
   session: any;
@@ -44,25 +44,36 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     fetchData();
   }, [customerPhone, customerEmail]);
 
-  // 🚀 دالة جلب البيانات مع دعم التصفية بالهاتف أو البريد
+  // 🚀 دالة جلب البيانات الذكية وتجنب خطأ 400
   const fetchData = async () => {
     if (!customerPhone && !customerEmail) {
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     try {
-      // بناء الاستعلام بأسلوب Supabase المطابق للهاتف أو البريد
-      let filterParam = '';
-      const conditions: string[] = [];
-      if (customerPhone) conditions.push(`customer_phone.eq.${encodeURIComponent(customerPhone)}`);
-      if (customerEmail) conditions.push(`customer_email.eq.${encodeURIComponent(customerEmail)}`);
+      // 1. تنظيف وتصفية المتغيرات للتأكد من الهاتف والبريد الحقيقيين
+      const phoneVal = customerPhone && !customerPhone.includes('@') ? customerPhone.trim() : null;
+      const emailVal = customerEmail || (customerPhone && customerPhone.includes('@') ? customerPhone.trim() : null);
 
+      // 2. بناء الأشرطة بأسلوب محمي من أخطاء PostgREST Syntax
+      const conditions: string[] = [];
+      if (phoneVal) conditions.push(`customer_phone.eq."${encodeURIComponent(phoneVal)}"`);
+      if (emailVal) conditions.push(`customer_email.eq."${encodeURIComponent(emailVal)}"`);
+
+      let filterParam = '';
       if (conditions.length > 1) {
         filterParam = `or=(${conditions.join(',')})`;
       } else if (conditions.length === 1) {
-        filterParam = conditions[0];
+        const singleVal = phoneVal || emailVal;
+        const singleCol = phoneVal ? 'customer_phone' : 'customer_email';
+        filterParam = `${singleCol}=eq.${encodeURIComponent(singleVal || '')}`;
+      }
+
+      if (!filterParam) {
+        setLoading(false);
+        return;
       }
 
       const headers = { 
@@ -80,7 +91,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       if (resInquiries.ok) setInquiries(await resInquiries.json());
       if (resCustom.ok) setCustomRequests(await resCustom.json());
     } catch (e) {
-      console.error(e);
+      console.error('Fetch Orders Error:', e);
     } finally {
       setLoading(false);
     }
