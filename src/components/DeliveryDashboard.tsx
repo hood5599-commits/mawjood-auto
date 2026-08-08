@@ -32,7 +32,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     // eslint-disable-next-line
   }, []);
 
-  // 📦 جلب الطلبات مع الربط التلقائي لموقع الكراج المحفوظ
+  // 📦 جلب الطلبات وقراءة عنوان الكراج المعتمد
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -42,22 +42,18 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
       if (response.ok) {
         const rawOrders = await response.json();
         
-        // 📍 تحسين وتحديث موقع الكراج لكل طلب إذا لم يكن موجوداً بالطلب المباشر
-        const updatedOrders = await Promise.all(rawOrders.map(async (ord: any) => {
+        const updatedOrders = rawOrders.map((ord: any) => {
           let address = ord.garage_address || ord.garage_location;
-          
-          // إذا لم يجد العنوان بالطلب، يجلب عنوان الكراج المعتمد من LocalStorage أو Profiles
           if (!address && ord.garage_id) {
             address = localStorage.getItem(`garage_location_${ord.garage_id}`) || 'المنطقة الصناعية - الدوحة، قطر';
           }
-          
           return { ...ord, resolved_garage_address: address || 'المنطقة الصناعية - الدوحة، قطر' };
-        }));
+        });
 
         setOrders(updatedOrders);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Fetch orders error:", e);
     } finally {
       setLoading(false);
     }
@@ -110,7 +106,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  // 🚀 🚚 1. تأكيد استلام الشحنة والبدء بالتوصيل (معالجة إمكانية الضغط فوراً)
+  // 🚀 🚚 1. تأكيد استلام الشحنة (تم تنظيف الحمولة لمنع خطأ Status 400)
   const handleAcceptDelivery = async (order: any) => {
     const pickupImgUrl = pickupImages[order.id] || order.pickup_image_url || order.pickup_proof_img;
 
@@ -129,22 +125,22 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
         },
         body: JSON.stringify({
           status: 'handed_to_driver',
-          driver_id: driverId,
-          pickup_image_url: pickupImgUrl,
-          pickup_proof_img: pickupImgUrl,
-          pickup_time: new Date().toISOString()
+          driver_id: String(driverId),
+          pickup_image_url: pickupImgUrl
         })
       });
 
       if (response.ok) {
         alert(isRtl ? '✅ تم تأكيد الاستلام بنجاح! الشحنة الآن قيد التوصيل.' : 'Pickup confirmed!');
         fetchOrders();
-        setActiveTab('active'); // الانتقال لتبويب قيد التوصيل
+        setActiveTab('active');
       } else {
-        alert(isRtl ? 'حدث خطأ أثناء تحديث حالة الطلب، حاول مرة أخرى' : 'Failed to confirm pickup');
+        const errText = await response.text();
+        console.error("Supabase PATCH Error:", errText);
+        alert(isRtl ? 'حدث خطأ أثناء تحديث حالة الطلب، يرجى المحاولة مجدداً' : 'Failed to confirm pickup');
       }
     } catch (e) {
-      alert(isRtl ? 'حدث خطأ أثناء الاستلام' : 'Error receiving order');
+      alert(isRtl ? 'حدث خطأ في الاتصال بالشبكة' : 'Error receiving order');
     }
   };
 
@@ -172,14 +168,15 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
         },
         body: JSON.stringify({
           status: 'delivered',
-          delivery_image_url: deliveryImgUrl,
-          delivered_time: new Date().toISOString()
+          delivery_image_url: deliveryImgUrl
         })
       });
 
       if (response.ok) {
         alert(isRtl ? '🎉 تم تسليم الطلب للعميل بنجاح وتوثيق صور الإثبات!' : 'Order delivered successfully!');
         fetchOrders();
+      } else {
+        alert(isRtl ? 'حدث خطأ أثناء إتمام التسليم' : 'Failed to deliver');
       }
     } catch (e) {
       alert(isRtl ? 'حدث خطأ أثناء تأكيد التسليم' : 'Error completing delivery');
@@ -187,7 +184,7 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
   };
 
   const availableOrders = orders.filter(o => (o.status === 'ready' || o.status === 'ready_for_pickup' || o.status === 'confirmed_compatible') && (o.delivery_type === 'delivery' || !o.delivery_type));
-  const activeDeliveries = orders.filter(o => o.status === 'handed_to_driver' && (o.driver_id === driverId || !o.driver_id));
+  const activeDeliveries = orders.filter(o => o.status === 'handed_to_driver' && (o.driver_id === String(driverId) || !o.driver_id));
   const completedOrders = orders.filter(o => o.status === 'delivered' || o.status === 'completed');
 
   return (
@@ -263,12 +260,12 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
 
                   <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#2d3748' }}>📦 {order.part_name || 'قطعة غيار'}</h3>
 
-                  {/* 📍 تفاصيل موقع الكراج وتفاصيل العميل المحدثة المباشرة */}
+                  {/* 📍 تفاصيل موقع الكراج وتفاصيل العميل */}
                   <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', fontSize: '13px', color: '#4a5568', marginBottom: '14px', border: '1px solid #edf2f7' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
                       <span>🏪 <strong>الكراج:</strong> {order.garage_name || order.garage_id || 'كراج التخصصي'}</span>
                       
-                      {/* 🗺️ فتح موقع الكراج المباشر بالـ Google Maps */}
+                      {/* 🗺️ فتح موقع الكراج المباشر بـ Google Maps */}
                       <a
                         href={
                           order.resolved_garage_address?.startsWith('http') 
