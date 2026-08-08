@@ -10,29 +10,43 @@ export const GarageRatingBadge: React.FC<Props> = ({ garageId, supabaseUrl, apiK
   const [rating, setRating] = useState<number | null>(null);
   const [reviewsCount, setReviewsCount] = useState<number>(0);
 
+  // 🛡️ توحيد وتنظيف رابط Supabase
+  const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+  const restUrl = `${cleanBaseUrl}/rest/v1`;
+
   useEffect(() => {
     fetchGarageRating();
+    // eslint-disable-next-line
   }, [garageId]);
 
   const fetchGarageRating = async () => {
     if (!garageId) return;
     try {
-      const response = await fetch(`${supabaseUrl}/garage_reviews?garage_id=eq.${garageId}`, {
+      const response = await fetch(`${restUrl}/garage_reviews?garage_id=eq.${garageId}`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
       });
+
       if (response.ok) {
         const data = await response.json();
         if (data && data.length > 0) {
-          const avg = data.reduce((acc: number, curr: any) => acc + curr.rating, 0) / data.length;
+          // 💡 القراءة من garage_rating أو rating كبديل لضمان الأمان
+          const total = data.reduce((acc: number, curr: any) => {
+            const score = curr.garage_rating || curr.rating || 5;
+            return acc + Number(score);
+          }, 0);
+
+          const avg = total / data.length;
           setRating(Number(avg.toFixed(1)));
           setReviewsCount(data.length);
         } else {
-          setRating(5.0); // تقييم افتراضي ممتازة للكراجات الجديدة
+          setRating(5.0); // تقييم افتراضي للكراجات الجديدة
           setReviewsCount(1);
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error("Garage rating fetch error:", e);
+      setRating(5.0);
+      setReviewsCount(1);
     }
   };
 
