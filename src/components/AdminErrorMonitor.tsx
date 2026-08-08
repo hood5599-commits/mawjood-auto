@@ -10,40 +10,66 @@ export const AdminErrorMonitor: React.FC<AdminErrorMonitorProps> = ({ supabaseUr
   const [loading, setLoading] = useState(true);
   const [filterSeverity, setFilterSeverity] = useState<string>('ALL');
 
+  // 🛡️ تنظيف وتوحيد رابط Supabase لضمان دقة مسار REST API
+  const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+  const restUrl = `${cleanBaseUrl}/rest/v1`;
+
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line
   }, []);
 
+  // 🔄 جلب الأخطاء من قاعدة البيانات
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${supabaseUrl}/system_errors?order=id.desc&limit=100`, {
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
+      const res = await fetch(`${restUrl}/system_errors?order=id.desc&limit=100`, {
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`
+        }
       });
       if (res.ok) {
         const data = await res.json();
         setLogs(Array.isArray(data) ? data : []);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error fetching logs:", e);
     } finally {
       setLoading(false);
     }
   };
 
+  // 🗑️ مسح جميع السجلات المباشرة من Supabase
   const clearLogs = async () => {
-    if (!window.confirm('هل أنت متأكد من مسح جميع سجلات الأخطاء؟')) return;
+    if (!window.confirm('هل أنت متأكد من مسح جميع سجلات الأخطاء بشكل نهائي؟')) return;
+
+    setLoading(true);
     try {
-      const res = await fetch(`${supabaseUrl}/system_errors?id=gt.0`, {
+      const res = await fetch(`${restUrl}/system_errors?id=gt.0`, {
         method: 'DELETE',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        }
       });
-      if (res.ok) {
+
+      if (res.ok || res.status === 204) {
+        alert('🎉 تم مسح جميع سجلات الأخطاء بنجاح!');
+        setLogs([]); // تفريغ القائمة فوراً بالواجهة
+      } else {
+        const errText = await res.text();
+        console.error("Delete Error:", errText);
+        alert('حدث خطأ أثناء محاولة مسح السجلات من قاعدة البيانات. تأكد من تفعيل RLS أو إيقافه لجدول system_errors');
         fetchLogs();
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error clearing logs:", e);
+      alert('خطأ في الاتصال أثناء مسح السجلات');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,7 +111,7 @@ export const AdminErrorMonitor: React.FC<AdminErrorMonitorProps> = ({ supabaseUr
       </div>
 
       {loading ? (
-        <p style={{ textAlign: 'center', color: '#64748b', padding: '30px 0' }}>🔄 جاري فحص ومراجعة سجلات الأخطاء...</p>
+        <p style={{ textAlign: 'center', color: '#64748b', padding: '30px 0' }}>🔄 جاري فحص ومراجع مع السجلات...</p>
       ) : filteredLogs.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '35px', backgroundColor: '#f0fff4', color: '#166534', borderRadius: '12px', border: '1px solid #bbf7d0', fontWeight: 'bold' }}>
           ✅ ممتاز! لا توجد أخطاء مسجلة تطابق الشروط الحالية، المنصة تعمل بكفاءة.
@@ -144,3 +170,5 @@ export const AdminErrorMonitor: React.FC<AdminErrorMonitorProps> = ({ supabaseUr
     </div>
   );
 };
+
+export default AdminErrorMonitor;
