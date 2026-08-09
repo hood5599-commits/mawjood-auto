@@ -54,7 +54,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       if (email) conditions.push(`customer_email=eq.${encodeURIComponent(email)}`);
       if (phone) {
         conditions.push(`customer_phone=eq.${encodeURIComponent(phone)}`);
-        // تنظيف رقم الهاتف للبحث بالصيغ المختلفة
         const cleanPhone = phone.replace(/\D/g, '');
         if (cleanPhone) conditions.push(`customer_phone=eq.${encodeURIComponent(cleanPhone)}`);
       }
@@ -156,11 +155,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   };
 
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
-  const confirmedInquiries = activeInquiries.filter(i => i.status === 'confirmed_compatible');
-
-  // طلبات الشراء النشطة (التي لم تُقيّم بعد وليست ملغاة)
   const activeOrders = orders.filter(o => !o.is_reviewed && o.status !== 'cancelled');
-  // طلباتي السابقة (المقيّمة أو المكتملة أو الملغاة)
   const previousOrders = orders.filter(o => o.is_reviewed || o.status === 'cancelled');
 
   return (
