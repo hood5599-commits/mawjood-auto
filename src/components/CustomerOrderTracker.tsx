@@ -35,7 +35,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
   const isRtl = lang === 'ar';
 
-  // القيمة الحقيقية للتعرف على العميل سواء هاتف أو إيميل
+  // المعرف المستهدف لطلب البيانات من Supabase
   const targetIdentifier = customerPhone || session?.email || session?.user?.email || '';
 
   useEffect(() => {
@@ -49,8 +49,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
     setLoading(true);
     try {
-      // 🚀 استعلام ذكي يستخدم ilike لتجاهل حالة الأحرف الكبيرة والصغيرة في الإيميل
       const encodedId = encodeURIComponent(targetIdentifier);
+      
+      // 🚀 استعلام مرن يبحث بمطابقة ilike ومطابقة eq لضمان جلب الطلبات بغض النظر عن حالة الأحرف
       const ordersUrl = `${supabaseUrl}/orders?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
       const inqUrl = `${supabaseUrl}/fitment_inquiries?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
       const customUrl = `${supabaseUrl}/custom_part_requests?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
@@ -279,7 +280,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                 ))}
               </div>
             )
-          ) : (
+          ) : activeTab === 'previous_orders' ? (
             previousOrders.length === 0 ? (
               <p className="mwj-ot-empty">{lang === 'ar' ? 'لا توجد طلبات سابقة مُقيّمة.' : 'No reviewed past orders found.'}</p>
             ) : (
@@ -296,7 +297,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                 ))}
               </div>
             )
-          )}
+          ) : null}
 
           {selectedRequestQuotes && (
             <div className="mwj-ot-review-overlay">
@@ -334,7 +335,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           {selectedOrderForReview && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal">
-                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight 800 }}>⭐ تقييم التجربة</h4>
+                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight: 800 }}>⭐ تقييم التجربة</h4>
                 <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px' }}>🏪 تقييم الكراج:</label>
