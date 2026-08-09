@@ -18,7 +18,8 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   supabaseUrl,
   apiKey,
   session,
-  onClose
+  onClose,
+  onSelectPartForCheckout
 }) => {
   const [activeTab, setActiveTab] = useState<'inquiries' | 'orders' | 'previous_orders' | 'custom_requests'>('orders');
   const [orders, setOrders] = useState<any[]>([]);
@@ -30,6 +31,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   // حالة تقييم الكراج الفعالة
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<any | null>(null);
   const [garageRating, setGarageRating] = useState(5);
+  const [deliveryRating, setDeliveryRating] = useState(5);
+  const [websiteRating, setWebsiteRating] = useState(5);
+  const [asDescribed, setAsDescribed] = useState(true);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
@@ -37,35 +41,49 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
   useEffect(() => {
     fetchData();
-  }, [customerPhone]);
+  }, [customerPhone, session]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      // 1. استخراج كل المسارات الممكنة للبريد ورقم الهاتف
       const email = session?.email || session?.user?.email || '';
-      const phone = customerPhone || session?.phone || session?.user?.phone || '';
+      const phone = customerPhone || session?.phone || session?.user?.phone || session?.user?.user_metadata?.phone || '';
 
-      // البحث برقم الهاتف أو البريد الإلكتروني أيّهما توفر
       const conditions = [];
       if (email) conditions.push(`customer_email=eq.${encodeURIComponent(email)}`);
-      if (phone) conditions.push(`customer_phone=eq.${encodeURIComponent(phone)}`);
+      if (phone) {
+        conditions.push(`customer_phone=eq.${encodeURIComponent(phone)}`);
+        // تنظيف رقم الهاتف للبحث بالصيغ المختلفة
+        const cleanPhone = phone.replace(/\D/g, '');
+        if (cleanPhone) conditions.push(`customer_phone=eq.${encodeURIComponent(cleanPhone)}`);
+      }
 
       let ordersQuery = `${supabaseUrl}/orders?order=id.desc`;
+      let inqQuery = `${supabaseUrl}/fitment_inquiries?order=id.desc`;
+      let customQuery = `${supabaseUrl}/custom_part_requests?order=id.desc`;
+
       if (conditions.length > 0) {
-        ordersQuery = `${supabaseUrl}/orders?or=(${conditions.join(',')})&order=id.desc`;
+        const filterStr = conditions.join(',');
+        ordersQuery = `${supabaseUrl}/orders?or=(${filterStr})&order=id.desc`;
+        inqQuery = `${supabaseUrl}/fitment_inquiries?or=(${filterStr})&order=id.desc`;
+        customQuery = `${supabaseUrl}/custom_part_requests?or=(${filterStr})&order=id.desc`;
       }
 
       const [resOrders, resInquiries, resCustom] = await Promise.all([
         fetch(ordersQuery, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/fitment_inquiries?order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/custom_part_requests?order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(inqQuery, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(customQuery, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
       ]);
 
-      if (resOrders.ok) setOrders(await resOrders.json());
+      if (resOrders.ok) {
+        const fetchedOrders = await resOrders.json();
+        setOrders(fetchedOrders);
+      }
       if (resInquiries.ok) setInquiries(await resInquiries.json());
       if (resCustom.ok) setCustomRequests(await resCustom.json());
     } catch (e) {
-      console.error(e);
+      console.error("❌ خطأ جلب الطلبات:", e);
     } finally {
       setLoading(false);
     }
@@ -94,8 +112,11 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       const payload = {
         garage_id: selectedOrderForReview.garage_id,
         order_id: selectedOrderForReview.id,
-        customer_phone: customerPhone,
+        customer_phone: customerPhone || session?.phone || session?.email || '',
         garage_rating: garageRating,
+        delivery_rating: deliveryRating,
+        website_rating: websiteRating,
+        as_described: asDescribed,
         comment: reviewComment.trim() || null
       };
 
@@ -135,7 +156,11 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   };
 
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
+  const confirmedInquiries = activeInquiries.filter(i => i.status === 'confirmed_compatible');
+
+  // طلبات الشراء النشطة (التي لم تُقيّم بعد وليست ملغاة)
   const activeOrders = orders.filter(o => !o.is_reviewed && o.status !== 'cancelled');
+  // طلباتي السابقة (المقيّمة أو المكتملة أو الملغاة)
   const previousOrders = orders.filter(o => o.is_reviewed || o.status === 'cancelled');
 
   return (
@@ -203,6 +228,12 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         .mwj-ot-star { font-size: 22px; background: none; border: none; cursor: pointer; padding: 2px; }
         .mwj-ot-review-save { flex: 1; padding: 11px; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; color: white; background: #22a35a; }
         .mwj-ot-review-cancel { padding: 11px 18px; background: #f1f5f9; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; color: #4a5568; }
+        
+        .mwj-ot-choice-row { display: flex; gap: 10px; }
+        .mwj-ot-choice-btn { flex: 1; padding: 10px; border-radius: 9px; cursor: pointer; font-weight: 800; background: white; border: 1.5px solid #e2e8f0; font-size: 13px; }
+        .mwj-ot-choice-yes-active { border-color: #22a35a !important; background: #f0fff4 !important; color: #276749 !important; }
+        .mwj-ot-choice-no-active { border-color: #e53e3e !important; background: #fff5f5 !important; color: #c53030 !important; }
+        .mwj-ot-review-textarea { width: 100%; padding: 10px 12px; border-radius: 9px; border: 1.5px solid #e2e8f0; height: 64px; resize: vertical; }
       `}</style>
 
       <div className="mwj-ot-overlay" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
@@ -308,6 +339,23 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                 {selectedRequestQuotes.quotes.map((q) => (
                   <div key={q.id} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '14px', marginBottom: '10px' }}>
                     <strong>{q.garage_name || 'كراج معتمد'}</strong> - <span style={{ color: '#e0872a', fontWeight: 'bold' }}>{q.price} QAR</span>
+                    {onSelectPartForCheckout && (
+                      <button
+                        onClick={() => {
+                          setSelectedRequestQuotes(null);
+                          onClose();
+                          onSelectPartForCheckout({
+                            id: `custom-${q.id}`,
+                            name: `${selectedRequestQuotes.request.notes} (${q.part_type || 'قطعة مخصصة'})`,
+                            price: q.price,
+                            user_id: q.garage_id
+                          });
+                        }}
+                        style={{ width: '100%', marginTop: '8px', padding: '8px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        🛒 قبول العرض والشراء
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -319,6 +367,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
               <div className="mwj-ot-review-modal">
                 <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight: 800 }}>⭐ تقييم التجربة</h4>
                 <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px' }}>🏪 تقييم الكراج:</label>
                     <div style={{ display: 'flex', gap: '6px' }}>
@@ -327,6 +376,38 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                       ))}
                     </div>
                   </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px' }}>🚚 تقييم التوصيل:</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} type="button" onClick={() => setDeliveryRating(star)} className="mwj-ot-star" style={{ opacity: star <= deliveryRating ? 1 : 0.3 }}>⭐</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px' }}>🌐 تقييم الموقع:</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} type="button" onClick={() => setWebsiteRating(star)} className="mwj-ot-star" style={{ opacity: star <= websiteRating ? 1 : 0.3 }}>⭐</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '7px' }}>هل طابقت القطعة الوصف تماماً؟</label>
+                    <div className="mwj-ot-choice-row">
+                      <button type="button" onClick={() => setAsDescribed(true)} className={`mwj-ot-choice-btn ${asDescribed ? 'mwj-ot-choice-yes-active' : ''}`}>✅ نعم، مطابقة</button>
+                      <button type="button" onClick={() => setAsDescribed(false)} className={`mwj-ot-choice-btn ${!asDescribed ? 'mwj-ot-choice-no-active' : ''}`}>❌ بها اختلاف</button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '7px' }}>ملاحظات أو تعليق إضافي:</label>
+                    <textarea placeholder="اكتب رأيك لتطوير خدمتنا..." value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mwj-ot-review-textarea" />
+                  </div>
+
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button type="submit" disabled={submittingReview} className="mwj-ot-review-save">حفظ التقييم 🚀</button>
                     <button type="button" onClick={() => setSelectedOrderForReview(null)} className="mwj-ot-review-cancel">إلغاء</button>
