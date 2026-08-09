@@ -82,54 +82,141 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOrderForReview) return;
-    setSubmittingReview(true);
+  /* داخل مكون CustomerOrderTracker.tsx */
 
-    try {
-      const payload = {
-        garage_id: selectedOrderForReview.garage_id,
-        order_id: selectedOrderForReview.id,
-        customer_phone: targetIdentifier,
-        garage_rating: garageRating,
-        comment: reviewComment.trim() || null
-      };
+const [garageRating, setGarageRating] = useState(5);
+const [deliveryRating, setDeliveryRating] = useState(5);
+const [platformRating, setPlatformRating] = useState(5);
+const [reviewComment, setReviewComment] = useState('');
+const [submittingReview, setSubmittingReview] = useState(false);
 
-      await fetch(`${supabaseUrl}/garage_reviews`, {
-        method: 'POST',
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+const handleSubmitReview = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!selectedOrderForReview) return;
+  setSubmittingReview(true);
 
-      await fetch(`${supabaseUrl}/orders?id=eq.${selectedOrderForReview.id}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${session?.token || apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          rating: garageRating,
-          is_reviewed: true
-        })
-      });
+  try {
+    const payload = {
+      order_id: selectedOrderForReview.id,
+      garage_id: selectedOrderForReview.garage_id || 'garage_unknown',
+      customer_phone: targetIdentifier,
+      garage_rating: garageRating,
+      delivery_rating: deliveryRating,
+      platform_rating: platformRating,
+      comment: reviewComment.trim() || null,
+      created_at: new Date().toISOString()
+    };
 
-      alert(lang === 'ar' ? 'شكراً لك! تم تسجيل تقييمك ونقل الطلب لـ "طلباتي السابقة" ⭐' : 'Thank you! Your feedback has been submitted.');
-      setSelectedOrderForReview(null);
-      setReviewComment('');
-      fetchData();
-      setActiveTab('previous_orders');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
+    // 1. حفظ التقييم في جدول التقييمات الشامل
+    await fetch(`${supabaseUrl}/order_reviews`, {
+      method: 'POST',
+      headers: {
+        'apikey': apiKey,
+        'Authorization': `Bearer ${session?.token || apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    // 2. تحديث الطلب كـ "تم تقييمه"
+    await fetch(`${supabaseUrl}/orders?id=eq.${selectedOrderForReview.id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': apiKey,
+        'Authorization': `Bearer ${session?.token || apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        rating: garageRating,
+        is_reviewed: true
+      })
+    });
+
+    alert(lang === 'ar' ? 'شكراً لك! تم تسليم تقييمك ونقل الطلب للأرشيف ⭐' : 'Feedback submitted successfully!');
+    setSelectedOrderForReview(null);
+    setReviewComment('');
+    fetchData();
+    setActiveTab('previous_orders');
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setSubmittingReview(false);
+  }
+};
+
+{/* JSX الخاص بمودال التقييم الشامل */}
+{selectedOrderForReview && (
+  <div className="mwj-ot-review-overlay">
+    <div className="mwj-ot-review-modal" style={{ maxWidth: '480px', padding: '24px', borderRadius: '18px', backgroundColor: 'white' }}>
+      <h3 style={{ margin: '0 0 16px 0', color: '#16304f', fontSize: '18px', fontWeight: 'bold', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>
+        ⭐ تقييم التجربة والخدمة
+      </h3>
+
+      <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        
+        {/* 1. تقييم الكراج والقطعة */}
+        <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
+            🏪 1. تقييم الكراج وجودة القطعة:
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {[1, 2, 3, 4, 5].map(star => (
+              <button key={star} type="button" onClick={() => setGarageRating(star)} className="mwj-ot-star" style={{ opacity: star <= garageRating ? 1 : 0.25, fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>⭐</button>
+            ))}
+          </div>
+        </div>
+
+        {/* 2. تقييم التوصيل والدليفري */}
+        <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
+            🚚 2. تقييم سرعة وسلوك مندوب التوصيل:
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {[1, 2, 3, 4, 5].map(star => (
+              <button key={star} type="button" onClick={() => setDeliveryRating(star)} className="mwj-ot-star" style={{ opacity: star <= deliveryRating ? 1 : 0.25, fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>⭐</button>
+            ))}
+          </div>
+        </div>
+
+        {/* 3. تقييم الموقع والتطبيق */}
+        <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
+            🌐 3. تقييم سهولة استخدام تطبيق موجود أوتو:
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {[1, 2, 3, 4, 5].map(star => (
+              <button key={star} type="button" onClick={() => setPlatformRating(star)} className="mwj-ot-star" style={{ opacity: star <= platformRating ? 1 : 0.25, fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>⭐</button>
+            ))}
+          </div>
+        </div>
+
+        {/* 4. حقل كتابة الملاحظة */}
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
+            📝 ملاحظات أو مقترحات إضافية (اختياري):
+          </label>
+          <textarea
+            rows={3}
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+            placeholder="اكتب انطباعك أو أي ملاحظة تود مشاركتها معنا..."
+            style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+          <button type="submit" disabled={submittingReview} style={{ flex: 1, padding: '12px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800, cursor: 'pointer' }}>
+            {submittingReview ? 'جاري الحفظ...' : 'حفظ التقييم 🚀'}
+          </button>
+          <button type="button" onClick={() => setSelectedOrderForReview(null)} style={{ padding: '12px 18px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 800, cursor: 'pointer' }}>
+            إلغاء
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+)}
 
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
   const activeOrders = orders.filter(o => !o.is_reviewed && o.status !== 'cancelled');
