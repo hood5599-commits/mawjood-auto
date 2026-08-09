@@ -46,43 +46,59 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. استخراج كل المسارات الممكنة للبريد ورقم الهاتف
-      const email = session?.email || session?.user?.email || '';
-      const phone = customerPhone || session?.phone || session?.user?.phone || session?.user?.user_metadata?.phone || '';
+      const email = (session?.email || session?.user?.email || '').trim();
+      const phone = (customerPhone || session?.phone || session?.user?.phone || session?.user?.user_metadata?.phone || '').trim();
 
-      const conditions = [];
-      if (email) conditions.push(`customer_email=eq.${encodeURIComponent(email)}`);
+      console.log("🕵️ جاري الفحص - الإيميل:", email, "| الهاتف:", phone);
+
+      // بناء مصفوفة الشروط المقبولة فقط (غير الفارغة)
+      const queryParts: string[] = [];
+      if (email) {
+        queryParts.push(`customer_email.eq.${encodeURIComponent(email)}`);
+      }
       if (phone) {
-        conditions.push(`customer_phone=eq.${encodeURIComponent(phone)}`);
+        queryParts.push(`customer_phone.eq.${encodeURIComponent(phone)}`);
         const cleanPhone = phone.replace(/\D/g, '');
-        if (cleanPhone) conditions.push(`customer_phone=eq.${encodeURIComponent(cleanPhone)}`);
+        if (cleanPhone && cleanPhone !== phone) {
+          queryParts.push(`customer_phone.eq.${encodeURIComponent(cleanPhone)}`);
+        }
       }
 
-      let ordersQuery = `${supabaseUrl}/orders?order=id.desc`;
-      let inqQuery = `${supabaseUrl}/fitment_inquiries?order=id.desc`;
-      let customQuery = `${supabaseUrl}/custom_part_requests?order=id.desc`;
-
-      if (conditions.length > 0) {
-        const filterStr = conditions.join(',');
-        ordersQuery = `${supabaseUrl}/orders?or=(${filterStr})&order=id.desc`;
-        inqQuery = `${supabaseUrl}/fitment_inquiries?or=(${filterStr})&order=id.desc`;
-        customQuery = `${supabaseUrl}/custom_part_requests?or=(${filterStr})&order=id.desc`;
+      // إذا لم يكن هناك إيميل أو هاتف، لا ترسل طلبات خطأ
+      if (queryParts.length === 0) {
+        console.warn("⚠️ لا يوجد بريد أو رقم هاتف للجلسة الحالية.");
+        setLoading(false);
+        return;
       }
+
+      // الصيغة المعتمدة لـ Supabase REST API هي or=(cond1,cond2)
+      const filterParam = `or=(${queryParts.join(',')})`;
 
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(ordersQuery, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(inqQuery, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(customQuery, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(`${supabaseUrl}/orders?${filterParam}&order=id.desc`, {
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
+        }),
+        fetch(`${supabaseUrl}/fitment_inquiries?${filterParam}&order=id.desc`, {
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
+        }),
+        fetch(`${supabaseUrl}/custom_part_requests?${filterParam}&order=id.desc`, {
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
+        })
       ]);
 
       if (resOrders.ok) {
-        const fetchedOrders = await resOrders.json();
-        setOrders(fetchedOrders);
+        const ordersData = await resOrders.json();
+        console.log("✅ تم جلب الطلبات بنجاح:", ordersData);
+        setOrders(ordersData);
+      } else {
+        console.error("❌ فشل طلب الطلبات:", await resOrders.text());
       }
+
       if (resInquiries.ok) setInquiries(await resInquiries.json());
       if (resCustom.ok) setCustomRequests(await resCustom.json());
+
     } catch (e) {
-      console.error("❌ خطأ جلب الطلبات:", e);
+      console.error("❌ خطأ غير متوقع:", e);
     } finally {
       setLoading(false);
     }
