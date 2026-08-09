@@ -9,6 +9,7 @@ interface Props {
   apiKey: string;
   session: any;
   onClose: () => void;
+  onSelectPartForCheckout?: (part: any) => void;
 }
 
 export const CustomerOrderTracker: React.FC<Props> = ({
@@ -17,7 +18,8 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   supabaseUrl,
   apiKey,
   session,
-  onClose
+  onClose,
+  onSelectPartForCheckout
 }) => {
   const [activeTab, setActiveTab] = useState<'inquiries' | 'orders' | 'previous_orders' | 'custom_requests'>('orders');
   const [orders, setOrders] = useState<any[]>([]);
@@ -295,6 +297,23 @@ export const CustomerOrderTracker: React.FC<Props> = ({
                 {selectedRequestQuotes.quotes.map((q) => (
                   <div key={q.id} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '14px', marginBottom: '10px' }}>
                     <strong>{q.garage_name || 'كراج معتمد'}</strong> - <span style={{ color: '#e0872a', fontWeight: 'bold' }}>{q.price} QAR</span>
+                    {onSelectPartForCheckout && (
+                      <button
+                        onClick={() => {
+                          setSelectedRequestQuotes(null);
+                          onClose();
+                          onSelectPartForCheckout({
+                            id: `custom-${q.id}`,
+                            name: `${selectedRequestQuotes.request.notes} (${q.part_type || 'قطعة مخصصة'})`,
+                            price: q.price,
+                            user_id: q.garage_id
+                          });
+                        }}
+                        style={{ width: '100%', marginTop: '8px', padding: '8px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        🛒 قبول العرض والشراء
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
