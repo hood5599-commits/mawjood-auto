@@ -9,7 +9,6 @@ interface Props {
   apiKey: string;
   session: any;
   onClose: () => void;
-  onSelectPartForCheckout?: (part: any) => void;
 }
 
 export const CustomerOrderTracker: React.FC<Props> = ({
@@ -18,8 +17,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   supabaseUrl,
   apiKey,
   session,
-  onClose,
-  onSelectPartForCheckout
+  onClose
 }) => {
   const [activeTab, setActiveTab] = useState<'inquiries' | 'orders' | 'previous_orders' | 'custom_requests'>('orders');
   const [orders, setOrders] = useState<any[]>([]);
@@ -39,7 +37,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     fetchData();
   }, [customerPhone]);
 
-  // 🚀 الكود الأصلي البسيط والمباشر بدون أي تعقيدات
   const fetchData = async () => {
     if (!customerPhone) return;
     setLoading(true);
@@ -125,7 +122,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
   
-  // فلترة الطلبات إلى قسمين: نشطة وسابقة
   const activeOrders = orders.filter(o => !o.is_reviewed && o.status !== 'cancelled');
   const previousOrders = orders.filter(o => o.is_reviewed || o.status === 'cancelled');
 
