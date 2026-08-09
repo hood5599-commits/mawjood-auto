@@ -99,13 +99,13 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
- // 🚀 استخراج معرف العميل بالصيغة الدقيقة مع الحفاظ على البيانات الأصيلة
+ // 🚀 استخراج معرف العميل بالصيغة الدقيقة الشاملة
   const currentCustomerPhone = 
+    session?.email || 
+    session?.user?.email || 
     session?.user?.user_metadata?.phone || 
     session?.phone || 
     session?.user?.phone || 
-    session?.email || 
-    session?.user?.email || 
     localStorage.getItem('customer_phone') || 
     '';
 
