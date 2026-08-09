@@ -646,13 +646,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div key={idx} style={{ padding: '18px', borderRadius: '14px', border: '1px solid #cbd5e0', backgroundColor: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
                       <strong style={{ fontSize: '15px' }}>{u.name || u.full_name || 'حساب مستخدم'}</strong>
-                      <span style={{ fontSize: '12.5px', color: '#64748b', display: 'block', marginTop: '3px' }}>{u.phone || u.email || userQuery}</span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <button onClick={() => { setSelectedUserPhone(u.phone || userQuery); setTab('users'); }} style={{ padding: '8px 14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12.5px' }}>
-                        {isRtl ? 'تغيير كلمة المرور' : 'Reset Password'}
-                      </button>
+                      <span style={{ marginRight: '10px', marginLeft: '10px', padding: '2px 8px', borderRadius: '6px', fontSize: '12px', backgroundColor: u.role === 'garage' ? '#e0e7ff' : '#f3f4f6', color: u.role === 'garage' ? '#3730a3' : '#374151', fontWeight: 'bold' }}>
+                        {u.role === 'garage' ? (isRtl ? 'كراج / تاجر' : 'Garage') : (isRtl ? 'عميل' : 'Customer')}
+                      </span>
+                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>
+                        📞 {u.phone || u.email || 'بدون رقم'} | المعرف: #{u.id}
+                      </div>
+                      {u.cr_image && (
+                        <div style={{ marginTop: '8px' }}>
+                          <a href={u.cr_image} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#2563eb', textDecoration: 'underline' }}>
+                            {isRtl ? '📄 عرض السجل التجاري' : 'View Commercial Register'}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -660,93 +666,96 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {selectedUserPhone && (
-            <div style={{ backgroundColor: '#fffbe3', padding: '20px', borderRadius: '16px', border: '1px solid #fef08a' }}>
-              <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#92400e' }}>{isRtl ? `تغيير كلمة المرور للحساب: ${selectedUserPhone}` : 'Reset Password'}</h3>
-              <form onSubmit={handleAdminResetPassword} style={{ display: 'flex', gap: '10px' }}>
-                <input
-                  type="text"
-                  placeholder={isRtl ? 'كلمة المرور الجديدة...' : 'New Password'}
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px' }}
-                  required
-                />
-                <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {isRtl ? 'حفظ كلمة المرور' : 'Save'}
-                </button>
-              </form>
-            </div>
-          )}
-
+          {/* 🔑 إمكانية إعادة تعيين كلمة المرور من الأدمن مباشرة */}
+          <div style={{ marginTop: '12px', backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <h4 style={{ margin: '0 0 12px 0', color: '#1f3a5f' }}>{isRtl ? '🔑 تغيير كلمة مرور مستخدم' : 'Reset User Password'}</h4>
+            <form onSubmit={handleAdminResetPassword} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'end' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold' }}>{isRtl ? 'رقم الهاتف / البريد' : 'Phone / Email'}</label>
+                <input type="text" value={selectedUserPhone} onChange={e => setSelectedUserPhone(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold' }}>{isRtl ? 'كلمة المرور الجديدة' : 'New Password'}</label>
+                <input type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+              </div>
+              <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {isRtl ? 'تحديث كلمة المرور' : 'Update Password'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* 4️⃣ تبويب البحث عن القطع بالإعلان أو رقم القطعة */}
+      {/* 4️⃣ تبويب البحث عن القطع */}
       {tab === 'parts' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#1f3a5f' }}>{isRtl ? 'البحث عن قطعة غيار (برمز الإعلان ID أو رقم القطعة Part #)' : 'Search Part by ID / SKU'}</h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
-              {isRtl ? 'اكتب رمز الإعلان (مثلاً: 105) أو رقم القطعة المكتوب بالكتالوج لعرضها فوراً والتحكم بها.' : 'Search exact Part ID or Part Number.'}
-            </p>
-
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#1f3a5f' }}>{isRtl ? 'البحث عن قطعة غيار (بالرمز أو رقم القطعة)' : 'Search Parts'}</h3>
             <form onSubmit={handleSearchPart} style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text"
-                placeholder={isRtl ? 'أدخل رمز الإعلان ID أو رقم القطعة Part Number...' : 'Enter Part ID or SKU'}
+                placeholder={isRtl ? 'أدخل رقم القطعة (Part Number) أو معرف الإعلان (ID)...' : 'Part Number or ID'}
                 value={partQuery}
                 onChange={(e) => setPartQuery(e.target.value)}
                 style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '14px' }}
                 required
               />
-              <button type="submit" disabled={searching} style={{ padding: '12px 24px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {searching ? '...' : (isRtl ? 'استعلام' : 'Lookup')}
+              <button type="submit" disabled={searching} style={{ padding: '12px 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {searching ? '...' : (isRtl ? 'بحث' : 'Search')}
               </button>
             </form>
           </div>
 
           {searchResultsParts && (
-            <div>
-              <h4 style={{ margin: '0 0 14px 0', color: '#1e293b' }}>{isRtl ? `النتائج المطابقة (${searchResultsParts.length}):` : 'Matching Parts:'}</h4>
-              {searchResultsParts.length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '13.5px' }}>{isRtl ? 'لم نجد أية قطعة مطابقة لهذا الرمز.' : 'No matching parts found.'}</p>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                  {searchResultsParts.map((p) => (
-                    <div key={p.id} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '14px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div>
-                        <span style={{ fontSize: '11px', backgroundColor: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', color: '#475569' }}>
-                          رمز الإعلان #{p.id}
-                        </span>
-                        <h4 style={{ margin: '8px 0 4px 0', fontSize: '15px' }}>{p.name || p.title}</h4>
-                        <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>رقم القطعة: {p.part_number || 'غير محدد'}</p>
-                        <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', color: '#15803d' }}>{p.price} QAR</p>
-                      </div>
-                      <button
-                        onClick={() => handleDeletePart(p.id)}
-                        style={{ marginTop: '14px', padding: '8px', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
-                      >
-                        {isRtl ? 'حذف القطعة' : 'Delete Part'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13.5px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f1f5f9', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '12px' }}>ID</th>
+                    <th style={{ padding: '12px' }}>اسم القطعة</th>
+                    <th style={{ padding: '12px' }}>رقم القطعة</th>
+                    <th style={{ padding: '12px' }}>السعر</th>
+                    <th style={{ padding: '12px' }}>الكراج</th>
+                    <th style={{ padding: '12px', textAlign: 'center' }}>إجراء</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchResultsParts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>{isRtl ? 'لا توجد نتائج مطابقة' : 'No matching parts found'}</td>
+                    </tr>
+                  ) : (
+                    searchResultsParts.map((part) => (
+                      <tr key={part.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '12px', fontWeight: 'bold' }}>#{part.id}</td>
+                        <td style={{ padding: '12px', fontWeight: 'bold', color: '#1e293b' }}>{part.name || part.title}</td>
+                        <td style={{ padding: '12px', fontFamily: 'monospace' }}>{part.part_number || 'N/A'}</td>
+                        <td style={{ padding: '12px', color: '#15803d', fontWeight: 'bold' }}>{part.price} QAR</td>
+                        <td style={{ padding: '12px' }}>{part.garage_name || part.garage_id || 'عام'}</td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <button onClick={() => handleDeletePart(part.id)} style={{ padding: '6px 12px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}>
+                            {isRtl ? 'حذف القطعة' : 'Delete'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       )}
 
-      {/* 5️⃣ تبويب البحث عن الطلبات والمشاكل */}
+      {/* 5️⃣ تبويب البحث عن الطلبات */}
       {tab === 'orders' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#1f3a5f' }}>{isRtl ? 'البحث عن طلب (برقم الطلب أو جوال العميل)' : 'Search Order'}</h3>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#1f3a5f' }}>{isRtl ? 'البحث عن طلب (برقم الطلب أو الجوال)' : 'Search Orders'}</h3>
             <form onSubmit={handleSearchOrder} style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text"
-                placeholder={isRtl ? 'أدخل رقم الطلب أو رقم الهاتف...' : 'Enter Order ID or Phone'}
+                placeholder={isRtl ? 'أدخل رقم الطلب أو رقم جوال العميل...' : 'Order ID or Customer Phone'}
                 value={orderQuery}
                 onChange={(e) => setOrderQuery(e.target.value)}
                 style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '14px' }}
@@ -762,25 +771,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13.5px' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
+                  <tr style={{ backgroundColor: '#f1f5f9', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '12px' }}>رقم الطلب</th>
-                    <th style={{ padding: '12px' }}>هاتف العميل</th>
-                    <th style={{ padding: '12px' }}>السعر</th>
-                    <th style={{ padding: '12px' }}>الحالة</th>
+                    <th style={{ padding: '12px' }}>جوال العميل</th>
+                    <th style={{ padding: '12px' }}>المبلغ الإجمالي</th>
+                    <th style={{ padding: '12px' }}>حالة الطلب</th>
                     <th style={{ padding: '12px' }}>التاريخ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {searchResultsOrders.length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>لا توجد نتائج للطلب المبحث عنه</td></tr>
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>{isRtl ? 'لا توجد طلبات مطابقة' : 'No matching orders found'}</td>
+                    </tr>
                   ) : (
-                    searchResultsOrders.map((o) => (
-                      <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '12px', fontWeight: 'bold' }}>#{o.id}</td>
-                        <td style={{ padding: '12px' }}>{o.customer_phone}</td>
-                        <td style={{ padding: '12px', fontWeight: 'bold', color: '#15803d' }}>{o.price} QAR</td>
-                        <td style={{ padding: '12px' }}>{o.status}</td>
-                        <td style={{ padding: '12px', color: '#64748b' }}>{new Date(o.created_at || Date.now()).toLocaleDateString('ar-EG')}</td>
+                    searchResultsOrders.map((ord) => (
+                      <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '12px', fontWeight: 'bold' }}>#{ord.id}</td>
+                        <td style={{ padding: '12px', color: '#2563eb', fontWeight: 'bold' }}>{ord.customer_phone || ord.phone || 'N/A'}</td>
+                        <td style={{ padding: '12px', fontWeight: 'bold', color: '#15803d' }}>{ord.price || ord.total || 0} QAR</td>
+                        <td style={{ padding: '12px' }}>
+                          <span style={{ padding: '4px 10px', borderRadius: '8px', fontSize: '11.5px', fontWeight: 'bold', backgroundColor: ord.status === 'completed' ? '#dcfce7' : ord.status === 'cancelled' ? '#fee2e2' : '#fef3c7', color: ord.status === 'completed' ? '#15803d' : ord.status === 'cancelled' ? '#991b1b' : '#92400e' }}>
+                            {ord.status || 'معلق'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', color: '#64748b', fontSize: '12px' }}>{ord.created_at ? new Date(ord.created_at).toLocaleDateString('ar-EG') : 'N/A'}</td>
                       </tr>
                     ))
                   )}
@@ -791,116 +806,143 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 💳 6️⃣ تبويب إعدادات بوابة الدفع والتقسيط */}
+      {/* 6️⃣ تبويب إعدادات بوابة الدفع */}
       {tab === 'payment' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 14px 0', color: '#1f3a5f' }}>💳 إعدادات بوابات الدفع والتقسيط</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
-                <input type="checkbox" checked={enableOnlinePayment} onChange={(e) => setEnableOnlinePayment(e.target.checked)} />
-                تفعيل الدفع الإلكتروني المباشر
-              </label>
+          <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px' }}>
+            💳 {isRtl ? 'إعدادات بوابة الدفع الإلكتروني والتقسيط' : 'Payment Gateways & BNPL Configuration'}
+          </h3>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
-                <input type="checkbox" checked={enableBNPL} onChange={(e) => setEnableBNPL(e.target.checked)} />
-                تفعيل خدمة الدفع الآجل والتقسيط (BNPL)
-              </label>
+          <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+              <input type="checkbox" checked={enableOnlinePayment} onChange={e => setEnableOnlinePayment(e.target.checked)} style={{ width: '18px', height: '18px' }} />
+              {isRtl ? 'تفعيل الدفع الإلكتروني المباشر' : 'Enable Online Payment'}
+            </label>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
-                <input type="checkbox" checked={enableCOD} onChange={(e) => setEnableCOD(e.target.checked)} />
-                تفعيل الدفع عند الاستلام (COD)
-              </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>{isRtl ? 'مزود خدمة الدفع' : 'Payment Provider'}</label>
+                <select value={paymentProvider} onChange={e => setPaymentProvider(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                  <option value="skipcash">SkipCash</option>
+                  <option value="tap">Tap Payments</option>
+                  <option value="myfatoorah">MyFatoorah</option>
+                  <option value="stripe">Stripe</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>{isRtl ? 'بيئة العمل' : 'Payment Mode'}</label>
+                <select value={paymentMode} onChange={e => setPaymentMode(e.target.value as any)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                  <option value="sandbox">Sandbox (تجريبي)</option>
+                  <option value="live">Live (حقيقي)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Merchant ID</label>
+                <input type="text" value={merchantId} onChange={e => setMerchantId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>API Key</label>
+                <input type="password" value={paymentApiKey} onChange={e => setPaymentApiKey(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+              </div>
             </div>
 
-            <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '20px 0' }} />
+            <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '10px 0' }} />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>مزود خدمة الدفع:</label>
-                <select value={paymentProvider} onChange={(e) => setPaymentProvider(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
-                  <option value="skipcash">SkipCash (قطر)</option>
-                  <option value="myfatoorah">MyFatoorah</option>
-                  <option value="tap">Tap Payments</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>بيئة التشغيل:</label>
-                <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
-                  <option value="sandbox">اختباري (Sandbox)</option>
-                  <option value="live">حي وفعلي (Live)</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Merchant ID / Key:</label>
-                <input type="text" value={merchantId} onChange={(e) => setMerchantId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>API Secret Key:</label>
-                <input type="password" value={paymentApiKey} onChange={(e) => setPaymentApiKey(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
-              </div>
+            <h4 style={{ margin: '0 0 10px 0', color: '#1e293b' }}>{isRtl ? 'طرق الدفع المتاحة للعملاء:' : 'Available Payment Methods:'}</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px' }}>
+                <input type="checkbox" checked={enableApplePay} onChange={e => setEnableApplePay(e.target.checked)} />
+                Apple Pay
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px' }}>
+                <input type="checkbox" checked={enableGooglePay} onChange={e => setEnableGooglePay(e.target.checked)} />
+                Google Pay
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px' }}>
+                <input type="checkbox" checked={enableCards} onChange={e => setEnableCards(e.target.checked)} />
+                {isRtl ? 'البطاقات البنكية (Credit/Debit)' : 'Credit/Debit Cards'}
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px' }}>
+                <input type="checkbox" checked={enableCOD} onChange={e => setEnableCOD(e.target.checked)} />
+                {isRtl ? 'الدفع عند الاستلام (COD)' : 'Cash on Delivery'}
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: '#1d4ed8', fontWeight: 'bold' }}>
+                <input type="checkbox" checked={enableBNPL} onChange={e => setEnableBNPL(e.target.checked)} />
+                {isRtl ? 'خدمة التقسيط والدفع الآجل (Tabby / Tamara / BNPL)' : 'Buy Now Pay Later (BNPL)'}
+              </label>
             </div>
           </div>
 
-          <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', alignSelf: 'flex-start' }}>
-            حفظ إعدادات الدفع
+          <button type="submit" style={{ padding: '14px 28px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', alignSelf: 'flex-start' }}>
+            {isRtl ? 'حفظ إعدادات بوابة الدفع' : 'Save Payment Settings'}
           </button>
         </form>
       )}
 
-      {/* 📄 7️⃣ تبويب تعديل السياسات والشروط */}
+      {/* 7️⃣ تبويب تعديل السياسات والشروط */}
       {tab === 'policies' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>شروط الاستخدام:</label>
-            <textarea rows={5} value={termsContent} onChange={(e) => setTermsContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit' }} />
+          <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px' }}>
+            📜 {isRtl ? 'تعديل سياسات وشروط الاستخدام للموقع' : 'Edit Policies & Terms'}
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>{isRtl ? 'الشروط والأحكام' : 'Terms & Conditions'}</label>
+              <textarea rows={6} value={termsContent} onChange={e => setTermsContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>{isRtl ? 'سياسة الخصوصية' : 'Privacy Policy'}</label>
+              <textarea rows={6} value={privacyContent} onChange={e => setPrivacyContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>{isRtl ? 'عن المنصة' : 'About Us'}</label>
+              <textarea rows={4} value={aboutContent} onChange={e => setAboutContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>سياسة الخصوصية:</label>
-            <textarea rows={5} value={privacyContent} onChange={(e) => setPrivacyContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit' }} />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>عن المنصة:</label>
-            <textarea rows={4} value={aboutContent} onChange={(e) => setAboutContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit' }} />
-          </div>
-
-          <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', alignSelf: 'flex-start' }}>
-            حفظ النصوص والسياسات
+          <button type="submit" style={{ padding: '14px 28px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', alignSelf: 'flex-start' }}>
+            {isRtl ? 'حفظ السياسات والشروط' : 'Save Policies'}
           </button>
         </form>
       )}
 
-      {/* 🌐 8️⃣ تبويب السوشال ميديا والموقع */}
+      {/* 8️⃣ تبويب السوشال ميديا وروابط التواصل */}
       {tab === 'social' && (
-        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>رابط فيسبوك:</label>
-            <input type="text" value={facebook} onChange={(e) => setFacebook(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
+        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px' }}>
+            🌐 {isRtl ? 'إعدادات وسائل التواصل الاجتماعي وروابط التواصل' : 'Social Media & Contact Settings'}
+          </h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>WhatsApp</label>
+              <input type="text" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="+974..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Facebook</label>
+              <input type="text" value={facebook} onChange={e => setFacebook(e.target.value)} placeholder="https://facebook.com/..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Instagram</label>
+              <input type="text" value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="https://instagram.com/..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Twitter / X</label>
+              <input type="text" value={twitter} onChange={e => setTwitter(e.target.value)} placeholder="https://x.com/..." style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>رابط إنستغرام:</label>
-            <input type="text" value={instagram} onChange={(e) => setInstagram(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>رابط تويتر / X:</label>
-            <input type="text" value={twitter} onChange={(e) => setTwitter(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>رقم واتساب الدعم:</label>
-            <input type="text" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
-          </div>
-
-          <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', alignSelf: 'flex-start', marginTop: '10px' }}>
-            حفظ إعدادات التواصل
+          <button type="submit" style={{ padding: '14px 28px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', alignSelf: 'flex-start' }}>
+            {isRtl ? 'حفظ إعدادات التواصل' : 'Save Social Settings'}
           </button>
         </form>
       )}
