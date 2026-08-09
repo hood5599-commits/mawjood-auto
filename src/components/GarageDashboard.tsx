@@ -405,40 +405,79 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (err) {}
   };
 
+  // 🚀 تحديث حالة الطلب باستخدام القيمة الصحيحة المعتمدة لمنع أخطاء 400
   const handleUpdateOrderStatus = async (orderId: number, status: string) => {
     try {
       const response = await fetch(`${restUrl}/orders?id=eq.${orderId}`, {
         method: 'PATCH',
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, garage_address: garageAddress })
+        headers: { 
+          'apikey': apiKey, 
+          'Authorization': `Bearer ${session?.token || apiKey}`, 
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ 
+          status: status || 'ready_for_pickup', 
+          garage_address: garageAddress 
+        })
       });
-      if (response.ok) fetchMyOrders();
-    } catch (error) {}
+      if (response.ok) {
+        setToastMessage(isRtl ? 'تم تحديث حالة الطلب بنجاح 📦' : 'Order status updated');
+        fetchMyOrders();
+      } else {
+        const errText = await response.text();
+        console.error("❌ خطأ تحديث الطلب:", errText);
+      }
+    } catch (error) {
+      console.error("Error updating order status:", error);
+    }
   };
+
+  // حساب الأعداد للتنبيهات
+  const pendingInquiriesCount = myInquiries.filter(i => i.status === 'pending_check').length;
+  const activeOrdersCount = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'completed' && o.status !== 'cancelled').length;
 
   return (
     <div style={{ maxWidth: '1000px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
-      {/* 🚀 هيدر التبويبات المكتمل بما فيها تبويب البيانات والملف الشخصي */}
+      {/* 🚀 هيدر التبويبات المكتمل مع شارات التنبيه الملونة */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', flexWrap: 'wrap', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
         <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'my_parts' ? '#1f3a5f' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           معروضاتي ({myParts.length})
         </button>
+
         <button onClick={() => { setEditingPart(null); setActiveTab('add_part'); }} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'add_part' ? '#1f3a5f' : 'transparent', color: activeTab === 'add_part' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           إضافة قطعة جديدة
         </button>
+
         <button onClick={() => setShowExcelModal(true)} style={{ padding: '12px 16px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           📄 رفع إكسل
         </button>
+
         <button onClick={() => setActiveTab('custom_requests')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'custom_requests' ? '#e0872a' : 'transparent', color: activeTab === 'custom_requests' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           طلبات التسعير ({customRequests.length})
         </button>
-        <button onClick={() => setActiveTab('inquiries')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+
+        {/* 🔴 تبويب فحص التوافق مع شارة التنبيه الحمراء */}
+        <button onClick={() => setActiveTab('inquiries')} style={{ position: 'relative', flex: 1, padding: '12px', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           فحص التوافق ({myInquiries.length})
+          {pendingInquiriesCount > 0 && (
+            <span style={{ position: 'absolute', top: '-5px', [isRtl ? 'left' : 'right']: '5px', backgroundColor: '#ef4444', color: 'white', fontSize: '10px', fontWeight: 800, padding: '2px 7px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(239,68,68,0.4)' }}>
+              {pendingInquiriesCount} {isRtl ? 'جديد' : 'New'}
+            </span>
+          )}
         </button>
-        <button onClick={() => setActiveTab('orders')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+
+        {/* 🟢 تبويب الطلبات مع شارة التنبيه الخضراء للطلبات الجارية */}
+        <button onClick={() => setActiveTab('orders')} style={{ position: 'relative', flex: 1, padding: '12px', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           الطلبات ({myOrders.length})
+          {activeOrdersCount > 0 && (
+            <span style={{ position: 'absolute', top: '-5px', [isRtl ? 'left' : 'right']: '5px', backgroundColor: '#16a34a', color: 'white', fontSize: '10px', fontWeight: 800, padding: '2px 7px', borderRadius: '10px', boxShadow: '0 2px 6px rgba(22,163,74,0.4)' }}>
+              {activeOrdersCount} {isRtl ? 'جاري' : 'Active'}
+            </span>
+          )}
         </button>
+
         <button onClick={() => setActiveTab('profile')} style={{ padding: '12px 18px', backgroundColor: activeTab === 'profile' ? '#0284c7' : '#f0f9ff', color: activeTab === 'profile' ? 'white' : '#0369a1', border: '1px solid #bae6fd', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           ⚙️ بيانات الكراج والأمان
         </button>
@@ -447,7 +486,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       {/* 🔐 1. تبويب إدارة بيانات الكراج والأمان والحساب */}
       {activeTab === 'profile' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-          
           <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
             <span style={{ fontSize: '24px' }}>🛡️</span>
             <div>
@@ -604,7 +642,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               {isUpdatingPassword ? (isRtl ? 'جاري التحديث...' : 'Updating...') : (isRtl ? 'تحديث كلمة المرور 🔒' : 'Update Password 🔒')}
             </button>
           </form>
-
         </div>
       )}
 
