@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 
 interface AdminErrorMonitorProps {
@@ -84,7 +85,7 @@ export const AdminErrorMonitor: React.FC<AdminErrorMonitorProps> = ({ supabaseUr
           <h3 style={{ margin: '0 0 4px 0', color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
             🛡️ كاشف الأخطاء الذكي والمراقبة الحية ({filteredLogs.length} / {logs.length})
           </h3>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>مراقبة تلقائية للأخطاء البرمجية وانقطاعات الشبكة وفشل الاستجابات</span>
+          <span style={{ fontSize: '12px', color: '#64748b' }}>مراقبة تلقائية للأخطاء البرمجية وانقطاعات الشبكة واستخراج الرد الصريح للفرونت إند من السيرفر</span>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -111,7 +112,7 @@ export const AdminErrorMonitor: React.FC<AdminErrorMonitorProps> = ({ supabaseUr
       </div>
 
       {loading ? (
-        <p style={{ textAlign: 'center', color: '#64748b', padding: '30px 0' }}>🔄 جاري فحص ومراجع مع السجلات...</p>
+        <p style={{ textAlign: 'center', color: '#64748b', padding: '30px 0' }}>🔄 جاري فحص ومراجعة السجلات...</p>
       ) : filteredLogs.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '35px', backgroundColor: '#f0fff4', color: '#166534', borderRadius: '12px', border: '1px solid #bbf7d0', fontWeight: 'bold' }}>
           ✅ ممتاز! لا توجد أخطاء مسجلة تطابق الشروط الحالية، المنصة تعمل بكفاءة.
@@ -122,47 +123,66 @@ export const AdminErrorMonitor: React.FC<AdminErrorMonitorProps> = ({ supabaseUr
             <thead>
               <tr style={{ backgroundColor: '#f8fafc', color: '#475569', borderBottom: '2px solid #cbd5e0' }}>
                 <th style={{ padding: '12px 10px' }}>نوع الخطأ / الخطورة</th>
-                <th style={{ padding: '12px 10px' }}>تفاصيل الرسالة والموقع</th>
+                <th style={{ padding: '12px 10px' }}>تفاصيل الرسالة وتفاصيل رد السيرفر الصريح</th>
                 <th style={{ padding: '12px 10px' }}>رابط الصفحة والمستخدم</th>
                 <th style={{ padding: '12px 10px' }}>التاريخ والوقت</th>
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.map((log) => (
-                <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: log.severity === 'CRITICAL' ? '#fff5f5' : '#ffffff' }}>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{ 
-                      padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block',
-                      backgroundColor: log.severity === 'CRITICAL' ? '#fef2f2' : log.severity === 'HIGH' ? '#fff7ed' : '#f0f9ff',
-                      color: log.severity === 'CRITICAL' ? '#dc2626' : log.severity === 'HIGH' ? '#c2410c' : '#0369a1',
-                      border: log.severity === 'CRITICAL' ? '1px solid #fecaca' : '1px solid #fed7aa'
-                    }}>
-                      {log.error_type} ({log.severity})
-                    </span>
-                  </td>
-                  
-                  <td style={{ padding: '10px', fontWeight: 'bold', color: '#1e293b', maxWidth: '320px', wordBreak: 'break-word' }}>
-                    <div>{log.message}</div>
-                    {log.stack_trace && (
-                      <details style={{ marginTop: '4px', cursor: 'pointer', color: '#64748b', fontSize: '11px' }}>
-                        <summary>عرض تفاصيل الـ Stack Trace</summary>
-                        <pre style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '8px', borderRadius: '6px', fontSize: '10.5px', overflowX: 'auto', marginTop: '4px', textAlign: 'left', direction: 'ltr' }}>
-                          {log.stack_trace}
-                        </pre>
-                      </details>
-                    )}
-                  </td>
+              {filteredLogs.map((log) => {
+                const hasServerResponse = log.stack_trace && log.stack_trace.includes('[تفاصيل الرد الصريح من السيرفر]');
 
-                  <td style={{ padding: '10px', color: '#2563eb', fontSize: '11.5px' }}>
-                    <div style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}>{log.page_url}</div>
-                    <div style={{ color: '#64748b', fontSize: '11px', marginTop: '2px' }}>👤 {log.user_info || 'زائر'}</div>
-                  </td>
+                return (
+                  <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: log.severity === 'CRITICAL' ? '#fff5f5' : '#ffffff' }}>
+                    <td style={{ padding: '10px' }}>
+                      <span style={{ 
+                        padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', display: 'inline-block',
+                        backgroundColor: log.severity === 'CRITICAL' ? '#fef2f2' : log.severity === 'HIGH' ? '#fff7ed' : '#f0f9ff',
+                        color: log.severity === 'CRITICAL' ? '#dc2626' : log.severity === 'HIGH' ? '#c2410c' : '#0369a1',
+                        border: log.severity === 'CRITICAL' ? '1px solid #fecaca' : '1px solid #fed7aa'
+                      }}>
+                        {log.error_type} ({log.severity})
+                      </span>
+                    </td>
+                    
+                    <td style={{ padding: '10px', fontWeight: 'bold', color: '#1e293b', maxWidth: '380px', wordBreak: 'break-word' }}>
+                      <div style={{ marginBottom: '4px' }}>{log.message}</div>
+                      
+                      {/* 🔥 إبراز رد السيرفر الصريح والسبب الجذري للخطأ */}
+                      {log.stack_trace && (
+                        <div style={{ marginTop: '6px' }}>
+                          {hasServerResponse ? (
+                            <div style={{ backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '8px', padding: '8px 10px' }}>
+                              <span style={{ fontSize: '11px', color: '#991b1b', fontWeight: 800, display: 'block', marginBottom: '4px' }}>
+                                🔍 السبب التقني ورد السيرفر من Supabase:
+                              </span>
+                              <pre style={{ margin: 0, color: '#be123c', fontSize: '11px', overflowX: 'auto', whiteSpace: 'pre-wrap', fontFamily: 'monospace', direction: 'ltr', textAlign: 'left' }}>
+                                {log.stack_trace.replace('🔍 [تفاصيل الرد الصريح من السيرفر]:\n', '')}
+                              </pre>
+                            </div>
+                          ) : (
+                            <details style={{ cursor: 'pointer', color: '#64748b', fontSize: '11px' }}>
+                              <summary>عرض تفاصيل الـ Stack Trace</summary>
+                              <pre style={{ backgroundColor: '#1e293b', color: '#38bdf8', padding: '8px', borderRadius: '6px', fontSize: '10.5px', overflowX: 'auto', marginTop: '4px', textAlign: 'left', direction: 'ltr' }}>
+                                {log.stack_trace}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      )}
+                    </td>
 
-                  <td style={{ padding: '10px', color: '#64748b', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
-                    {log.created_at ? new Date(log.created_at).toLocaleString('ar-QA') : '-'}
-                  </td>
-                </tr>
-              ))}
+                    <td style={{ padding: '10px', color: '#2563eb', fontSize: '11.5px' }}>
+                      <div style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}>{log.page_url}</div>
+                      <div style={{ color: '#64748b', fontSize: '11px', marginTop: '2px' }}>👤 {log.user_info || 'زائر'}</div>
+                    </td>
+
+                    <td style={{ padding: '10px', color: '#64748b', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
+                      {log.created_at ? new Date(log.created_at).toLocaleString('ar-QA') : '-'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
