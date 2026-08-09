@@ -34,8 +34,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   const [submittingReview, setSubmittingReview] = useState(false);
 
   const isRtl = lang === 'ar';
-
-  // المعرف المستهدف لطلب البيانات من Supabase
   const targetIdentifier = customerPhone || session?.email || session?.user?.email || '';
 
   useEffect(() => {
@@ -50,8 +48,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     setLoading(true);
     try {
       const encodedId = encodeURIComponent(targetIdentifier);
-      
-      // 🚀 استعلام مرن يبحث بمطابقة ilike ومطابقة eq لضمان جلب الطلبات بغض النظر عن حالة الأحرف
       const ordersUrl = `${supabaseUrl}/orders?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
       const inqUrl = `${supabaseUrl}/fitment_inquiries?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
       const customUrl = `${supabaseUrl}/custom_part_requests?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
@@ -182,14 +178,22 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
         .mwj-ot-loading, .mwj-ot-empty { text-align: center; color: #94a3b8; padding: 36px 0; font-size: 14px; }
 
-        .mwj-ot-inq-card { padding: 18px; border-radius: 16px; transition: all 0.2s ease; margin-bottom: 15px; border: 1px solid #e2e8f0; background: #f8fafc; }
         .mwj-ot-order-card { padding: 18px; border: 1px solid #eef1f5; border-radius: 16px; background: #f8fafc; margin-bottom: 15px; }
+        .mwj-ot-order-code { font-size: 11.5px; font-weight: 800; background: #ebf8ff; color: #2b6cb0; padding: 3px 9px; border-radius: 7px; }
+        .mwj-ot-order-status { font-size: 13px; font-weight: 800; }
+
+        .mwj-ot-delivery-code-box {
+          background: linear-gradient(135deg, #fffaf3 0%, #fff3e2 100%); padding: 12px 14px; border-radius: 12px;
+          border: 1px solid #feebc8; display: flex; justify-content: space-between;
+          align-items: center; margin: 10px 0; gap: 10px; flex-wrap: wrap;
+        }
+        .mwj-ot-delivery-code { font-size: 18px; font-weight: 800; font-family: 'Courier New', monospace; color: #c9701c; letter-spacing: 0.5px; }
         
         .mwj-ot-review-btn {
           width: 100%; padding: 11px; border: none; border-radius: 10px; font-weight: 800;
           cursor: pointer; font-size: 13.5px; color: white;
           background: linear-gradient(135deg, #7c5fd0 0%, #6947b8 100%);
-          box-shadow: 0 6px 16px rgba(107,70,193,0.28);
+          box-shadow: 0 6px 16px rgba(107,70,193,0.28); margin-top: 6px;
         }
         .mwj-ot-review-btn-secondary { background: linear-gradient(135deg, #64748b 0%, #475569 100%); }
 
@@ -254,9 +258,15 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {activeInquiries.map(inq => (
-                  <div key={inq.id} className="mwj-ot-inq-card">
-                    <strong style={{ fontSize: '15px', color: '#16304f' }}><AITranslatedText text={inq.part_name} lang={lang} /></strong>
-                    <div style={{ fontSize: '13px', color: '#E0872A', fontWeight: 800 }}>{inq.part_price || 0} {lang === 'ar' ? 'ر.ق' : 'QAR'}</div>
+                  <div key={inq.id} className="mwj-ot-order-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span className="mwj-ot-order-code">#{inq.inquiry_code || `INQ-${inq.id}`}</span>
+                      <span className="mwj-ot-order-status" style={{ color: inq.status === 'confirmed_compatible' ? '#22a35a' : '#c05621' }}>
+                        {inq.status === 'confirmed_compatible' ? '✅ متوافق 100%' : '⏳ بانتظار التأكيد'}
+                      </span>
+                    </div>
+                    <strong style={{ fontSize: '15px', color: '#16304f', display: 'block' }}><AITranslatedText text={inq.part_name} lang={lang} /></strong>
+                    <div style={{ fontSize: '13px', color: '#E0872A', fontWeight: 800, marginTop: '4px' }}>{inq.part_price || 0} {lang === 'ar' ? 'ر.ق' : 'QAR'}</div>
                   </div>
                 ))}
               </div>
@@ -268,9 +278,32 @@ export const CustomerOrderTracker: React.FC<Props> = ({
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {activeOrders.map(order => (
                   <div key={order.id} className="mwj-ot-order-card">
-                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#2d3748', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span className="mwj-ot-order-code">{order.order_code || `#ORD-${order.id}`}</span>
+                      <span className="mwj-ot-order-status" style={{ color: order.status === 'delivered' ? '#22a35a' : '#c05621' }}>
+                        {order.status === 'delivered' ? (lang === 'ar' ? '✅ تم التسليم' : '✅ Delivered') : (lang === 'ar' ? '⏳ جاري التجهيز/التوصيل' : '⏳ Processing')}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#2d3748', marginBottom: '8px' }}>
                       <AITranslatedText text={order.part_name} lang={lang} />
                     </div>
+
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#e0872a', marginBottom: '8px' }}>
+                      {order.price} QAR
+                    </div>
+
+                    {order.delivery_code && (
+                      <div className="mwj-ot-delivery-code-box">
+                        <div>
+                          <span style={{ display: 'block', fontSize: '11px', color: '#c05621', fontWeight: 800 }}>
+                            🔑 {lang === 'ar' ? 'كود التسليم للمندوب:' : 'Delivery Code:'}
+                          </span>
+                          <span className="mwj-ot-delivery-code">{order.delivery_code}</span>
+                        </div>
+                      </div>
+                    )}
+
                     {(order.status === 'delivered' || order.status === 'completed') && (
                       <button onClick={() => setSelectedOrderForReview(order)} className="mwj-ot-review-btn">
                         ⭐ {lang === 'ar' ? 'قيّم التجربة لإنهاء الطلب' : 'Rate to complete order'}
@@ -286,10 +319,24 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {previousOrders.map(order => (
-                  <div key={order.id} className="mwj-ot-order-card" style={{ opacity: 0.88 }}>
-                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#475569', marginBottom: '10px' }}>
+                  <div key={order.id} className="mwj-ot-order-card" style={{ opacity: 0.95 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span className="mwj-ot-order-code" style={{ backgroundColor: '#e2e8f0', color: '#475569' }}>
+                        {order.order_code || `#ORD-${order.id}`}
+                      </span>
+                      <span className="mwj-ot-order-status" style={{ color: '#22a35a' }}>
+                        ✅ {lang === 'ar' ? 'مكـتمل ومُقيّم' : 'Completed'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#1f3a5f', marginBottom: '6px' }}>
                       <AITranslatedText text={order.part_name} lang={lang} />
                     </div>
+
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#e0872a', marginBottom: '10px' }}>
+                      {order.price} QAR
+                    </div>
+
                     <button onClick={() => setSelectedOrderForReview(order)} className="mwj-ot-review-btn mwj-ot-review-btn-secondary" style={{ padding: '8px' }}>
                       ⭐ {lang === 'ar' ? 'تحديث التقييم' : 'Update Review'}
                     </button>
