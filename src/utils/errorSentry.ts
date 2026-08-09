@@ -3,7 +3,7 @@
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
 
-// 🤖 إعدادات التليجرام للبوت للتنبيه الفوري
+// 🤖 إعدادات التليجرام للبوت للتنبيه الفوري (اختياري)
 const TELEGRAM_BOT_TOKEN = ""; // أضف التوكن هنا إن وجد
 const TELEGRAM_CHAT_ID = "";   // أضف معرف الشات هنا
 
@@ -53,7 +53,7 @@ export class ErrorSentry {
       });
     });
 
-    // 3️⃣ الاعتراض الأسطوري للشبكة (Ultra Fetch Interceptor) مع قراءة الـ Response Body
+    // 3️⃣ الاعتراض الأسطوري للشبكة (Fetch Interceptor) مع قراءة الـ Response Body
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       const startTime = Date.now();
@@ -133,7 +133,6 @@ export class ErrorSentry {
 
   // 📤 إرسال تقرير الخطأ بقاعدة البيانات وبوت التليجرام مع تصفية التكرار
   public static async reportError(log: SystemErrorLog) {
-    // 🛡️ تصفية الأخطاء المكررة خلال 5 ثوانٍ لمنع إغراق السيرفر
     const errorKey = `${log.error_type}_${log.message}`;
     const now = Date.now();
     if (this.lastLoggedErrors.has(errorKey)) {
@@ -186,7 +185,7 @@ export class ErrorSentry {
         }).catch(() => {});
       }
     } catch (e) {
-      // تجنب حدوث أخطاء دائرية
+      // تجنب أخطاء دائرية
     }
   }
 }
