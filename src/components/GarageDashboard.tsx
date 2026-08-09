@@ -85,7 +85,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || 'garage_unknown';
 
-  // 📍 🔐 حالات بيانات الكراج الخاصة والأمان
   const [garageName, setGarageName] = useState<string>(() => localStorage.getItem(`garage_name_${userId}`) || 'كراج التخصصي للسيارات');
   const [commercialReg, setCommercialReg] = useState<string>(() => localStorage.getItem(`garage_cr_${userId}`) || '');
   const [garagePhone, setGaragePhone] = useState<string>(() => localStorage.getItem(`garage_phone_${userId}`) || session?.phone || '');
@@ -93,12 +92,10 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
   const [garageAddress, setGarageAddress] = useState<string>(() => localStorage.getItem(`garage_location_${userId}`) || 'المنطقة الصناعية - الدوحة، قطر');
   const [garageNotes, setGarageNotes] = useState<string>(() => localStorage.getItem(`garage_notes_${userId}`) || '');
 
-  // 🔒 حالات تغيير كلمة المرور
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  // 🛠️ حالات المعاينة والضمان
   const [previewPartDetails, setPreviewPartDetails] = useState<any | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
   const [returnDays, setReturnDays] = useState<number>(3);
@@ -106,7 +103,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
 
   const isRtl = lang === 'ar';
 
-  // 🛡️ توحيد مخرج رابط Supabase
   const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
   const restUrl = `${cleanBaseUrl}/rest/v1`;
 
@@ -115,10 +111,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     fetchMyOrders();
     fetchMyInquiries();
     fetchCustomRequests();
-    // eslint-disable-next-line
   }, [userId]);
 
-  // 📍 💾 حفظ وتحديث ملف الكراج في Supabase والـ LocalStorage
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem(`garage_name_${userId}`, garageName);
@@ -146,13 +140,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           updated_at: new Date().toISOString()
         })
       });
-      setToastMessage(isRtl ? 'تم تحديث بيانات الكراج بنجاح 🔒 (البيانات مؤمنة للأدمن فقط)' : 'Garage profile updated securely');
+      setToastMessage(isRtl ? 'تم تحديث بيانات الكراج بنجاح 🔒' : 'Garage profile updated securely');
     } catch (err) {
       setToastMessage(isRtl ? 'تم حفظ البيانات محلياً بنجاح ✅' : 'Saved locally');
     }
   };
 
-  // 🔒 تغيير كلمة المرور عبر Supabase Auth API
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
@@ -179,7 +172,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        alert(isRtl ? 'فشل تغيير كلمة المرور، يرجى إعادة تسجيل الدخول والتحقق' : 'Failed to update password');
+        alert(isRtl ? 'فشل تغيير كلمة المرور' : 'Failed to update password');
       }
     } catch (err) {
       alert(isRtl ? 'حدث خطأ غير متوقع' : 'Error updating password');
@@ -188,7 +181,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
-  // 🎯 تحديد موقع GPS الجغرافي
   const handleDetectGPSLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -201,7 +193,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           setToastMessage(isRtl ? 'تم التقاط الموقع التلقائي بنجاح 📍' : 'GPS Location detected');
         },
         () => {
-          alert(isRtl ? 'تعذر التقاط الموقع، يرجى كتابة العنوان أو إلصاق رابط خرائط جوجل يدوياً' : 'GPS failed');
+          alert(isRtl ? 'تعذر التقاط الموقع' : 'GPS failed');
         }
       );
     }
@@ -247,7 +239,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (error) {}
   };
 
-  // ⚡ تأكيد التوافق والضمان آمن 100% ويحل خطأ 400
   const handleConfirmFitment = async () => {
     if (!selectedInquiry) return;
     try {
@@ -282,7 +273,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     }
   };
 
-  // ❌ رفض طلب التوافق
   const handleRejectFitment = async (inquiryId: number) => {
     if (!window.confirm(isRtl ? 'هل أنت متأكد أن القطعة لا تركب على سيارة العميل؟' : 'Are you sure this part does not fit?')) return;
     try {
@@ -405,10 +395,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (err) {}
   };
 
-// 🚀 تحديث حالة الطلب القادم بأسلوب مضمون 100% يمنع خطأ 400
   const handleUpdateOrderStatus = async (orderId: number, status: string) => {
     try {
-      // توحيد الحالة المعتمدة لجدول الطلبات
       const validStatus = (status === 'ready' || status === 'ready_for_pickup') ? 'ready_for_pickup' : status;
 
       const response = await fetch(`${restUrl}/orders?id=eq.${orderId}`, {
@@ -431,32 +419,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
       } else {
         const errText = await response.text();
         console.error("❌ خطأ تحديث الطلب:", errText);
-        alert(isRtl ? `حدث خطأ بالتحديث: ${response.status}` : `Error: ${response.status}`);
-      }
-    } catch (error) {
-      console.error("Error updating order status:", error);
-    }
-  };
-      if (response.ok) {
-        setToastMessage(isRtl ? 'تم تحديث حالة الطلب بنجاح 📦' : 'Order status updated');
-        fetchMyOrders();
-      } else {
-        const errText = await response.text();
-        console.error("❌ خطأ تحديث الطلب:", errText);
       }
     } catch (error) {
       console.error("Error updating order status:", error);
     }
   };
 
-  // حساب الأعداد للتنبيهات
   const pendingInquiriesCount = myInquiries.filter(i => i.status === 'pending_check').length;
   const activeOrdersCount = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'completed' && o.status !== 'cancelled').length;
 
   return (
     <div style={{ maxWidth: '1000px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
-      {/* 🚀 هيدر التبويبات المكتمل مع شارات التنبيه الملونة */}
+      {/* هيدر التبويبات المكتمل مع شارات التنبيه الملونة */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', flexWrap: 'wrap', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
         <button onClick={() => setActiveTab('my_parts')} style={{ flex: 1, padding: '12px', backgroundColor: activeTab === 'my_parts' ? '#1f3a5f' : 'transparent', color: activeTab === 'my_parts' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           معروضاتي ({myParts.length})
@@ -474,7 +449,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           طلبات التسعير ({customRequests.length})
         </button>
 
-        {/* 🔴 تبويب فحص التوافق مع شارة التنبيه الحمراء */}
         <button onClick={() => setActiveTab('inquiries')} style={{ position: 'relative', flex: 1, padding: '12px', backgroundColor: activeTab === 'inquiries' ? '#805ad5' : 'transparent', color: activeTab === 'inquiries' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           فحص التوافق ({myInquiries.length})
           {pendingInquiriesCount > 0 && (
@@ -484,7 +458,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           )}
         </button>
 
-        {/* 🟢 تبويب الطلبات مع شارة التنبيه الخضراء للطلبات الجارية */}
         <button onClick={() => setActiveTab('orders')} style={{ position: 'relative', flex: 1, padding: '12px', backgroundColor: activeTab === 'orders' ? '#dd6b20' : 'transparent', color: activeTab === 'orders' ? 'white' : '#4a5568', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
           الطلبات ({myOrders.length})
           {activeOrdersCount > 0 && (
@@ -499,7 +472,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </button>
       </div>
 
-      {/* 🔐 1. تبويب إدارة بيانات الكراج والأمان والحساب */}
       {activeTab === 'profile' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
           <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -616,7 +588,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             </button>
           </form>
 
-          {/* 🔑 قسم تغيير كلمة المرور */}
           <form onSubmit={handleChangePassword} style={{ borderTop: '2px solid #f1f5f9', paddingTop: '25px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '17px' }}>
               🔑 {isRtl ? 'تغيير كلمة مرور الحساب' : 'Change Account Password'}
@@ -716,7 +687,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         />
       )}
 
-      {/* 🔍 المعاينة الشاملة للقطعة */}
       {previewPartDetails && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1250, padding: '20px' }}>
           <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '20px', maxWidth: '500px', width: '100%', textAlign: 'center', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', direction: isRtl ? 'rtl' : 'ltr' }}>
@@ -742,7 +712,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
         </div>
       )}
 
-      {/* 🛡️ نافذة شروط الضمان الإرجاع */}
       {selectedInquiry && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1250, padding: '20px', direction: isRtl ? 'rtl' : 'ltr' }}>
           <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '20px', maxWidth: '480px', width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
