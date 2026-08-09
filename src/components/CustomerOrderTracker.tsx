@@ -28,11 +28,8 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   const [selectedRequestQuotes, setSelectedRequestQuotes] = useState<{ request: any; quotes: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // حالة التقييم المحدثة والجديدة
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<any | null>(null);
   const [garageRating, setGarageRating] = useState(5);
-  const [deliveryRating, setDeliveryRating] = useState(5);
-  const [platformRating, setPlatformRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
@@ -85,7 +82,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
     }
   };
 
-  // دالة تقديم التقييم المدمجة والجديدة
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrderForReview) return;
@@ -93,18 +89,14 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
     try {
       const payload = {
+        garage_id: selectedOrderForReview.garage_id,
         order_id: selectedOrderForReview.id,
-        garage_id: selectedOrderForReview.garage_id || 'garage_unknown',
         customer_phone: targetIdentifier,
         garage_rating: garageRating,
-        delivery_rating: deliveryRating,
-        platform_rating: platformRating,
-        comment: reviewComment.trim() || null,
-        created_at: new Date().toISOString()
+        comment: reviewComment.trim() || null
       };
 
-      // 1. حفظ التقييم في جدول التقييمات الشامل
-      await fetch(`${supabaseUrl}/order_reviews`, {
+      await fetch(`${supabaseUrl}/garage_reviews`, {
         method: 'POST',
         headers: {
           'apikey': apiKey,
@@ -114,7 +106,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         body: JSON.stringify(payload)
       });
 
-      // 2. تحديث الطلب كـ "تم تقييمه"
       await fetch(`${supabaseUrl}/orders?id=eq.${selectedOrderForReview.id}`, {
         method: 'PATCH',
         headers: {
@@ -128,12 +119,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
         })
       });
 
-      alert(lang === 'ar' ? 'شكراً لك! تم تسليم تقييمك ونقل الطلب للأرشيف ⭐' : 'Feedback submitted successfully!');
+      alert(lang === 'ar' ? 'شكراً لك! تم تسجيل تقييمك ونقل الطلب لـ "طلباتي السابقة" ⭐' : 'Thank you! Your feedback has been submitted.');
       setSelectedOrderForReview(null);
       setReviewComment('');
-      setGarageRating(5);
-      setDeliveryRating(5);
-      setPlatformRating(5);
       fetchData();
       setActiveTab('previous_orders');
     } catch (e) {
@@ -217,7 +205,9 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           background: white; padding: 26px; border-radius: 18px; max-width: 480px; width: 92%;
           box-shadow: 0 20px 50px rgba(0,0,0,0.28); max-height: 85vh; overflow-y: auto;
         }
-        .mwj-ot-star { font-size: 24px; background: none; border: none; cursor: pointer; padding: 2px; }
+        .mwj-ot-star { font-size: 22px; background: none; border: none; cursor: pointer; padding: 2px; }
+        .mwj-ot-review-save { flex: 1; padding: 11px; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; color: white; background: #22a35a; }
+        .mwj-ot-review-cancel { padding: 11px 18px; background: #f1f5f9; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; color: #4a5568; }
       `}</style>
 
       <div className="mwj-ot-overlay" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
@@ -356,7 +346,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             )
           ) : null}
 
-          {/* مودال عروض الأسعار للطلبات المخصصة */}
           {selectedRequestQuotes && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal" style={{ maxWidth: '600px' }}>
@@ -390,75 +379,23 @@ export const CustomerOrderTracker: React.FC<Props> = ({
             </div>
           )}
 
-          {/* مودال التقييم الشامل المدمج */}
           {selectedOrderForReview && (
             <div className="mwj-ot-review-overlay">
-              <div className="mwj-ot-review-modal" style={{ maxWidth: '480px', padding: '24px', borderRadius: '18px', backgroundColor: 'white' }}>
-                <h3 style={{ margin: '0 0 16px 0', color: '#16304f', fontSize: '18px', fontWeight: 'bold', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>
-                  ⭐ {lang === 'ar' ? 'تقييم التجربة والخدمة' : 'Rate Experience & Service'}
-                </h3>
-
+              <div className="mwj-ot-review-modal">
+                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight: 800 }}>⭐ تقييم التجربة</h4>
                 <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  
-                  {/* 1. تقييم الكراج والقطعة */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
-                      🏪 {lang === 'ar' ? '1. تقييم الكراج وجودة القطعة:' : '1. Garage & Part Quality:'}
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <button key={star} type="button" onClick={() => setGarageRating(star)} className="mwj-ot-star" style={{ opacity: star <= garageRating ? 1 : 0.25 }}>⭐</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 2. تقييم التوصيل والدليفري */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
-                      🚚 {lang === 'ar' ? '2. تقييم سرعة وسلوك مندوب التوصيل:' : '2. Delivery Speed & Driver:'}
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <button key={star} type="button" onClick={() => setDeliveryRating(star)} className="mwj-ot-star" style={{ opacity: star <= deliveryRating ? 1 : 0.25 }}>⭐</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 3. تقييم الموقع والتطبيق */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
-                      🌐 {lang === 'ar' ? '3. تقييم سهولة استخدام تطبيق موجود أوتو:' : '3. Mawjood Auto App Experience:'}
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <button key={star} type="button" onClick={() => setPlatformRating(star)} className="mwj-ot-star" style={{ opacity: star <= platformRating ? 1 : 0.25 }}>⭐</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 4. حقل كتابة الملاحظة */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
-                      📝 {lang === 'ar' ? 'ملاحظات أو مقترحات إضافية (اختياري):' : 'Additional Comments (Optional):'}
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={reviewComment}
-                      onChange={(e) => setReviewComment(e.target.value)}
-                      placeholder={lang === 'ar' ? 'اكتب انطباعك أو أي ملاحظة تود مشاركتها معنا...' : 'Share your feedback...'}
-                      style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }}
-                    />
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px' }}>🏪 تقييم الكراج:</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} type="button" onClick={() => setGarageRating(star)} className="mwj-ot-star" style={{ opacity: star <= garageRating ? 1 : 0.3 }}>⭐</button>
+                      ))}
+                    </div>
                   </div>
-
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                    <button type="submit" disabled={submittingReview} style={{ flex: 1, padding: '12px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 800, cursor: 'pointer' }}>
-                      {submittingReview ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التقييم 🚀' : 'Submit Review 🚀')}
-                    </button>
-                    <button type="button" onClick={() => setSelectedOrderForReview(null)} style={{ padding: '12px 18px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 800, cursor: 'pointer' }}>
-                      {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                    </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button type="submit" disabled={submittingReview} className="mwj-ot-review-save">حفظ التقييم 🚀</button>
+                    <button type="button" onClick={() => setSelectedOrderForReview(null)} className="mwj-ot-review-cancel">إلغاء</button>
                   </div>
-
                 </form>
               </div>
             </div>
