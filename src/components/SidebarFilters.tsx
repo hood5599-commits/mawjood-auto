@@ -141,7 +141,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       navigator.share({ title: part.name, text: `قطعة غيار: ${part.name} - ${part.price} ر.ق`, url: shareUrl }).catch(() => {});
     } else {
       navigator.clipboard.writeText(shareUrl);
-      alert(isRtl ? 'تم نسخ رابط القطعة حافظة الجهاز!' : 'Part link copied to clipboard!');
+      alert(isRtl ? 'تم نسخ رابط القطعة إلى حافظة الجهاز!' : 'Part link copied to clipboard!');
     }
   };
 
@@ -519,7 +519,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               <AITranslatedText text={part.name} lang={lang} />
             </h4>
 
-            {/* 🎯 إضافة تقييم واسم الكراج المدمجة */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: '4px 0' }}>
               <span style={{ color: '#e0872a', fontSize: '13px', fontWeight: 800 }}>⭐ 4.9</span>
               <span style={{ fontSize: '11px', color: '#64748b' }}>({part.garage_name || (isRtl ? 'كراج معتمد' : 'Verified Garage')})</span>
@@ -641,10 +640,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     );
   }
 
+  const makesList = carData && Object.keys(carData).length > 0 ? Object.keys(carData) : Object.keys(MAKE_DOMAINS);
+
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
         
+        {/* Search Bar & Sorting Control */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
             <input 
@@ -652,235 +654,324 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم..." : "Search by Part Number, Code, or Name..."} 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
-              style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px' }}
+              style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '14px', outline: 'none' }}
             />
             <button type="submit" style={{ padding: '12px 20px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
               🔍 {isRtl ? 'بحث' : 'Search'}
             </button>
+            {activeSearchQuery && (
+              <button type="button" onClick={clearSearch} style={{ padding: '12px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e0', borderRadius: '12px', cursor: 'pointer' }}>
+                ✕
+              </button>
+            )}
           </form>
-          {activeSearchQuery && (
-            <button onClick={clearSearch} style={{ padding: '12px 16px', backgroundColor: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              ✕ {isRtl ? 'إلغاء البحث' : 'Clear'}
-            </button>
-          )}
+
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value as any)}
+            style={{ padding: '12px 14px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13px', backgroundColor: '#f8fafc', color: '#1f3a5f', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            <option value="default">{isRtl ? 'ترتيب الافتراضي' : 'Default Order'}</option>
+            <option value="price_asc">{isRtl ? 'السعر: من الأقل للأعلى' : 'Price: Low to High'}</option>
+            <option value="price_desc">{isRtl ? 'السعر: من الأعلى للأقل' : 'Price: High to Low'}</option>
+          </select>
         </div>
 
+        {/* View Mode 1: Search Results */}
         {activeSearchQuery ? (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '16px' }}>
-                {isRtl ? `نتائج البحث عن: "${activeSearchQuery}"` : `Search Results for: "${activeSearchQuery}"`} ({searchResults.length})
-              </h3>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }}>
-                <option value="default">{isRtl ? 'الترتيب الافتراضي' : 'Default Sorting'}</option>
-                <option value="price_asc">{isRtl ? 'السعر: من الأقل للأعلى' : 'Price: Low to High'}</option>
-                <option value="price_desc">{isRtl ? 'السعر: من الأعلى للأقل' : 'Price: High to Low'}</option>
-              </select>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f0f9ff', padding: '12px 16px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+              <span style={{ fontWeight: 'bold', color: '#0369a1', fontSize: '14px' }}>
+                🔍 {isRtl ? `نتائج البحث عن: "${activeSearchQuery}"` : `Search results for: "${activeSearchQuery}"`} ({searchResults.length})
+              </span>
+              <button onClick={clearSearch} style={{ background: 'none', border: 'none', color: '#0284c7', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>
+                {isRtl ? 'إلغاء البحث' : 'Clear Search'}
+              </button>
             </div>
 
             {searchResults.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                {searchResults.map(part => renderPartCard(part))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {searchResults.map(renderPartCard)}
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e0' }}>
-                <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '15px' }}>
-                  {isRtl ? 'عذراً، لم نجد أي قطعة تطابق بحثك حالياً.' : 'No parts matched your search.'}
+              <div style={{ textAlign: 'center', padding: '30px 20px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e0' }}>
+                <p style={{ color: '#64748b', fontSize: '15px', marginBottom: '16px' }}>
+                  {isRtl ? 'لم نجد قطع غيار تطابق بحثك حالياً.' : 'No parts match your search at the moment.'}
                 </p>
-                <button onClick={() => setShowRequestModal(true)} style={{ padding: '12px 24px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  ➕ {isRtl ? 'اطلب هذه القطعة بشكل خاص' : 'Request this Part Specially'}
+                <button 
+                  onClick={() => setShowRequestModal(true)} 
+                  style={{ padding: '12px 24px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
+                >
+                  📝 {isRtl ? 'اطلب القطعة عبر طلب خاص' : 'Submit a Special Request'}
                 </button>
               </div>
             )}
           </div>
         ) : (
-          <div>
-            <h3 style={{ margin: '0 0 15px 0', color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-              🚗 {isRtl ? 'اختر شركة السيارة' : 'Select Car Make'}
+          /* View Mode 2: Dynamic Category & Vehicle Hierarchy Tree */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#1f3a5f', marginBottom: '12px' }}>
+              🚗 {isRtl ? 'تصفح قطع الغيار حسب الشركة والسيارة' : 'Browse Parts by Make & Model'}
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {Object.keys(carData).map((make) => {
-                const makeKey = `make_${make}`;
-                const isMakeExpanded = !!expandedNodes[makeKey];
-                const availableYears = nodeDataCache[`years_${make}`] || [];
 
-                return (
-                  <div key={make} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                    <div 
-                      style={{ ...nodeStyle, backgroundColor: isMakeExpanded ? '#f1f5f9' : '#ffffff' }}
-                      onClick={() => toggleNode(makeKey, () => fetchYearsForMake(make))}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {MAKE_DOMAINS[make] && (
-                          <img 
-                            src={`https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${MAKE_DOMAINS[make]}&size=128`} 
-                            alt={make} 
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} 
-                            style={{ width: '20px', height: '20px', objectFit: 'contain' }}
-                          />
-                        )}
-                        <span style={{ fontWeight: 'bold', color: '#1f3a5f', fontSize: '14px' }}>{make}</span>
-                      </div>
-                      <span style={{ color: '#94a3b8', fontSize: '12px' }}>{isMakeExpanded ? '▲' : '▼'}</span>
+            {makesList.map((make) => {
+              const makeKey = `make_${make}`;
+              const isMakeExpanded = !!expandedNodes[makeKey];
+              const yearsList = nodeDataCache[`years_${make}`] || [];
+              const isYearsLoading = loadingNodes[`years_${make}`];
+
+              return (
+                <div key={make} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
+                  <div 
+                    onClick={() => toggleNode(makeKey, () => fetchYearsForMake(make))}
+                    style={{ ...nodeStyle, backgroundColor: isMakeExpanded ? '#f1f5f9' : '#ffffff' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <img 
+                        src={`https://www.google.com/s2/favicons?domain=${MAKE_DOMAINS[make] || 'car.com'}&sz=32`} 
+                        alt={make} 
+                        style={{ width: '20px', height: '20px', borderRadius: '4px' }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <span style={{ fontWeight: 'bold', fontSize: '14.5px', color: '#1f3a5f' }}>{make}</span>
                     </div>
+                    <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 'bold' }}>{isMakeExpanded ? '▲' : '▼'}</span>
+                  </div>
 
-                    {isMakeExpanded && (
-                      <div style={{ padding: '10px 15px', backgroundColor: '#fafafa', borderTop: '1px solid #f1f5f9' }}>
-                        {loadingNodes[`years_${make}`] ? (
-                          <div style={{ fontSize: '12px', color: '#64748b' }}>{isRtl ? 'جاري التحميل...' : 'Loading...'}</div>
-                        ) : availableYears.map((year: string) => {
-                          const yearKey = `${makeKey}_year_${year}`;
+                  {isMakeExpanded && (
+                    <div style={{ padding: '8px 12px 12px 12px', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {isYearsLoading ? (
+                        <div style={{ fontSize: '12px', color: '#64748b', padding: '6px' }}>⏳ {isRtl ? 'جاري التحميل...' : 'Loading years...'}</div>
+                      ) : (
+                        yearsList.map((year: string) => {
+                          const yearKey = `year_${make}_${year}`;
                           const isYearExpanded = !!expandedNodes[yearKey];
-                          const availableModels = nodeDataCache[`models_${make}_${year}`] || [];
+                          const modelsList = nodeDataCache[`models_${make}_${year}`] || [];
+                          const isModelsLoading = loadingNodes[`models_${make}_${year}`];
 
                           return (
-                            <div key={year} style={{ margin: '6px 0' }}>
+                            <div key={year} style={{ border: '1px solid #cbd5e0', borderRadius: '10px', backgroundColor: 'white' }}>
                               <div 
-                                style={{ ...nodeStyle, backgroundColor: isYearExpanded ? '#e2e8f0' : '#ffffff', border: '1px solid #cbd5e0' }}
                                 onClick={() => toggleNode(yearKey, () => fetchModelsForYear(make, year))}
+                                style={{ ...nodeStyle, padding: '6px 10px', backgroundColor: isYearExpanded ? '#e2e8f0' : '#ffffff' }}
                               >
-                                <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#334155' }}>📅 {year}</span>
-                                <span style={{ color: '#94a3b8', fontSize: '11px' }}>{isYearExpanded ? '▲' : '▼'}</span>
+                                <span style={{ fontSize: '13.5px', fontWeight: 'bold', color: '#e0872a' }}>📅 {year}</span>
+                                <span style={{ fontSize: '11px', color: '#64748b' }}>{isYearExpanded ? '▲' : '▼'}</span>
                               </div>
 
                               {isYearExpanded && (
-                                <div style={{ padding: '8px 12px', borderRight: isRtl ? '2px solid #1f3a5f' : 'none', borderLeft: !isRtl ? '2px solid #1f3a5f' : 'none' }}>
-                                  {loadingNodes[`models_${make}_${year}`] ? (
-                                    <div style={{ fontSize: '12px', color: '#64748b' }}>{isRtl ? 'جاري التحميل...' : 'Loading...'}</div>
-                                  ) : availableModels.map((model: string) => {
-                                    const modelKey = `${yearKey}_model_${model}`;
-                                    const isModelExpanded = !!expandedNodes[modelKey];
-                                    const availableEngines = nodeDataCache[`engines_${make}_${year}_${model}`] || [];
+                                <div style={{ padding: '6px 10px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {isModelsLoading ? (
+                                    <div style={{ fontSize: '12px', color: '#64748b' }}>⏳ {isRtl ? 'جاري التحميل...' : 'Loading models...'}</div>
+                                  ) : (
+                                    modelsList.map((model: string) => {
+                                      const modelKey = `model_${make}_${year}_${model}`;
+                                      const isModelExpanded = !!expandedNodes[modelKey];
+                                      const enginesList = nodeDataCache[`engines_${make}_${year}_${model}`] || [];
+                                      const isEnginesLoading = loadingNodes[`engines_${make}_${year}_${model}`];
 
-                                    return (
-                                      <div key={model} style={{ margin: '4px 0' }}>
-                                        <div 
-                                          style={{ ...nodeStyle, backgroundColor: isModelExpanded ? '#f8fafc' : '#ffffff', border: '1px solid #e2e8f0' }}
-                                          onClick={() => toggleNode(modelKey, () => fetchEnginesForVehicle(make, year, model))}
-                                        >
-                                          <span style={{ fontSize: '12.5px', color: '#1f3a5f', fontWeight: '600' }}>🚘 {model}</span>
-                                          <span style={{ color: '#94a3b8', fontSize: '10px' }}>{isModelExpanded ? '▲' : '▼'}</span>
-                                        </div>
+                                      return (
+                                        <div key={model} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: 'white' }}>
+                                          <div 
+                                            onClick={() => toggleNode(modelKey, () => fetchEnginesForVehicle(make, year, model))}
+                                            style={{ ...nodeStyle, padding: '6px 8px' }}
+                                          >
+                                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f' }}>🚘 {model}</span>
+                                            <span style={{ fontSize: '10px', color: '#64748b' }}>{isModelExpanded ? '▲' : '▼'}</span>
+                                          </div>
 
-                                        {isModelExpanded && (
-                                          <div style={{ padding: '6px 10px' }}>
-                                            {loadingNodes[`engines_${make}_${year}_${model}`] ? (
-                                              <div style={{ fontSize: '11px', color: '#64748b' }}>{isRtl ? 'جاري التحميل...' : 'Loading...'}</div>
-                                            ) : availableEngines.map((engine: string) => {
-                                              const engineKey = `${modelKey}_eng_${engine}`;
-                                              const isEngineExpanded = !!expandedNodes[engineKey];
-                                              const availableMainCats = nodeDataCache[`maincats_${make}_${year}_${model}_${engine}`] || [];
+                                          {isModelExpanded && (
+                                            <div style={{ padding: '6px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                              {isEnginesLoading ? (
+                                                <div style={{ fontSize: '11.5px', color: '#64748b' }}>⏳ {isRtl ? 'جاري التحميل...' : 'Loading engines...'}</div>
+                                              ) : (
+                                                enginesList.map((engine: string) => {
+                                                  const engKey = `eng_${make}_${year}_${model}_${engine}`;
+                                                  const isEngExpanded = !!expandedNodes[engKey];
+                                                  const mainCatsList = nodeDataCache[`maincats_${make}_${year}_${model}_${engine}`] || [];
+                                                  const isMainCatsLoading = loadingNodes[`maincats_${make}_${year}_${model}_${engine}`];
 
-                                              return (
-                                                <div key={engine} style={{ margin: '4px 0' }}>
-                                                  <div 
-                                                    style={{ ...nodeStyle, backgroundColor: isEngineExpanded ? '#e0f2fe' : '#f1f5f9' }}
-                                                    onClick={() => toggleNode(engineKey, () => fetchMainCategoriesForEngine(make, year, model, engine))}
-                                                  >
-                                                    <span style={{ fontSize: '12px', color: '#0369a1', fontWeight: 'bold' }}>⚙️ {engine}</span>
-                                                    <span style={{ color: '#0369a1', fontSize: '10px' }}>{isEngineExpanded ? '▲' : '▼'}</span>
-                                                  </div>
+                                                  return (
+                                                    <div key={engine} style={{ border: '1px solid #f1f5f9', borderRadius: '6px' }}>
+                                                      <div 
+                                                        onClick={() => toggleNode(engKey, () => fetchMainCategoriesForEngine(make, year, model, engine))}
+                                                        style={{ ...nodeStyle, padding: '5px 8px', backgroundColor: '#f0fdf4' }}
+                                                      >
+                                                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534' }}>⚙️ {engine}</span>
+                                                        <span style={{ fontSize: '10px', color: '#64748b' }}>{isEngExpanded ? '▲' : '▼'}</span>
+                                                      </div>
 
-                                                  {isEngineExpanded && (
-                                                    <div style={{ padding: '6px 8px' }}>
-                                                      {loadingNodes[`maincats_${make}_${year}_${model}_${engine}`] ? (
-                                                        <div style={{ fontSize: '11px', color: '#64748b' }}>{isRtl ? 'جاري التحميل...' : 'Loading...'}</div>
-                                                      ) : availableMainCats.map((mainCat: string) => {
-                                                        const mainCatKey = `${engineKey}_maincat_${mainCat}`;
-                                                        const isMainCatExpanded = !!expandedNodes[mainCatKey];
-                                                        const availableSubCats = nodeDataCache[`subcats_${make}_${year}_${model}_${engine}_${mainCat}`] || [];
+                                                      {isEngExpanded && (
+                                                        <div style={{ padding: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                          {isMainCatsLoading ? (
+                                                            <div style={{ fontSize: '11px', color: '#64748b' }}>⏳ {isRtl ? 'جاري التحميل...' : 'Loading categories...'}</div>
+                                                          ) : (
+                                                            mainCatsList.map((mainCat: string) => {
+                                                              const mainCatKey = `maincat_${make}_${year}_${model}_${engine}_${mainCat}`;
+                                                              const isMainCatExpanded = !!expandedNodes[mainCatKey];
+                                                              const subCatsList = nodeDataCache[`subcats_${make}_${year}_${model}_${engine}_${mainCat}`] || [];
+                                                              const isSubCatsLoading = loadingNodes[`subcats_${make}_${year}_${model}_${engine}_${mainCat}`];
 
-                                                        return (
-                                                          <div key={mainCat} style={{ margin: '4px 0' }}>
-                                                            <div 
-                                                              style={{ ...nodeStyle, backgroundColor: isMainCatExpanded ? '#fef3c7' : '#ffffff', border: '1px solid #fde68a' }}
-                                                              onClick={() => toggleNode(mainCatKey, () => fetchSubCategoriesForMain(make, year, model, engine, mainCat))}
-                                                            >
-                                                              <span style={{ fontSize: '11.5px', color: '#92400e', fontWeight: 'bold' }}>📁 {CATEGORY_TRANSLATION[mainCat] || mainCat}</span>
-                                                              <span style={{ color: '#92400e', fontSize: '10px' }}>{isMainCatExpanded ? '▲' : '▼'}</span>
-                                                            </div>
+                                                              return (
+                                                                <div key={mainCat} style={{ border: '1px dashed #cbd5e0', borderRadius: '6px' }}>
+                                                                  <div 
+                                                                    onClick={() => toggleNode(mainCatKey, () => fetchSubCategoriesForMain(make, year, model, engine, mainCat))}
+                                                                    style={{ ...nodeStyle, padding: '5px 8px', backgroundColor: '#fdf4ff' }}
+                                                                  >
+                                                                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#86198f' }}>
+                                                                      📦 {CATEGORY_TRANSLATION[mainCat] || mainCat}
+                                                                    </span>
+                                                                    <span style={{ fontSize: '10px', color: '#64748b' }}>{isMainCatExpanded ? '▲' : '▼'}</span>
+                                                                  </div>
 
-                                                            {isMainCatExpanded && (
-                                                              <div style={{ padding: '6px 8px' }}>
-                                                                {loadingNodes[`subcats_${make}_${year}_${model}_${engine}_${mainCat}`] ? (
-                                                                  <div style={{ fontSize: '11px', color: '#64748b' }}>{isRtl ? 'جاري التحميل...' : 'Loading...'}</div>
-                                                                ) : availableSubCats.map((subCat: string) => {
-                                                                  const subCatKey = `${mainCatKey}_subcat_${subCat}`;
-                                                                  const isSubCatExpanded = !!expandedNodes[subCatKey];
-                                                                  const partsList = nodeDataCache[`parts_${make}_${year}_${model}_${engine}_${mainCat}_${subCat}`] || [];
+                                                                  {isMainCatExpanded && (
+                                                                    <div style={{ padding: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                                      {isSubCatsLoading ? (
+                                                                        <div style={{ fontSize: '11px', color: '#64748b' }}>⏳ {isRtl ? 'جاري التحميل...' : 'Loading subcategories...'}</div>
+                                                                      ) : (
+                                                                        subCatsList.map((subCat: string) => {
+                                                                          const subCatKey = `subcat_${make}_${year}_${model}_${engine}_${mainCat}_${subCat}`;
+                                                                          const isSubCatExpanded = !!expandedNodes[subCatKey];
+                                                                          const partsList = nodeDataCache[`parts_${make}_${year}_${model}_${engine}_${mainCat}_${subCat}`] || [];
+                                                                          const isPartsLoading = loadingNodes[`parts_${make}_${year}_${model}_${engine}_${mainCat}_${subCat}`];
 
-                                                                  return (
-                                                                    <div key={subCat} style={{ margin: '4px 0' }}>
-                                                                      <div 
-                                                                        style={{ ...nodeStyle, backgroundColor: isSubCatExpanded ? '#f0fdf4' : '#ffffff', border: '1px solid #bbf7d0' }}
-                                                                        onClick={() => toggleNode(subCatKey, () => fetchPartsForSubCategory(make, year, model, engine, mainCat, subCat))}
-                                                                      >
-                                                                        <span style={{ fontSize: '11px', color: '#166534', fontWeight: 'bold' }}>📂 {subCat}</span>
-                                                                        <span style={{ color: '#166534', fontSize: '10px' }}>{isSubCatExpanded ? '▲' : '▼'}</span>
-                                                                      </div>
+                                                                          return (
+                                                                            <div key={subCat} style={{ border: '1px solid #e2e8f0', borderRadius: '6px', backgroundColor: '#ffffff' }}>
+                                                                              <div 
+                                                                                onClick={() => toggleNode(subCatKey, () => fetchPartsForSubCategory(make, year, model, engine, mainCat, subCat))}
+                                                                                style={{ ...nodeStyle, padding: '4px 8px', backgroundColor: '#f8fafc' }}
+                                                                              >
+                                                                                <span style={{ fontSize: '11.5px', fontWeight: 'bold', color: '#0369a1' }}>🔹 {subCat}</span>
+                                                                                <span style={{ fontSize: '10px', color: '#64748b' }}>{isSubCatExpanded ? '▲' : '▼'}</span>
+                                                                              </div>
 
-                                                                      {isSubCatExpanded && (
-                                                                        <div style={{ padding: '8px 0', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
-                                                                          {loadingNodes[`parts_${make}_${year}_${model}_${engine}_${mainCat}_${subCat}`] ? (
-                                                                            <div style={{ fontSize: '11px', color: '#64748b' }}>{isRtl ? 'جاري جلب القطع...' : 'Fetching parts...'}</div>
-                                                                          ) : partsList.length > 0 ? (
-                                                                            partsList.map((part: any) => renderPartCard(part))
-                                                                          ) : (
-                                                                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>{isRtl ? 'لا توجد قطع حالياً لهذا القسم' : 'No parts in this category'}</div>
-                                                                          )}
-                                                                        </div>
+                                                                              {isSubCatExpanded && (
+                                                                                <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                                                  {isPartsLoading ? (
+                                                                                    <div style={{ fontSize: '11px', color: '#64748b' }}>⏳ {isRtl ? 'جاري التحميل...' : 'Loading parts...'}</div>
+                                                                                  ) : partsList.length > 0 ? (
+                                                                                    processAndSortParts(partsList).map(renderPartCard)
+                                                                                  ) : (
+                                                                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{isRtl ? 'لا توجد قطع غيار متوفرة في هذه الفئة حالياً' : 'No parts available in this subcategory'}</div>
+                                                                                  )}
+                                                                                </div>
+                                                                              )}
+                                                                            </div>
+                                                                          );
+                                                                        })
                                                                       )}
                                                                     </div>
-                                                                  );
-                                                                })}
-                                                              </div>
-                                                            )}
-                                                          </div>
-                                                        );
-                                                      })}
+                                                                  )}
+                                                                </div>
+                                                              );
+                                                            })
+                                                          )}
+                                                        </div>
+                                                      )}
                                                     </div>
-                                                  )}
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
+                                                  );
+                                                })
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })
+                                  )}
                                 </div>
                               )}
                             </div>
                           );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
+
       </div>
 
+      {/* Special Request Modal */}
       {showRequestModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '16px', maxWidth: '400px', width: '90%', direction: isRtl ? 'rtl' : 'ltr' }}>
-            <h3 style={{ margin: '0 0 12px 0', color: '#1f3a5f' }}>{isRtl ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}</h3>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', direction: isRtl ? 'rtl' : 'ltr' }}>
             {reqSubmitted ? (
-              <div>
-                <p style={{ color: '#16a34a', fontWeight: 'bold' }}>{isRtl ? 'تم إرسال طلبك بنجاح! سنتواصل معك قريباً.' : 'Request sent successfully! We will contact you soon.'}</p>
-                <button onClick={() => { setShowRequestModal(false); setReqSubmitted(false); }} style={{ width: '100%', padding: '10px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>{isRtl ? 'إغلاق' : 'Close'}</button>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+                <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f3a5f', marginBottom: '8px' }}>
+                  {isRtl ? 'تم إرسال طلبك بنجاح!' : 'Request Submitted Successfully!'}
+                </h3>
+                <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '20px' }}>
+                  {isRtl ? 'سيتواصل معك فريقنا قريباً لتوفير القطعة المطلوبة بأفضل سعر.' : 'Our team will contact you shortly with the best available offer.'}
+                </p>
+                <button 
+                  onClick={() => { setShowRequestModal(false); setReqSubmitted(false); setCustPhone(''); setCustNotes(''); }} 
+                  style={{ width: '100%', padding: '10px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  {isRtl ? 'إغلاق' : 'Close'}
+                </button>
               </div>
             ) : (
-              <form onSubmit={handleInAppRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <input type="text" placeholder={isRtl ? 'رقم الهاتف *' : 'Phone Number *'} value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required />
-                <textarea placeholder={isRtl ? 'ملاحظات إضافية...' : 'Additional Notes...'} value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button type="submit" disabled={isSubmittingReq} style={{ flex: 1, padding: '10px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    {isSubmittingReq ? (isRtl ? 'جاري الإرسال...' : 'Sending...') : (isRtl ? 'إرسال الطلب' : 'Send Request')}
+              <form onSubmit={handleInAppRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 'bold', color: '#1f3a5f' }}>
+                    📝 {isRtl ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}
+                  </h3>
+                  <button type="button" onClick={() => setShowRequestModal(false)} style={{ border: 'none', background: 'none', fontSize: '18px', cursor: 'pointer', color: '#64748b' }}>✕</button>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>
+                    {isRtl ? 'القطعة المطلوبة:' : 'Requested Part:'}
+                  </label>
+                  <input type="text" readOnly value={activeSearchQuery} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', backgroundColor: '#f8fafc', fontSize: '13px', fontWeight: 'bold' }} />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>
+                    {isRtl ? 'رقم الجوال *' : 'Phone Number *'}
+                  </label>
+                  <input 
+                    type="tel" 
+                    required 
+                    placeholder="e.g. 55000000" 
+                    value={custPhone} 
+                    onChange={(e) => setCustPhone(e.target.value)} 
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px' }} 
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>
+                    {isRtl ? 'ملاحظات إضافية (موديل السيارة، رقم الهيكل VIN...)' : 'Additional Notes (Vehicle Model, VIN...)'}
+                  </label>
+                  <textarea 
+                    rows={3} 
+                    value={custNotes} 
+                    onChange={(e) => setCustNotes(e.target.value)} 
+                    placeholder={isRtl ? 'أدخل التفاصيل لتسريع توفير القطعة...' : 'Provide details to help us source the part faster...'} 
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', resize: 'vertical' }} 
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  <button 
+                    type="submit" 
+                    disabled={isSubmittingReq} 
+                    style={{ flex: 1, padding: '12px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    {isSubmittingReq ? (isRtl ? 'جاري الإرسال...' : 'Submitting...') : (isRtl ? 'إرسال الطلب' : 'Submit Request')}
                   </button>
-                  <button type="button" onClick={() => setShowRequestModal(false)} style={{ padding: '10px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>{isRtl ? 'إلغاء' : 'Cancel'}</button>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowRequestModal(false)} 
+                    style={{ padding: '12px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e0', borderRadius: '10px', cursor: 'pointer' }}
+                  >
+                    {isRtl ? 'إلغاء' : 'Cancel'}
+                  </button>
                 </div>
               </form>
             )}
