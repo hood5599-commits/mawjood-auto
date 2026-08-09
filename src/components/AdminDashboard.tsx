@@ -19,8 +19,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const isRtl = lang === 'ar';
   
-  // 📌 التبويب النشط (تمت إضافة تبويب errors للمراقبة)
-  const [tab, setTab] = useState<'payouts' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment' | 'logs' | 'errors'>('payouts');
+  // 📌 التبويب النشط (شامل تبويب الآراء والأخطاء)
+  const [tab, setTab] = useState<'payouts' | 'reviews' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment' | 'logs' | 'errors'>('payouts');
+
+  // ⭐ آراء وتقييمات العملاء
+  const [allReviews, setAllReviews] = useState<any[]>([]);
 
   // 🔍 متغيرات البحث بطلبات المباشرة (Search-On-Demand)
   const [userQuery, setUserQuery] = useState('');
@@ -74,8 +77,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     fetchAllOrdersForPayouts();
     fetchSystemLogs();
+    fetchAllReviews();
     // eslint-disable-next-line
   }, []);
+
+  // جلب كافة التقييمات
+  const fetchAllReviews = async () => {
+    try {
+      const cleanUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+      const res = await fetch(`${cleanUrl}/rest/v1/reviews?select=*&order=id.desc`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setAllReviews(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch reviews:", e);
+    }
+  };
 
   // جلب الطلبات الخاصة بجدول الحسابات
   const fetchAllOrdersForPayouts = async () => {
@@ -313,7 +333,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {isRtl ? 'لوحة تحكم مدير النظام (Super Admin)' : 'Super Admin Dashboard'}
             </h2>
             <span style={{ fontSize: '13px', color: '#64748b' }}>
-              {isRtl ? 'إدارة المستحقات المالية، الحسابات، القطع، السياسات، وبوابات الدفع والصيانة الذكية' : 'Manage Vendor Payouts, Accounts, Settings & AI Health'}
+              {isRtl ? 'إدارة المستحقات المالية، التقييمات، الحسابات، القطع، السياسات، وبوابات الدفع' : 'Manage Vendor Payouts, Reviews, Accounts, Settings & AI Health'}
             </span>
           </div>
         </div>
@@ -323,6 +343,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
         {[
           { id: 'payouts', label: isRtl ? 'حسابات ومستحقات الكراجات' : 'Vendor Payouts' },
+          { id: 'reviews', label: isRtl ? '⭐ آراء وتقييمات العملاء' : 'Customer Reviews' },
           { id: 'errors', label: isRtl ? '🛡️ كاشف الأخطاء الحية' : 'Live Error Detector' },
           { id: 'logs', label: isRtl ? `الصيانة الذكية (${systemLogs.filter(l => !l.auto_resolved).length})` : `AI Health Monitor (${systemLogs.filter(l => !l.auto_resolved).length})` },
           { id: 'users', label: isRtl ? 'بحث واستعلام الحسابات' : 'Search Users' },
@@ -359,6 +380,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           supabaseUrl={supabaseUrl} 
           apiKey={apiKey} 
         />
+      )}
+
+      {/* ⭐ تبويب آراء وتقييمات العملاء */}
+      {tab === 'reviews' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px' }}>
+            ⭐ مركز آراء العملاء وتقييمات التوصيل والمنصة
+          </h3>
+
+          <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #cbd5e0' }}>
+                  <th style={{ padding: '12px' }}>رقم الطلب</th>
+                  <th style={{ padding: '12px' }}>جوال العميل</th>
+                  <th style={{ padding: '12px' }}>تقييم الكراج</th>
+                  <th style={{ padding: '12px' }}>تقييم الدليفري</th>
+                  <th style={{ padding: '12px' }}>تقييم الموقع</th>
+                  <th style={{ padding: '12px' }}>الملاحظات والتعليق</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allReviews.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>لا توجد تقييمات مسجلة حتى الآن</td>
+                  </tr>
+                ) : (
+                  allReviews.map((rev) => (
+                    <tr key={rev.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: (rev.garage_rating <= 2 || rev.delivery_rating <= 2) ? '#fff5f5' : '#ffffff' }}>
+                      <td style={{ padding: '12px', fontWeight: 'bold' }}>#{rev.order_id}</td>
+                      <td style={{ padding: '12px', fontWeight: 'bold', color: '#2563eb' }}>{rev.customer_phone}</td>
+                      <td style={{ padding: '12px', color: '#e0872a', fontWeight: 'bold' }}>⭐ {rev.garage_rating} / 5</td>
+                      <td style={{ padding: '12px', color: '#e0872a', fontWeight: 'bold' }}>🚚 ⭐ {rev.delivery_rating} / 5</td>
+                      <td style={{ padding: '12px', color: '#e0872a', fontWeight: 'bold' }}>🌐 ⭐ {rev.platform_rating} / 5</td>
+                      <td style={{ padding: '12px', color: '#334155' }}>{rev.comment || 'لا توجد ملاحظات مكتوبة'}</td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        <a
+                          href={`https://wa.me/${rev.customer_phone?.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ padding: '6px 12px', backgroundColor: '#25d366', color: 'white', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold', fontSize: '11.5px', display: 'inline-block' }}
+                        >
+                          💬 تواصل واتساب
+                        </a>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {/* 💰 1️⃣ تبويب حسابات ومستحقات الكراجات */}
@@ -636,25 +710,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div>
               <h4 style={{ margin: '0 0 14px 0', color: '#1e293b' }}>{isRtl ? `النتائج المطابقة (${searchResultsParts.length}):` : 'Matching Parts:'}</h4>
               {searchResultsParts.length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '13.5px' }}>{isRtl ? 'لم نجد أية قطعة مطابقة لهذا الرمز.' : 'No part matches this code.'}</p>
+                <p style={{ color: '#64748b', fontSize: '13.5px' }}>{isRtl ? 'لم نجد أية قطعة مطابقة لهذا الرمز.' : 'No matching parts found.'}</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
                   {searchResultsParts.map((p) => (
-                    <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '14px', backgroundColor: '#ffffff' }}>
+                    <div key={p.id} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '14px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ backgroundColor: '#1f3a5f', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>
-                            رمز الإعلان: #{p.id}
-                          </span>
-                          <strong style={{ fontSize: '15px' }}>{p.name}</strong>
-                        </div>
-                        <span style={{ fontSize: '12.5px', color: '#64748b', display: 'block', marginTop: '4px' }}>
-                          {p.make} - {p.model} ({p.year}) | Part #: {p.part_number || 'غير مسجل'} | السعر: <strong style={{ color: '#1e9d6b' }}>{p.price} QAR</strong>
+                        <span style={{ fontSize: '11px', backgroundColor: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold', color: '#475569' }}>
+                          رمز الإعلان #{p.id}
                         </span>
+                        <h4 style={{ margin: '8px 0 4px 0', fontSize: '15px' }}>{p.name || p.title}</h4>
+                        <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>رقم القطعة: {p.part_number || 'غير محدد'}</p>
+                        <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', color: '#15803d' }}>{p.price} QAR</p>
                       </div>
-
-                      <button onClick={() => handleDeletePart(p.id)} style={{ backgroundColor: '#fdecec', color: '#d1453b', border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12.5px' }}>
-                        {isRtl ? 'حذف الإعلان' : 'Delete'}
+                      <button
+                        onClick={() => handleDeletePart(p.id)}
+                        style={{ marginTop: '14px', padding: '8px', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+                      >
+                        {isRtl ? 'حذف القطعة' : 'Delete Part'}
                       </button>
                     </div>
                   ))}
@@ -665,233 +738,169 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 5️⃣ تبويب البحث عن الطلبات */}
+      {/* 5️⃣ تبويب البحث عن الطلبات والمشاكل */}
       {tab === 'orders' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#1f3a5f' }}>{isRtl ? 'البحث عن طلب (برقم الطلب ID أو رقم جوال العميل)' : 'Search Order'}</h3>
-            
-            <form onSubmit={handleSearchOrder} style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#1f3a5f' }}>{isRtl ? 'البحث عن طلب (برقم الطلب أو جوال العميل)' : 'Search Order'}</h3>
+            <form onSubmit={handleSearchOrder} style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text"
-                placeholder={isRtl ? 'أدخل رقم الطلب ID أو رقم جوال العميل...' : 'Order ID or Customer Phone'}
+                placeholder={isRtl ? 'أدخل رقم الطلب أو رقم الهاتف...' : 'Enter Order ID or Phone'}
                 value={orderQuery}
                 onChange={(e) => setOrderQuery(e.target.value)}
                 style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '14px' }}
                 required
               />
               <button type="submit" disabled={searching} style={{ padding: '12px 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {isRtl ? 'بحث الطلب' : 'Search Order'}
+                {searching ? '...' : (isRtl ? 'بحث' : 'Search')}
               </button>
             </form>
           </div>
 
           {searchResultsOrders && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {searchResultsOrders.map(o => (
-                <div key={o.id} style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '14px', backgroundColor: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <strong>طلب رقم #{o.id} - {o.part_name || 'قطعة غيار'}</strong>
-                    <span style={{ fontSize: '12.5px', color: '#64748b', display: 'block' }}>العميل: {o.customer_phone}</span>
-                  </div>
-                  <button onClick={() => alert(isRtl ? `تم استرجاع المبلغ للطلب #${o.id}` : 'Refunded')} style={{ padding: '6px 12px', backgroundColor: '#fdecec', color: '#d1453b', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
-                    {isRtl ? 'إلغاء واسترجاع' : 'Refund'}
-                  </button>
-                </div>
-              ))}
+            <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13.5px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
+                    <th style={{ padding: '12px' }}>رقم الطلب</th>
+                    <th style={{ padding: '12px' }}>هاتف العميل</th>
+                    <th style={{ padding: '12px' }}>السعر</th>
+                    <th style={{ padding: '12px' }}>الحالة</th>
+                    <th style={{ padding: '12px' }}>التاريخ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchResultsOrders.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>لا توجد نتائج للطلب المبحث عنه</td></tr>
+                  ) : (
+                    searchResultsOrders.map((o) => (
+                      <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '12px', fontWeight: 'bold' }}>#{o.id}</td>
+                        <td style={{ padding: '12px' }}>{o.customer_phone}</td>
+                        <td style={{ padding: '12px', fontWeight: 'bold', color: '#15803d' }}>{o.price} QAR</td>
+                        <td style={{ padding: '12px' }}>{o.status}</td>
+                        <td style={{ padding: '12px', color: '#64748b' }}>{new Date(o.created_at || Date.now()).toLocaleDateString('ar-EG')}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       )}
 
-      {/* 6️⃣ 💳 تبويب إعدادات بوابة الدفع والربط البنكي والتقسيط */}
+      {/* 💳 6️⃣ تبويب إعدادات بوابة الدفع والتقسيط */}
       {tab === 'payment' && (
-        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px' }}>
-          <div>
-            <h3 style={{ margin: '0 0 6px 0', color: '#1f3a5f' }}>{isRtl ? 'إعدادات بوابات الدفع الإلكتروني والتقسيط' : 'Payment & Installment Gateway Settings'}</h3>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-              {isRtl ? 'يمكنك التحكم بجميع خيارات الدفع والتقسيط الإلكتروني وتغذيتها بمفاتيح الربط فور التعاقد مع الشركة أو البنك.' : 'Configure online payment methods, BNPL, and API keys.'}
-            </p>
-          </div>
-
-          {/* ⚡ مفتاح تفعيل/تعطيل إظهار شريط الدفع الآجل والتقسيط في كروت القطع */}
-          <div style={{ backgroundColor: '#fffdf5', padding: '16px 20px', borderRadius: '14px', border: '1px solid #fef08a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <strong style={{ fontSize: '14.5px', color: '#854d0e', display: 'block' }}>
-                🛒 {isRtl ? 'إظهار شريط (قسّمها على 4 دفعات - قريباً)' : 'Show (Pay in 4 Installments - Coming Soon)'}
-              </strong>
-              <span style={{ fontSize: '12.5px', color: '#a16207' }}>
-                {isRtl ? 'عند التفعيل، سيظهر خيار الشراء والتقسيط الترويجي للعميل على جميع بطاقات قطع الغيار.' : 'When enabled, the BNPL installment teaser will be shown on part cards.'}
-              </span>
-            </div>
-            <input
-              type="checkbox"
-              checked={enableBNPL}
-              onChange={(e) => setEnableBNPL(e.target.checked)}
-              style={{ width: '22px', height: '22px', cursor: 'pointer' }}
-            />
-          </div>
-
-          <div style={{ backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <strong style={{ fontSize: '14.5px', color: '#1e293b', display: 'block' }}>{isRtl ? 'تفعيل الدفع الإلكتروني المباشر' : 'Enable Online Payment'}</strong>
-              <span style={{ fontSize: '12.5px', color: '#64748b' }}>{isRtl ? 'إظهار خيارات الدفع أونلاين للعملاء أثناء إتمام الطلب' : 'Show online payment options during checkout'}</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={enableOnlinePayment}
-              onChange={(e) => setEnableOnlinePayment(e.target.checked)}
-              style={{ width: '22px', height: '22px', cursor: 'pointer' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>{isRtl ? 'شركة / بوابة الدفع المتعاقد معها:' : 'Payment Gateway Provider:'}</label>
-            <select
-              value={paymentProvider}
-              onChange={(e) => setPaymentProvider(e.target.value)}
-              style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '14px', backgroundColor: '#ffffff' }}
-            >
-              <option value="skipcash">SkipCash (قطر)</option>
-              <option value="myfatoorah">MyFatoorah (المعيار الخليجي)</option>
-              <option value="tap">Tap Payments</option>
-              <option value="sadad">Sadad QA (سداد قطر)</option>
-              <option value="custom">بوابة دفع مخصصة (Custom API)</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>{isRtl ? 'معرّف التاجر (Merchant ID):' : 'Merchant ID:'}</label>
-              <input
-                type="text"
-                placeholder="مثال: MER-974-8849"
-                value={merchantId}
-                onChange={(e) => setMerchantId(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>{isRtl ? 'مفتاح الربط السرّي (Secret API Key):' : 'Secret API Key:'}</label>
-              <input
-                type="password"
-                placeholder="sk_live_xxxxxxxxxxxx"
-                value={paymentApiKey}
-                onChange={(e) => setPaymentApiKey(e.target.value)}
-                style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-            <label style={{ display: 'block', marginBottom: '12px', fontSize: '13.5px', fontWeight: 'bold' }}>{isRtl ? 'طرق الدفع المسموح بها للعميل:' : 'Allowed Payment Options:'}</label>
+        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 14px 0', color: '#1f3a5f' }}>💳 إعدادات بوابات الدفع والتقسيط</h3>
             
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
-                <input type="checkbox" checked={enableApplePay} onChange={(e) => setEnableApplePay(e.target.checked)} /> Apple Pay
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
+                <input type="checkbox" checked={enableOnlinePayment} onChange={(e) => setEnableOnlinePayment(e.target.checked)} />
+                تفعيل الدفع الإلكتروني المباشر
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
-                <input type="checkbox" checked={enableGooglePay} onChange={(e) => setEnableGooglePay(e.target.checked)} /> Google Pay
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
+                <input type="checkbox" checked={enableBNPL} onChange={(e) => setEnableBNPL(e.target.checked)} />
+                تفعيل خدمة الدفع الآجل والتقسيط (BNPL)
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
-                <input type="checkbox" checked={enableCards} onChange={(e) => setEnableCards(e.target.checked)} /> بطاقة ائتمان / مدى
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
+                <input type="checkbox" checked={enableCOD} onChange={(e) => setEnableCOD(e.target.checked)} />
+                تفعيل الدفع عند الاستلام (COD)
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
-                <input type="checkbox" checked={enableCOD} onChange={(e) => setEnableCOD(e.target.checked)} /> الدفع نقداً عند الاستلام (COD)
-              </label>
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '20px 0' }} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>مزود خدمة الدفع:</label>
+                <select value={paymentProvider} onChange={(e) => setPaymentProvider(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                  <option value="skipcash">SkipCash (قطر)</option>
+                  <option value="myfatoorah">MyFatoorah</option>
+                  <option value="tap">Tap Payments</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>بيئة التشغيل:</label>
+                <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                  <option value="sandbox">اختباري (Sandbox)</option>
+                  <option value="live">حي وفعلي (Live)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>Merchant ID / Key:</label>
+                <input type="text" value={merchantId} onChange={(e) => setMerchantId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>API Secret Key:</label>
+                <input type="password" value={paymentApiKey} onChange={(e) => setPaymentApiKey(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
+              </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#fffbe3', padding: '16px', borderRadius: '14px', border: '1px solid #fef08a' }}>
-            <div style={{ flex: 1 }}>
-              <strong style={{ fontSize: '14px', color: '#92400e', display: 'block' }}>{isRtl ? 'وضع التشغيل (Environment Mode)' : 'Environment Mode'}</strong>
-              <span style={{ fontSize: '12.5px', color: '#78350f' }}>{isRtl ? 'اختر البيئة التجريبية (Sandbox) حتى يتم توقيع العقد الرسمي وتأكيد المفاتيح البنكية.' : 'Use Sandbox mode for testing before official launch.'}</span>
-            </div>
-            <select
-              value={paymentMode}
-              onChange={(e) => setPaymentMode(e.target.value as any)}
-              style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #d97706', fontWeight: 'bold', fontSize: '13px', backgroundColor: '#ffffff', cursor: 'pointer' }}
-            >
-              <option value="sandbox">تجريبي (Sandbox)</option>
-              <option value="live">بيئة مباشرة (Live)</option>
-            </select>
-          </div>
-
-          <button type="submit" style={{ padding: '14px 28px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', width: 'fit-content' }}>
-            {isRtl ? 'حفظ إعدادات بوابة الدفع' : 'Save Payment Config'}
+          <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', alignSelf: 'flex-start' }}>
+            حفظ إعدادات الدفع
           </button>
         </form>
       )}
 
-      {/* 7️⃣ تبويب تعديل السياسات */}
+      {/* 📄 7️⃣ تبويب تعديل السياسات والشروط */}
       {tab === 'policies' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <h3>{isRtl ? 'تعديل الشروط والأحكام والسياسات المباشرة للموقع' : 'Edit Policies & Content'}</h3>
-
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13.5px' }}>الشروط والأحكام (Terms & Conditions)</label>
-            <textarea
-              rows={6}
-              value={termsContent}
-              onChange={(e) => setTermsContent(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13.5px', fontFamily: 'inherit', boxSizing: 'border-box' }}
-            />
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>شروط الاستخدام:</label>
+            <textarea rows={5} value={termsContent} onChange={(e) => setTermsContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit' }} />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13.5px' }}>سياسة الخصوصية (Privacy Policy)</label>
-            <textarea
-              rows={4}
-              value={privacyContent}
-              onChange={(e) => setPrivacyContent(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13.5px', fontFamily: 'inherit', boxSizing: 'border-box' }}
-            />
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>سياسة الخصوصية:</label>
+            <textarea rows={5} value={privacyContent} onChange={(e) => setPrivacyContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit' }} />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13.5px' }}>نص (من نحن - About Us)</label>
-            <textarea
-              rows={3}
-              value={aboutContent}
-              onChange={(e) => setAboutContent(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13.5px', fontFamily: 'inherit', boxSizing: 'border-box' }}
-            />
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '6px' }}>عن المنصة:</label>
+            <textarea rows={4} value={aboutContent} onChange={(e) => setAboutContent(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e0', fontFamily: 'inherit' }} />
           </div>
 
-          <button type="submit" style={{ padding: '14px 28px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', width: 'fit-content' }}>
-            {isRtl ? 'حفظ السياسات فوراً' : 'Save Policies'}
+          <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', alignSelf: 'flex-start' }}>
+            حفظ النصوص والسياسات
           </button>
         </form>
       )}
 
-      {/* 8️⃣ تبويب السوشال ميديا */}
+      {/* 🌐 8️⃣ تبويب السوشال ميديا والموقع */}
       {tab === 'social' && (
-        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
-          <h3>{isRtl ? 'روابط شبكات التواصل ورقم التواصل' : 'Social & Contact Details'}</h3>
-          
+        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>رابط الفيسبوك (Facebook)</label>
-            <input type="text" value={facebook} onChange={(e) => setFacebook(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0' }} />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>رابط فيسبوك:</label>
+            <input type="text" value={facebook} onChange={(e) => setFacebook(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>رابط إنستغرام (Instagram)</label>
-            <input type="text" value={instagram} onChange={(e) => setInstagram(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0' }} />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>رابط إنستغرام:</label>
+            <input type="text" value={instagram} onChange={(e) => setInstagram(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>رابط تويتر / منصة X</label>
-            <input type="text" value={twitter} onChange={(e) => setTwitter(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0' }} />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>رابط تويتر / X:</label>
+            <input type="text" value={twitter} onChange={(e) => setTwitter(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>رقم الواتساب الدعم (مثال: 97455000000)</label>
-            <input type="text" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0' }} />
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>رقم واتساب الدعم:</label>
+            <input type="text" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} />
           </div>
 
-          <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', width: 'fit-content' }}>
-            {isRtl ? 'تحديث السوشال ميديا' : 'Save Links'}
+          <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', alignSelf: 'flex-start', marginTop: '10px' }}>
+            حفظ إعدادات التواصل
           </button>
         </form>
       )}
@@ -899,5 +908,3 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     </div>
   );
 };
-
-export default AdminDashboard;
