@@ -99,7 +99,7 @@ export default function App() {
 
   const isRtl = lang === 'ar';
 
-  // 🚀 الحصول المباشر والدقيق على رقم هاتف أو بريد العميل من كافة مسارات الـ Auth الممكنة
+ // 🚀 استخراج معرف العميل بالصيغة الدقيقة مع الحفاظ على البيانات الأصيلة
   const currentCustomerPhone = 
     session?.user?.user_metadata?.phone || 
     session?.phone || 
