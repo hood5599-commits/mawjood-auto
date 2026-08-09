@@ -1,4 +1,5 @@
-import React from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React, { useState } from 'react';
 import { AITranslatedText } from '../AITranslatedText';
 
 interface OrdersAndCustomTabProps {
@@ -20,6 +21,9 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
   onSelectCustomRequest,
   onUpdateOrderStatus
 }) => {
+  // حالة التنقل الفرعي بين الطلبات الحالية والطلبات المكتملة/الأرشيف
+  const [orderSubTab, setSubTab] = useState<'active' | 'archive'>('active');
+
   // 🏷️ 1. تبويب طلبات التسعير والقطع المخصصة
   if (tabType === 'custom_requests') {
     return (
@@ -43,11 +47,11 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
                   </span>
                 </div>
 
-                {req.notes || req.description || req.part_name ? (
+                {(req.notes || req.description || req.part_name) && (
                   <p style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', fontSize: '13.5px', color: '#2d3748', margin: '0 0 12px 0', border: '1px solid #edf2f7' }}>
                     <strong>{isRtl ? 'القطعة المطلوبة:' : 'Requested Part:'}</strong> {req.notes || req.description || req.part_name}
                   </p>
-                ) : null}
+                )}
 
                 {req.image_url && (
                   <div style={{ marginBottom: '12px' }}>
@@ -71,19 +75,70 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
     );
   }
 
-  // 📦 2. تبويب الطلبات المباشرة الواردة للشحن والاستلام (بيانات العميل مخفية للخصوصية)
+  // 📦 2. تبويب الطلبات المباشرة مع الفرز الذكي لعدم تشتيت الكراج
+  const activeOrders = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'completed' && o.status !== 'cancelled');
+  const archivedOrders = myOrders.filter(o => o.status === 'delivered' || o.status === 'completed' || o.status === 'cancelled');
+
+  const displayedOrders = orderSubTab === 'active' ? activeOrders : archivedOrders;
+
   return (
     <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', direction: isRtl ? 'rtl' : 'ltr' }}>
-      <h3 style={{ margin: '0 0 20px 0', color: '#1f3a5f', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px', fontSize: '18px', fontWeight: 'bold' }}>
-        {isRtl ? 'الطلبات الواردة للشحن والاستلام' : 'Incoming Orders for Shipping'}
-      </h3>
+      
+      {/* هيدر التبويب الرئيسي مع أزرار الفرز الفرعي */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+        <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
+          {isRtl ? 'الطلبات الواردة للشحن والاستلام' : 'Incoming Orders for Shipping'}
+        </h3>
 
-      {myOrders.length === 0 ? (
-        <p style={{ textAlign: 'center', color: '#a0aec0', padding: '30px 0' }}>{isRtl ? 'لا توجد طلبات واردة حالياً.' : 'No orders received yet.'}</p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setSubTab('active')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '10px',
+              border: 'none',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              cursor: 'pointer',
+              backgroundColor: orderSubTab === 'active' ? '#dd6b20' : '#f1f5f9',
+              color: orderSubTab === 'active' ? 'white' : '#475569'
+            }}
+          >
+            ⏳ {isRtl ? 'بانتظار الشحن والتجهيز' : 'Active Orders'} ({activeOrders.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('archive')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '10px',
+              border: 'none',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              cursor: 'pointer',
+              backgroundColor: orderSubTab === 'archive' ? '#475569' : '#f1f5f9',
+              color: orderSubTab === 'archive' ? 'white' : '#475569'
+            }}
+          >
+            📜 {isRtl ? 'الأرشيف والطلبات المسلمة' : 'Completed Archive'} ({archivedOrders.length})
+          </button>
+        </div>
+      </div>
+
+      {displayedOrders.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#a0aec0' }}>
+          <div style={{ fontSize: '38px', marginBottom: '8px' }}>📦</div>
+          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px' }}>
+            {orderSubTab === 'active' 
+              ? (isRtl ? 'لا توجد طلبات جارية بانتظار الشحن حالياً.' : 'No active orders received yet.') 
+              : (isRtl ? 'لا توجد طلبات سابقة في الأرشيف.' : 'No completed orders in archive.')}
+          </p>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {myOrders.map(order => {
-            const isReady = order.status === 'ready' || order.status === 'ready_for_pickup' || order.status === 'handed_to_driver' || order.status === 'completed';
+          {displayedOrders.map(order => {
+            const isReady = order.status === 'ready' || order.status === 'ready_for_pickup' || order.status === 'handed_to_driver' || order.status === 'completed' || order.status === 'delivered';
 
             return (
               <div key={order.id} style={{ border: '1px solid #e2e8f0', borderRadius: '16px', padding: '20px', backgroundColor: '#f8fafc' }}>
@@ -95,10 +150,14 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
                   </span>
                   <span style={{ 
                     fontSize: '12.5px', fontWeight: 'bold', padding: '4px 12px', borderRadius: '8px',
-                    backgroundColor: isReady ? '#dcfce7' : '#fef3c7',
-                    color: isReady ? '#15803d' : '#92400e'
+                    backgroundColor: order.status === 'delivered' ? '#d1fae5' : isReady ? '#dcfce7' : '#fef3c7',
+                    color: order.status === 'delivered' ? '#065f46' : isReady ? '#15803d' : '#92400e'
                   }}>
-                    {isReady ? (isRtl ? 'تم التجهيز وفي انتظار المندوب 🚚' : 'Ready for Pickup') : (isRtl ? 'بانتظار تجهيزك' : 'Pending Processing')}
+                    {order.status === 'delivered' 
+                      ? (isRtl ? '✅ تم التسليم بنجاح' : 'Delivered') 
+                      : isReady 
+                      ? (isRtl ? 'تم التجهيز وفي انتظار المندوب 🚚' : 'Ready for Pickup') 
+                      : (isRtl ? 'بانتظار تجهيزك' : 'Pending Processing')}
                   </span>
                 </div>
 
@@ -121,8 +180,6 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
                   </div>
                 </div>
 
-                {/* 🔒 تم إخفاء هاتف وعنوان العميل نهائياً عن الكراج للحفاظ على الخصوصية الكاملة */}
-
                 {/* زر تأكيد التوفر والتجهيز */}
                 {!isReady ? (
                   <button 
@@ -137,7 +194,9 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
                   </button>
                 ) : (
                   <div style={{ textAlign: 'center', color: '#16a34a', fontWeight: 'bold', fontSize: '13.5px', padding: '10px', backgroundColor: '#f0fff4', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
-                    ✅ تم تأكيد التجهيز، إشعار المندوب جارٍ لتسلم القطعة!
+                    {order.status === 'delivered' 
+                      ? (isRtl ? '🎉 هذا الطلب مكتمل ومُسلّم للعميل' : '🎉 Order Completed') 
+                      : (isRtl ? '✅ تم تأكيد التجهيز، إشعار المندوب جارٍ لتسلم القطعة!' : 'Ready for Courier Pickup')}
                   </div>
                 )}
 
