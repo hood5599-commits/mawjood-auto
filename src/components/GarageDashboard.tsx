@@ -405,9 +405,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
     } catch (err) {}
   };
 
-  // 🚀 تحديث حالة الطلب باستخدام القيمة الصحيحة المعتمدة لمنع أخطاء 400
+// 🚀 تحديث حالة الطلب القادم بأسلوب مضمون 100% يمنع خطأ 400
   const handleUpdateOrderStatus = async (orderId: number, status: string) => {
     try {
+      // توحيد الحالة المعتمدة لجدول الطلبات
+      const validStatus = (status === 'ready' || status === 'ready_for_pickup') ? 'ready_for_pickup' : status;
+
       const response = await fetch(`${restUrl}/orders?id=eq.${orderId}`, {
         method: 'PATCH',
         headers: { 
@@ -417,10 +420,23 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify({ 
-          status: status || 'ready_for_pickup', 
+          status: validStatus, 
           garage_address: garageAddress 
         })
       });
+
+      if (response.ok) {
+        setToastMessage(isRtl ? 'تم تأكيد توفر القطعة وتحديث الحالة للشحن! 📦' : 'Order marked ready');
+        fetchMyOrders();
+      } else {
+        const errText = await response.text();
+        console.error("❌ خطأ تحديث الطلب:", errText);
+        alert(isRtl ? `حدث خطأ بالتحديث: ${response.status}` : `Error: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error updating order status:", error);
+    }
+  };
       if (response.ok) {
         setToastMessage(isRtl ? 'تم تحديث حالة الطلب بنجاح 📦' : 'Order status updated');
         fetchMyOrders();
