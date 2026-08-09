@@ -45,19 +45,20 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       const email = session?.email || session?.user?.email || '';
       const phone = customerPhone || session?.phone || session?.user?.phone || '';
 
-      let queryUrl = `${supabaseUrl}/orders?order=id.desc`;
+      // البحث برقم الهاتف أو البريد الإلكتروني أيّهما توفر
       const conditions = [];
-      if (phone) conditions.push(`customer_phone=eq.${encodeURIComponent(phone)}`);
       if (email) conditions.push(`customer_email=eq.${encodeURIComponent(email)}`);
+      if (phone) conditions.push(`customer_phone=eq.${encodeURIComponent(phone)}`);
 
+      let ordersQuery = `${supabaseUrl}/orders?order=id.desc`;
       if (conditions.length > 0) {
-        queryUrl = `${supabaseUrl}/orders?or=(${conditions.join(',')})&order=id.desc`;
+        ordersQuery = `${supabaseUrl}/orders?or=(${conditions.join(',')})&order=id.desc`;
       }
 
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(queryUrl, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(phone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(phone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(ordersQuery, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${supabaseUrl}/fitment_inquiries?order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(`${supabaseUrl}/custom_part_requests?order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
       ]);
 
       if (resOrders.ok) setOrders(await resOrders.json());
