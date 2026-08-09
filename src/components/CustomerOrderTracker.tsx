@@ -35,18 +35,30 @@ export const CustomerOrderTracker: React.FC<Props> = ({
 
   const isRtl = lang === 'ar';
 
+  // القيمة الحقيقية للتعرف على العميل سواء هاتف أو إيميل
+  const targetIdentifier = customerPhone || session?.email || session?.user?.email || '';
+
   useEffect(() => {
     fetchData();
-  }, [customerPhone]);
+  }, [customerPhone, session]);
 
   const fetchData = async () => {
-    if (!customerPhone) return;
+    if (!targetIdentifier) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
+      // 🚀 استعلام ذكي يستخدم ilike لتجاهل حالة الأحرف الكبيرة والصغيرة في الإيميل
+      const encodedId = encodeURIComponent(targetIdentifier);
+      const ordersUrl = `${supabaseUrl}/orders?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
+      const inqUrl = `${supabaseUrl}/fitment_inquiries?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
+      const customUrl = `${supabaseUrl}/custom_part_requests?or=(customer_phone.ilike.${encodedId},customer_phone.eq.${encodedId})&order=id.desc`;
+
       const [resOrders, resInquiries, resCustom] = await Promise.all([
-        fetch(`${supabaseUrl}/orders?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/fitment_inquiries?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
-        fetch(`${supabaseUrl}/custom_part_requests?customer_phone=eq.${encodeURIComponent(customerPhone)}&order=id.desc`, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
+        fetch(ordersUrl, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(inqUrl, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } }),
+        fetch(customUrl, { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` } })
       ]);
 
       if (resOrders.ok) setOrders(await resOrders.json());
@@ -82,7 +94,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
       const payload = {
         garage_id: selectedOrderForReview.garage_id,
         order_id: selectedOrderForReview.id,
-        customer_phone: customerPhone,
+        customer_phone: targetIdentifier,
         garage_rating: garageRating,
         comment: reviewComment.trim() || null
       };
@@ -123,7 +135,6 @@ export const CustomerOrderTracker: React.FC<Props> = ({
   };
 
   const activeInquiries = inquiries.filter(i => i.status !== 'ordered');
-  
   const activeOrders = orders.filter(o => !o.is_reviewed && o.status !== 'cancelled');
   const previousOrders = orders.filter(o => o.is_reviewed || o.status === 'cancelled');
 
@@ -323,7 +334,7 @@ export const CustomerOrderTracker: React.FC<Props> = ({
           {selectedOrderForReview && (
             <div className="mwj-ot-review-overlay">
               <div className="mwj-ot-review-modal">
-                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight: 800 }}>⭐ تقييم التجربة</h4>
+                <h4 style={{ margin: '0 0 14px 0', color: '#16304f', fontWeight 800 }}>⭐ تقييم التجربة</h4>
                 <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px' }}>🏪 تقييم الكراج:</label>
