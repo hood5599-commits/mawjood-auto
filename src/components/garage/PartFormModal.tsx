@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 
+// 🚗 استيراد بيانات السيارات المركزية كخيار افتراضي احتياطي
+import { CAR_DATA as DEFAULT_CAR_DATA, CAR_YEARS as DEFAULT_CAR_YEARS } from '../../data/carData';
+
 interface PartFormModalProps {
   isRtl: boolean;
   editingPart: any | null;
   FULL_CATEGORY_TREE: Record<string, string[]>;
   CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }>;
-  carData: any;
-  years: string[];
+  carData?: any;
+  years?: string[];
   supabaseUrl: string;
   apiKey: string;
   session: any;
@@ -27,6 +30,10 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
   onSubmit,
   onCancel
 }) => {
+  // 🔗 استخدام البيانات الممررة أو الملف المركزي الموحد
+  const activeCarData = carData || DEFAULT_CAR_DATA;
+  const activeYears = years || DEFAULT_CAR_YEARS;
+
   const [partName, setPartName] = useState(editingPart?.name || '');
   const [partNumber, setPartNumber] = useState(editingPart?.part_number || '');
   const [partPrice, setPartPrice] = useState(editingPart?.price ? String(editingPart.price) : '');
@@ -207,7 +214,7 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
           <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الماركة *</label>
           <select value={partMake} onChange={(e) => { setPartMake(e.target.value); setPartModel(''); }} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required>
             <option value="">اختر الماركة</option>
-            {Object.keys(carData).map(m => <option key={m} value={m}>{m}</option>)}
+            {Object.keys(activeCarData).map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
 
@@ -215,7 +222,7 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
           <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>الموديل *</label>
           <select value={partModel} onChange={(e) => setPartModel(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} required disabled={!partMake}>
             <option value="">اختر الموديل</option>
-            {partMake && carData[partMake]?.models.map((m: string) => <option key={m} value={m}>{m}</option>)}
+            {partMake && activeCarData[partMake]?.models?.map((m: string) => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
 
@@ -224,12 +231,12 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <select value={partYearFrom} onChange={(e) => { setPartYearFrom(e.target.value); if (!partYearTo) setPartYearTo(e.target.value); }} style={{ flex: 1, padding: '10px 4px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }} required>
               <option value="">من</option>
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
+              {activeYears.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
             <span>-</span>
             <select value={partYearTo} onChange={(e) => setPartYearTo(e.target.value)} style={{ flex: 1, padding: '10px 4px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '12px' }}>
               <option value="">إلى</option>
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
+              {activeYears.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
         </div>
@@ -237,8 +244,9 @@ export const PartFormModal: React.FC<PartFormModalProps> = ({
         <div>
           <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: 'bold' }}>المحرك</label>
           <select value={partEngine} onChange={(e) => setPartEngine(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0' }} disabled={!partMake}>
-            <option value="">المحرك</option>
-            {partMake && carData[partMake]?.engines.map((eng: string) => <option key={eng} value={eng}>{eng}</option>)}
+            <option value="">المحرك (اختياري)</option>
+            <option value="عام">عام / كل المحركات</option>
+            {partMake && activeCarData[partMake]?.engines?.map((eng: string) => <option key={eng} value={eng}>{eng}</option>)}
           </select>
         </div>
       </div>
