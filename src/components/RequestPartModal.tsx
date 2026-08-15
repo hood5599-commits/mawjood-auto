@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { createWorker } from 'tesseract.js';
 
+// 🚗 استيراد بيانات السيارات المركزية
+import { CAR_DATA, CAR_YEARS } from '../data/carData';
+
 interface RequestPartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -122,7 +125,6 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
     e.preventDefault();
     setSubmitting(true);
 
-    // إنشاء معرف مشفر وخاص بالعميل لحماية الخصوصية
     const anonymousCustomerCode = customerPhone && customerPhone !== 'زائر'
       ? `CUST-${Math.abs(customerPhone.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0) % 89999 + 10000)}`
       : 'CUST-GUEST';
@@ -189,22 +191,53 @@ export const RequestPartModal: React.FC<RequestPartModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>الشركة المصنعة *</label>
-                <input required type="text" placeholder="مثال: تويوتا" value={make} onChange={(e) => setMake(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
+                <select 
+                  required 
+                  value={make} 
+                  onChange={(e) => { setMake(e.target.value); setModel(''); }} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">اختر الشركة المصنعة</option>
+                  {Object.keys(CAR_DATA).map(m => (
+                    <option key={m} value={m}>{m} ({CAR_DATA[m].en})</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>الموديل *</label>
-                <input required type="text" placeholder="مثال: كامري" value={model} onChange={(e) => setModel(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
+                <select 
+                  required 
+                  value={model} 
+                  onChange={(e) => setModel(e.target.value)} 
+                  disabled={!make}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">اختر الموديل</option>
+                  {make && CAR_DATA[make]?.models?.map((mod: string) => (
+                    <option key={mod} value={mod}>{mod}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>سنة الصنع *</label>
-                <input required type="text" placeholder="مثال: 2006" value={year} onChange={(e) => setYear(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
+                <select 
+                  required 
+                  value={year} 
+                  onChange={(e) => setYear(e.target.value)} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">اختر السنة</option>
+                  {CAR_YEARS.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', display: 'block', marginBottom: '4px' }}>حجم المحرك (اختياري)</label>
-                <input type="text" placeholder="مثال: 2.4L" value={engineSize} onChange={(e) => setEngineSize(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
+                <input type="text" placeholder="مثال: 2.4L أو 4 سلندر" value={engineSize} onChange={(e) => setEngineSize(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
             </div>
 
