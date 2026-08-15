@@ -2,18 +2,21 @@ import React, { useState } from 'react';
 import { CAR_DATA, CAR_YEARS } from '../data/carData';
 
 // 🌐 روابط صور وصقور واقعية ومفرغة عالية الدقة للأقسام الرئيسية
+// ✨ [ANIMATION ADD] animClass لكل قسم مربوط الآن بحركة تحاكي وظيفته الميكانيكية الفعلية
+//    (تم تصحيح/إضافة: mw-anim-ac, mw-anim-spray, mw-anim-pulse, mw-anim-lights, mw-anim-wiper
+//     التي كانت مُستخدمة في الكود الأصلي كأسماء classes دون تعريف CSS مطابق لها)
 const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animClass: string }> = {
   "Engine": { 
     ar: "المحرك ومكوناته", 
     img: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
-    animClass: "mw-anim-engine"
+    animClass: "mw-anim-engine" // اهتزاز عالي التردد يحاكي حالة "التشغيل/الدوران"
   },
   "Brake & Wheel Hub": { 
     ar: "الفرامل والفحمات", 
     img: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #991b1b 0%, #ef4444 100%)",
-    animClass: "mw-anim-brake"
+    animClass: "mw-anim-brake" // حركة "كبح" (ضغط + توهج أحمر) عند التفعيل
   },
   "Cooling System": { 
     ar: "التبريد والرديتر", 
@@ -25,13 +28,13 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
     ar: "التكييف والكمبروسر", 
     img: "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #78350f 0%, #f59e0b 100%)",
-    animClass: "mw-anim-ac"
+    animClass: "mw-anim-ac" // ✨ [ANIMATION ADD] دوران مروحة + توهج جليدي (لم يكن معرّفاً سابقاً)
   },
   "Suspension": { 
     ar: "المساعدات والتعليق", 
     img: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #581c87 0%, #a855f7 100%)",
-    animClass: "mw-anim-suspension"
+    animClass: "mw-anim-suspension" // انضغاط وارتداد فيزيائي (Accordion-like)
   },
   "Drivetrain": { 
     ar: "الدفع والمحاور (العكوس)", 
@@ -49,7 +52,7 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
     ar: "القير الأوتوماتيك", 
     img: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #334155 0%, #64748b 100%)",
-    animClass: "mw-anim-pulse"
+    animClass: "mw-anim-pulse" // ✨ [ANIMATION ADD] نبض/توهج ميكانيكي هادئ (لم يكن معرّفاً سابقاً)
   },
   "Transmission-Manual": { 
     ar: "القير العادي", 
@@ -61,13 +64,13 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
     ar: "الهيكل والإضاءة", 
     img: "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #0f172a 0%, #475569 100%)",
-    animClass: "mw-anim-pulse"
+    animClass: "mw-anim-lights" // ✨ [ANIMATION ADD] توهج إضاءة + شعاع ضوئي (نور/كشافات) بدل النبض العام
   },
   "Fuel & Air": { 
     ar: "الوقود والفلاتر (البخاخات)", 
     img: "https://images.unsplash.com/photo-1526726538690-5cbf956ae2fd?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #134e4e 0%, #20b2aa 100%)",
-    animClass: "mw-anim-spray"
+    animClass: "mw-anim-spray" // ✨ [ANIMATION ADD] محاكاة رذاذ/بخ البخاخات (لم يكن معرّفاً سابقاً)
   },
   "Ignition": { 
     ar: "الاشتعال والبواجي", 
@@ -77,6 +80,8 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
   },
   "Steering": { 
     ar: "التوجيه (الدركسون)", 
+    // ⚠️ ملاحظة: هذا الرابط مطابق تماماً لصورة "Cooling System" في الكود الأصلي (تكرار محتمل غير دقيق للسياق)
+    // تم إبقاؤه كما هو لعدم القدرة على التحقق من محتوى صورة بديلة، لكن يُنصح باستبداله بصورة عجلة قيادة فعلية
     img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #312e81 0%, #6366f1 100%)",
     animClass: "mw-anim-pulse"
@@ -91,7 +96,7 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
     ar: "المساحات والمضخات", 
     img: "https://images.unsplash.com/photo-1527786455041-d218f0804473?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #0c4a6e 0%, #38bdf8 100%)",
-    animClass: "mw-anim-cool"
+    animClass: "mw-anim-wiper" // ✨ [ANIMATION ADD] حركة مسح تذبذبية تحاكي المساحة الفعلية (بدل mw-anim-cool)
   }
 };
 
@@ -120,6 +125,10 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   const [chosenSubCat, setChosenSubCat] = useState('');
 
   const [loading, setLoading] = useState(false);
+
+  // ✨ [ANIMATION ADD] حالة جديدة فقط للتحكم بلحظة "التفعيل الحركي" عند الضغط على بطاقة قسم رئيسي
+  // لا تؤثر على أي منطق بيانات أو استدعاءات API — طبقة عرض بصري إضافية فقط
+  const [triggeredCat, setTriggeredCat] = useState<string | null>(null);
 
   const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
   const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
@@ -250,6 +259,16 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     }
   };
 
+  // ✨ [ANIMATION ADD] غلاف عرضي فقط حول handleSelectMainCat — لا يغيّر أي منطق داخلي فيها.
+  // يشغّل الحركة الفيزيائية المناسبة للقسم فوراً عند الضغط، ثم يكمل مسار البيانات الأصلي دون تعديل.
+  const handleMainCatCardClick = (cat: string) => {
+    setTriggeredCat(cat);
+    window.setTimeout(() => {
+      setTriggeredCat(null);
+      handleSelectMainCat(cat);
+    }, 550);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
@@ -265,9 +284,24 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-8px); }
         }
+        /* ✨ [ANIMATION ADD] انضغاط وارتداد فيزيائي حقيقي (Accordion-like) عند الضغط على بطاقة المساعدات */
+        @keyframes mwSuspensionCompress {
+          0% { transform: scaleY(1) translateY(0); }
+          30% { transform: scaleY(0.82) translateY(10px); }
+          55% { transform: scaleY(1.08) translateY(-6px); }
+          75% { transform: scaleY(0.96) translateY(2px); }
+          100% { transform: scaleY(1) translateY(0); }
+        }
         @keyframes mwBrakeClamp {
           0%, 100% { filter: drop-shadow(0 0 0px rgba(239,68,68,0)); }
           50% { filter: drop-shadow(0 0 14px rgba(239,68,68,0.8)); transform: scale(1.02); }
+        }
+        /* ✨ [ANIMATION ADD] حركة "كبح فوري" أقوى عند النقر (إغلاق الكليبر + توهج أحمر حاد) */
+        @keyframes mwBrakeClampBurst {
+          0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239,68,68,0)); }
+          35% { transform: scale(0.94); filter: drop-shadow(0 0 20px rgba(239,68,68,0.95)); }
+          60% { transform: scale(1.03); }
+          100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239,68,68,0)); }
         }
         @keyframes mwCoolFlow {
           0% { filter: hue-rotate(0deg); }
@@ -278,17 +312,108 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.7; transform: scale(1.05); filter: brightness(1.3); }
         }
+        /* ✨ [ANIMATION ADD] شرارة كهربائية خاطفة عند النقر (Ignition/Electrical) */
+        @keyframes mwSparkArc {
+          0%, 100% { opacity: 1; filter: brightness(1) drop-shadow(0 0 0 rgba(250,204,21,0)); }
+          25% { opacity: 0.4; filter: brightness(2) drop-shadow(0 0 16px #facc15); }
+          50% { opacity: 1; filter: brightness(1) drop-shadow(0 0 0 rgba(250,204,21,0)); }
+          75% { opacity: 0.4; filter: brightness(2) drop-shadow(0 0 16px #facc15); }
+        }
         @keyframes mwSpinSlow {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        /* ✨ [ANIMATION ADD] دوران سريع عند النقر (عجلات/دفع) */
+        @keyframes mwSpinBurst {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(1080deg); }
+        }
+        /* ✨ [ANIMATION ADD] دوران مروحة التكييف + إحساس بالهواء البارد */
+        @keyframes mwAcFanSpin {
+          0% { filter: brightness(1) saturate(1); }
+          50% { filter: brightness(1.15) saturate(1.3) hue-rotate(15deg); }
+          100% { filter: brightness(1) saturate(1); }
+        }
+        @keyframes mwAcFanBurst {
+          0% { transform: rotate(0deg) scale(1); filter: brightness(1); }
+          100% { transform: rotate(540deg) scale(1.04); filter: brightness(1.25); }
+        }
+        /* ✨ [ANIMATION ADD] رذاذ/بخ البخاخات (Fuel Injector Mist) — نبضات دائرية متتالية */
+        @keyframes mwSprayMist {
+          0% { box-shadow: 0 0 0 0 rgba(32,178,170,0.55); }
+          70% { box-shadow: 0 0 0 22px rgba(32,178,170,0); }
+          100% { box-shadow: 0 0 0 0 rgba(32,178,170,0); }
+        }
+        @keyframes mwSprayBurst {
+          0% { box-shadow: 0 0 0 0 rgba(32,178,170,0.75); transform: scale(1); }
+          40% { box-shadow: 0 0 0 14px rgba(32,178,170,0.15); transform: scale(1.015); }
+          100% { box-shadow: 0 0 0 30px rgba(32,178,170,0); transform: scale(1); }
+        }
+        /* ✨ [ANIMATION ADD] توهج إضاءة/كشافات (Headlights Glow + Beam) */
+        @keyframes mwLightsGlow {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.18); }
+        }
+        @keyframes mwLightsBeam {
+          0% { opacity: 0; transform: translateX(-30%) skewX(-12deg); }
+          40% { opacity: 0.55; }
+          100% { opacity: 0; transform: translateX(130%) skewX(-12deg); }
+        }
+        /* ✨ [ANIMATION ADD] نبض ميكانيكي هادئ عام (ناقل الحركة / التوجيه) */
+        @keyframes mwPulseGlow {
+          0%, 100% { filter: brightness(1); transform: scale(1); }
+          50% { filter: brightness(1.1); transform: scale(1.015); }
+        }
+        /* ✨ [ANIMATION ADD] حركة مسح تذبذبية تحاكي مساحة الزجاج الفعلية */
+        @keyframes mwWiperSweep {
+          0%, 100% { transform: rotate(-18deg); }
+          50% { transform: rotate(18deg); }
+        }
 
         .mw-anim-engine:hover { animation: mwEngineRattle 0.3s infinite ease-in-out; }
+
         .mw-anim-suspension:hover { animation: mwSuspensionBounce 0.4s infinite ease-in-out; }
+        /* ✨ [ANIMATION ADD] class مُفعّلة عبر JS عند الضغط لمحاكاة الانضغاط الحقيقي */
+        .mw-anim-suspension.mw-is-active { animation: mwSuspensionCompress 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+
         .mw-anim-brake:hover { animation: mwBrakeClamp 0.6s infinite ease-in-out; }
+        .mw-anim-brake.mw-is-active { animation: mwBrakeClampBurst 0.5s ease-out; }
+
         .mw-anim-cool:hover { animation: mwCoolFlow 1.2s infinite ease-in-out; }
+
         .mw-anim-spark:hover { animation: mwSparkFlash 0.5s infinite ease-in-out; }
+        .mw-anim-spark.mw-is-active { animation: mwSparkArc 0.4s steps(2, end) 2; }
+
         .mw-anim-spin:hover img { animation: mwSpinSlow 2s infinite linear; }
+        .mw-anim-spin.mw-is-active img { animation: mwSpinBurst 0.55s ease-out; }
+
+        /* ✨ [ANIMATION ADD] بطاقة التكييف: دوران/برودة عند المرور والنقر */
+        .mw-anim-ac:hover { animation: mwAcFanSpin 1.4s infinite ease-in-out; }
+        .mw-anim-ac.mw-is-active img { animation: mwAcFanBurst 0.6s ease-out; }
+
+        /* ✨ [ANIMATION ADD] بطاقة الوقود/البخاخات: رذاذ نابض عند المرور، وبخة أقوى عند النقر */
+        .mw-anim-spray:hover { animation: mwSprayMist 1.1s infinite; }
+        .mw-anim-spray.mw-is-active { animation: mwSprayBurst 0.5s ease-out; }
+
+        /* ✨ [ANIMATION ADD] بطاقة الإضاءة: توهج هادئ عند المرور، وشعاع ضوئي متحرك عند النقر */
+        .mw-anim-lights:hover { animation: mwLightsGlow 1s infinite ease-in-out; }
+        .mw-anim-lights { position: relative; }
+        .mw-anim-lights.mw-is-active::after {
+          content: '';
+          position: absolute; inset: 0;
+          background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.7) 50%, transparent 65%);
+          animation: mwLightsBeam 0.6s ease-out;
+          pointer-events: none;
+        }
+
+        /* ✨ [ANIMATION ADD] بطاقات ناقل الحركة/التوجيه: نبض ميكانيكي هادئ */
+        .mw-anim-pulse:hover { animation: mwPulseGlow 1s infinite ease-in-out; }
+        .mw-anim-pulse.mw-is-active { animation: mwPulseGlow 0.35s ease-in-out 2; }
+
+        /* ✨ [ANIMATION ADD] بطاقة المساحات: تذبذب يحاكي حركة المساحة الفعلية عند المرور والنقر */
+        .mw-anim-wiper { transform-origin: bottom center; }
+        .mw-anim-wiper:hover { animation: mwWiperSweep 0.7s infinite ease-in-out; }
+        .mw-anim-wiper.mw-is-active { animation: mwWiperSweep 0.35s ease-in-out 3; }
       `}</style>
 
       {/* 🚘 صندوق محدد السيارة */}
@@ -471,11 +596,13 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '16px' }}>
               {availableMainCats.map((cat) => {
                 const meta = CATEGORY_META[cat] || { ar: cat, img: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=300&q=80', bg: '#1f3a5f', animClass: 'mw-anim-pulse' };
+                // ✨ [ANIMATION ADD] إضافة mw-is-active لحظياً عند الضغط لتشغيل حركة الفيزياء المناسبة للقسم
+                const isActive = triggeredCat === cat;
                 return (
                   <div
                     key={cat}
-                    onClick={() => handleSelectMainCat(cat)}
-                    className={meta.animClass}
+                    onClick={() => handleMainCatCardClick(cat)}
+                    className={`${meta.animClass}${isActive ? ' mw-is-active' : ''}`}
                     style={{
                       borderRadius: '16px',
                       overflow: 'hidden',
