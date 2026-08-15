@@ -8,7 +8,7 @@ import { AITranslatedText } from './AITranslatedText';
 import { PartMoreInfo } from './PartMoreInfo';
 
 // 🚗 استيراد بيانات السيارات المركزية
-import { CAR_DATA, CAR_YEARS } from '../data/carData';
+import { CAR_DATA } from '../data/carData';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
@@ -55,7 +55,7 @@ const MAKE_DOMAINS: Record<string, string> = {
   "فولكس فاجن": "vw.com", "Volkswagen": "vw.com",
   "أودي": "audi.com", "Audi": "audi.com",
   "جيب": "jeep.com", "Jeep": "jeep.com",
-  "دودج": "dodge.com", "Dodge": "dodge.com",
+  "دودج": "dodge.com", "Dodge": "دودج",
   "رام": "ramtrucks.com", "RAM": "ramtrucks.com",
   "لاند روفر": "landrover.com", "Land Rover": "landrover.com",
   "إنفينيتي": "infinitiusa.com", "Infiniti": "infinitiusa.com",
