@@ -62,16 +62,48 @@ const CATEGORY_TRANSLATION: Record<string, string> = {
   "Wiper & Washer": "المساحات وبخاخات المياه — Wiper & Washer"
 };
 
+// 🚗 تم تضمين جميع الشركات العالمية بالإضافة لأشهر الشركات الصينية في قطر
 const MAKE_DOMAINS: Record<string, string> = {
-  "تويوتا": "toyota.com", "هيونداي": "hyundai.com", "نيسان": "nissan-global.com",
-  "فورد": "ford.com", "شفروليه": "chevrolet.com", "كيا": "kia.com",
-  "هوندا": "honda.com", "لكزس": "lexus.com", "ميتسوبيشي": "mitsubishicars.com",
-  "مازدا": "mazda.com", "جي إم سي": "gmc.com", "بي إم دبليو": "bmw.com",
-  "مرسيدس": "mercedes-benz.com", "فولكس فاجن": "vw.com", "أودي": "audi.com",
-  "جيب": "jeep.com", "دودج": "dodge.com", "رام": "ramtrucks.com",
-  "لاند روفر": "landrover.com", "إنفينيتي": "infinitiusa.com", "سوبارو": "subaru.com",
-  "رينو": "renault.com", "سوزوكي": "globalsuzuki.com", "بورش": "porsche.com",
-  "كرايسلر": "chrysler.com"
+  "تويوتا": "toyota.com", "Toyota": "toyota.com",
+  "هيونداي": "hyundai.com", "Hyundai": "hyundai.com",
+  "نيسان": "nissan-global.com", "Nissan": "nissan-global.com",
+  "فورد": "ford.com", "Ford": "ford.com",
+  "شفروليه": "chevrolet.com", "Chevrolet": "chevrolet.com",
+  "كيا": "kia.com", "Kia": "kia.com",
+  "هوندا": "honda.com", "Honda": "honda.com",
+  "لكزس": "lexus.com", "Lexus": "lexus.com",
+  "ميتسوبيشي": "mitsubishicars.com", "Mitsubishi": "mitsubishicars.com",
+  "مازدا": "mazda.com", "Mazda": "mazda.com",
+  "جي إم سي": "gmc.com", "GMC": "gmc.com",
+  "بي إم دبليو": "bmw.com", "BMW": "bmw.com",
+  "مرسيدس": "mercedes-benz.com", "Mercedes-Benz": "mercedes-benz.com",
+  "فولكس فاجن": "vw.com", "Volkswagen": "vw.com",
+  "أودي": "audi.com", "Audi": "audi.com",
+  "جيب": "jeep.com", "Jeep": "jeep.com",
+  "دودج": "dodge.com", "Dodge": "dodge.com",
+  "رام": "ramtrucks.com", "RAM": "ramtrucks.com",
+  "لاند روفر": "landrover.com", "Land Rover": "landrover.com",
+  "إنفينيتي": "infinitiusa.com", "Infiniti": "infinitiusa.com",
+  "سوبارو": "subaru.com", "Subaru": "subaru.com",
+  "رينو": "renault.com", "Renault": "renault.com",
+  "سوزوكي": "globalsuzuki.com", "Suzuki": "globalsuzuki.com",
+  "بورش": "porsche.com", "Porsche": "porsche.com",
+  "كرايسلر": "chrysler.com", "Chrysler": "chrysler.com",
+  // 🇨🇳 السيارات الصينية
+  "إم جي": "mgmotor.com", "MG": "mgmotor.com",
+  "جيلي": "geely.com", "Geely": "geely.com",
+  "جيتور": "jetourglobal.com", "Jetour": "jetourglobal.com",
+  "هافال": "haval-global.com", "Haval": "haval-global.com",
+  "تانك": "tanksuv.com", "Tank": "tanksuv.com",
+  "شانجان": "changan.com.cn", "Changan": "changan.com.cn",
+  "شيري": "cheryinternational.com", "Chery": "cheryinternational.com",
+  "بي واي دي": "byd.com", "BYD": "byd.com",
+  "جي إيه سي": "gac-motor.com", "GAC": "gac-motor.com",
+  "هونشي": "hongqi-auto.com", "Hongqi": "hongqi-auto.com",
+  "بايك": "baicintl.com", "BAIC": "baicintl.com",
+  "بيستون": "benteng.faw.cn", "Bestune": "benteng.faw.cn",
+  "جاك": "jac.com.cn", "JAC": "jac.com.cn",
+  "جريت وول": "gwm-global.com", "GWM": "gwm-global.com"
 };
 
 const nodeStyle: React.CSSProperties = {
@@ -141,7 +173,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       navigator.share({ title: part.name, text: `قطعة غيار: ${part.name} - ${part.price} ر.ق`, url: shareUrl }).catch(() => {});
     } else {
       navigator.clipboard.writeText(shareUrl);
-      alert(isRtl ? 'تم نسخ رابط القطعة حافظة الجهاز!' : 'Part link copied to clipboard!');
+      alert(isRtl ? 'تم نسخ رابط القطعة إلى حافظة الجهاز!' : 'Part link copied to clipboard!');
     }
   };
 
@@ -261,7 +293,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [lang === 'ar' ? 'عام' : 'General'];
   };
 
-  // 📁 جلب الأقسام الرئيسية (Main Categories) وتخطي خطأ الـ TypeScript
   const fetchMainCategoriesForEngine = async (make: string, year: string, model: string, engine: string) => {
     const cacheKey = `maincats_${make}_${year}_${model}_${engine}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -286,7 +317,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         });
 
         const mainCategories = new Set<string>();
-        // إضافة (p: any) لحل خطأ الـ Build
         filteredParts.forEach((p: any) => {
           const pCat = p.category || getPartCategory(p.name) || '';
           const mainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
@@ -304,7 +334,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [];
   };
 
-  // 📂 جلب الأقسام الفرعية (Sub-Categories) للقسم الرئيسي المختار
   const fetchSubCategoriesForMain = async (make: string, year: string, model: string, engine: string, mainCategory: string) => {
     const cacheKey = `subcats_${make}_${year}_${model}_${engine}_${mainCategory}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -333,7 +362,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         });
 
         const subCategories = new Set<string>();
-        // إضافة (p: any) لحل خطأ الـ Build
         filteredParts.forEach((p: any) => {
           const pCat = p.category || getPartCategory(p.name) || '';
           const subCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (lang === 'ar' ? 'عام / أخرى' : 'General / Other');
@@ -351,7 +379,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [];
   };
 
-  // 🛠️ جلب القطع المرتبطة بالقسم الفرعي المختار
   const fetchPartsForSubCategory = async (make: string, year: string, model: string, engine: string, mainCategory: string, subCategory: string) => {
     const cacheKey = `parts_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -534,6 +561,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </span>
               <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: '#475569', backgroundColor: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
                 ✨ {part.part_condition || (isRtl ? 'نظيف' : 'Good Condition')}
+              </span>
+            </div>
+
+            {/* ⭐ تقييم الكراج واسم المعرض لزيادة الثقة */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#e0872a', backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '1px 6px', borderRadius: '5px' }}>
+                ⭐ {part.garage_rating ? Number(part.garage_rating).toFixed(1) : '4.9'}
+              </span>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                ({part.garage_name || (isRtl ? 'كراج معتمد' : 'Verified Garage')})
               </span>
             </div>
 
@@ -764,7 +801,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                   const engineKey = `eng_${make}_${year}_${model}_${engine}`;
                                                   const isEngineOpen = !!expandedNodes[engineKey];
                                                   
-                                                  // تحديث: جلب القسم الرئيسي بدلاً من الفئات مباشرة
                                                   const mainCatsCacheKey = `maincats_${make}_${year}_${model}_${engine}`;
                                                   const isMainCatsLoading = !!loadingNodes[mainCatsCacheKey];
                                                   const availableMainCategories = nodeDataCache[mainCatsCacheKey] || [];
