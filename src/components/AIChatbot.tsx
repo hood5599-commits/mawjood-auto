@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+// 🚗 استيراد بيانات السيارات المركزية كخيار موحد
+import { CAR_DATA as DEFAULT_CAR_DATA } from '../data/carData';
+
 interface AIChatbotProps {
   lang: 'ar' | 'en';
-  carData: Record<string, { models: string[], engines: string[] }>;
+  carData?: any;
   categoryTree: Record<string, string[]>;
   onApplyFilters: (filters: { query?: string; make?: string; model?: string; year?: string; mainCategory?: string; subCategory?: string }) => void;
   onCloseFilters: () => void;
@@ -43,6 +46,8 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
   onApplyFilters,
   onCloseFilters
 }) => {
+  const activeCarData = carData || DEFAULT_CAR_DATA;
+
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -52,7 +57,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
 
   const isRtl = lang === 'ar';
 
-  // شرائح اقتراحات سريعة (واجهة فقط) — تستخدم نفس مسار الإرسال الحالي دون أي تعديل بالمنطق
   const QUICK_SUGGESTIONS = isRtl
     ? ['كيف اطلب؟', 'مدة التوصيل', 'طرق الدفع', 'قطعة غير متوفرة']
     : ['How to order?', 'Delivery time', 'Payment methods', 'Part not found'];
@@ -122,13 +126,19 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
     const yearMatch = lowerText.match(/\b(19\d{2}|20\d{2})\b/);
     if (yearMatch) extractedYear = yearMatch[1];
 
-    for (const [make, data] of Object.entries(carData)) {
-      if (lowerText.includes(make.toLowerCase())) extractedMake = make;
+    for (const [makeKey, data] of Object.entries(activeCarData as Record<string, any>)) {
+      const makeAr = data?.ar || makeKey;
+      const makeEn = data?.en || '';
       
-      for (const model of data.models) {
-        if (lowerText.includes(model.toLowerCase())) {
+      if (lowerText.includes(makeKey.toLowerCase()) || lowerText.includes(makeAr.toLowerCase()) || (makeEn && lowerText.includes(makeEn.toLowerCase()))) {
+        extractedMake = makeKey;
+      }
+      
+      const modelsList = data?.models || [];
+      for (const model of modelsList) {
+        if (lowerText.includes(String(model).toLowerCase())) {
           extractedModel = model;
-          extractedMake = make; // استنتاج الماركة تلقائياً إذا تم تحديد الموديل
+          extractedMake = makeKey;
           break;
         }
       }
@@ -208,7 +218,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
     }, 600);
   };
 
-  // 💊 اختيار اقتراح سريع — يعبّي الحقل ويرسل عبر نفس مسار الإرسال الحالي (بدون تعديل أي منطق)
   const handleQuickSuggestion = (text: string) => {
     if (isTyping) return;
     const userMsg: Message = {
