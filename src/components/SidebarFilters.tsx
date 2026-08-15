@@ -10,32 +10,65 @@ import { PartMoreInfo } from './PartMoreInfo';
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
 
-interface SidebarProps {
-  lang: 'ar' | 'en';
-  carData: any;
-  years: string[];
-  translateMake: Record<string, string>;
-  translateModel: Record<string, string>;
-  categories: string[];
-  expandedCategories: string[];
-  toggleCategory: (category: string) => void;
-  inventory: any[];
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  filterMake: string;
-  setFilterMake: (make: string) => void;
-  filterModel: string;
-  setFilterModel: (model: string) => void;
-  filterYear: string;
-  setFilterYear: (year: string) => void;
-  filterCategory: string;
-  setFilterCategory: (cat: string) => void;
-  filterEngine?: string;
-  setFilterEngine?: (engine: string) => void;
-  addToCart?: (item: any, quantity: number) => void;
-  onInquire?: (item: any) => void;
-  siteSettings?: any;
-}
+// 🚗 قائمة السيارات الصينية المدمجة تلقائياً لضمان ظهورها فوراً
+const DEFAULT_CHINESE_CARS: Record<string, { ar: string; models: string[] }> = {
+  "إم جي": {
+    ar: "إم جي",
+    models: ["MG GT", "MG 5", "MG 6", "MG ZS", "MG RX5", "MG RX8", "MG HS", "MG One", "MG Whale"]
+  },
+  "جيلي": {
+    ar: "جيلي",
+    models: ["Monjaro", "Tugella", "Coolray", "Emgrand", "Okavango", "Starray", "GX3 Pro"]
+  },
+  "جيتور": {
+    ar: "جيتور",
+    models: ["T2", "Dashing", "X70 Plus", "X90 Plus", "X70"]
+  },
+  "هافال": {
+    ar: "هافال",
+    models: ["H6", "Jolion", "Dargo", "H9", "H6 GT"]
+  },
+  "تانك": {
+    ar: "تانك",
+    models: ["Tank 300", "Tank 500", "Tank 700"]
+  },
+  "شانجان": {
+    ar: "شانجان",
+    models: ["CS95", "CS85", "CS75 Plus", "CS35 Plus", "UNI-K", "UNI-T", "UNI-V", "Eado Plus"]
+  },
+  "شيري": {
+    ar: "شيري",
+    models: ["Tiggo 8 Pro", "Tiggo 7 Pro", "Tiggo 4 Pro", "Arrizo 8", "Omoda C5", "Jaecoo J7"]
+  },
+  "بي واي دي": {
+    ar: "بي واي دي",
+    models: ["Song Plus", "Seal", "Han", "Atto 3", "Qin Plus"]
+  },
+  "جي إيه سي": {
+    ar: "جي إيه سي",
+    models: ["GS8", "GS4", "GS3 Emzoom", "Empow", "Emkoo", "GA8"]
+  },
+  "هونشي": {
+    ar: "هونشي",
+    models: ["HS5", "H9", "H5", "E-HS9", "HS7"]
+  },
+  "بايك": {
+    ar: "بايك",
+    models: ["BJ40 Plus", "BJ60", "BJ80", "X7", "X35"]
+  },
+  "بيستون": {
+    ar: "بيستون",
+    models: ["B70", "T77 Pro", "T99", "T55"]
+  },
+  "جاك": {
+    ar: "جاك",
+    models: ["J7", "JS4", "JS6", "T8 Pro"]
+  },
+  "جريت وول": {
+    ar: "جريت وول",
+    models: ["POER", "Wingle 5", "Wingle 7"]
+  }
+};
 
 const CATEGORY_TRANSLATION: Record<string, string> = {
   "Belt Drive": "نظام السيور والمكرات — Belt Drive",
@@ -62,7 +95,6 @@ const CATEGORY_TRANSLATION: Record<string, string> = {
   "Wiper & Washer": "المساحات وبخاخات المياه — Wiper & Washer"
 };
 
-// 🚗 تم تضمين جميع الشركات العالمية بالإضافة لأشهر الشركات الصينية في قطر
 const MAKE_DOMAINS: Record<string, string> = {
   "تويوتا": "toyota.com", "Toyota": "toyota.com",
   "هيونداي": "hyundai.com", "Hyundai": "hyundai.com",
@@ -89,7 +121,6 @@ const MAKE_DOMAINS: Record<string, string> = {
   "سوزوكي": "globalsuzuki.com", "Suzuki": "globalsuzuki.com",
   "بورش": "porsche.com", "Porsche": "porsche.com",
   "كرايسلر": "chrysler.com", "Chrysler": "chrysler.com",
-  // 🇨🇳 السيارات الصينية
   "إم جي": "mgmotor.com", "MG": "mgmotor.com",
   "جيلي": "geely.com", "Geely": "geely.com",
   "جيتور": "jetourglobal.com", "Jetour": "jetourglobal.com",
@@ -117,11 +148,44 @@ const nodeStyle: React.CSSProperties = {
   userSelect: 'none',
 };
 
+interface SidebarProps {
+  lang: 'ar' | 'en';
+  carData: any;
+  years: string[];
+  translateMake: Record<string, string>;
+  translateModel: Record<string, string>;
+  categories: string[];
+  expandedCategories: string[];
+  toggleCategory: (category: string) => void;
+  inventory: any[];
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  filterMake: string;
+  setFilterMake: (make: string) => void;
+  filterModel: string;
+  setFilterModel: (model: string) => void;
+  filterYear: string;
+  setFilterYear: (year: string) => void;
+  filterCategory: string;
+  setFilterCategory: (cat: string) => void;
+  filterEngine?: string;
+  setFilterEngine?: (engine: string) => void;
+  addToCart?: (item: any, quantity: number) => void;
+  onInquire?: (item: any) => void;
+  siteSettings?: any;
+}
+
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const { 
     lang, carData, inventory, 
     searchTerm, setSearchTerm, addToCart, onInquire, siteSettings 
   } = props;
+
+  // 🔗 دمج السيارات الموجودة مع الماركات الصينية الجديدة تلقائياً
+  const mergedCarData = {
+    ...(carData || {}),
+    ...DEFAULT_CHINESE_CARS
+  };
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [nodeDataCache, setNodeDataCache] = useState<Record<string, any>>({});
@@ -219,7 +283,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           }
         });
 
-        const availableYears = Array.from(expandedYearsSet).sort((a, b) => Number(b) - Number(a));
+        // إذا لم تكن هناك قطع في قاعدة البيانات لهذه الماركة، نظهر السنوات الحديثة افتراضياً
+        let availableYears = Array.from(expandedYearsSet).sort((a, b) => Number(b) - Number(a));
+        if (availableYears.length === 0) {
+          availableYears = ["2026", "2025", "2024", "2023", "2022", "2021", "2020"];
+        }
+
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: availableYears }));
         return availableYears;
       }
@@ -227,7 +296,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } finally {
       setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
     }
-    return [];
+    return ["2026", "2025", "2024", "2023", "2022", "2021", "2020"];
   };
 
   const fetchModelsForYear = async (make: string, year: string) => {
@@ -240,7 +309,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const availableModels = Array.from(new Set(
+        let availableModels = Array.from(new Set(
           data.filter((item: any) => {
             const yStr = String(item.year || '').trim();
             if (yStr.includes('-')) {
@@ -252,6 +321,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           }).map((item: any) => item.model).filter(Boolean)
         )) as string[];
 
+        // إذا كانت ماركة مضافة جديدة وليس بها قطع بعد، نجلب الموديلات من القائمة المدمجة
+        if (availableModels.length === 0 && mergedCarData[make]?.models) {
+          availableModels = mergedCarData[make].models;
+        }
+
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: availableModels }));
         return availableModels;
       }
@@ -259,7 +333,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } finally {
       setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
     }
-    return [];
+    return mergedCarData[make]?.models || [];
   };
 
   const fetchEnginesForVehicle = async (make: string, year: string, model: string) => {
@@ -282,7 +356,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           return yStr === year;
         });
 
-        const uniqueEngines = Array.from(new Set(filteredData.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (lang === 'ar' ? 'عام' : 'General')))) as string[];
+        let uniqueEngines = Array.from(new Set(filteredData.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (lang === 'ar' ? 'عام' : 'General')))) as string[];
+        if (uniqueEngines.length === 0) uniqueEngines = [lang === 'ar' ? 'عام' : 'General'];
+
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: uniqueEngines }));
         return uniqueEngines;
       }
@@ -564,7 +640,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </span>
             </div>
 
-            {/* ⭐ تقييم الكراج واسم المعرض لزيادة الثقة */}
+            {/* ⭐ تقييم الكراج واسم المعرض */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
               <span style={{ fontSize: '11px', fontWeight: 800, color: '#e0872a', backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '1px 6px', borderRadius: '5px' }}>
                 ⭐ {part.garage_rating ? Number(part.garage_rating).toFixed(1) : '4.9'}
@@ -729,7 +805,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         ) : (
           <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
-            {Object.keys(carData).map(make => {
+            {Object.keys(mergedCarData).map(make => {
               const makeKey = `make_${make}`;
               const isMakeOpen = !!expandedNodes[makeKey];
               const makeName = make;
