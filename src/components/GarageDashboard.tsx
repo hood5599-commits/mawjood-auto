@@ -9,10 +9,13 @@ import { MyPartsTab } from './garage/MyPartsTab';
 import { FitmentInquiriesTab } from './garage/FitmentInquiriesTab';
 import { OrdersAndCustomTab } from './garage/OrdersAndCustomTab';
 
+// 🚗 استيراد بيانات السيارات المركزية كخيار افتراضي موحد
+import { CAR_DATA as DEFAULT_CAR_DATA, CAR_YEARS as DEFAULT_CAR_YEARS } from '../data/carData';
+
 interface GarageProps {
   lang: 'ar' | 'en';
-  carData: any;
-  years: string[];
+  carData?: any;
+  years?: string[];
   supabaseUrl: string;
   apiKey: string;
   session: any;
@@ -69,7 +72,18 @@ const FULL_CATEGORY_TREE: Record<string, string[]> = {
   "Wiper & Washer": ["Washer Fluid Reservoir", "Washer Pump", "Wiper Arm", "Wiper Blade", "Wiper Motor"]
 };
 
-export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, supabaseUrl, apiKey, session, onSuccess }) => {
+export const GarageDashboard: React.FC<GarageProps> = ({ 
+  lang, 
+  carData, 
+  years, 
+  supabaseUrl, 
+  apiKey, 
+  session, 
+  onSuccess 
+}) => {
+  const activeCarData = carData || DEFAULT_CAR_DATA;
+  const activeYears = years || DEFAULT_CAR_YEARS;
+
   const [activeTab, setActiveTab] = useState<'add_part' | 'my_parts' | 'inquiries' | 'custom_requests' | 'orders' | 'profile'>('my_parts');
   
   const [myParts, setMyParts] = useState<any[]>([]);
@@ -639,8 +653,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
             editingPart={null} 
             FULL_CATEGORY_TREE={FULL_CATEGORY_TREE} 
             CATEGORY_TRANSLATIONS={CATEGORY_TRANSLATIONS} 
-            carData={carData} 
-            years={years} 
+            carData={activeCarData} 
+            years={activeYears} 
             supabaseUrl={supabaseUrl} 
             apiKey={apiKey} 
             session={session} 
@@ -764,8 +778,8 @@ export const GarageDashboard: React.FC<GarageProps> = ({ lang, carData, years, s
               editingPart={editingPart} 
               FULL_CATEGORY_TREE={FULL_CATEGORY_TREE} 
               CATEGORY_TRANSLATIONS={CATEGORY_TRANSLATIONS} 
-              carData={carData} 
-              years={years} 
+              carData={activeCarData} 
+              years={activeYears} 
               supabaseUrl={supabaseUrl} 
               apiKey={apiKey} 
               session={session} 
