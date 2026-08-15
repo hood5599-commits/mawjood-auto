@@ -124,7 +124,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     searchTerm, setSearchTerm, addToCart, onInquire, siteSettings 
   } = props;
 
-  // 🔗 استخدام البيانات المركزية الموحدة
   const activeCarData = carData || CAR_DATA;
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
@@ -223,11 +222,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           }
         });
 
-        let availableYears = Array.from(expandedYearsSet).sort((a, b) => Number(b) - Number(a));
-        if (availableYears.length === 0) {
-          availableYears = CAR_YEARS.slice(0, 8);
-        }
-
+        const availableYears = Array.from(expandedYearsSet).sort((a, b) => Number(b) - Number(a));
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: availableYears }));
         return availableYears;
       }
@@ -235,7 +230,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } finally {
       setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
     }
-    return CAR_YEARS.slice(0, 8);
+    return [];
   };
 
   const fetchModelsForYear = async (make: string, year: string) => {
@@ -248,7 +243,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        let availableModels = Array.from(new Set(
+        const availableModels = Array.from(new Set(
           data.filter((item: any) => {
             const yStr = String(item.year || '').trim();
             if (yStr.includes('-')) {
@@ -260,10 +255,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           }).map((item: any) => item.model).filter(Boolean)
         )) as string[];
 
-        if (availableModels.length === 0 && activeCarData[make]?.models) {
-          availableModels = activeCarData[make].models;
-        }
-
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: availableModels }));
         return availableModels;
       }
@@ -271,7 +262,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } finally {
       setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
     }
-    return activeCarData[make]?.models || [];
+    return [];
   };
 
   const fetchEnginesForVehicle = async (make: string, year: string, model: string) => {
