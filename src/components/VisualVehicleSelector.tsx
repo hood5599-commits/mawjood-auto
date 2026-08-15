@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CAR_DATA, CAR_YEARS } from '../data/carData';
-import { AITranslatedText } from './AITranslatedText';
 
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
@@ -85,7 +84,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         setChosenEngine(selectedEngine);
         loadMainCategories(yearFiltered, selectedEngine);
       } else if (enginesList.length === 1) {
-        // إذا كان هناك نوع محرك واحد فقط مسجل، نتخطاه تلقائياً
         setChosenEngine(enginesList[0]);
         loadMainCategories(yearFiltered, enginesList[0]);
       } else {
@@ -192,7 +190,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      {/* 🚘 صندوق محدد السيارة الأنيق */}
+      {/* 🚘 صندوق محدد السيارة */}
       <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '2px solid #1f3a5f', boxShadow: '0 8px 24px rgba(31,58,95,0.06)' }}>
         <h3 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '17px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>🚘</span> {isRtl ? 'حدد سيارتك لعرض الأقسام والقطع المتوافقة 100%' : 'Select Your Vehicle for 100% Fitment Match'}
@@ -342,7 +340,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         </div>
       )}
 
-      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية بالأيقونات والصور */}
+      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية */}
       {currentStep === 'main_cat' && (
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
           <h4 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
