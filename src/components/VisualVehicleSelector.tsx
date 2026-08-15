@@ -1,24 +1,23 @@
 import React, { useState } from 'react';
 import { CAR_DATA, CAR_YEARS } from '../data/carData';
 
-// 🌐 تم تصحيح الصور: الآن تعرض قطع غيار حقيقية بدلاً من سيارات كاملة!
-// ✨ تم ربط كل قسم بالـ Animation الفيزيائي المخصص له
+// 🌐 روابط صور واقعية ومفرغة عالية الدقة للأقسام الرئيسية
 const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animClass: string }> = {
   "Engine": { 
     ar: "المحرك ومكوناته", 
-    img: "https://images.unsplash.com/photo-1588610515668-80f089da01eb?auto=format&fit=crop&w=300&q=80", // صورة محرك
+    img: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
-    animClass: "mw-anim-engine" 
+    animClass: "mw-anim-engine"
   },
   "Brake & Wheel Hub": { 
     ar: "الفرامل والفحمات", 
-    img: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=300&q=80", // صورة هوب وفرامل
+    img: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #991b1b 0%, #ef4444 100%)",
-    animClass: "mw-anim-brake" 
+    animClass: "mw-anim-brake"
   },
   "Cooling System": { 
     ar: "التبريد والرديتر", 
-    img: "https://images.unsplash.com/photo-1621255462529-5ee42844390b?auto=format&fit=crop&w=300&q=80", // صورة رديتر/مروحة
+    img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #065f46 0%, #10b981 100%)",
     animClass: "mw-anim-cool"
   },
@@ -26,13 +25,13 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
     ar: "التكييف والكمبروسر", 
     img: "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #78350f 0%, #f59e0b 100%)",
-    animClass: "mw-anim-ac" 
+    animClass: "mw-anim-ac"
   },
   "Suspension": { 
     ar: "المساعدات والتعليق", 
-    img: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=300&q=80", // صورة مساعدات/يايات
+    img: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #581c87 0%, #a855f7 100%)",
-    animClass: "mw-anim-suspension" 
+    animClass: "mw-anim-suspension"
   },
   "Drivetrain": { 
     ar: "الدفع والمحاور (العكوس)", 
@@ -48,27 +47,27 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
   },
   "Transmission-Automatic": { 
     ar: "القير الأوتوماتيك", 
-    img: "https://images.unsplash.com/photo-1605342111100-36e3fc95bd8a?auto=format&fit=crop&w=300&q=80", // صورة تروس قير
+    img: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #334155 0%, #64748b 100%)",
-    animClass: "mw-anim-pulse" 
+    animClass: "mw-anim-pulse"
   },
   "Transmission-Manual": { 
     ar: "القير العادي", 
-    img: "https://images.unsplash.com/photo-1605342111100-36e3fc95bd8a?auto=format&fit=crop&w=300&q=80", 
+    img: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #334155 0%, #64748b 100%)",
     animClass: "mw-anim-pulse"
   },
   "Body & Lamp Assembly": { 
     ar: "الهيكل والإضاءة", 
-    img: "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=300&q=80", // كشاف سيارة
+    img: "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #0f172a 0%, #475569 100%)",
-    animClass: "mw-anim-lights" 
+    animClass: "mw-anim-lights"
   },
   "Fuel & Air": { 
-    ar: "الوقود والفلاتر", 
+    ar: "الوقود والفلاتر (البخاخات)", 
     img: "https://images.unsplash.com/photo-1526726538690-5cbf956ae2fd?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #134e4e 0%, #20b2aa 100%)",
-    animClass: "mw-anim-spray" 
+    animClass: "mw-anim-spray"
   },
   "Ignition": { 
     ar: "الاشتعال والبواجي", 
@@ -78,13 +77,13 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
   },
   "Steering": { 
     ar: "التوجيه (الدركسون)", 
-    img: "https://images.unsplash.com/photo-1600705722908-bab1e61c0b4d?auto=format&fit=crop&w=300&q=80", // صورة دركسون حقيقية
+    img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #312e81 0%, #6366f1 100%)",
-    animClass: "mw-anim-steer" // أنيميشن خاص بالدركسون
+    animClass: "mw-anim-pulse"
   },
   "Wheel": { 
     ar: "الجنوط والكفرات", 
-    img: "https://images.unsplash.com/photo-1596541620023-e129188a834d?auto=format&fit=crop&w=300&q=80", 
+    img: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #18181b 0%, #3f3f46 100%)",
     animClass: "mw-anim-spin"
   },
@@ -92,7 +91,7 @@ const CATEGORY_META: Record<string, { ar: string; img: string; bg: string; animC
     ar: "المساحات والمضخات", 
     img: "https://images.unsplash.com/photo-1527786455041-d218f0804473?auto=format&fit=crop&w=300&q=80", 
     bg: "linear-gradient(135deg, #0c4a6e 0%, #38bdf8 100%)",
-    animClass: "mw-anim-wiper" 
+    animClass: "mw-anim-wiper"
   }
 };
 
@@ -190,7 +189,9 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       const data = await res.json();
       loadMainCategories(data || [], eng);
-    } catch (err) {} finally {
+    } catch (err) {
+      console.error(err);
+    } finally {
       setLoading(false);
     }
   };
@@ -213,7 +214,9 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
 
       setAvailableSubCats(Array.from(subCats));
       setCurrentStep('sub_cat');
-    } catch (err) {} finally {
+    } catch (err) {
+      console.error(err);
+    } finally {
       setLoading(false);
     }
   };
@@ -247,7 +250,9 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
 
       setMatchingParts(finalParts);
       setCurrentStep('parts');
-    } catch (err) {} finally {
+    } catch (err) {
+      console.error(err);
+    } finally {
       setLoading(false);
     }
   };
@@ -263,93 +268,143 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
-      {/* ⚙️ CSS المخصص للمحاكاة الميكانيكية للقطع */}
       <style>{`
         @keyframes mwEngineRattle {
           0%, 100% { transform: translate(0, 0) rotate(0deg); }
-          20% { transform: translate(-1.5px, 1.5px) rotate(-1deg); }
-          40% { transform: translate(1.5px, -1.5px) rotate(1deg); }
+          20% { transform: translate(-2px, 2px) rotate(-1deg); }
+          40% { transform: translate(2px, -2px) rotate(1deg); }
           60% { transform: translate(-1px, -1px) rotate(0deg); }
-          80% { transform: translate(1px, 1.5px) rotate(1deg); }
+          80% { transform: translate(1px, 2px) rotate(1deg); }
+        }
+        @keyframes mwSuspensionBounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
         }
         @keyframes mwSuspensionCompress {
-          0%, 100% { transform: scaleY(1) translateY(0); }
-          30% { transform: scaleY(0.85) translateY(5px); }
-          55% { transform: scaleY(1.05) translateY(-3px); }
-          75% { transform: scaleY(0.95) translateY(1px); }
+          0% { transform: scaleY(1) translateY(0); }
+          30% { transform: scaleY(0.82) translateY(10px); }
+          55% { transform: scaleY(1.08) translateY(-6px); }
+          75% { transform: scaleY(0.96) translateY(2px); }
+          100% { transform: scaleY(1) translateY(0); }
+        }
+        @keyframes mwBrakeClamp {
+          0%, 100% { filter: drop-shadow(0 0 0px rgba(239,68,68,0)); }
+          50% { filter: drop-shadow(0 0 14px rgba(239,68,68,0.8)); transform: scale(1.02); }
         }
         @keyframes mwBrakeClampBurst {
-          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239,68,68,0)); }
-          35% { transform: scale(0.96); filter: drop-shadow(0 0 15px rgba(239,68,68,0.8)); }
-          60% { transform: scale(1.02); }
+          0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239,68,68,0)); }
+          35% { transform: scale(0.94); filter: drop-shadow(0 0 20px rgba(239,68,68,0.95)); }
+          60% { transform: scale(1.03); }
+          100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239,68,68,0)); }
         }
         @keyframes mwCoolFlow {
-          0%, 100% { filter: hue-rotate(0deg); }
-          50% { filter: hue-rotate(45deg) brightness(1.2); }
+          0% { filter: hue-rotate(0deg); }
+          50% { filter: hue-rotate(90deg) brightness(1.2); }
+          100% { filter: hue-rotate(0deg); }
+        }
+        @keyframes mwSparkFlash {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.05); filter: brightness(1.3); }
         }
         @keyframes mwSparkArc {
           0%, 100% { opacity: 1; filter: brightness(1) drop-shadow(0 0 0 rgba(250,204,21,0)); }
-          25%, 75% { opacity: 0.6; filter: brightness(1.5) drop-shadow(0 0 12px #facc15); transform: scale(1.03); }
+          25% { opacity: 0.4; filter: brightness(2) drop-shadow(0 0 16px #facc15); }
+          50% { opacity: 1; filter: brightness(1) drop-shadow(0 0 0 rgba(250,204,21,0)); }
+          75% { opacity: 0.4; filter: brightness(2) drop-shadow(0 0 16px #facc15); }
         }
-        @keyframes mwSpinBurst {
+        @keyframes mwSpinSlow {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        @keyframes mwSprayBurst {
-          0%, 100% { box-shadow: inset 0 0 0 0 rgba(32,178,170,0); }
-          50% { box-shadow: inset 0 0 40px 10px rgba(32,178,170,0.6); transform: scale(1.02); }
+        @keyframes mwSpinBurst {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(1080deg); }
         }
-        @keyframes mwSteerTurn {
-          0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(45deg); }
-          75% { transform: rotate(-45deg); }
+        @keyframes mwAcFanSpin {
+          0% { filter: brightness(1) saturate(1); }
+          50% { filter: brightness(1.15) saturate(1.3) hue-rotate(15deg); }
+          100% { filter: brightness(1) saturate(1); }
+        }
+        @keyframes mwAcFanBurst {
+          0% { transform: rotate(0deg) scale(1); filter: brightness(1); }
+          100% { transform: rotate(540deg) scale(1.04); filter: brightness(1.25); }
+        }
+        @keyframes mwSprayMist {
+          0% { box-shadow: 0 0 0 0 rgba(32,178,170,0.55); }
+          70% { box-shadow: 0 0 0 22px rgba(32,178,170,0); }
+          100% { box-shadow: 0 0 0 0 rgba(32,178,170,0); }
+        }
+        @keyframes mwSprayBurst {
+          0% { box-shadow: 0 0 0 0 rgba(32,178,170,0.75); transform: scale(1); }
+          40% { box-shadow: 0 0 0 14px rgba(32,178,170,0.15); transform: scale(1.015); }
+          100% { box-shadow: 0 0 0 30px rgba(32,178,170,0); transform: scale(1); }
+        }
+        @keyframes mwLightsGlow {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.18); }
+        }
+        @keyframes mwLightsBeam {
+          0% { opacity: 0; transform: translateX(-30%) skewX(-12deg); }
+          40% { opacity: 0.55; }
+          100% { opacity: 0; transform: translateX(130%) skewX(-12deg); }
+        }
+        @keyframes mwPulseGlow {
+          0%, 100% { filter: brightness(1); transform: scale(1); }
+          50% { filter: brightness(1.1); transform: scale(1.015); }
         }
         @keyframes mwWiperSweep {
-          0%, 100% { transform: rotate(-15deg); }
-          50% { transform: rotate(15deg); }
+          0%, 100% { transform: rotate(-18deg); }
+          50% { transform: rotate(18deg); }
         }
 
-        /* ربط الـ Classes بالتأثيرات */
-        .mw-anim-engine:hover img { animation: mwEngineRattle 0.2s infinite ease-in-out; }
-        .mw-anim-engine.mw-is-active img { animation: mwEngineRattle 0.1s infinite; filter: brightness(1.2); }
-
-        .mw-anim-suspension:hover img { animation: mwSuspensionCompress 0.8s infinite; }
-        .mw-anim-suspension.mw-is-active img { animation: mwSuspensionCompress 0.4s ease-out; }
-
-        .mw-anim-brake:hover img { animation: mwBrakeClampBurst 1s infinite; }
-        .mw-anim-brake.mw-is-active img { animation: mwBrakeClampBurst 0.4s ease-out; }
-
-        .mw-anim-cool:hover img { animation: mwCoolFlow 1.5s infinite; }
-        
-        .mw-anim-spark:hover img { animation: mwSparkArc 0.6s infinite steps(2); }
-        .mw-anim-spark.mw-is-active img { animation: mwSparkArc 0.2s infinite steps(2); }
-
-        .mw-anim-spin:hover img { animation: mwSpinBurst 2s infinite linear; }
-        .mw-anim-spin.mw-is-active img { animation: mwSpinBurst 0.6s ease-out; }
-
-        .mw-anim-spray:hover img { animation: mwSprayBurst 1s infinite; }
-        
-        .mw-anim-steer:hover img { animation: mwSteerTurn 1.5s infinite ease-in-out; }
-        .mw-anim-steer.mw-is-active img { animation: mwSteerTurn 0.5s ease-out; }
-
-        .mw-anim-wiper:hover img { animation: mwWiperSweep 1s infinite ease-in-out; transform-origin: bottom center; }
-        .mw-anim-wiper.mw-is-active img { animation: mwWiperSweep 0.4s ease-out; transform-origin: bottom center; }
+        .mw-anim-engine:hover { animation: mwEngineRattle 0.3s infinite ease-in-out; }
+        .mw-anim-suspension:hover { animation: mwSuspensionBounce 0.4s infinite ease-in-out; }
+        .mw-anim-suspension.mw-is-active { animation: mwSuspensionCompress 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+        .mw-anim-brake:hover { animation: mwBrakeClamp 0.6s infinite ease-in-out; }
+        .mw-anim-brake.mw-is-active { animation: mwBrakeClampBurst 0.5s ease-out; }
+        .mw-anim-cool:hover { animation: mwCoolFlow 1.2s infinite ease-in-out; }
+        .mw-anim-spark:hover { animation: mwSparkFlash 0.5s infinite ease-in-out; }
+        .mw-anim-spark.mw-is-active { animation: mwSparkArc 0.4s steps(2, end) 2; }
+        .mw-anim-spin:hover img { animation: mwSpinSlow 2s infinite linear; }
+        .mw-anim-spin.mw-is-active img { animation: mwSpinBurst 0.55s ease-out; }
+        .mw-anim-ac:hover { animation: mwAcFanSpin 1.4s infinite ease-in-out; }
+        .mw-anim-ac.mw-is-active img { animation: mwAcFanBurst 0.6s ease-out; }
+        .mw-anim-spray:hover { animation: mwSprayMist 1.1s infinite; }
+        .mw-anim-spray.mw-is-active { animation: mwSprayBurst 0.5s ease-out; }
+        .mw-anim-lights:hover { animation: mwLightsGlow 1s infinite ease-in-out; }
+        .mw-anim-lights { position: relative; }
+        .mw-anim-lights.mw-is-active::after {
+          content: '';
+          position: absolute; inset: 0;
+          background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,0.7) 50%, transparent 65%);
+          animation: mwLightsBeam 0.6s ease-out;
+          pointer-events: none;
+        }
+        .mw-anim-pulse:hover { animation: mwPulseGlow 1s infinite ease-in-out; }
+        .mw-anim-pulse.mw-is-active { animation: mwPulseGlow 0.35s ease-in-out 2; }
+        .mw-anim-wiper { transform-origin: bottom center; }
+        .mw-anim-wiper:hover { animation: mwWiperSweep 0.7s infinite ease-in-out; }
+        .mw-anim-wiper.mw-is-active { animation: mwWiperSweep 0.35s ease-in-out 3; }
       `}</style>
 
-      {/* 🚘 صندوق محدد السيارة (يطابق تصميم موقعك) */}
-      <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-        <form onSubmit={handleStartSearch} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
+      {/* 🚘 صندوق محدد السيارة */}
+      <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '20px', border: '2px solid #1f3a5f', boxShadow: '0 10px 30px rgba(31,58,95,0.08)' }}>
+        <h3 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '17px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>🚘</span> {isRtl ? 'حدد سيارتك لعرض الأقسام والقطع المتوافقة 100%' : 'Select Your Vehicle for 100% Fitment Match'}
+        </h3>
+
+        <form onSubmit={handleStartSearch} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', alignItems: 'flex-end' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: '#1f3a5f' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#475569' }}>
               {isRtl ? '1. الماركة *' : '1. Make *'}
             </label>
             <select
               value={selectedMake}
               onChange={(e) => { setSelectedMake(e.target.value); setSelectedModel(''); }}
               required
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '14px', backgroundColor: '#f9fafb', outline: 'none' }}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', fontWeight: 'bold', backgroundColor: '#f8fafc' }}
             >
-              <option value="">{isRtl ? '-- اختر الماركة --' : '-- Select Make --'}</option>
+              <option value="">{isRtl ? '-- اختر الشركة --' : '-- Select Make --'}</option>
               {Object.keys(CAR_DATA).map(m => (
                 <option key={m} value={m}>{m} ({CAR_DATA[m].en})</option>
               ))}
@@ -357,7 +412,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: '#1f3a5f' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#475569' }}>
               {isRtl ? '2. الموديل *' : '2. Model *'}
             </label>
             <select
@@ -365,7 +420,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
               onChange={(e) => setSelectedModel(e.target.value)}
               required
               disabled={!selectedMake}
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '14px', backgroundColor: '#f9fafb', outline: 'none' }}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', fontWeight: 'bold', backgroundColor: '#f8fafc' }}
             >
               <option value="">{isRtl ? '-- اختر الموديل --' : '-- Select Model --'}</option>
               {selectedMake && CAR_DATA[selectedMake]?.models?.map((mod: string) => (
@@ -375,14 +430,14 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: '#1f3a5f' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#475569' }}>
               {isRtl ? '3. سنة الصنع *' : '3. Year *'}
             </label>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
               required
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '14px', backgroundColor: '#f9fafb', outline: 'none' }}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', fontWeight: 'bold', backgroundColor: '#f8fafc' }}
             >
               <option value="">{isRtl ? '-- اختر السنة --' : '-- Select Year --'}</option>
               {CAR_YEARS.map(y => (
@@ -392,14 +447,14 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: '#1f3a5f' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#475569' }}>
               {isRtl ? '4. المحرك (اختياري)' : '4. Engine (Optional)'}
             </label>
             <select
               value={selectedEngine}
               onChange={(e) => setSelectedEngine(e.target.value)}
               disabled={!selectedMake}
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '14px', backgroundColor: '#f9fafb', outline: 'none' }}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', backgroundColor: '#f8fafc' }}
             >
               <option value="">{isRtl ? '-- كل المحركات --' : '-- All Engines --'}</option>
               {selectedMake && CAR_DATA[selectedMake]?.engines?.map((eng: string) => (
@@ -412,71 +467,85 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
             type="submit"
             disabled={loading}
             style={{
-              padding: '12px 24px',
+              padding: '12px 20px',
               backgroundColor: '#e0872a',
               color: '#ffffff',
               border: 'none',
-              borderRadius: '8px',
+              borderRadius: '10px',
               fontWeight: 'bold',
-              fontSize: '15px',
+              fontSize: '14px',
               cursor: 'pointer',
-              transition: 'background-color 0.2s',
-              height: '45px'
+              boxShadow: '0 4px 14px rgba(224,135,42,0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d07a22'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e0872a'}
           >
             🔍 {loading ? (isRtl ? 'جاري الفحص...' : 'Checking...') : (isRtl ? 'استعراض الأقسام' : 'Explore Parts')}
           </button>
         </form>
       </div>
 
-      {/* 🌟 بانر السيارة المختارة (مثل تصميم موقعك باللون الكحلي) */}
+      {/* 🌟 بانر السيارة المختارة */}
       {currentStep !== 'idle' && (
-        <div style={{ backgroundColor: '#2b3f5c', borderRadius: '12px', padding: '24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+        <div style={{ background: 'linear-gradient(135deg, #1f3a5f 0%, #2b4c7e 100%)', borderRadius: '18px', padding: '20px 24px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 25px rgba(31,58,95,0.2)', flexWrap: 'wrap', gap: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
+              🏎️
+            </div>
+            <div>
+              <span style={{ fontSize: '12px', color: '#93c5fd', fontWeight: 'bold', textTransform: 'uppercase' }}>{isRtl ? 'السيارة المختارة حالياً' : 'Active Vehicle'}</span>
+              <h2 style={{ margin: '2px 0 0 0', fontSize: '20px', fontWeight: '900' }}>{selectedMake} {selectedModel} ({selectedYear})</h2>
+              {chosenEngine && <span style={{ fontSize: '13px', color: '#cbd5e1' }}>⚡ {chosenEngine}</span>}
+            </div>
+          </div>
           
           <button
             onClick={() => setCurrentStep('idle')}
-            style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.25)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}
+            style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '10px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            ⚙️ {isRtl ? 'تغيير السيارة' : 'Change Vehicle'}
+            🔄 {isRtl ? 'تغيير السيارة' : 'Change Vehicle'}
           </button>
-
-          <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
-             <span style={{ fontSize: '12px', color: '#93c5fd' }}>{isRtl ? 'السيارة المختارة حالياً' : 'Current Vehicle'}</span>
-             <h2 style={{ margin: '4px 0 0 0', fontSize: '22px', fontWeight: 'bold' }}>{selectedMake} {selectedModel} ({selectedYear})</h2>
-             {chosenEngine && <span style={{ fontSize: '13px', color: '#fb923c' }}>⚡ {chosenEngine}</span>}
-          </div>
         </div>
       )}
 
-      {/* 🧭 مسار التنقل (Breadcrumbs) */}
+      {/* 🧭 مسار التنقل البصري (Breadcrumbs) */}
       {currentStep !== 'idle' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', flexWrap: 'wrap', color: '#4b5563', fontWeight: 'bold' }}>
-          <span>🚘 {selectedMake}</span>
-          {chosenEngine && <span> {isRtl ? '«' : '»'} ⚡ {chosenEngine}</span>}
-          {chosenMainCat && <span> {isRtl ? '«' : '»'} 🗂️ {CATEGORY_META[chosenMainCat]?.ar || chosenMainCat}</span>}
-          {chosenSubCat && <span style={{ color: '#e0872a' }}> {isRtl ? '«' : '»'} 📂 {chosenSubCat}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12.5px', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 'bold', color: '#1f3a5f' }}>🚘 {selectedMake}</span>
+          {chosenEngine && <span style={{ color: '#64748b' }}> › ⚡ {chosenEngine}</span>}
+          {chosenMainCat && <span style={{ color: '#64748b' }}> › 🗂️ {CATEGORY_META[chosenMainCat]?.ar || chosenMainCat}</span>}
+          {chosenSubCat && <span style={{ color: '#e0872a', fontWeight: 'bold' }}> › 📂 {chosenSubCat}</span>}
         </div>
       )}
 
-      {/* 1️⃣ المحركات */}
+      {/* 1️⃣ شبكة اختيار نوع المحرك */}
       {currentStep === 'engine' && (
-        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
           <h4 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-             {isRtl ? 'اختر نوع المحرك لسيارتك:' : 'Select Your Vehicle Engine:'}
+            ⚡ {isRtl ? 'اختر نوع المحرك لسيارتك:' : 'Select Your Vehicle Engine:'}
           </h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px' }}>
             {availableEngines.map((eng, idx) => (
               <div
                 key={idx}
                 onClick={() => handleSelectEngine(eng)}
-                style={{ padding: '20px', borderRadius: '8px', border: '1.5px solid #e5e7eb', backgroundColor: '#f9fafb', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 'bold', color: '#1f3a5f' }}
+                style={{
+                  padding: '20px',
+                  borderRadius: '14px',
+                  border: '1.5px solid #cbd5e0',
+                  backgroundColor: '#f8fafc',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  fontWeight: 'bold',
+                  color: '#1f3a5f'
+                }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#e0872a'; e.currentTarget.style.backgroundColor = '#fff7ed'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.backgroundColor = '#f9fafb'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e0'; e.currentTarget.style.backgroundColor = '#f8fafc'; }}
               >
+                <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚡</div>
                 <div>{eng}</div>
               </div>
             ))}
@@ -484,18 +553,20 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         </div>
       )}
 
-      {/* 2️⃣ الأقسام الرئيسية (مع الأنيميشن والصور الجديدة) */}
+      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية */}
       {currentStep === 'main_cat' && (
-        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
           <h4 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-             {isRtl ? '🗂️ اختر القسم الرئيسي لقطعة الغيار:' : '🗂️ Select Main Category:'}
+            🗂️ {isRtl ? 'اختر القسم الرئيسي لقطعة الغيار:' : 'Select Main Category:'}
           </h4>
           {availableMainCats.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#9ca3af', padding: '30px 0' }}>{isRtl ? 'لا توجد قطع معروضة حالياً.' : 'No parts available.'}</p>
+            <p style={{ textAlign: 'center', color: '#94a3b8', padding: '30px 0' }}>
+              {isRtl ? 'لا توجد قطع معروضة حالياً لهذه الفئة.' : 'No parts available for this vehicle.'}
+            </p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '16px' }}>
               {availableMainCats.map((cat) => {
-                const meta = CATEGORY_META[cat] || { ar: cat, img: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=300&q=80', bg: '#1f3a5f', animClass: '' };
+                const meta = CATEGORY_META[cat] || { ar: cat, img: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=300&q=80', bg: '#1f3a5f', animClass: 'mw-anim-pulse' };
                 const isActive = triggeredCat === cat;
                 return (
                   <div
@@ -503,25 +574,27 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
                     onClick={() => handleMainCatCardClick(cat)}
                     className={`${meta.animClass}${isActive ? ' mw-is-active' : ''}`}
                     style={{
-                      borderRadius: '12px',
+                      borderRadius: '16px',
                       overflow: 'hidden',
                       cursor: 'pointer',
                       position: 'relative',
-                      height: '160px',
-                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                      border: '1px solid #e5e7eb',
-                      backgroundColor: '#1f2937'
+                      height: '150px',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+                      transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+                      border: '1px solid rgba(255,255,255,0.2)'
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 12px 25px rgba(0,0,0,0.15)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.08)'; }}
                   >
                     <img 
                       src={meta.img} 
                       alt={cat} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8, transition: 'transform 0.3s' }} 
-                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1596541620023-e129188a834d?auto=format&fit=crop&w=300&q=80'; }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.6)', transition: 'transform 0.4s ease' }} 
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=300&q=80'; }}
                     />
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0) 100%)', padding: '16px', textAlign: 'center' }}>
-                      <strong style={{ fontSize: '15px', color: '#ffffff', fontWeight: 'bold', display: 'block' }}>{isRtl ? meta.ar : cat}</strong>
-                      <span style={{ fontSize: '11px', color: '#93c5fd', marginTop: '4px', display: 'block' }}>{cat}</span>
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(15,23,42,0.9) 0%, rgba(15,23,42,0.2) 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '14px' }}>
+                      <strong style={{ fontSize: '14.5px', color: '#ffffff', fontWeight: 'bold' }}>{isRtl ? meta.ar : cat}</strong>
+                      <span style={{ fontSize: '11px', color: '#93c5fd', marginTop: '2px' }}>{cat}</span>
                     </div>
                   </div>
                 );
@@ -531,43 +604,74 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         </div>
       )}
 
-      {/* 3️⃣ الأقسام الفرعية (تم إكمال الكود هنا) */}
+      {/* 3️⃣ شبكة اختيار القسم الفرعي (Sub-Category) */}
       {currentStep === 'sub_cat' && (
-        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-          <h4 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-             {isRtl ? '📂 اختر القسم الفرعي:' : '📂 Select Sub-Category:'}
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-            {availableSubCats.map((sub, idx) => (
-              <button
-                key={idx}
+        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h4 style={{ margin: 0, color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
+              📂 {isRtl ? 'اختر القسم الفرعي:' : 'Select Sub-Category:'}
+            </h4>
+            <button
+              onClick={() => setCurrentStep('main_cat')}
+              style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e0', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', color: '#475569' }}
+            >
+              ← {isRtl ? 'العودة للأقسام الرئيسية' : 'Back to Main Categories'}
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
+            {availableSubCats.map((sub) => (
+              <div
+                key={sub}
                 onClick={() => handleSelectSubCat(sub)}
-                style={{ padding: '14px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', color: '#1f3a5f', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'center' }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e0872a'; e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = '#e0872a'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f9fafb'; e.currentTarget.style.color = '#1f3a5f'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
+                style={{
+                  padding: '18px',
+                  borderRadius: '14px',
+                  border: '1.5px solid #cbd5e0',
+                  backgroundColor: '#f8fafc',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  color: '#1f3a5f',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#e0872a'; e.currentTarget.style.backgroundColor = '#fff7ed'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e0'; e.currentTarget.style.backgroundColor = '#f8fafc'; }}
               >
-                {sub}
-              </button>
+                <div style={{ fontSize: '22px', marginBottom: '6px' }}>📦</div>
+                <div>{sub}</div>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* 4️⃣ عرض قطع الغيار (تم إكمال الكود هنا ليتوافق مع component الخاص بك) */}
+      {/* 4️⃣ عرض قطع الغيار المطابقة النهائية */}
       {currentStep === 'parts' && (
-        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-          <h4 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-             {isRtl ? '⚙️ القطع المتوافقة مع سيارتك:' : '⚙️ Compatible Parts:'}
-          </h4>
+        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            <h4 style={{ margin: 0, color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
+              🛠️ {isRtl ? `القطع المتوفرة (${matchingParts.length})` : `Available Parts (${matchingParts.length})`}
+            </h4>
+            <button
+              onClick={() => setCurrentStep('sub_cat')}
+              style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e0', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', color: '#475569' }}
+            >
+              ← {isRtl ? 'العودة للأقسام الفرعية' : 'Back to Sub-Categories'}
+            </button>
+          </div>
+
           {matchingParts.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#ef4444', fontWeight: 'bold', padding: '20px' }}>
-              {isRtl ? 'عذراً، لا توجد قطع متوفرة حالياً لهذا القسم.' : 'Sorry, no parts available for this section.'}
-            </p>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+              <div style={{ fontSize: '40px', marginBottom: '10px' }}>🔍</div>
+              <p>{isRtl ? 'عذراً، لمש العثور على قطع غيار مطابقة لهذه التشكيلة حالياً.' : 'No exact matching parts found.'}</p>
+            </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
-              {matchingParts.map((part, idx) => (
-                <div key={idx}>
-                   {renderPartCard(part)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '18px' }}>
+              {matchingParts.map((part) => (
+                <div key={part.id || part.part_number}>
+                  {renderPartCard(part)}
                 </div>
               ))}
             </div>
