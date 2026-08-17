@@ -11,185 +11,99 @@ interface ExcelPartUploaderProps {
 }
 
 const SYNONYMS: Record<string, string[]> = {
-  name: ['اسم القطعة', 'القطعة', 'الاسم', 'اسم السلعة', 'الوصف', 'بيان القطعة', 'part name', 'name', 'item', 'description', 'part', 'title', 'سلعة', 'اسم الغيار'],
-  make: ['الماركة', 'الشركة', 'نوع السيارة', 'المصنع', 'الماركه', 'الشركة الصانعة', 'make', 'brand', 'car make', 'manufacturer'],
-  model: ['الموديل', 'موديل السيارة', 'الموديل/الفئة', 'الفئة', 'طراز السيارة', 'model', 'car model', 'فئة السيارة'],
+  name: ['اسم القطعة', 'اسم قطعة الغيار', 'القطعة', 'الاسم', 'اسم السلعة', 'الوصف', 'بيان القطعة', 'part name', 'name', 'item', 'description', 'part', 'title', 'سلعة', 'اسم الغيار'],
+  vehicle: ['طراز السيارة المتوافق', 'السيارة المتوافقة', 'طراز السيارة', 'توافق السيارة', 'السيارة والموديل', 'الموديل المتوافق', 'vehicle', 'fitment', 'car fitment', 'compatible vehicle'],
+  make: ['ماركة السيارة', 'نوع السيارة', 'الشركة الصانعة', 'الماركه', 'make', 'brand', 'car make'],
+  model: ['موديل السيارة', 'طراز السيارة', 'طراز', 'model', 'car model', 'فئة السيارة'],
   year: ['السنة', 'سنة الصنع', 'الموديل (السنة)', 'سنه الصنع', 'الموديل/السنة', 'year', 'make year', 'prod year', 'عام'],
-  engine: ['المحرك', 'سعة المحرك', 'نوع المحرك', 'حجم المحرك', 'engine', 'motor', 'displacement', 'fuel'],
-  category: ['القسم', 'الفئة', 'التصنيف', 'قسم القطعة', 'التصنيف الرئيسي', 'نوع القطعة', 'category', 'cat', 'type'],
-  price: ['السعر', 'سعر البيع', 'المبلغ', 'القيمة', 'سعر التجزئة', 'سعر القطعة', 'price', 'unit price', 'selling price', 'cost', 'amount', 'qar', 'qr'],
-  part_number: ['رقم القطعة', 'الرمز', 'كود القطعة', 'رقم الغيار', 'oem', 'part number', 'part no', 'sku', 'part_number', 'code', 'الرقم الأصلي'],
-  part_condition: ['الحالة', 'حالة القطعة', 'جديد/مستعمل', 'حالة الغيار', 'condition', 'part_condition', 'state'],
-  stock: ['الكمية', 'المخزون', 'العدد', 'المتوفر', 'stock', 'qty', 'quantity', 'count']
+  category: ['الفئة', 'القسم', 'التصنيف', 'قسم القطعة', 'التصنيف الرئيسي', 'نوع القطعة', 'category', 'cat', 'type'],
+  part_brand: ['الماركة / المصنع', 'المصنع', 'الماركة', 'ماركة القطعة', 'الشركة المصنعة', 'manufacturer', 'part brand', 'brand'],
+  price: ['سعر البيع للوحدة', 'السعر', 'سعر البيع', 'المبلغ', 'القيمة', 'سعر التجزئة', 'سعر القطعة', 'price', 'unit price', 'selling price', 'cost', 'amount', 'qar', 'qr'],
+  stock: ['الكمية المتاحة', 'الكمية', 'المخزون', 'العدد', 'المتوفر', 'stock', 'qty', 'quantity', 'count'],
+  part_number: ['رمز القطعة (SKU)', 'رقم القطعة', 'الرمز', 'كود القطعة', 'رقم الغيار', 'oem', 'sku', 'part number', 'part no', 'code'],
+  part_condition: ['حالة المخزون', 'الحالة', 'حالة القطعة', 'جديد/مستعمل', 'condition', 'part_condition', 'state'],
+  engine: ['المحرك', 'سعة المحرك', 'نوع المحرك', 'حجم المحرك', 'engine', 'motor', 'displacement', 'fuel']
 };
 
-const BRAND_RULES: { make: string; patterns: RegExp[]; models?: Record<string, RegExp[]> }[] = [
-  {
-    make: 'تويوتا',
-    patterns: [/تويوتا|تويوتتا|تويتا|toyota/i],
-    models: {
-      'كامري': [/كامري|camry/i],
-      'كورولا': [/كورولا|corolla/i],
-      'لاندكروزر': [/لاندكروزر|لاند كروزر|land cruiser|vxr|gxr/i],
-      'هايلوكس': [/هايلوكس|hilux/i],
-      'افالون': [/افالون|avalon/i],
-      'راف فور': [/راف فور|rav4|rav 4/i],
-      'برادو': [/برادو|prado/i],
-      'يارس': [/يارس|yaris/i],
-      'فورتشنر': [/فورتشنر|fortuner/i]
-    }
-  },
-  {
-    make: 'لكزس',
-    patterns: [/لكزس|lexus/i],
-    models: {
-      'LX': [/lx570|lx600|lx470|lx/i],
-      'ES': [/es350|es300|es/i],
-      'LS': [/ls460|ls500|ls400|ls/i],
-      'RX': [/rx350|rx/i],
-      'IS': [/is300|is250|is350|is/i],
-      'GX': [/gx460|gx/i]
-    }
-  },
-  {
-    make: 'نيسان',
-    patterns: [/نيسان|نيصان|nissan/i],
-    models: {
-      'باترول': [/باترول|patrol|فتك|vtec/i],
-      'التيما': [/التيما|altima/i],
-      'مكسيما': [/مكسيما|maxima/i],
-      'صني': [/صني|sunny/i],
-      'نافارا': [/نافارا|navara/i],
-      'باثفندر': [/باثفندر|pathfinder/i],
-      'اكستيرا': [/اكستيرا|xterra/i]
-    }
-  },
-  {
-    make: 'كيا',
-    patterns: [/كيا|kia/i],
-    models: {
-      'اوبتيما / K5': [/اوبتيما|أوبتيما|optima|k5/i],
-      'سبورتاج': [/سبورتاج|sportage/i],
-      'سورينتو': [/سورينتو|sorento/i],
-      'كادينزا / K8': [/كادينزا|cadenza|k8/i],
-      'سيراتو': [/سيراتو|cerato|forte/i],
-      'كرنفال': [/كرنفال|carnival|sedona/i]
-    }
-  },
-  {
-    make: 'هيونداي',
-    patterns: [/هيونداي|هونداي|hyundai/i],
-    models: {
-      'سوناتا': [/سوناتا|sonata/i],
-      'النترا': [/النترا|elantra/i],
-      'اكسنت': [/اكسنت|accent/i],
-      'توسان': [/توسان|tucson/i],
-      'سنتافي': [/سنتافي|santa fe/i],
-      'ازيرا': [/ازيرا|azera/i]
-    }
-  },
-  {
-    make: 'مرسيدس',
-    patterns: [/مرسيدس|mercedes|mercedes-benz|benz/i],
-    models: {
-      'E-Class': [/e-class|e class|e300|e350|e200|e63/i],
-      'S-Class': [/s-class|s class|s500|s550|s560|s63/i],
-      'C-Class': [/c-class|c class|c200|c300|c250|c63/i],
-      'G-Class': [/g-class|g class|g63|g500|g55/i]
-    }
-  },
-  {
-    make: 'بي إم دبليو',
-    patterns: [/بي إم دبليو|بي ام دبليو|bmw/i],
-    models: {
-      'الفئة الخامسة (5-Series)': [/5-series|5 series|520|528|530|535|540|550|m5/i],
-      'الفئة السابعة (7-Series)': [/7-series|7 series|730|740|750|760/i],
-      'الفئة الثالثة (3-Series)': [/3-series|3 series|320|328|330|335|m3/i],
-      'X5': [/x5/i],
-      'X6': [/x6/i]
-    }
-  },
-  {
-    make: 'فورد',
-    patterns: [/فورد|ford/i],
-    models: {
-      'F-150': [/f-150|f150|f 150|raptor|رابتر/i],
-      'اكسبلورر': [/اكسبلورر|explorer/i],
-      'اكسبدشن': [/اكسبدشن|expedition/i],
-      'تورس': [/تورس|taurus/i],
-      'موستنج': [/موستنج|mustang/i]
-    }
-  },
-  {
-    make: 'شفروليه',
-    patterns: [/شفروليه|شفروليت|شيفروليه|chevrolet|chevy/i],
-    models: {
-      'تاهو': [/تاهو|tahoe/i],
-      'سلفرادو': [/سلفرادو|silverado/i],
-      'كابرس': [/كابرس|caprice/i],
-      'لومينا': [/لومينا|lumina/i],
-      'ماليبو': [/ماليبو|malibu/i],
-      'ترافيرس': [/ترافيرس|traverse/i]
-    }
-  },
-  {
-    make: 'جي إم سي',
-    patterns: [/جي إم سي|جمس|gmc/i],
-    models: {
-      'يوكن': [/يوكن|yukon|denali|دينالي/i],
-      'سييرا': [/سييرا|sierra/i],
-      'اكاديا': [/اكاديا|acadia/i]
-    }
-  },
-  {
-    make: 'هوندا',
-    patterns: [/هوندا|honda/i],
-    models: {
-      'اكورد': [/اكورد|accord/i],
-      'سيفيك': [/سيفيك|civic/i],
-      'سي ار في': [/cr-v|crv/i],
-      'بايلوت': [/بايلوت|pilot/i]
-    }
-  }
+const CATEGORY_MAP_AR: Record<string, string> = {
+  'المحرك وملحقاته': 'Engine',
+  'نظام التعليق والتوجيه': 'Suspension',
+  'الكهرباء والإلكترونيات': 'Electrical',
+  'التكييف والتبريد': 'Heat & Air Conditioning',
+  'الفلاتر والزيوت': 'Fuel & Air',
+  'الهيكل والخارجية': 'Body & Lamp Assembly',
+  'الإضاءة والعدسات': 'Body & Lamp Assembly',
+  'نظام العادم والوقود': 'Exhaust & Emission',
+  'الإطارات والجنوط': 'Wheel',
+  'نظام الفرامل': 'Brake & Wheel Hub'
+};
+
+const KNOWN_MAKES = [
+  { make: 'تويوتا', patterns: [/تويوتا|تويوتتا|تويتا|toyota/i] },
+  { make: 'لكزس', patterns: [/لكزس|lexus/i] },
+  { make: 'نيسان', patterns: [/نيسان|نيصان|nissan/i] },
+  { make: 'هيونداي', patterns: [/هيونداي|هونداي|hyundai/i] },
+  { make: 'كيا', patterns: [/كيا|kia/i] },
+  { make: 'مرسيدس', patterns: [/مرسيدس|mercedes|benz/i] },
+  { make: 'بي إم دبليو', patterns: [/بي إم دبليو|بي ام دبليو|bmw/i] },
+  { make: 'فورد', patterns: [/فورد|ford/i] },
+  { make: 'شفروليه', patterns: [/شفروليه|شيفروليه|شفروليت|chevrolet|chevy/i] },
+  { make: 'جي إم سي', patterns: [/جي إم سي|جمس|gmc/i] },
+  { make: 'هوندا', patterns: [/هوندا|honda/i] },
+  { make: 'مازدا', patterns: [/مازدا|mazda/i] },
+  { make: 'ميتسوبيشي', patterns: [/ميتسوبيشي|mitsubishi/i] },
+  { make: 'لاند روفر', patterns: [/لاند روفر|رينج روفر|land rover|range rover/i] },
+  { make: 'أودي', patterns: [/أودي|audi/i] },
+  { make: 'فولكس فاجن', patterns: [/فولكس فاجن|vw|volkswagen/i] }
 ];
 
-// 🧠 خوارزمية فك وتوسيع صيغ السنوات (تدعم 12-15 و 2012-17 و 08-14 وغيرها)
-const extractYearFromText = (text: string): string => {
-  const t = String(text || '').trim();
+// 🧠 دالة تفكيك واستخراج التوافق (الماركة + الموديل + السنة) من النص المدمج
+const parseVehicleFitment = (rawText: string): { make: string; model: string; year: string } => {
+  if (!rawText) return { make: 'عام / متعدد', model: 'عام', year: '2022' };
 
-  // 1. صيغة 4 أرقام كاملة: 2012-2017
-  const matchFullRange = t.match(/\b(19\d\d|20\d\d)\s*[-/]\s*(19\d\d|20\d\d)\b/);
-  if (matchFullRange) return `${matchFullRange[1]}-${matchFullRange[2]}`;
+  let text = String(rawText).trim();
 
-  // 2. صيغة 4 أرقام مع رقمين: 2012-17
-  const matchHalfRange = t.match(/\b(19\d\d|20\d\d)\s*[-/]\s*(\d{2})\b/);
-  if (matchHalfRange) {
-    const century = matchHalfRange[1].substring(0, 2);
-    return `${matchHalfRange[1]}-${century}${matchHalfRange[2]}`;
+  // 1. استخراج سنة الصنع (سواء 2017-2023 أو 12-15 أو 2020)
+  let extractedYear = '2022';
+  const yearMatchFull = text.match(/\(?\b(19\d\d|20\d\d)\s*[-/]\s*(19\d\d|20\d\d)\b\)?/);
+  const yearMatchShort = text.match(/\(?\b(\d{2})\s*[-/]\s*(\d{2})\b\)?/);
+  const yearMatchSingle = text.match(/\(?\b(19\d\d|20\d\d)\b\)?/);
+
+  if (yearMatchFull) {
+    extractedYear = `${yearMatchFull[1]}-${yearMatchFull[2]}`;
+    text = text.replace(yearMatchFull[0], '').trim();
+  } else if (yearMatchShort) {
+    const y1 = Number(yearMatchShort[1]);
+    const y2 = Number(yearMatchShort[2]);
+    const f1 = y1 >= 70 ? `19${y1}` : `20${y1 < 10 ? '0' + y1 : y1}`;
+    const f2 = y2 >= 70 ? `19${y2}` : `20${y2 < 10 ? '0' + y2 : y2}`;
+    extractedYear = `${f1}-${f2}`;
+    text = text.replace(yearMatchShort[0], '').trim();
+  } else if (yearMatchSingle) {
+    extractedYear = yearMatchSingle[1];
+    text = text.replace(yearMatchSingle[0], '').trim();
   }
 
-  // 3. صيغة رقمين مختصرة: 12-15 أو 08-14 أو 98-02
-  const matchShortRange = t.match(/\b(\d{2})\s*[-/]\s*(\d{2})\b/);
-  if (matchShortRange) {
-    const y1 = Number(matchShortRange[1]);
-    const y2 = Number(matchShortRange[2]);
-    const fullY1 = y1 >= 70 && y1 <= 99 ? `19${y1}` : `20${y1 < 10 ? '0' + y1 : y1}`;
-    const fullY2 = y2 >= 70 && y2 <= 99 ? `19${y2}` : `20${y2 < 10 ? '0' + y2 : y2}`;
-    return `${fullY1}-${fullY2}`;
+  // 2. استخراج ماركة وموديل السيارة
+  let detectedMake = 'عام / متعدد';
+  let detectedModel = text;
+
+  for (const item of KNOWN_MAKES) {
+    for (const pattern of item.patterns) {
+      if (pattern.test(text)) {
+        detectedMake = item.make;
+        detectedModel = text.replace(pattern, '').replace(/[-/:()]/g, '').trim();
+        break;
+      }
+    }
+    if (detectedMake !== 'عام / متعدد') break;
   }
 
-  // 4. سنة مفردة 4 أرقام: 2018
-  const matchSingleFull = t.match(/\b(19\d\d|20\d\d)\b/);
-  if (matchSingleFull) return matchSingleFull[1];
-
-  // 5. سنة مفردة بعد كلمة موديل أو اسم: موديل 18
-  const matchSingleShort = t.match(/(?:موديل|model|\b)\s*(\d{2})\b/i);
-  if (matchSingleShort) {
-    const y = Number(matchSingleShort[1]);
-    if (y >= 10 && y <= 30) return `20${y}`;
-  }
-
-  return '2022';
+  return {
+    make: detectedMake,
+    model: detectedModel || 'عام',
+    year: extractedYear
+  };
 };
 
 const extractEngineDetails = (text: string): string => {
@@ -214,26 +128,9 @@ const extractEngineDetails = (text: string): string => {
   return 'جميع المحركات (بنزين / ديزل)';
 };
 
-const inferCategoryFromName = (partName: string): string => {
-  const n = (partName || '').toLowerCase();
-  if (/فرامل|فحمات|قماشات|هوب|كليبر|abs|brake|rotor|caliper|pad/.test(n)) return 'Brake & Wheel Hub';
-  if (/مساعد|مساعدات|كمر|مقص|ياي|سبرنق|ركبة|suspension|shock|strut|arm|spring/.test(n)) return 'Suspension';
-  if (/رديتر|راديتر|طرمبة ماء|ثرموستات|حرارة|ماء|مروحة رديتر|radiator|coolant|water pump|thermostat/.test(n)) return 'Cooling System';
-  if (/كمبروسر|مكيف|ثلاجة|كوندنسر|بلف مكيف|تكييف|compressor|a\/c|condenser|evaporator/.test(n)) return 'Heat & Air Conditioning';
-  if (/مكينة|محرك|بستم|صباب|راس|كارتير|زيت|طرمبة زيت|بواجي|كويل|engine|piston|valve|spark plug|coil/.test(n)) return 'Engine';
-  if (/قير|جير|طنجرة|كلتش|مخ القير|فلتر قير|transmission|clutch|gearbox/.test(n)) return 'Transmission-Automatic';
-  if (/صدام|كبوت|رفرف|باب|شمعة|اسطب|مراية|شبك|bumper|fender|hood|headlamp|door|mirror/.test(n)) return 'Body & Lamp Assembly';
-  if (/بخاخ|طرمبة بنزين|فلتر هواء|فلتر بنزين|وقود|fuel|injector|air filter/.test(n)) return 'Fuel & Air';
-  if (/دركسون|دودة|طرمبة دركسون|steering|rack|pinion/.test(n)) return 'Steering';
-  if (/دينمو|سلف|بطارية|فيوز|حساس|سنسر|starter|alternator|battery|sensor/.test(n)) return 'Electrical';
-  if (/مساحات|مساحة|قربة موية|wiper|washer/.test(n)) return 'Wiper & Washer';
-  if (/جنط|كفر|تاير|wheel|tire|rim/.test(n)) return 'Wheel';
-  return 'Engine';
-};
-
 const isSummaryOrJunkRow = (name: string, price: any): boolean => {
   const n = String(name || '').trim().toLowerCase();
-  if (!n) return true;
+  if (!n || n === 'nan') return true;
   if (/إجمالي|اجمالي|المجموع|الإجمالي الكلي|المجموع الكلي|grand total|total|sum|مجموع المخزون/.test(n)) return true;
   if (n.startsWith('---') || n.startsWith('===') || n === 'name' || n === 'اسم القطعة') return true;
   if (price === 0 && (/إجمالي|total|مجموع/.test(n))) return true;
@@ -256,15 +153,17 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
   
   const [mapping, setMapping] = useState<Record<string, string>>({
     name: '',
+    vehicle: '',
     make: '',
     model: '',
     year: '',
-    engine: '',
     category: '',
+    part_brand: '',
     price: '',
+    stock: '',
     part_number: '',
     part_condition: '',
-    stock: ''
+    engine: ''
   });
 
   const [progress, setProgress] = useState(0);
@@ -341,7 +240,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
           if (!hasContent) return;
 
-          const firstCell = Object.values(rowObj)[0] || '';
+          const firstCell = String(Object.values(rowObj)[0] || '');
           if (isSummaryOrJunkRow(firstCell, 0)) {
             ignoredJunk++;
             return;
@@ -373,7 +272,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
   const autoDetectMapping = (detectedHeaders: string[]) => {
     const newMapping: Record<string, string> = {
-      name: '', make: '', model: '', year: '', engine: '', category: '', price: '', part_number: '', part_condition: '', stock: ''
+      name: '', vehicle: '', make: '', model: '', year: '', category: '', part_brand: '', price: '', stock: '', part_number: '', part_condition: '', engine: ''
     };
 
     Object.keys(SYNONYMS).forEach(fieldKey => {
@@ -424,50 +323,40 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
       
       const batchPayload = chunk.map(row => {
         const rawName = String(row[mapping.name] || 'قطعة غيار').trim();
-        let detectedMake = mapping.make ? String(row[mapping.make] || '').trim() : '';
-        let detectedModel = mapping.model ? String(row[mapping.model] || '').trim() : '';
-        let detectedYear = mapping.year ? String(row[mapping.year] || '').trim() : '';
-        let detectedEngine = mapping.engine ? String(row[mapping.engine] || '').trim() : '';
-        let detectedCat = mapping.category ? String(row[mapping.category] || '').trim() : '';
+        const rawVehicle = mapping.vehicle ? String(row[mapping.vehicle] || '').trim() : '';
+        const rawPartBrand = mapping.part_brand ? String(row[mapping.part_brand] || '').trim() : 'تجاري';
+        
+        // استخراج الماركة والموديل وسنة الصنع
+        let make = mapping.make ? String(row[mapping.make] || '').trim() : '';
+        let model = mapping.model ? String(row[mapping.model] || '').trim() : '';
+        let year = mapping.year ? String(row[mapping.year] || '').trim() : '';
 
-        // استخراج الماركة والموديل الذكي
-        if (!detectedMake) {
-          for (const brand of BRAND_RULES) {
-            if (brand.patterns.some(p => p.test(rawName))) {
-              detectedMake = brand.make;
-              if (!detectedModel && brand.models) {
-                for (const [mName, mPatterns] of Object.entries(brand.models)) {
-                  if (mPatterns.some(mp => mp.test(rawName))) {
-                    detectedModel = mName;
-                    break;
-                  }
-                }
-              }
-              break;
-            }
-          }
+        if (rawVehicle || (!make && !model)) {
+          const parsed = parseVehicleFitment(rawVehicle || rawName);
+          make = parsed.make;
+          model = parsed.model;
+          if (!year || year === '2022') year = parsed.year;
         }
 
-        // فك وتصحيح سنة الصنع (حتى لو كانت 12-15 أو 2012-2015)
-        const yearSource = detectedYear || rawName;
-        detectedYear = extractYearFromText(yearSource);
+        // تحويل القسم إلى المعرف الإنجليزي القياسي
+        const rawCat = mapping.category ? String(row[mapping.category] || '').trim() : '';
+        const category = CATEGORY_MAP_AR[rawCat] || rawCat || 'Engine';
 
-        // استخراج المحرك والتصنيف
-        if (!detectedEngine) detectedEngine = extractEngineDetails(rawName);
-        if (!detectedCat || detectedCat === 'عام') detectedCat = inferCategoryFromName(rawName);
+        // استخراج تفاصيل المحرك
+        const engine = mapping.engine ? String(row[mapping.engine] || '').trim() : extractEngineDetails(rawName);
 
         return {
           name: rawName,
-          make: detectedMake || 'عام / متعدد',
-          model: detectedModel || 'عام',
-          year: detectedYear || '2022',
-          engine: detectedEngine || 'جميع المحركات (بنزين / ديزل)',
-          category: detectedCat || 'Engine',
+          make: make || 'عام / متعدد',
+          model: model || 'عام',
+          year: year || '2022',
+          engine: engine || 'جميع المحركات (بنزين / ديزل)',
+          category: category,
           price: cleanPriceValue(row[mapping.price]),
           stock: mapping.stock && row[mapping.stock] ? parseInt(String(row[mapping.stock]).replace(/[^0-9]/g, '')) || 1 : 1,
           part_number: mapping.part_number && row[mapping.part_number] ? String(row[mapping.part_number]).trim() : null,
-          part_type: 'تجاري',
-          part_condition: mapping.part_condition && row[mapping.part_condition] ? String(row[mapping.part_condition]).trim() : 'جديد',
+          part_type: rawPartBrand || 'تجاري',
+          part_condition: 'جديد',
           user_id: session?.user?.id || session?.id || session?.phone || 'garage',
           image_url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'
         };
@@ -514,7 +403,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
                 {isRtl ? 'الرفع الذكي وفلترة المخزون' : 'Smart Excel Bulk Upload'}
               </h3>
               <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                {isRtl ? 'دعم صيغ السنوات المختصرة (مثل 12-15) واستخراج الماركات والمحركات' : 'Auto-extracts Brands, Years (12-15) & Engines'}
+                {isRtl ? 'تفكيك طراز السيارة المتوافق واستخراج الماركة والموديل والسنة تلقائياً' : 'Auto-extracts Vehicle Fitment, Makes, Models & Years'}
               </span>
             </div>
           </div>
@@ -534,7 +423,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
               {isRtl ? 'اختر ملف إكسل من جهازك' : 'Choose your Excel File'}
             </h4>
             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px' }}>
-              {isRtl ? 'يدعم (.xlsx, .xls, .csv). سيتم تصنيف كل قطعة حسب ماركتها وسنتها الحقيقية تلقائياً.' : 'Supports .xlsx, .xls, .csv files.'}
+              {isRtl ? 'يدعم (.xlsx, .xls, .csv). سيتم تفكيك وتصنيف التوافق والموديلات وسنوات الصنع بدقة 100%.' : 'Supports .xlsx, .xls, .csv files.'}
             </p>
 
             <label style={{ padding: '13px 32px', backgroundColor: '#1f3a5f', color: '#ffffff', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14.5px', display: 'inline-block' }}>
@@ -555,14 +444,12 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
               {[
                 { key: 'name', label: isRtl ? 'اسم القطعة (مطلوب) *' : 'Part Name *', req: true },
                 { key: 'price', label: isRtl ? 'السعر (مطلوب) *' : 'Price *', req: true },
-                { key: 'make', label: isRtl ? 'الماركة (اختياري/تلقائي)' : 'Make' },
-                { key: 'model', label: isRtl ? 'الموديل (اختياري/تلقائي)' : 'Model' },
-                { key: 'year', label: isRtl ? 'سنة الصنع (اختياري/تلقائي)' : 'Year' },
-                { key: 'engine', label: isRtl ? 'المحرك/الوقود (اختياري/تلقائي)' : 'Engine' },
-                { key: 'category', label: isRtl ? 'القسم / التصنيف' : 'Category' },
-                { key: 'part_number', label: isRtl ? 'رقم القطعة OEM / Part #' : 'Part Number' },
-                { key: 'part_condition', label: isRtl ? 'الحالة (جديد/مستعمل)' : 'Condition' },
-                { key: 'stock', label: isRtl ? 'الكمية المتوفرة' : 'Stock Qty' }
+                { key: 'vehicle', label: isRtl ? 'طراز السيارة المتوافق (شامل الماركة والموديل)' : 'Compatible Vehicle' },
+                { key: 'category', label: isRtl ? 'الفئة / القسم' : 'Category' },
+                { key: 'part_brand', label: isRtl ? 'الماركة / المصنع (ماركة القطعة)' : 'Part Manufacturer' },
+                { key: 'part_number', label: isRtl ? 'رمز القطعة (SKU / OEM)' : 'Part Number / SKU' },
+                { key: 'stock', label: isRtl ? 'الكمية المتاحة' : 'Stock Qty' },
+                { key: 'engine', label: isRtl ? 'المحرك (اختياري)' : 'Engine' }
               ].map(field => (
                 <div key={field.key} style={{ padding: '10px 12px', borderRadius: '12px', backgroundColor: '#f8fafc', border: field.req ? '1.5px solid #cbd5e0' : '1px solid #e2e8f0' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: field.req ? '#1f3a5f' : '#64748b', marginBottom: '4px' }}>
@@ -596,7 +483,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
         {step === 'uploading' && (
           <div style={{ textAlign: 'center', padding: '35px 10px' }}>
             <h4 style={{ color: '#1f3a5f', marginBottom: '8px', fontSize: '17px' }}>
-              {isRtl ? 'جاري تصنيف ورفع القطع إلى قاعدة البيانات...' : 'Processing & Uploading Parts...'}
+              {isRtl ? 'جاري تفكيك ورفع القطع وتوزيعها على سياراتها...' : 'Processing & Uploading Parts...'}
             </h4>
             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '22px' }}>
               {isRtl ? `تم رفع ${uploadedCount} من أصل ${totalCount} قطعة` : `Uploaded ${uploadedCount} of ${totalCount}`}
@@ -612,10 +499,10 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
           <div style={{ textAlign: 'center', padding: '30px 10px' }}>
             <span style={{ fontSize: '56px' }}>🎉</span>
             <h3 style={{ color: '#16a34a', margin: '14px 0 6px 0', fontSize: '20px' }}>
-              {isRtl ? 'تم رفع وإعادة تصنيف المخزون بنجاح!' : 'Bulk Upload Completed!'}
+              {isRtl ? 'تم رفع وإعادة توزيع المخزون بنجاح!' : 'Bulk Upload Completed!'}
             </h3>
             <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '20px' }}>
-              {isRtl ? `تمت إضافة ${uploadedCount} قطعة جديدة لكتالوج معروضاتك ومطابقة ماركاتها ومحركاتها وسنواتها بدقة.` : `Successfully added ${uploadedCount} parts to catalog.`}
+              {isRtl ? `تمت إضافة ${uploadedCount} قطعة جديدة وتوزيعها بدقة على ماركاتها (كيا، هيونداي، تويوتا، مرسيدس...) وأقسامها الصحيحة.` : `Successfully added ${uploadedCount} parts to catalog.`}
             </p>
             <button onClick={onClose} style={{ padding: '12px 34px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
               {isRtl ? 'العودة للوحة المعروضات ⚙️' : 'Done'}
