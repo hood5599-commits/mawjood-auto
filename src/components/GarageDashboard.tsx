@@ -99,6 +99,23 @@ export const GarageDashboard: React.FC<GarageProps> = ({
 
   const userId = session?.user?.id || session?.id || session?.phone || session?.email || 'garage_unknown';
 
+  // 🛡️ الحذف الجماعي الآمن
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState('');
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // 💰 التعديل الجماعي للأسعار
+  const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
+  const [priceActionType, setPriceActionType] = useState<'increase' | 'decrease'>('increase');
+  const [pricePercentage, setPricePercentage] = useState<number>(5);
+  const [filterOrigin, setFilterOrigin] = useState<string>('all');
+  const [filterMake, setFilterMake] = useState<string>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [smartRounding, setSmartRounding] = useState<boolean>(true);
+  const [selectedPartIdsForPrice, setSelectedPartIdsForPrice] = useState<Record<number, boolean>>({});
+  const [isApplyingPriceChanges, setIsApplyingPriceChanges] = useState(false);
+  const [hasPriceBackup, setHasPriceBackup] = useState<boolean>(() => !!localStorage.getItem(`garage_price_backup_${userId}`));
+
   const [garageName, setGarageName] = useState<string>(() => localStorage.getItem(`garage_name_${userId}`) || 'كراج التخصصي للسيارات');
   const [commercialReg, setCommercialReg] = useState<string>(() => localStorage.getItem(`garage_cr_${userId}`) || '');
   const [garagePhone, setGaragePhone] = useState<string>(() => localStorage.getItem(`garage_phone_${userId}`) || session?.phone || '');
@@ -219,7 +236,13 @@ export const GarageDashboard: React.FC<GarageProps> = ({
       const response = await fetch(`${restUrl}/parts?user_id=eq.${userId}&order=id.desc`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
-      if (response.ok) setMyParts(await response.json());
+      if (response.ok) {
+        const data = await response.json();
+        setMyParts(data);
+        const map: Record<number, boolean> = {};
+        data.forEach((p: any) => { map[p.id] = true; });
+        setSelectedPartIdsForPrice(map);
+      }
     } catch (error) {}
   };
 
@@ -251,6 +274,153 @@ export const GarageDashboard: React.FC<GarageProps> = ({
       });
       if (response.ok) setCustomRequests(await response.json());
     } catch (error) {}
+  };
+
+  // 🗑️ تنفيذ الحذف الجماعي لكامل المخزون
+  const handleExecuteBulkDelete = async () => {
+    if (bulkDeleteConfirmText.trim() !== 'حذف' && bulkDeleteConfirmText.trim().toUpperCase() !== 'DELETE') {
+      return alert(isRtl ? 'يرجى كتابة كلمة "حذف" للتأكيد' : 'Please type "DELETE" to confirm');
+    }
+
+    setIsBulkDeleting(true);
+    try {
+      const response = await fetch(`${restUrl}/parts?user_id=eq.${userId}`, {
+        method: 'DELETE',
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
+      });
+
+      if (response.ok) {
+        setToastMessage(isRtl ? 'تم مسح كافة معروضات الكراج بنجاح 🗑️' : 'All parts deleted successfully');
+        setShowBulkDeleteModal(false);
+        setBulkDeleteConfirmText('');
+        fetchMyParts();
+        onSuccess();
+      } else {
+        alert(isRtl ? 'حدث خطأ أثناء تنفيذ الحذف الجماعي' : 'Error deleting parts');
+      }
+    } catch (err) {
+      alert(isRtl ? 'تعذر الاتصال بالخادم' : 'Connection failed');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  // 📥 تصدير كامل المخزون إلى ملف Excel / CSV
+  const handleExportToExcel = () => {
+    if (myParts.length === 0) {
+      return alert(isRtl ? 'لا توجد قطع لتصديرها حالياً.' : 'No parts available to export.');
+    }
+
+    const headers = ['id', 'name', 'part_number', 'price', 'stock', 'make', 'model', 'year', 'engine', 'category', 'part_type', 'part_condition', 'origin'];
+    const rows = [headers.join(',')];
+
+    myParts.forEach((p: any) => {
+      const row = headers.map(h => `"${String(p[h] ?? '').replace(/"/g, '""')}"`);
+      rows.push(row.join(','));
+    });
+
+    const blob = new Blob(["\ufeff" + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `مخزون_${garageName || 'الكراج'}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setToastMessage(isRtl ? 'تم تصدير ملف الإكسل بنجاح 📥' : 'Excel/CSV Exported successfully');
+  };
+
+  // 💰 تصفية القطع المشمولة بتعديل السعر
+  const getFilteredPartsForPricing = () => {
+    return myParts.filter((p: any) => {
+      const pOrigin = (p.origin || p.country_of_origin || p.part_type || p.description || '').toLowerCase();
+      const matchOrigin = filterOrigin === 'all' || pOrigin.includes(filterOrigin.toLowerCase());
+      const matchMake = filterMake === 'all' || p.make === filterMake;
+      const matchCat = filterCategory === 'all' || (p.category || '').includes(filterCategory);
+      return matchOrigin && matchMake && matchCat;
+    });
+  };
+
+  // 💰 حساب السعر الجديد للقطعة
+  const calculateNewPrice = (oldPrice: number) => {
+    const factor = priceActionType === 'increase' 
+      ? 1 + (Number(pricePercentage) / 100)
+      : 1 - (Number(pricePercentage) / 100);
+    
+    let res = oldPrice * factor;
+    if (smartRounding) res = Math.round(res);
+    else res = parseFloat(res.toFixed(2));
+    return Math.max(1, res);
+  };
+
+  // 💰 تطبيق التعديل الجماعي للأسعار وحفظ نسخة احتياطية للتراجع
+  const handleApplyBulkPriceChanges = async () => {
+    const targetParts = getFilteredPartsForPricing().filter(p => selectedPartIdsForPrice[p.id]);
+    if (targetParts.length === 0) {
+      return alert(isRtl ? 'لم تقم بتحديد أي قطعة لتعديل سعرها!' : 'No parts selected for price update!');
+    }
+
+    if (!window.confirm(isRtl ? `هل أنت متأكد من تعديل أسعار (${targetParts.length}) قطعة بنسبة ${pricePercentage}%؟` : `Update prices for ${targetParts.length} parts?`)) {
+      return;
+    }
+
+    setIsApplyingPriceChanges(true);
+
+    // 1. حفظ نسخة احتياطية للتراجع
+    const backupData: Record<number, number> = {};
+    myParts.forEach((p: any) => { backupData[p.id] = Number(p.price || 0); });
+    localStorage.setItem(`garage_price_backup_${userId}`, JSON.stringify(backupData));
+    setHasPriceBackup(true);
+
+    try {
+      const updates = targetParts.map(p => {
+        const newPrice = calculateNewPrice(Number(p.price || 0));
+        return fetch(`${restUrl}/parts?id=eq.${p.id}&user_id=eq.${userId}`, {
+          method: 'PATCH',
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ price: newPrice })
+        });
+      });
+
+      await Promise.all(updates);
+      setToastMessage(isRtl ? `تم تحديث أسعار ${targetParts.length} قطعة بنجاح! 🚀` : 'Prices updated successfully!');
+      setShowBulkPriceModal(false);
+      fetchMyParts();
+      onSuccess();
+    } catch (err) {
+      alert(isRtl ? 'حدث خطأ أثناء تعديل بعض الأسعار' : 'Error updating some prices');
+    } finally {
+      setIsApplyingPriceChanges(false);
+    }
+  };
+
+  // ↩️ التراجع الفوري عن آخر تعديل للأسعار (Undo / Rollback)
+  const handleRollbackPrices = async () => {
+    const rawBackup = localStorage.getItem(`garage_price_backup_${userId}`);
+    if (!rawBackup) return alert(isRtl ? 'لا توجد نسخة سابقة للأسعار للتراجع إليها' : 'No price backup found');
+
+    const backupMap: Record<number, number> = JSON.parse(rawBackup);
+    if (!window.confirm(isRtl ? 'هل تريد استعادة جميع الأسعار كما كانت قبل آخر تعديل؟' : 'Restore all prices to previous state?')) {
+      return;
+    }
+
+    try {
+      const rollbacks = Object.entries(backupMap).map(([partId, oldPrice]) => {
+        return fetch(`${restUrl}/parts?id=eq.${partId}&user_id=eq.${userId}`, {
+          method: 'PATCH',
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ price: oldPrice })
+        });
+      });
+
+      await Promise.all(rollbacks);
+      setToastMessage(isRtl ? 'تم التراجع واستعادة الأسعار السابقة بنجاح! ↩️' : 'Prices restored successfully!');
+      localStorage.removeItem(`garage_price_backup_${userId}`);
+      setHasPriceBackup(false);
+      fetchMyParts();
+      onSuccess();
+    } catch (e) {
+      alert(isRtl ? 'حدث خطأ أثناء استعادة الأسعار' : 'Failed to rollback prices');
+    }
   };
 
   const handleConfirmFitment = async () => {
@@ -442,8 +612,11 @@ export const GarageDashboard: React.FC<GarageProps> = ({
   const pendingInquiriesCount = myInquiries.filter(i => i.status === 'pending_check').length;
   const activeOrdersCount = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'completed' && o.status !== 'cancelled').length;
 
+  const availableMakes = Array.from(new Set(myParts.map(p => p.make).filter(Boolean)));
+  const availableCategories = Array.from(new Set(myParts.map(p => (p.category || '').split('>')[0].trim()).filter(Boolean)));
+
   return (
-    <div style={{ maxWidth: '1000px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '25px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
+    <div style={{ maxWidth: '1050px', margin: '30px auto', display: 'flex', flexDirection: 'column', gap: '22px', direction: isRtl ? 'rtl' : 'ltr', fontFamily: 'Cairo, sans-serif' }}>
       
       {/* هيدر التبويبات المكتمل مع شارات التنبيه الملونة */}
       <div style={{ display: 'flex', gap: '10px', backgroundColor: 'white', padding: '10px', borderRadius: '15px', flexWrap: 'wrap', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
@@ -485,6 +658,238 @@ export const GarageDashboard: React.FC<GarageProps> = ({
           ⚙️ بيانات الكراج والأمان
         </button>
       </div>
+
+      {/* 🛠️ شريط أدوات إدارة المخزون المتقدم (يظهر داخل تبويب معروضاتي) */}
+      {activeTab === 'my_parts' && (
+        <div style={{ backgroundColor: '#ffffff', padding: '16px 20px', borderRadius: '16px', border: '1.5px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>⚡</span>
+            <strong style={{ color: '#1f3a5f', fontSize: '14px' }}>
+              {isRtl ? 'أدوات التحكم الذكي بالمخزون والأسعار:' : 'Bulk Inventory & Price Controls:'}
+            </strong>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {/* زر تعديل الأسعار جماعياً */}
+            <button
+              onClick={() => setShowBulkPriceModal(true)}
+              style={{ padding: '8px 14px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              💰 {isRtl ? 'تعديل الأسعار جماعياً (%)' : 'Bulk Price %'}
+            </button>
+
+            {/* زر التراجع الفوري عن الأسعار */}
+            {hasPriceBackup && (
+              <button
+                onClick={handleRollbackPrices}
+                style={{ padding: '8px 14px', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                ↩️ {isRtl ? 'تراجع عن آخر تعديل' : 'Undo Price Change'}
+              </button>
+            )}
+
+            {/* زر تصدير Excel */}
+            <button
+              onClick={handleExportToExcel}
+              style={{ padding: '8px 14px', backgroundColor: '#0284c7', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              📥 {isRtl ? 'تصدير نسخة إكسل' : 'Export Excel'}
+            </button>
+
+            {/* زر الحذف الجماعي لكامل المخزون */}
+            <button
+              onClick={() => { setBulkDeleteConfirmText(''); setShowBulkDeleteModal(true); }}
+              style={{ padding: '8px 14px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              🗑️ {isRtl ? 'حذف كافة المعروضات' : 'Bulk Delete All'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 💰 نافذة منبثقة: التعديل الجماعي للأسعار بالنسبة المئوية */}
+      {showBulkPriceModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1300, padding: '20px' }}>
+          <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '20px', maxWidth: '750px', width: '100%', maxHeight: '90vh', overflowY: 'auto', direction: isRtl ? 'rtl' : 'ltr' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '18px', fontWeight: 'bold' }}>
+                💰 {isRtl ? 'أداة التعديل الجماعي للأسعار بالنسبة المئوية' : 'Bulk Price Percentage Modifier'}
+              </h3>
+              <button onClick={() => setShowBulkPriceModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
+            </div>
+
+            {/* فلاتر التحكم */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>نوع التعديل:</label>
+                <select value={priceActionType} onChange={(e) => setPriceActionType(e.target.value as any)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontWeight: 'bold' }}>
+                  <option value="increase">📈 زيادة بالأسعار (+)</option>
+                  <option value="decrease">📉 تخفيض وخصم (-)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>النسبة المئوية (%):</label>
+                <input type="number" min="1" max="100" value={pricePercentage} onChange={(e) => setPricePercentage(Number(e.target.value))} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontWeight: 'bold' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>بلد المنشأ / الوارد:</label>
+                <select value={filterOrigin} onChange={(e) => setFilterOrigin(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                  <option value="all">🌍 كل المصادر</option>
+                  <option value="اليابان">🇯🇵 وارد اليابان</option>
+                  <option value="كوريا">🇰🇷 وارد كوريا</option>
+                  <option value="الصين">🇨🇳 وارد الصين</option>
+                  <option value="تايوان">🇹🇼 وارد تايوان</option>
+                  <option value="تايلاند">🇹🇭 وارد تايلاند</option>
+                  <option value="أمريكا">🇺🇸 وارد أمريكا</option>
+                  <option value="ألماني">🇩🇪 وارد ألمانيا</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>تخصيص الماركة:</label>
+                <select value={filterMake} onChange={(e) => setFilterMake(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                  <option value="all">🚗 كل الماركات</option>
+                  {availableMakes.map((m: any) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <input type="checkbox" id="smartRound" checked={smartRounding} onChange={(e) => setSmartRounding(e.target.checked)} />
+              <label htmlFor="smartRound" style={{ fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f', cursor: 'pointer' }}>
+                ✨ التقريب الذكي (جبر الكسور لأقرب رقم صحيح)
+              </label>
+            </div>
+
+            {/* جدول المعاينة والاستثناء */}
+            <div style={{ border: '1px solid #cbd5e0', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', fontSize: '13px', fontWeight: 'bold', color: '#1f3a5f', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>📋 معاينة التعديل على القطع ({getFilteredPartsForPricing().length} مشمولة)</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const filtered = getFilteredPartsForPricing();
+                    const allSelected = filtered.every(p => selectedPartIdsForPrice[p.id]);
+                    const nextMap = { ...selectedPartIdsForPrice };
+                    filtered.forEach(p => { nextMap[p.id] = !allSelected; });
+                    setSelectedPartIdsForPrice(nextMap);
+                  }}
+                  style={{ background: 'none', border: '1px solid #cbd5e0', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}
+                >
+                  تحديد / إلغاء تحديد الكل
+                </button>
+              </div>
+
+              <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: isRtl ? 'right' : 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>
+                      <th style={{ padding: '8px' }}>تحديد</th>
+                      <th style={{ padding: '8px' }}>اسم القطعة</th>
+                      <th style={{ padding: '8px' }}>الماركة</th>
+                      <th style={{ padding: '8px' }}>السعر الحالي</th>
+                      <th style={{ padding: '8px', color: '#16a34a' }}>السعر الجديد</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredPartsForPricing().map((p: any) => {
+                      const oldPrice = Number(p.price || 0);
+                      const newPrice = calculateNewPrice(oldPrice);
+                      const isSelected = !!selectedPartIdsForPrice[p.id];
+
+                      return (
+                        <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: isSelected ? 'white' : '#f8fafc', opacity: isSelected ? 1 : 0.6 }}>
+                          <td style={{ padding: '8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => setSelectedPartIdsForPrice(prev => ({ ...prev, [p.id]: e.target.checked }))}
+                            />
+                          </td>
+                          <td style={{ padding: '8px', fontWeight: 'bold' }}>{p.name}</td>
+                          <td style={{ padding: '8px' }}>{p.make}</td>
+                          <td style={{ padding: '8px', textDecoration: isSelected ? 'line-through' : 'none', color: '#64748b' }}>{oldPrice} ر.ق</td>
+                          <td style={{ padding: '8px', fontWeight: 'bold', color: priceActionType === 'increase' ? '#16a34a' : '#ea580c' }}>
+                            {isSelected ? `${newPrice} ر.ق` : `${oldPrice} ر.ق`}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleApplyBulkPriceChanges}
+                disabled={isApplyingPriceChanges}
+                style={{ flex: 1, padding: '13px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}
+              >
+                {isApplyingPriceChanges ? 'جاري تطبيق الأسعار...' : '💾 اعتماد وتطبيق الأسعار الجديدة'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowBulkPriceModal(false)}
+                style={{ padding: '13px 20px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🗑️ نافذة منبثقة: الحذف الجماعي الآمن للمخزون */}
+      {showBulkDeleteModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1300, padding: '20px' }}>
+          <div style={{ backgroundColor: 'white', padding: '28px', borderRadius: '20px', maxWidth: '480px', width: '100%', direction: isRtl ? 'rtl' : 'ltr', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: '46px', marginBottom: '10px' }}>⚠️</div>
+            <h3 style={{ margin: '0 0 10px 0', color: '#ef4444', fontSize: '19px', fontWeight: 'bold' }}>
+              {isRtl ? 'تأكيد الحذف الجماعي لكافة المعروضات' : 'Confirm Bulk Inventory Delete'}
+            </h3>
+            <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.6', marginBottom: '20px' }}>
+              {isRtl 
+                ? `أنت على وشك حذف جميع القطع التابعة لكراجك (${myParts.length} قطعة) نهائياً من قاعدة البيانات. هذه العملية لا يمكن التراجع عنها.`
+                : `You are about to delete all ${myParts.length} parts permanently.`}
+            </p>
+
+            <div style={{ marginBottom: '20px', textAlign: isRtl ? 'right' : 'left' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', marginBottom: '6px', color: '#1f3a5f' }}>
+                {isRtl ? 'للتأكيد، اكتب كلمة "حذف" في المربع أدناه:' : 'To confirm, type "DELETE" below:'}
+              </label>
+              <input
+                type="text"
+                value={bulkDeleteConfirmText}
+                onChange={(e) => setBulkDeleteConfirmText(e.target.value)}
+                placeholder={isRtl ? 'اكتب كلمة: حذف' : 'Type: DELETE'}
+                style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '2px solid #ef4444', fontSize: '14px', textAlign: 'center', fontWeight: 'bold' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleExecuteBulkDelete}
+                disabled={isBulkDeleting || (bulkDeleteConfirmText.trim() !== 'حذف' && bulkDeleteConfirmText.trim().toUpperCase() !== 'DELETE')}
+                style={{ flex: 1, padding: '12px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', opacity: (bulkDeleteConfirmText.trim() === 'حذف' || bulkDeleteConfirmText.trim().toUpperCase() === 'DELETE') ? 1 : 0.5 }}
+              >
+                {isBulkDeleting ? 'جاري المسح...' : '🗑️ حذف المخزون بالكامل'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(false)}
+                style={{ padding: '12px 20px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'profile' && (
         <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
