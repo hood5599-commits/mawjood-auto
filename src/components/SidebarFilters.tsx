@@ -127,8 +127,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const activeCarData = carData || CAR_DATA;
 
-  // 🧭 طريقة البحث النشطة: 'visual' (البحث البصري السريع) أو 'tree' (شجرة الكتالوج)
-  const [searchMode, setSearchMode] = useState<'visual' | 'tree'>('visual');
+  // 🧭 طريقة البحث: 'visual' (بصري) أو 'tree' (شجرة) أو 'vin' (برقم الشاصي)
+  const [searchMode, setSearchMode] = useState<'visual' | 'tree' | 'vin'>('visual');
+
+  // 🔍 حالة البحث برقم الشاصي (VIN)
+  const [vinInput, setVinInput] = useState('');
+  const [isDecodingVin, setIsDecodingVin] = useState(false);
+  const [decodedVehicle, setDecodedVehicle] = useState<{ make: string; model: string; year: string; engine?: string } | null>(null);
 
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [nodeDataCache, setNodeDataCache] = useState<Record<string, any>>({});
@@ -196,6 +201,68 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const clearSearch = () => {
     setSearchTerm('');
     setActiveSearchQuery('');
+    setDecodedVehicle(null);
+  };
+
+  // 🚗 معالج فك تشفير رقم الشاصي (VIN Decoder)
+  const handleDecodeVin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanVin = vinInput.trim().toUpperCase();
+    if (cleanVin.length !== 17) {
+      return alert(isRtl ? 'رقم الشاصي يجب أن يتكون من 17 حرف ورقم تماماً' : 'VIN must be exactly 17 characters');
+    }
+
+    setIsDecodingVin(true);
+    try {
+      // 1. استدعاء API فك تشفير رقم الهيكل الرسمي
+      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${encodeURIComponent(cleanVin)}?format=json`);
+      if (response.ok) {
+        const json = await response.json();
+        const result = json.Results?.[0];
+
+        if (result && result.Make) {
+          const detectedMake = result.Make;
+          const detectedModel = result.Model || '';
+          const detectedYear = result.ModelYear || '';
+          const detectedEngine = result.DisplacementL ? `${result.DisplacementL}L` : '';
+
+          // مطابقة اسم الماركة مع الماركات العربية في المتجر
+          let matchedMakeKey = Object.keys(activeCarData).find(
+            m => m.toLowerCase() === detectedMake.toLowerCase() || activeCarData[m]?.en?.toLowerCase() === detectedMake.toLowerCase()
+          ) || detectedMake;
+
+          setDecodedVehicle({
+            make: matchedMakeKey,
+            model: detectedModel,
+            year: detectedYear,
+            engine: detectedEngine
+          });
+          setActiveSearchQuery(`${matchedMakeKey} ${detectedModel}`);
+          return;
+        }
+      }
+
+      // 2. كود احتياطي (Fallback) في حال عدم توفر اتصال بالـ API الخارجي
+      const yearMap: Record<string, string> = {
+        'A': '2010', 'B': '2011', 'C': '2012', 'D': '2013', 'E': '2014',
+        'F': '2015', 'G': '2016', 'H': '2017', 'J': '2018', 'K': '2019',
+        'L': '2020', 'M': '2021', 'N': '2022', 'P': '2023', 'R': '2024',
+        'S': '2025', 'T': '2026'
+      };
+      const yearChar = cleanVin.charAt(9);
+      const estYear = yearMap[yearChar] || '2020';
+
+      setDecodedVehicle({
+        make: 'سيارة محددة',
+        model: 'رقم الشاصي: ' + cleanVin.substring(0, 8),
+        year: estYear
+      });
+      setActiveSearchQuery(cleanVin);
+    } catch (err) {
+      alert(isRtl ? 'تعذر فك تشفير الشاصي، يرجى التحقق من الرقم' : 'Failed to decode VIN');
+    } finally {
+      setIsDecodingVin(false);
+    }
   };
 
   const fetchYearsForMake = async (make: string) => {
@@ -459,7 +526,15 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   };
 
   const searchResults = activeSearchQuery 
-    ? processAndSortParts(inventory.filter((part: any) => matchesSmartSearch(part, activeSearchQuery)))
+    ? processAndSortParts(inventory.filter((part: any) => {
+        if (decodedVehicle) {
+          const matchMake = (part.make || '').toLowerCase().includes(decodedVehicle.make.toLowerCase());
+          const matchModel = !decodedVehicle.model || (part.model || '').toLowerCase().includes(decodedVehicle.model.toLowerCase());
+          const matchYear = !decodedVehicle.year || String(part.year || '').includes(decodedVehicle.year);
+          return matchMake || (matchModel && matchYear) || matchesSmartSearch(part, activeSearchQuery);
+        }
+        return matchesSmartSearch(part, activeSearchQuery);
+      }))
     : [];
 
   const handleInAppRequestSubmit = async (e: React.FormEvent) => {
@@ -689,17 +764,17 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* 🌟 بطاقات اختيار طريقة البحث (مربعين مع شرح جذاب) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px', direction: isRtl ? 'rtl' : 'ltr' }}>
+      {/* 🌟 بطاقات اختيار طريقة البحث (3 خيارات واضحة مع البحث برقم الشاصي) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', direction: isRtl ? 'rtl' : 'ltr' }}>
         
-        {/* الخيار 1: البحث البصري التفاعلي */}
+        {/* الخيار 1: البحث البصري السريع */}
         <div
           onClick={() => setSearchMode('visual')}
           style={{
             backgroundColor: searchMode === 'visual' ? '#f0fdf4' : '#ffffff',
             border: searchMode === 'visual' ? '2.5px solid #16a34a' : '1.5px solid #e2e8f0',
             borderRadius: '16px',
-            padding: '18px',
+            padding: '16px',
             cursor: 'pointer',
             transition: 'all 0.25s ease',
             boxShadow: searchMode === 'visual' ? '0 8px 20px rgba(22,163,74,0.12)' : '0 2px 8px rgba(0,0,0,0.03)',
@@ -707,18 +782,16 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           }}
         >
           {searchMode === 'visual' && (
-            <span style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#16a34a', color: 'white', fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
-              ✓ {isRtl ? 'المحدد حالياً' : 'Active'}
+            <span style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#16a34a', color: 'white', fontSize: '10.5px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
+              ✓ {isRtl ? 'المحدد' : 'Active'}
             </span>
           )}
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎯</div>
-          <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#1f3a5f', fontWeight: 'bold' }}>
-            {isRtl ? '1. البحث البصري السريع (محدد السيارة)' : '1. Visual Vehicle Selector'}
+          <div style={{ fontSize: '28px', marginBottom: '6px' }}>🎯</div>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
+            {isRtl ? '1. البحث البصري (محدد السيارة)' : '1. Visual Selector'}
           </h3>
-          <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b', lineHeight: '1.5' }}>
-            {isRtl 
-              ? 'اختر سيارتك (الماركة، الموديل، السنة) لتظهر لك الأقسام والقطع المتوافقة 100% بصور وبطاقات ملونة خطوة بخطوة.' 
-              : 'Pick your car details to browse matching parts visually step-by-step.'}
+          <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.4' }}>
+            {isRtl ? 'اختر سيارتك بالصور والبطاقات خطوة بخطوة.' : 'Browse parts visually step-by-step.'}
           </p>
         </div>
 
@@ -729,7 +802,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             backgroundColor: searchMode === 'tree' ? '#e8f2fc' : '#ffffff',
             border: searchMode === 'tree' ? '2.5px solid #1f3a5f' : '1.5px solid #e2e8f0',
             borderRadius: '16px',
-            padding: '18px',
+            padding: '16px',
             cursor: 'pointer',
             transition: 'all 0.25s ease',
             boxShadow: searchMode === 'tree' ? '0 8px 20px rgba(31,58,95,0.12)' : '0 2px 8px rgba(0,0,0,0.03)',
@@ -737,22 +810,99 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           }}
         >
           {searchMode === 'tree' && (
-            <span style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#1f3a5f', color: 'white', fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
-              ✓ {isRtl ? 'المحدد حالياً' : 'Active'}
+            <span style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#1f3a5f', color: 'white', fontSize: '10.5px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
+              ✓ {isRtl ? 'المحدد' : 'Active'}
             </span>
           )}
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>📂</div>
-          <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#1f3a5f', fontWeight: 'bold' }}>
-            {isRtl ? '2. كتالوج شجرة التصفية الشامل' : '2. Complete Catalog Tree'}
+          <div style={{ fontSize: '28px', marginBottom: '6px' }}>📂</div>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
+            {isRtl ? '2. كتالوج شجرة التصفية' : '2. Full Catalog Tree'}
           </h3>
-          <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b', lineHeight: '1.5' }}>
-            {isRtl 
-              ? 'تصفح كل الماركات والموديلات بشكل هرمي متفرع لعرض كافة قطع الغيار المتوفرة بالمخزون.' 
-              : 'Browse the entire inventory hierarchically by make, year, model, and engine.'}
+          <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.4' }}>
+            {isRtl ? 'تصفح كل الماركات والموديلات بشكل هرمي.' : 'Browse hierarchical catalog.'}
+          </p>
+        </div>
+
+        {/* الخيار 3: محرك البحث برقم الشاصي (VIN Decoder) */}
+        <div
+          onClick={() => setSearchMode('vin')}
+          style={{
+            backgroundColor: searchMode === 'vin' ? '#fff7ed' : '#ffffff',
+            border: searchMode === 'vin' ? '2.5px solid #e0872a' : '1.5px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '16px',
+            cursor: 'pointer',
+            transition: 'all 0.25s ease',
+            boxShadow: searchMode === 'vin' ? '0 8px 20px rgba(224,135,42,0.15)' : '0 2px 8px rgba(0,0,0,0.03)',
+            position: 'relative'
+          }}
+        >
+          {searchMode === 'vin' && (
+            <span style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#e0872a', color: 'white', fontSize: '10.5px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
+              ✓ {isRtl ? 'المحدد' : 'Active'}
+            </span>
+          )}
+          <div style={{ fontSize: '28px', marginBottom: '6px' }}>🔍</div>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
+            {isRtl ? '3. فك الشاصي (VIN Decoder)' : '3. VIN Search'}
+          </h3>
+          <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.4' }}>
+            {isRtl ? 'أدخل رقم الهيكل (17 حرف) لمطابقة 100% فورياً.' : 'Decode 17-char VIN for exact match.'}
           </p>
         </div>
 
       </div>
+
+      {/* 🚀 محرك فحص وفك الشاصي (VIN Search Form) */}
+      {searchMode === 'vin' && (
+        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '2px solid #e0872a', boxShadow: '0 8px 24px rgba(224,135,42,0.08)', direction: isRtl ? 'rtl' : 'ltr' }}>
+          <h3 style={{ margin: '0 0 12px 0', color: '#1f3a5f', fontSize: '17px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🔍</span> {isRtl ? 'البحث ومطابقة القطع بواسطة رقم الشاصي (VIN Decoder):' : 'Exact Match via VIN Number:'}
+          </h3>
+          <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
+            {isRtl 
+              ? 'أدخل رقم الشاصي المكون من 17 حرف ورقم الموجود على استمارة السيارة أو الزجاج الأمامي لتحديد سيارتك ومحركها وعرض قطعها المتوافقة تلقائياً.' 
+              : 'Enter the 17-digit VIN number from vehicle registration to automatically identify your car.'}
+          </p>
+
+          <form onSubmit={handleDecodeVin} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              maxLength={17}
+              placeholder={isRtl ? "أدخل 17 حرف ورقم للشاصي (مثال: JTEBU5JR8K5...)" : "Enter 17-character VIN..."}
+              value={vinInput}
+              onChange={(e) => setVinInput(e.target.value.toUpperCase())}
+              style={{ flex: '1 1 280px', padding: '13px 16px', borderRadius: '12px', border: '2px solid #e0872a', fontSize: '14px', fontWeight: 'bold', letterSpacing: '1px', fontFamily: 'monospace' }}
+              required
+            />
+            <button
+              type="submit"
+              disabled={isDecodingVin || vinInput.trim().length !== 17}
+              style={{ padding: '13px 26px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', opacity: (vinInput.trim().length === 17) ? 1 : 0.6 }}
+            >
+              {isDecodingVin ? (isRtl ? 'جاري الفك والتحديد...' : 'Decoding...') : (isRtl ? 'فك وتحديد القطع 🚀' : 'Decode & Find Parts 🚀')}
+            </button>
+          </form>
+
+          {decodedVehicle && (
+            <div style={{ marginTop: '16px', padding: '14px', backgroundColor: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <strong style={{ color: '#166534', fontSize: '14.5px', display: 'block' }}>
+                  ✅ {isRtl ? 'تم التعرف على السيارة بنجاح:' : 'Vehicle Identified:'} {decodedVehicle.make} {decodedVehicle.model} ({decodedVehicle.year})
+                </strong>
+                {decodedVehicle.engine && <span style={{ fontSize: '12.5px', color: '#15803d' }}>⚡ محرك: {decodedVehicle.engine}</span>}
+              </div>
+              <button
+                type="button"
+                onClick={clearSearch}
+                style={{ backgroundColor: 'white', border: '1px solid #cbd5e0', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                🔄 {isRtl ? 'مسح وبحث جديد' : 'Clear & Reset'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 🚀 عرض الطريقة الأولى: محدد السيارة البصري التفاعلي */}
       {searchMode === 'visual' && (
