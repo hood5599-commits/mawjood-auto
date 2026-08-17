@@ -365,7 +365,6 @@ export const GarageDashboard: React.FC<GarageProps> = ({
 
     setIsApplyingPriceChanges(true);
 
-    // 1. حفظ نسخة احتياطية للتراجع
     const backupData: Record<number, number> = {};
     myParts.forEach((p: any) => { backupData[p.id] = Number(p.price || 0); });
     localStorage.setItem(`garage_price_backup_${userId}`, JSON.stringify(backupData));
@@ -719,7 +718,7 @@ export const GarageDashboard: React.FC<GarageProps> = ({
             </div>
 
             {/* فلاتر التحكم */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '20px', backgroundColor: '#f8fafc', padding: '16px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>نوع التعديل:</label>
                 <select value={priceActionType} onChange={(e) => setPriceActionType(e.target.value as any)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontWeight: 'bold' }}>
@@ -752,6 +751,14 @@ export const GarageDashboard: React.FC<GarageProps> = ({
                 <select value={filterMake} onChange={(e) => setFilterMake(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
                   <option value="all">🚗 كل الماركات</option>
                   {availableMakes.map((m: any) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>تخصيص القسم:</label>
+                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0' }}>
+                  <option value="all">🗂️ كل الأقسام</option>
+                  {availableCategories.map((c: any) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
