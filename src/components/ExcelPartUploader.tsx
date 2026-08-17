@@ -23,7 +23,6 @@ const SYNONYMS: Record<string, string[]> = {
   stock: ['الكمية', 'المخزون', 'العدد', 'المتوفر', 'stock', 'qty', 'quantity', 'count']
 };
 
-// 🚗 قاموس شامل لاستخراج الماركات والموديلات من النصوص
 const BRAND_RULES: { make: string; patterns: RegExp[]; models?: Record<string, RegExp[]> }[] = [
   {
     make: 'تويوتا',
@@ -154,11 +153,47 @@ const BRAND_RULES: { make: string; patterns: RegExp[]; models?: Record<string, R
   }
 ];
 
-// 🧠 استخراج المحرك ونوع الوقود بدقة من النص
+// 🧠 خوارزمية فك وتوسيع صيغ السنوات (تدعم 12-15 و 2012-17 و 08-14 وغيرها)
+const extractYearFromText = (text: string): string => {
+  const t = String(text || '').trim();
+
+  // 1. صيغة 4 أرقام كاملة: 2012-2017
+  const matchFullRange = t.match(/\b(19\d\d|20\d\d)\s*[-/]\s*(19\d\d|20\d\d)\b/);
+  if (matchFullRange) return `${matchFullRange[1]}-${matchFullRange[2]}`;
+
+  // 2. صيغة 4 أرقام مع رقمين: 2012-17
+  const matchHalfRange = t.match(/\b(19\d\d|20\d\d)\s*[-/]\s*(\d{2})\b/);
+  if (matchHalfRange) {
+    const century = matchHalfRange[1].substring(0, 2);
+    return `${matchHalfRange[1]}-${century}${matchHalfRange[2]}`;
+  }
+
+  // 3. صيغة رقمين مختصرة: 12-15 أو 08-14 أو 98-02
+  const matchShortRange = t.match(/\b(\d{2})\s*[-/]\s*(\d{2})\b/);
+  if (matchShortRange) {
+    const y1 = Number(matchShortRange[1]);
+    const y2 = Number(matchShortRange[2]);
+    const fullY1 = y1 >= 70 && y1 <= 99 ? `19${y1}` : `20${y1 < 10 ? '0' + y1 : y1}`;
+    const fullY2 = y2 >= 70 && y2 <= 99 ? `19${y2}` : `20${y2 < 10 ? '0' + y2 : y2}`;
+    return `${fullY1}-${fullY2}`;
+  }
+
+  // 4. سنة مفردة 4 أرقام: 2018
+  const matchSingleFull = t.match(/\b(19\d\d|20\d\d)\b/);
+  if (matchSingleFull) return matchSingleFull[1];
+
+  // 5. سنة مفردة بعد كلمة موديل أو اسم: موديل 18
+  const matchSingleShort = t.match(/(?:موديل|model|\b)\s*(\d{2})\b/i);
+  if (matchSingleShort) {
+    const y = Number(matchSingleShort[1]);
+    if (y >= 10 && y <= 30) return `20${y}`;
+  }
+
+  return '2022';
+};
+
 const extractEngineDetails = (text: string): string => {
   const t = (text || '').toLowerCase();
-  
-  // فحص نوع الوقود الخاص أولاً
   if (/ديزل|diesel/.test(t)) {
     const dMatch = t.match(/(\d+\.\d+)\s*(l|لتر)?\s*ديزل|diesel/i);
     return dMatch ? `${dMatch[1]}L ديزل (Diesel)` : 'ديزل (Diesel)';
@@ -169,7 +204,6 @@ const extractEngineDetails = (text: string): string => {
     return tMatch ? `${tMatch[1]}L تيربو` : 'توربو (Turbo)';
   }
 
-  // فحص سعة المحرك اللترية وشكل السلندرات
   const lMatch = t.match(/\b(\d\.\d)\s*(l|لتر)?\b/i);
   const vMatch = t.match(/\b(v6|v8|v4|v12|l4|6\s*سلندر|8\s*سلندر|4\s*سلندر)\b/i);
 
@@ -180,7 +214,6 @@ const extractEngineDetails = (text: string): string => {
   return 'جميع المحركات (بنزين / ديزل)';
 };
 
-// 🧭 استنتاج القسم الرئيسي
 const inferCategoryFromName = (partName: string): string => {
   const n = (partName || '').toLowerCase();
   if (/فرامل|فحمات|قماشات|هوب|كليبر|abs|brake|rotor|caliper|pad/.test(n)) return 'Brake & Wheel Hub';
@@ -198,16 +231,6 @@ const inferCategoryFromName = (partName: string): string => {
   return 'Engine';
 };
 
-// 🔍 استخراج سنة الصنع
-const extractYearFromText = (text: string): string => {
-  const matchRange = text.match(/\b(19\d\d|20\d\d)\s*[-/]\s*(19\d\d|20\d\d)\b/);
-  if (matchRange) return `${matchRange[1]}-${matchRange[2]}`;
-  const matchSingle = text.match(/\b(19\d\d|20\d\d)\b/);
-  if (matchSingle) return matchSingle[1];
-  return '2022';
-};
-
-// 🚫 فحص واستبعاد صفوف المجاميع والترويسات
 const isSummaryOrJunkRow = (name: string, price: any): boolean => {
   const n = String(name || '').trim().toLowerCase();
   if (!n) return true;
@@ -318,7 +341,6 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
           if (!hasContent) return;
 
-          // استبعاد صفوف المجاميع فوراً
           const firstCell = Object.values(rowObj)[0] || '';
           if (isSummaryOrJunkRow(firstCell, 0)) {
             ignoredJunk++;
@@ -389,7 +411,6 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     const BATCH_SIZE = 50;
     const cleanBaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
 
-    // تنقية الصفوف واستبعاد المجاميع
     const validRows = rawData.filter(row => {
       const pName = String(row[mapping.name] || '');
       const pPrice = cleanPriceValue(row[mapping.price]);
@@ -409,7 +430,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
         let detectedEngine = mapping.engine ? String(row[mapping.engine] || '').trim() : '';
         let detectedCat = mapping.category ? String(row[mapping.category] || '').trim() : '';
 
-        // استخراج الماركة والموديل الذكي إذا لم يتوفر عمود منفصل
+        // استخراج الماركة والموديل الذكي
         if (!detectedMake) {
           for (const brand of BRAND_RULES) {
             if (brand.patterns.some(p => p.test(rawName))) {
@@ -427,9 +448,12 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
           }
         }
 
-        // استخراج المحرك والوقود وسنة الصنع والتصنيف
+        // فك وتصحيح سنة الصنع (حتى لو كانت 12-15 أو 2012-2015)
+        const yearSource = detectedYear || rawName;
+        detectedYear = extractYearFromText(yearSource);
+
+        // استخراج المحرك والتصنيف
         if (!detectedEngine) detectedEngine = extractEngineDetails(rawName);
-        if (!detectedYear) detectedYear = extractYearFromText(rawName);
         if (!detectedCat || detectedCat === 'عام') detectedCat = inferCategoryFromName(rawName);
 
         return {
@@ -490,7 +514,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
                 {isRtl ? 'الرفع الذكي وفلترة المخزون' : 'Smart Excel Bulk Upload'}
               </h3>
               <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                {isRtl ? 'استخراج الماركات والمحركات (بنزين/ديزل) واستبعاد صفوف المجاميع تلقائياً' : 'Auto-extracts Brands, Fuel/Engine types & excludes summary rows'}
+                {isRtl ? 'دعم صيغ السنوات المختصرة (مثل 12-15) واستخراج الماركات والمحركات' : 'Auto-extracts Brands, Years (12-15) & Engines'}
               </span>
             </div>
           </div>
@@ -510,7 +534,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
               {isRtl ? 'اختر ملف إكسل من جهازك' : 'Choose your Excel File'}
             </h4>
             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px' }}>
-              {isRtl ? 'يدعم (.xlsx, .xls, .csv). سيتم تصنيف كل قطعة حسب ماركتها ومحركها الحقيقي تلقائياً.' : 'Supports .xlsx, .xls, .csv files.'}
+              {isRtl ? 'يدعم (.xlsx, .xls, .csv). سيتم تصنيف كل قطعة حسب ماركتها وسنتها الحقيقية تلقائياً.' : 'Supports .xlsx, .xls, .csv files.'}
             </p>
 
             <label style={{ padding: '13px 32px', backgroundColor: '#1f3a5f', color: '#ffffff', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14.5px', display: 'inline-block' }}>
@@ -591,7 +615,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
               {isRtl ? 'تم رفع وإعادة تصنيف المخزون بنجاح!' : 'Bulk Upload Completed!'}
             </h3>
             <p style={{ fontSize: '13.5px', color: '#64748b', marginBottom: '20px' }}>
-              {isRtl ? `تمت إضافة ${uploadedCount} قطعة جديدة لكتالوج معروضاتك ومطابقة ماركاتها ومحركاتها بدقة.` : `Successfully added ${uploadedCount} parts to catalog.`}
+              {isRtl ? `تمت إضافة ${uploadedCount} قطعة جديدة لكتالوج معروضاتك ومطابقة ماركاتها ومحركاتها وسنواتها بدقة.` : `Successfully added ${uploadedCount} parts to catalog.`}
             </p>
             <button onClick={onClose} style={{ padding: '12px 34px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
               {isRtl ? 'العودة للوحة المعروضات ⚙️' : 'Done'}
