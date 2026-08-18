@@ -4,7 +4,6 @@ import {
   matchesSmartSearch, 
   classifyPartTier 
 } from '../utils/categoryHelper';
-import { AITranslatedText } from './AITranslatedText';
 import { PartMoreInfo } from './PartMoreInfo';
 import { VisualVehicleSelector } from './VisualVehicleSelector';
 
@@ -14,29 +13,214 @@ import { CAR_DATA } from '../data/carData';
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
 
-const CATEGORY_TRANSLATION: Record<string, string> = {
-  "Belt Drive": "نظام السيور والمكرات — Belt Drive",
-  "Body & Lamp Assembly": "الهيكل والإضاءة — Body & Lamp Assembly",
-  "Brake & Wheel Hub": "الفرامل والفرامات — Brake & Wheel Hub",
-  "Cooling System": "التبريد والرديتر — Cooling System",
-  "Drivetrain": "نظام الدفع والمحاور — Drivetrain",
-  "Electrical": "الكهرباء والكهربائيات — Electrical",
-  "Electrical-Bulb & Socket": "اللمبات والسوكتات — Electrical-Bulb & Socket",
-  "Electrical-Connector": "الفيش والتوصيلات — Electrical-Connector",
-  "Electrical-Switch & Relay": "المفاتيح والكتاوت — Electrical-Switch & Relay",
-  "Engine": "المحرك ومكوناته — Engine",
-  "Exhaust & Emission": "العادم والانبعاثات — Exhaust & Emission",
-  "Fuel & Air": "الوقود وهواء المحرك — Fuel & Air",
-  "Heat & Air Conditioning": "التكييف والتدفئة — Heat & Air Conditioning",
-  "Ignition": "نظام الاشتعال (البواجي) — Ignition",
-  "Interior": "المقصورة الداخلية — Interior",
-  "Literature": "الكتالوجات — Literature",
-  "Steering": "نظام التوجيه (الدركسون) — Steering",
-  "Suspension": "المساعدات ونظام التعليق — Suspension",
-  "Transmission-Automatic": "القير الأوتوماتيك — Transmission-Automatic",
-  "Transmission-Manual": "القير العادي — Transmission-Manual",
-  "Wheel": "الإطارات والجنوط — Wheel",
-  "Wiper & Washer": "المساحات وبخاخات المياه — Wiper & Washer"
+// 🗂️ قاموس ترجمة الأقسام الرئيسية
+const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
+  "Belt Drive": { ar: "نظام السيور والقوايش — Belt Drive", en: "Belt Drive" },
+  "Body & Lamp Assembly": { ar: "الهيكل والإضاءة (بدي وليتات) — Body & Lamp Assembly", en: "Body & Lamp Assembly" },
+  "Brake & Wheel Hub": { ar: "الفرامل والسفايف والدرامات — Brake & Wheel Hub", en: "Brake & Wheel Hub" },
+  "Cooling System": { ar: "نظام التبريد والرديتر — Cooling System", en: "Cooling System" },
+  "Drivetrain": { ar: "نظام الدفع والأكسلات والشفت — Drivetrain", en: "Drivetrain" },
+  "Electrical": { ar: "الكهرباء والدينمة والسلف — Electrical", en: "Electrical" },
+  "Electrical-Bulb & Socket": { ar: "اللمبات والفيش — Electrical-Bulb & Socket", en: "Electrical-Bulb & Socket" },
+  "Electrical-Connector": { ar: "الفيش والتوصيلات — Electrical-Connector", en: "Electrical-Connector" },
+  "Electrical-Switch & Relay": { ar: "المفاتيح والكتاوت — Electrical-Switch & Relay", en: "Electrical-Switch & Relay" },
+  "Engine": { ar: "المحرك ومكونات المكينة — Engine", en: "Engine" },
+  "Exhaust & Emission": { ar: "العادم والقزوز ودبة البيئة — Exhaust & Emission", en: "Exhaust & Emission" },
+  "Fuel & Air": { ar: "الوقود وبترول وهواء المكينة — Fuel & Air", en: "Fuel & Air" },
+  "Heat & Air Conditioning": { ar: "التكييف والكمبريسر والتدفئة — Heat & Air Conditioning", en: "Heat & Air Conditioning" },
+  "Ignition": { ar: "نظام الاشتعال (البلاكات والكويلات) — Ignition", en: "Ignition" },
+  "Interior": { ar: "المقصورة والديكور الداخلي — Interior", en: "Interior" },
+  "Literature": { ar: "الكتالوجات والكتيبات — Literature", en: "Literature" },
+  "Steering": { ar: "نظام التوجيه والاستيرنج راك (السكان) — Steering", en: "Steering" },
+  "Suspension": { ar: "المساعدات والجامبينات والشيالات — Suspension", en: "Suspension" },
+  "Transmission-Automatic": { ar: "القير الأوتوماتيك (الجير) — Transmission-Automatic", en: "Transmission-Automatic" },
+  "Transmission-Manual": { ar: "القير العادي (الكلتش) — Transmission-Manual", en: "Transmission-Manual" },
+  "Wheel": { ar: "الإطارات والرنجات والتواير — Wheel", en: "Wheel" },
+  "Wiper & Washer": { ar: "المساحات وبخاخات ماي الجام — Wiper & Washer" }
+};
+
+// 📂 قاموس ترجمة الأقسام الفرعية الشامل بالمصطلحات القطرية والإنجليزية
+const SUBCATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
+  "Brake Pad": { ar: "فحمات وقماشات الفرامل (سفايف) — Brake Pads", en: "Brake Pads" },
+  "Rotor": { ar: "هوبات وأقراص الفرامل (درام ويل / ديسكات) — Brake Rotors", en: "Brake Rotors" },
+  "Caliper": { ar: "كليبر وملاقط الفرامل — Calipers", en: "Brake Calipers" },
+  "ABS Control Module": { ar: "منظم مانع الانزلاق (ABS) — ABS Module", en: "ABS Control Module" },
+  "Brake Fluid": { ar: "زيت الفرامل (آيل بريك) — Brake Fluid", en: "Brake Fluid" },
+  "Wheel Bearing & Hub": { ar: "رمان وفلنجة العجل (بيرنج / هب) — Wheel Bearings", en: "Wheel Bearings & Hub" },
+  "Parking Brake Shoe": { ar: "أقمشة فرامل اليد (سفايف هاند بريك) — Parking Brake", en: "Parking Brake Shoes" },
+  "Shock / Strut": { ar: "المساعدات وممتص الصدمات (جامبينات) — Shocks & Struts", en: "Shocks & Struts" },
+  "Control Arm": { ar: "المقصات وأذرعة التحكم (شيالات) — Control Arms", en: "Control Arms" },
+  "Coil Spring": { ar: "اليايات والزنبركات (سبرنغات) — Coil Springs", en: "Coil Springs" },
+  "Sway Bar Link": { ar: "مسامير وأعمدة التوازن (رودات توازن / لينكات) — Sway Bar Links", en: "Sway Bar Links" },
+  "Control Arm Bushing": { ar: "جلب وربلات المقصات (بوشات) — Bushings", en: "Control Arm Bushings" },
+  "Rack and Pinion": { ar: "دودة الدركسون (استيرنج راك / مجمع سكان) — Steering Rack", en: "Rack and Pinion" },
+  "Tie Rod End": { ar: "أذرعة وركب الدركسون (رودات سكان / تاي رود) — Tie Rods", en: "Tie Rod Ends" },
+  "Coolant / Antifreeze": { ar: "سائل وماء تبريد الرديتر (ماي رديتر / كولانت) — Coolant", en: "Coolant / Antifreeze" },
+  "Water Pump": { ar: "طرمبة ومضخة الماء (واتر بمب) — Water Pump", en: "Water Pump" },
+  "Radiator": { ar: "رديتر تبريد المحرك (رديتر ماي) — Radiator", en: "Engine Radiator" },
+  "Thermostat": { ar: "ثرموستات وكوع الحرارة (بلف حرارة) — Thermostat", en: "Thermostat" },
+  "Radiator Fan Assembly": { ar: "مروحة تبريد الرديتر — Radiator Fan", en: "Radiator Fan Assembly" },
+  "Coolant Reservoir": { ar: "قربة وخزان ماء الرديتر (قربة ماي / خرطوش) — Coolant Tank", en: "Coolant Reservoir" },
+  "A/C Condenser": { ar: "مكثف ورديتر المكيف (كوندنسر) — A/C Condenser", en: "A/C Condenser" },
+  "A/C Compressor": { ar: "كمبروسر وضاغط المكيف (كمبريسر) — A/C Compressor", en: "A/C Compressor" },
+  "A/C Evaporator Core": { ar: "ثلاجة ومبخر المكيف (ثلاجة داخلية) — Evaporator", en: "A/C Evaporator Core" },
+  "Cabin Air Filter": { ar: "فلتر هواء المكيف والمقصورة (فلتر مكيف) — Cabin Filter", en: "Cabin Air Filter" },
+  "A/C Expansion Valve": { ar: "بلف وصمام تمدد المكيف — Expansion Valve", en: "A/C Expansion Valve" },
+  "Spark Plug": { ar: "بواجي وشمعات الاحتراق (بلاكات / بلكات) — Spark Plugs", en: "Spark Plugs" },
+  "Ignition Coil": { ar: "كويلات وملفات الإشعال (كويلات) — Ignition Coils", en: "Ignition Coils" },
+  "Air Filter": { ar: "فلتر هواء المحرك (فلتر مكينة) — Air Filter", en: "Engine Air Filter" },
+  "Fuel Pump & Housing Assembly": { ar: "طرمبة ومضخة الوقود (فيول بمب) — Fuel Pump", en: "Fuel Pump Assembly" },
+  "Fuel Injector": { ar: "بخاخات وحاقن الوقود (نوزلات / بخاخات) — Fuel Injectors", en: "Fuel Injectors" },
+  "Fuel Line / Hose": { ar: "فلاتر وخراطيم الوقود (فلتر بترول) — Fuel Lines", en: "Fuel Filter / Line" },
+  "Throttle Body": { ar: "بوابة وهواء الثروتل (ثروتل بدي) — Throttle Body", en: "Throttle Body" },
+  "Filter": { ar: "فلتر زيت القير (فلتر جير) — Transmission Filter", en: "Transmission Filter" },
+  "Transmission Fluid": { ar: "زيت وسوائل القير (آيل جير / ATF) — ATF Fluid", en: "Transmission Fluid" },
+  "Clutch Kit": { ar: "طقم وصحن الكلتش — Clutch Kit", en: "Clutch Kit" },
+  "CV Axle": { ar: "العكوس ومحاور الدفع (أكسلات / اكسل) — CV Axles", en: "CV Axles" },
+  "Drive Shaft": { ar: "عمود الكردان والشفت (درايف شفت) — Driveshaft", en: "Drive Shaft" },
+  "Alternator / Generator": { ar: "دينمو وشاحن البطارية (دينمة) — Alternator", en: "Alternator / Generator" },
+  "Starter Motor": { ar: "سلف ومارش التشغيل (ستارتر) — Starter Motor", en: "Starter Motor" },
+  "Battery": { ar: "بطارية السيارة (بتري) — Battery", en: "Battery" },
+  "Engine Control Module (ECM Computer)": { ar: "كمبيوتر وعقل المحرك (كمبيوتر ECU/ECM) — ECU", en: "Engine ECU / ECM" },
+  "Speed Sensor": { ar: "حساسات السرعة والقير (سبيد سنسر) — Speed Sensor", en: "Speed Sensor" },
+  "Oxygen (O2) Sensor": { ar: "حساسات الأكسجين والقزوز (O2 سنسر) — O2 Sensor", en: "Oxygen (O2) Sensor" },
+  "Mass Air Flow (MAF) Sensor": { ar: "حساس تدفق الهواء (MAF سنسر) — MAF Sensor", en: "Mass Air Flow Sensor" },
+  "Catalytic Converter": { ar: "دبة التلوث والبيئة (كربونة / دبة قزوز) — Catalytic Converter", en: "Catalytic Converter" },
+  "Vapor Canister Purge Valve / Solenoid": { ar: "بلف تبخير الوقود (PCV بلف) — Purge Valve", en: "Purge / PCV Valve" },
+  "Headlamp Assembly": { ar: "الأنوار والشموع الأمامية (ليتات قدام) — Headlights", en: "Headlamp Assembly" },
+  "Tail Lamp Assembly": { ar: "الأنوار والإسطبات الخلفية (ليتات ورا) — Taillights", en: "Tail Lamp Assembly" },
+  "Fog / Driving Lamp Assembly": { ar: "كشافات الضباب (كشافات) — Fog Lights", en: "Fog / Driving Lights" },
+  "Bumper Cover": { ar: "الصدام الخارجي (دعامية / بمبر) — Bumpers", en: "Bumper Cover" },
+  "Grille": { ar: "الشبك الأمامي (جريل) — Grille", en: "Front Grille" },
+  "Fender": { ar: "الرفرف الجانبي (مدقار) — Fenders", en: "Fenders" },
+  "Hood": { ar: "غطاء المحرك / الكبوت (بانيت / بونت) — Hood / Bonnet", en: "Hood / Bonnet" },
+  "Outside Mirror Glass": { ar: "المرايا الجانبية (مناظر) — Side Mirrors", en: "Side Mirrors" },
+  "Glass": { ar: "زجاج وجامات السيارة (جام) — Glass", en: "Auto Glass / Windshield" },
+  "Wheel": { ar: "الإطارات والرنجات والتواير (رنجات / تواير) — Wheels & Tires", en: "Wheels & Tires" },
+  "Lug Nut": { ar: "براغي وصواميل الجنوط (براغي رنج / نوتات) — Lug Nuts", en: "Wheel Lug Nuts" },
+  "Tire Pressure Monitoring System (TPMS) Sensor": { ar: "حساس ضغط الإطارات (حساس تواير TPMS) — TPMS", en: "TPMS Sensor" },
+  "Motor Mount": { ar: "كراسي وقواعد المحرك (كراسي مكينة) — Engine Mounts", en: "Motor / Engine Mounts" },
+  "Oil Filter": { ar: "فلتر وزيت المحرك (فلتر آيل / آيل مكينة) — Oil Filter", en: "Engine Oil / Filter" },
+  "Belt": { ar: "سيور المحرك الخارجية (قايش / قوايش) — Belts", en: "Drive Belts" },
+  "Belt Tensioner": { ar: "شداد وبكرات السيور (شداد قايش) — Belt Tensioners", en: "Belt Tensioners" },
+  "Oil Pump": { ar: "طرمبة ومضخة زيت المحرك (طرمبة آيل) — Oil Pump", en: "Oil Pump" },
+  "Piston": { ar: "البساتم والشنابر (بساتم) — Pistons", en: "Pistons & Rings" },
+  "Timing Chain": { ar: "جنزير وسير التايمنج (جنزير صدر) — Timing Chain", en: "Timing Chain" },
+  "Cylinder Head Gasket": { ar: "قزقيت ووجه رأس المحرك (قازقيت مكينة) — Head Gasket", en: "Cylinder Head Gasket" },
+  "Wiper Blade": { ar: "مساحات وشفرات الزجاج (مساحات جام) — Wiper Blades", en: "Wiper Blades" },
+  "Washer Pump": { ar: "طرمبة ومضخة ماء المساحات (طرمبة ماي جام) — Washer Pump", en: "Washer Pump" }
+};
+
+// 🔄 دالة ترجمة اسم القطعة الثنائية
+const formatBilingualPartName = (name: string, lang: 'ar' | 'en'): string => {
+  if (!name) return '';
+  if (lang === 'en') {
+    return name
+      .replace(/فحمات فرامل خلفية/g, 'Rear Brake Pads')
+      .replace(/فحمات فرامل أمامية/g, 'Front Brake Pads')
+      .replace(/هوب فرامل خلفي/g, 'Rear Brake Rotor')
+      .replace(/هوب فرامل أمامي/g, 'Front Brake Rotor')
+      .replace(/كرسي محرك خلفي/g, 'Rear Engine Mount')
+      .replace(/مقص علوي مع جلب/g, 'Upper Control Arm with Bushings')
+      .replace(/مقص سفلي كامل/g, 'Lower Control Arm')
+      .replace(/دينامو الشحن/g, 'Alternator')
+      .replace(/رديتر مكيف \(المكثف\)/g, 'A/C Condenser')
+      .replace(/زيت محرك/g, 'Engine Oil')
+      .replace(/شبك أمامي نيكل/g, 'Front Chrome Grille')
+      .replace(/شمعة إضاءة أمامية/g, 'Headlight Assembly')
+      .replace(/إسطب خلفي/g, 'Taillight Assembly')
+      .replace(/بلف تبخير الزيت PCV/g, 'PCV Valve')
+      .replace(/طقم مسامير جنوط/g, 'Wheel Lug Nuts Set')
+      .replace(/شمعات احتراق \(بواجي\)/g, 'Spark Plugs Set')
+      .replace(/سلف التشغيل \(مارش\)/g, 'Starter Motor')
+      .replace(/سائل تبريد رديتر/g, 'Radiator Coolant')
+      .replace(/مرآة جانبية كهربائية/g, 'Electric Side Mirror')
+      .replace(/دبة التلوث \(كربونة\)/g, 'Catalytic Converter')
+      .replace(/فلتر جير أوتوماتيك/g, 'Automatic Transmission Filter')
+      .replace(/فلتر هواء المحرك/g, 'Engine Air Filter')
+      .replace(/طرمبة بنزين كاملة/g, 'Complete Fuel Pump Assembly')
+      .replace(/إطار/g, 'Tire')
+      .replace(/صدام أمامي تجاري/g, 'Front Bumper');
+  }
+
+  const lower = name.toLowerCase();
+  if (lower.includes('windshield wiper blade') || lower.includes('wiper blade')) {
+    return 'طقم مساحات زجاج (مساحات جام) — Wiper Blades';
+  }
+  if (lower.includes('rear engine mount')) {
+    return 'كرسي محرك خلفي (كرسي مكينة ورا) — Rear Engine Mount';
+  }
+  if (lower.includes('upper control arm')) {
+    return 'مقص علوي مع جلب (شيال فوق مع بوشات) — Upper Control Arm';
+  }
+  if (lower.includes('lower control arm')) {
+    return 'مقص سفلي كامل (شيال تحت كامل) — Lower Control Arm';
+  }
+  if (lower.includes('alternator')) {
+    return 'دينامو الشحن والكهرباء (دينمة) — Alternator';
+  }
+  if (lower.includes('a/c condenser') || lower.includes('condenser')) {
+    return 'رديتر ومكثف المكيف (كوندنسر) — A/C Condenser';
+  }
+  if (lower.includes('engine oil')) {
+    return 'زيت محرك للسيارات (آيل مكينة) — Engine Oil';
+  }
+  if (lower.includes('front chrome grille') || lower.includes('grille')) {
+    return 'شبك أمامي نيكل (جريل) — Front Grille';
+  }
+  if (lower.includes('headlight') || lower.includes('headlamp')) {
+    return 'شمعة إضاءة أمامية (ليت قدام) — Headlight Assembly';
+  }
+  if (lower.includes('taillight') || lower.includes('tail lamp')) {
+    return 'إسطب وأنوار خلفية (ليت ورا) — Taillight Assembly';
+  }
+  if (lower.includes('pcv valve')) {
+    return 'بلف تبخير الزيت (PCV Valve)';
+  }
+  if (lower.includes('lug nut') || lower.includes('wheel bolts')) {
+    return 'طقم براغي وصواميل رنجات — Lug Nuts Set';
+  }
+  if (lower.includes('rear brake rotor') || lower.includes('brake rotor')) {
+    return 'هوب فرامل خلفي (درام ويل) — Rear Brake Rotor';
+  }
+  if (lower.includes('spark plug')) {
+    return 'شمعات احتراق وبواجي (بلاكات) — Spark Plugs';
+  }
+  if (lower.includes('starter motor') || lower.includes('starter')) {
+    return 'سلف ومارش التشغيل (ستارتر) — Starter Motor';
+  }
+  if (lower.includes('coolant') || lower.includes('antifreeze')) {
+    return 'سائل وماء تبريد رديتر (ماي رديتر) — Coolant';
+  }
+  if (lower.includes('side mirror') || lower.includes('mirror')) {
+    return 'مرآة جانبية كهربائية (منظرة) — Side Mirror';
+  }
+  if (lower.includes('catalytic converter')) {
+    return 'دبة التلوث والبيئة (كربونة) — Catalytic Converter';
+  }
+  if (lower.includes('transmission filter')) {
+    return 'فلتر زيت القير (فلتر جير) — Transmission Filter';
+  }
+  if (lower.includes('air filter')) {
+    return 'فلتر هواء المحرك (فلتر مكينة) — Engine Air Filter';
+  }
+  if (lower.includes('fuel pump')) {
+    return 'طرمبة ومضخة بنزين كاملة (فيول بمب) — Fuel Pump';
+  }
+  if (lower.includes('tire') || lower.includes('tires')) {
+    return 'إطار وكفر سيارات (تواير / تاير) — Tire';
+  }
+  if (lower.includes('rear brake pads') || lower.includes('brake pads')) {
+    return 'فحمات وقماشات فرامل خلفية (سفايف ورا) — Rear Brake Pads';
+  }
+  if (lower.includes('front brake pads')) {
+    return 'فحمات وقماشات فرامل أمامية (سفايف قدام) — Front Brake Pads';
+  }
+  if (lower.includes('bumper')) {
+    return 'صدام وغطاء خارجي (دعامية / بمبر) — Bumper';
+  }
+
+  return name;
 };
 
 const MAKE_DOMAINS: Record<string, string> = {
@@ -56,29 +240,8 @@ const MAKE_DOMAINS: Record<string, string> = {
   "فولكس فاجن": "vw.com", "Volkswagen": "vw.com",
   "أودي": "audi.com", "Audi": "audi.com",
   "جيب": "jeep.com", "Jeep": "jeep.com",
-  "دودج": "dodge.com", "Dodge": "دودج",
-  "رام": "ramtrucks.com", "RAM": "ramtrucks.com",
-  "لاند روفر": "landrover.com", "Land Rover": "landrover.com",
-  "إنفينيتي": "infinitiusa.com", "Infiniti": "infinitiusa.com",
-  "سوبارو": "subaru.com", "Subaru": "subaru.com",
-  "رينو": "renault.com", "Renault": "renault.com",
-  "سوزوكي": "globalsuzuki.com", "Suzuki": "globalsuzuki.com",
-  "بورش": "porsche.com", "Porsche": "porsche.com",
-  "كرايسلر": "chrysler.com", "Chrysler": "chrysler.com",
-  "إم جي": "mgmotor.com", "MG": "mgmotor.com",
-  "جيلي": "geely.com", "Geely": "geely.com",
-  "جيتور": "jetourglobal.com", "Jetour": "jetourglobal.com",
-  "هافال": "haval-global.com", "Haval": "haval-global.com",
-  "تانك": "tanksuv.com", "Tank": "tanksuv.com",
-  "شانجان": "changan.com.cn", "Changan": "changan.com.cn",
-  "شيري": "cheryinternational.com", "Chery": "cheryinternational.com",
-  "بي واي دي": "byd.com", "BYD": "byd.com",
-  "جي إيه سي": "gac-motor.com", "GAC": "gac-motor.com",
-  "هونشي": "hongqi-auto.com", "Hongqi": "hongqi-auto.com",
-  "بايك": "baicintl.com", "BAIC": "baicintl.com",
-  "بيستون": "benteng.faw.cn", "Bestune": "benteng.faw.cn",
-  "جاك": "jac.com.cn", "JAC": "jac.com.cn",
-  "جريت وول": "gwm-global.com", "GWM": "gwm-global.com"
+  "دودج": "dodge.com", "Dodge": "dodge.com",
+  "لاند روفر": "landrover.com", "Land Rover": "landrover.com"
 };
 
 const nodeStyle: React.CSSProperties = {
@@ -96,24 +259,9 @@ interface SidebarProps {
   lang: 'ar' | 'en';
   carData?: any;
   years?: string[];
-  translateMake?: Record<string, string>;
-  translateModel?: Record<string, string>;
-  categories?: string[];
-  expandedCategories?: string[];
-  toggleCategory?: (category: string) => void;
   inventory: any[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  filterMake?: string;
-  setFilterMake?: (make: string) => void;
-  filterModel?: string;
-  setFilterModel?: (model: string) => void;
-  filterYear?: string;
-  setFilterYear?: (year: string) => void;
-  filterCategory?: string;
-  setFilterCategory?: (cat: string) => void;
-  filterEngine?: string;
-  setFilterEngine?: (engine: string) => void;
   addToCart?: (item: any, quantity: number) => void;
   onInquire?: (item: any) => void;
   siteSettings?: any;
@@ -126,11 +274,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   } = props;
 
   const activeCarData = carData || CAR_DATA;
+  const isRtl = lang === 'ar';
 
-  // 🧭 طريقة البحث: 'visual' (بصري) أو 'tree' (شجرة) أو 'vin' (برقم الشاصي)
   const [searchMode, setSearchMode] = useState<'visual' | 'tree' | 'vin'>('visual');
-
-  // 🔍 حالة البحث برقم الشاصي (VIN)
   const [vinInput, setVinInput] = useState('');
   const [isDecodingVin, setIsDecodingVin] = useState(false);
   const [decodedVehicle, setDecodedVehicle] = useState<{ make: string; model: string; year: string; engine?: string } | null>(null);
@@ -141,7 +287,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
-
   const [activeSearchQuery, setActiveSearchQuery] = useState<string>('');
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [custPhone, setCustPhone] = useState('');
@@ -151,12 +296,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'default'>('default');
   const [partImageIndexes, setPartImageIndex] = useState<Record<number, number>>({});
-
   const [expandedPartCards, setExpandedPartCards] = useState<Record<number, boolean>>({});
   const [detailedPart, setDetailedPart] = useState<any | null>(null);
 
   const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
-  const isRtl = lang === 'ar';
   const isBNPLEnabled = siteSettings?.enableBNPL ?? true;
 
   const getQty = (id: number) => partQuantities[id] || 1;
@@ -182,10 +325,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     e.stopPropagation();
     const shareUrl = `${window.location.origin}?partId=${part.id}`;
     if (navigator.share) {
-      navigator.share({ title: part.name, text: `قطعة غيار: ${part.name} - ${part.price} ر.ق`, url: shareUrl }).catch(() => {});
+      navigator.share({ title: part.name, text: `قطعة غيار: ${part.name} - ${part.price} QAR`, url: shareUrl }).catch(() => {});
     } else {
       navigator.clipboard.writeText(shareUrl);
-      alert(isRtl ? 'تم نسخ رابط القطعة إلى حافظة الجهاز!' : 'Part link copied to clipboard!');
+      alert(isRtl ? 'تم نسخ رابط القطعة إلى الحافظة!' : 'Part link copied to clipboard!');
     }
   };
 
@@ -204,7 +347,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setDecodedVehicle(null);
   };
 
-  // 🚗 معالج فك تشفير رقم الشاصي (VIN Decoder)
   const handleDecodeVin = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanVin = vinInput.trim().toUpperCase();
@@ -214,7 +356,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setIsDecodingVin(true);
     try {
-      // 1. استدعاء API فك تشفير رقم الهيكل الرسمي
       const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${encodeURIComponent(cleanVin)}?format=json`);
       if (response.ok) {
         const json = await response.json();
@@ -226,9 +367,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           const detectedYear = result.ModelYear || '';
           const detectedEngine = result.DisplacementL ? `${result.DisplacementL}L` : '';
 
-          // مطابقة اسم الماركة مع الماركات العربية في المتجر
           let matchedMakeKey = Object.keys(activeCarData).find(
-            m => m.toLowerCase() === detectedMake.toLowerCase() || activeCarData[m]?.en?.toLowerCase() === detectedMake.toLowerCase()
+            m => m.toLowerCase() === detectedMake.toLowerCase()
           ) || detectedMake;
 
           setDecodedVehicle({
@@ -241,23 +381,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           return;
         }
       }
-
-      // 2. كود احتياطي (Fallback) في حال عدم توفر اتصال بالـ API الخارجي
-      const yearMap: Record<string, string> = {
-        'A': '2010', 'B': '2011', 'C': '2012', 'D': '2013', 'E': '2014',
-        'F': '2015', 'G': '2016', 'H': '2017', 'J': '2018', 'K': '2019',
-        'L': '2020', 'M': '2021', 'N': '2022', 'P': '2023', 'R': '2024',
-        'S': '2025', 'T': '2026'
-      };
-      const yearChar = cleanVin.charAt(9);
-      const estYear = yearMap[yearChar] || '2020';
-
-      setDecodedVehicle({
-        make: 'سيارة محددة',
-        model: 'رقم الشاصي: ' + cleanVin.substring(0, 8),
-        year: estYear
-      });
-      setActiveSearchQuery(cleanVin);
     } catch (err) {
       alert(isRtl ? 'تعذر فك تشفير الشاصي، يرجى التحقق من الرقم' : 'Failed to decode VIN');
     } finally {
@@ -356,8 +479,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           return yStr === year;
         });
 
-        let uniqueEngines = Array.from(new Set(filteredData.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (lang === 'ar' ? 'عام' : 'General')))) as string[];
-        if (uniqueEngines.length === 0) uniqueEngines = [lang === 'ar' ? 'عام' : 'General'];
+        let uniqueEngines = Array.from(new Set(filteredData.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines')))) as string[];
+        if (uniqueEngines.length === 0) uniqueEngines = [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'];
 
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: uniqueEngines }));
         return uniqueEngines;
@@ -366,7 +489,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } finally {
       setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
     }
-    return [lang === 'ar' ? 'عام' : 'General'];
+    return [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'];
   };
 
   const fetchMainCategoriesForEngine = async (make: string, year: string, model: string, engine: string) => {
@@ -387,9 +510,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             const target = Number(year);
             matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
           }
-          const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
-          const matchEngine = pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
-          return matchYear && matchEngine;
+          return matchYear;
         });
 
         const mainCategories = new Set<string>();
@@ -428,19 +549,15 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             const target = Number(year);
             matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
           }
-          const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
-          const matchEngine = pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
-          
           const pCat = p.category || getPartCategory(p.name) || '';
           const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-          
-          return matchYear && matchEngine && pMainCat === mainCategory;
+          return matchYear && pMainCat === mainCategory;
         });
 
         const subCategories = new Set<string>();
         filteredParts.forEach((p: any) => {
           const pCat = p.category || getPartCategory(p.name) || '';
-          const subCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (lang === 'ar' ? 'عام / أخرى' : 'General / Other');
+          const subCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (isRtl ? 'عام / أخرى' : 'General / Other');
           subCategories.add(subCat);
         });
 
@@ -473,14 +590,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             const target = Number(year);
             matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
           }
-          const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (lang === 'ar' ? 'عام' : 'General');
-          const matchEngine = pEng === engine || pEng === (lang === 'ar' ? 'عام' : 'General') || engine === (lang === 'ar' ? 'عام' : 'General');
-          
           const pCat = p.category || getPartCategory(p.name) || '';
           const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-          const pSubCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (lang === 'ar' ? 'عام / أخرى' : 'General / Other');
-          
-          return matchYear && matchEngine && pMainCat === mainCategory && pSubCat === subCategory;
+          const pSubCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (isRtl ? 'عام / أخرى' : 'General / Other');
+          return matchYear && pMainCat === mainCategory && pSubCat === subCategory;
         });
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: filtered }));
         return filtered;
@@ -539,7 +652,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const handleInAppRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!custPhone.trim()) return alert(lang === 'ar' ? 'يرجى إدخال رقم الهاتف' : 'Please enter phone number');
+    if (!custPhone.trim()) return alert(isRtl ? 'يرجى إدخال رقم الهاتف' : 'Please enter phone number');
 
     setIsSubmittingReq(true);
     try {
@@ -547,11 +660,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         method: 'POST',
         headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify([{
-          part_name: lang === 'ar' ? `طلب خاص: ${activeSearchQuery}` : `Special Request: ${activeSearchQuery}`,
+          part_name: isRtl ? `طلب خاص: ${activeSearchQuery}` : `Special Request: ${activeSearchQuery}`,
           price: 0,
           customer_phone: custPhone,
           status: 'pending',
-          notes: custNotes || (lang === 'ar' ? 'طلب قطعة غير متوفرة' : 'Requested unavailable part')
+          notes: custNotes || (isRtl ? 'طلب قطعة غير متوفرة' : 'Requested unavailable part')
         }])
       });
 
@@ -601,6 +714,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     });
 
     const installmentValue = (Number(part.price || 0) / 4).toFixed(2);
+    const displayName = formatBilingualPartName(part.name, lang);
 
     return (
       <div 
@@ -621,7 +735,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
           <div style={{ position: 'relative', width: '85px', height: '85px', flexShrink: 0 }}>
-            <img src={activeImage} alt={part.name} onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px', border: '1px solid #edf2f7' }} />
+            <img src={activeImage} alt={displayName} onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px', border: '1px solid #edf2f7' }} />
             {allImages.length > 1 && (
               <>
                 <button onClick={(e) => handlePrevImage(part.id, allImages.length, e)} style={{ position: 'absolute', top: '35%', left: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>‹</button>
@@ -631,8 +745,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
 
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
-              <AITranslatedText text={part.name} lang={lang} />
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold', lineHeight: '1.4' }}>
+              {displayName}
             </h4>
 
             <div style={{ fontSize: '11.5px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold', display: 'inline-block', marginBottom: '4px', border: '1px solid #bae6fd', fontFamily: 'monospace' }}>
@@ -644,11 +758,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 {part.part_type || (tierInfo.tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? tierInfo.label : 'Aftermarket'))}
               </span>
               <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: '#475569', backgroundColor: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
-                ✨ {part.part_condition || (isRtl ? 'نظيف' : 'Good Condition')}
+                ✨ {part.part_condition || (isRtl ? 'جديد' : 'New')}
               </span>
             </div>
 
-            {/* ⭐ تقييم الكراج واسم المعرض */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
               <span style={{ fontSize: '11px', fontWeight: 800, color: '#e0872a', backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '1px 6px', borderRadius: '5px' }}>
                 ⭐ {part.garage_rating ? Number(part.garage_rating).toFixed(1) : '4.9'}
@@ -675,9 +788,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: isRtl ? 'right' : 'left' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc', color: '#64748b' }}>
-                      <th style={{ padding: '4px 8px' }}>الشركة</th>
-                      <th style={{ padding: '4px 8px' }}>السيارة</th>
-                      <th style={{ padding: '4px 8px' }}>السنوات</th>
+                      <th style={{ padding: '4px 8px' }}>{isRtl ? 'الشركة' : 'Make'}</th>
+                      <th style={{ padding: '4px 8px' }}>{isRtl ? 'السيارة' : 'Model'}</th>
+                      <th style={{ padding: '4px 8px' }}>{isRtl ? 'السنوات' : 'Years'}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -764,7 +877,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* 🌟 بطاقات اختيار طريقة البحث (3 خيارات واضحة مع البحث برقم الشاصي) */}
+      {/* 🌟 بطاقات اختيار طريقة البحث */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', direction: isRtl ? 'rtl' : 'ltr' }}>
         
         {/* الخيار 1: البحث البصري السريع */}
@@ -890,7 +1003,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 <strong style={{ color: '#166534', fontSize: '14.5px', display: 'block' }}>
                   ✅ {isRtl ? 'تم التعرف على السيارة بنجاح:' : 'Vehicle Identified:'} {decodedVehicle.make} {decodedVehicle.model} ({decodedVehicle.year})
                 </strong>
-                {decodedVehicle.engine && <span style={{ fontSize: '12.5px', color: '#15803d' }}>⚡ محرك: {decodedVehicle.engine}</span>}
+                {decodedVehicle.engine && <span style={{ fontSize: '12.5px', color: '#15803d' }}>⚡ {isRtl ? 'محرك:' : 'Engine:'} {decodedVehicle.engine}</span>}
               </div>
               <button
                 type="button"
@@ -904,7 +1017,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         </div>
       )}
 
-      {/* 🚀 عرض الطريقة الأولى: محدد السيارة البصري التفاعلي */}
+      {/* 🚀 عرض الطريقة الأولى: محدد السيارة البصري */}
       {searchMode === 'visual' && (
         <VisualVehicleSelector 
           lang={lang} 
@@ -912,7 +1025,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         />
       )}
 
-      {/* 🚀 عرض الطريقة الثانية: شجرة التصفية مع البحث النصي */}
+      {/* 🚀 عرض الطريقة الثانية: شجرة التصفية مع الترجمة الذكية */}
       {searchMode === 'tree' && (
         <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
           
@@ -920,7 +1033,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
               <input 
                 type="text" 
-                placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم..." : "Search by Part Number, Code, or Name..."} 
+                placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم (سفايف، جامبينات، رنجات)..." : "Search by Part Number, Code, or Name..."} 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
                 style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px' }} 
@@ -967,7 +1080,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               {Object.keys(activeCarData).map(make => {
                 const makeKey = `make_${make}`;
                 const isMakeOpen = !!expandedNodes[makeKey];
-                const makeName = make;
+                const makeName = isRtl ? make : (activeCarData[make]?.en || make);
                 const yearsCacheKey = `years_${make}`;
                 const isYearsLoading = !!loadingNodes[yearsCacheKey];
                 const availableYears = nodeDataCache[yearsCacheKey] || [];
@@ -1057,7 +1170,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                               availableMainCategories.map((mainCategory: string) => {
                                                                 const mainCatKey = `maincat_${make}_${year}_${model}_${engine}_${mainCategory}`;
                                                                 const isMainCatOpen = !!expandedNodes[mainCatKey];
-                                                                const translatedMainCategory = CATEGORY_TRANSLATION[mainCategory] || mainCategory;
+                                                                
+                                                                const mainCatInfo = CATEGORY_TRANSLATIONS[mainCategory];
+                                                                const displayMainCategory = mainCatInfo 
+                                                                  ? (isRtl ? mainCatInfo.ar : mainCatInfo.en) 
+                                                                  : mainCategory;
                                                                 
                                                                 const subCatsCacheKey = `subcats_${make}_${year}_${model}_${engine}_${mainCategory}`;
                                                                 const isSubCatsLoading = !!loadingNodes[subCatsCacheKey];
@@ -1066,7 +1183,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                 return (
                                                                   <li key={mainCategory} style={{ marginBottom: '6px' }}>
                                                                     <div onClick={() => toggleNode(mainCatKey, () => fetchSubCategoriesForMain(make, year, model, engine, mainCategory))} style={{ ...nodeStyle, backgroundColor: isMainCatOpen ? '#fff7ed' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: 'bold' }}>
-                                                                      <span>{translatedMainCategory} {isSubCatsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
+                                                                      <span>📂 {displayMainCategory} {isSubCatsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                                                                       <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isMainCatOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                                     </div>
 
@@ -1081,6 +1198,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                             const subCatKey = `subcat_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
                                                                             const isSubCatOpen = !!expandedNodes[subCatKey];
                                                                             
+                                                                            const subCatInfo = SUBCATEGORY_TRANSLATIONS[subCategory];
+                                                                            const displaySubCategory = subCatInfo 
+                                                                              ? (isRtl ? subCatInfo.ar : subCatInfo.en) 
+                                                                              : subCategory;
+
                                                                             const partsCacheKey = `parts_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
                                                                             const isPartsLoading = !!loadingNodes[partsCacheKey];
                                                                             const subCategoryParts = processAndSortParts(nodeDataCache[partsCacheKey] || []);
@@ -1088,7 +1210,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                             return (
                                                                               <li key={subCategory} style={{ marginBottom: '6px' }}>
                                                                                 <div onClick={() => toggleNode(subCatKey, () => fetchPartsForSubCategory(make, year, model, engine, mainCategory, subCategory))} style={{ ...nodeStyle, backgroundColor: isSubCatOpen ? '#f0fdf4' : 'transparent', fontSize: '12.5px', color: '#166534', padding: '6px 10px', fontWeight: 'bold', borderLeft: isRtl ? 'none' : '3px solid #4ade80', borderRight: isRtl ? '3px solid #4ade80' : 'none' }}>
-                                                                                  <span>🔸 {subCategory} {isPartsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(جلب...)' : '(Fetching...)'}</small>}</span>
+                                                                                  <span>🔸 {displaySubCategory} {isPartsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(جلب...)' : '(Fetching...)'}</small>}</span>
                                                                                   <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isSubCatOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
                                                                                 </div>
 
