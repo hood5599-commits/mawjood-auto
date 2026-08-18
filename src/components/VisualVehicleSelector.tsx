@@ -82,16 +82,13 @@ interface VisualVehicleSelectorProps {
 export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ lang, renderPartCard }) => {
   const isRtl = lang === 'ar';
 
-  // 🚗 بيانات محدد السيارة
   const [selectedMake, setSelectedMake] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedEngine, setSelectedEngine] = useState('');
 
-  // 🪜 مراحل التدفق البصري
   const [currentStep, setCurrentStep] = useState<'idle' | 'engine' | 'main_cat' | 'sub_cat' | 'parts'>('idle');
 
-  // تخزين القطع المفلترة الخاصة بالسيارة المختارة لمنع تكرار طلبات الشبكة
   const [carFilteredParts, setCarFilteredParts] = useState<any[]>([]);
   const [availableEngines, setAvailableEngines] = useState<string[]>([]);
   const [availableMainCats, setAvailableMainCats] = useState<string[]>([]);
@@ -104,7 +101,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
 
   const [loading, setLoading] = useState(false);
 
-  // 🧠 مطابقة ذكية مرنة للموديل (تدعم العربي والإنجليزي)
+  // 🧠 مطابقة ذكية مرنة للموديل
   const isModelMatching = (dbModel: string, targetModel: string): boolean => {
     if (!dbModel || !targetModel) return true;
     const d = dbModel.toLowerCase().trim();
@@ -137,7 +134,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     return false;
   };
 
-  // 🧠 فحص وتطابق سنة الصنع (سواء نطاق 2015-2022 أو سنة مفردة 2019)
+  // 🧠 فحص وتطابق سنة الصنع
   const isYearMatching = (dbYear: string, targetYear: string): boolean => {
     if (!dbYear || !targetYear) return true;
     const yStr = String(dbYear).trim();
@@ -161,12 +158,10 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     try {
       const enMake = CAR_DATA[selectedMake]?.en || selectedMake;
       
-      // جلب القطع بمرونة تشمل الاسم العربي أو الإنجليزي للماركة
       const url = `${SUPABASE_URL}/parts?or=(make.ilike.*${encodeURIComponent(selectedMake)}*,make.ilike.*${encodeURIComponent(enMake)}*)&select=*`;
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       const data = await res.json();
 
-      // تصفية القطع بناءً على الموديل وسنة الصنع بذكاء
       const matchedVehicles = (data || []).filter((p: any) => {
         const matchModel = isModelMatching(p.model || '', selectedModel);
         const matchYear = isYearMatching(p.year || '', selectedYear);
@@ -175,12 +170,10 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
 
       setCarFilteredParts(matchedVehicles);
 
-      // استخراج المحركات المتاحة
       const rawEngines = matchedVehicles.map((p: any) => p.engine && p.engine.trim() !== '' ? p.engine : (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'));
       const enginesList = Array.from(new Set(rawEngines)) as string[];
       setAvailableEngines(enginesList.length > 0 ? enginesList : [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines']);
 
-      // الانتقال الذكي للخطوة التالية
       if (selectedEngine) {
         setChosenEngine(selectedEngine);
         loadMainCategories(matchedVehicles, selectedEngine);
@@ -199,10 +192,14 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   };
 
   // 2️⃣ استخراج الأقسام الرئيسية المتاحة للسيارة
-  const loadMainCategories = (partsList: any[], engine: string) => {
+  const loadMainCategories = (partsList: any[], engine?: string) => {
+    const filtered = engine && !engine.includes('جميع المحركات') && !engine.includes('All Engines')
+      ? partsList.filter(p => !p.engine || p.engine.includes('جميع') || p.engine.includes('All') || p.engine === engine)
+      : partsList;
+
     const mainCats = new Set<string>();
 
-    partsList.forEach((p: any) => {
+    filtered.forEach((p: any) => {
       const pCat = p.category || '';
       const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
       if (main && main !== 'عام') mainCats.add(main);
@@ -233,7 +230,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
       }
     });
 
-    // إذا لم تكن هناك أقسام فرعية محددة، ننتقل لعرض القطع مباشرة
     if (subCats.size === 0) {
       const parts = carFilteredParts.filter(p => (p.category || '').includes(cat));
       setMatchingParts(parts);
@@ -480,9 +476,11 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
             {availableSubCats.map((sub) => {
-              const subName = SUBCATEGORY_NAMES[sub] 
-                ? (isRtl ? subName?.ar || sub : subName?.en || sub)
+              const subInfo = SUBCATEGORY_NAMES[sub];
+              const displaySubName = subInfo 
+                ? (isRtl ? subInfo.ar : subInfo.en) 
                 : sub;
+
               return (
                 <div
                   key={sub}
@@ -505,7 +503,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e0'; e.currentTarget.style.backgroundColor = '#f8fafc'; }}
                 >
                   <span style={{ fontSize: '20px' }}>🔸</span>
-                  <span>{SUBCATEGORY_NAMES[sub] ? (isRtl ? SUBCATEGORY_NAMES[sub].ar : SUBCATEGORY_NAMES[sub].en) : sub}</span>
+                  <span>{displaySubName}</span>
                 </div>
               );
             })}
