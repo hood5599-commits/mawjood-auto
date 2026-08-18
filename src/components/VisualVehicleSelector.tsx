@@ -4,23 +4,74 @@ import { CAR_DATA, CAR_YEARS } from '../data/carData';
 const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
 
-// أيقونات وصور دلالية للأقسام الرئيسية
-const CATEGORY_META: Record<string, { ar: string; icon: string; bg: string }> = {
-  "Engine": { ar: "المحرك ومكوناته", icon: "⚙️", bg: "#eff6ff" },
-  "Brake & Wheel Hub": { ar: "الفرامل والفحمات", icon: "🛑", bg: "#fef2f2" },
-  "Cooling System": { ar: "التبريد والرديتر", icon: "❄️", bg: "#f0fdf4" },
-  "Heat & Air Conditioning": { ar: "التكييف والكمبروسر", icon: "💨", bg: "#fffbeb" },
-  "Suspension": { ar: "المساعدات والتعليق", icon: "🔩", bg: "#faf5ff" },
-  "Drivetrain": { ar: "الدفع والمحاور (العكوس)", icon: "🔄", bg: "#fdf2f8" },
-  "Electrical": { ar: "الكهرباء والدينمو", icon: "⚡", bg: "#fefce8" },
-  "Transmission-Automatic": { ar: "القير الأوتوماتيك", icon: "🕹️", bg: "#f1f5f9" },
-  "Transmission-Manual": { ar: "القير العادي", icon: "⚙️", bg: "#f1f5f9" },
-  "Body & Lamp Assembly": { ar: "الهيكل والإضاءة", icon: "💡", bg: "#f8fafc" },
-  "Fuel & Air": { ar: "الوقود والفلاتر", icon: "⛽", bg: "#f0fdfa" },
-  "Ignition": { ar: "الاشتعال والبواجي", icon: "🔥", bg: "#fff7ed" },
-  "Steering": { ar: "التوجيه (الدركسون)", icon: "🎯", bg: "#f5f3ff" },
-  "Wheel": { ar: "الجنوط والكفرات", icon: "🛞", bg: "#f8fafc" },
-  "Wiper & Washer": { ar: "المساحات والمضخات", icon: "🌧️", bg: "#eff6ff" }
+// 🗂️ أيقونات وبيانات الأقسام الرئيسية
+const CATEGORY_META: Record<string, { ar: string; en: string; icon: string; bg: string }> = {
+  "Brake & Wheel Hub": { ar: "الفرامل والسفايف والدرامات", en: "Brake & Wheel Hub", icon: "🛑", bg: "#fef2f2" },
+  "Suspension": { ar: "المساعدات والجامبينات والشيالات", en: "Suspension", icon: "🔩", bg: "#faf5ff" },
+  "Engine": { ar: "المحرك ومكونات المكينة", en: "Engine & Components", icon: "⚙️", bg: "#eff6ff" },
+  "Cooling System": { ar: "نظام التبريد والرديتر", en: "Cooling System", icon: "❄️", bg: "#f0fdf4" },
+  "Heat & Air Conditioning": { ar: "التكييف والكمبريسر والتدفئة", en: "Heat & Air Conditioning", icon: "💨", bg: "#fffbeb" },
+  "Ignition": { ar: "نظام الاشتعال (البلاكات والكويلات)", en: "Ignition System", icon: "🔥", bg: "#fff7ed" },
+  "Fuel & Air": { ar: "الوقود وبترول وهواء المكينة", en: "Fuel & Air", icon: "⛽", bg: "#f0fdfa" },
+  "Electrical": { ar: "الكهرباء والدينمة والسلف", en: "Electrical System", icon: "⚡", bg: "#fefce8" },
+  "Body & Lamp Assembly": { ar: "الهيكل والإضاءة (بدي وليتات)", en: "Body & Lighting", icon: "💡", bg: "#f8fafc" },
+  "Steering": { ar: "نظام التوجيه والاستيرنج راك", en: "Steering System", icon: "🎯", bg: "#f5f3ff" },
+  "Drivetrain": { ar: "الدفع والمحاور (الأكسلات والشفت)", en: "Drivetrain & Axles", icon: "🔄", bg: "#fdf2f8" },
+  "Transmission-Automatic": { ar: "القير الأوتوماتيك (الجير)", en: "Automatic Transmission", icon: "🕹️", bg: "#f1f5f9" },
+  "Transmission-Manual": { ar: "القير العادي (الكلتش)", en: "Manual Transmission", icon: "⚙️", bg: "#f1f5f9" },
+  "Wheel": { ar: "الإطارات والرنجات والتواير", en: "Wheels & Tires", icon: "🛞", bg: "#f8fafc" },
+  "Wiper & Washer": { ar: "المساحات وبخاخات ماي الجام", en: "Wipers & Washers", icon: "🌧️", bg: "#eff6ff" }
+};
+
+// 📂 قاموس ترجمة الأقسام الفرعية بالمصطلحات القطرية والإنجليزية
+const SUBCATEGORY_NAMES: Record<string, { ar: string; en: string }> = {
+  "Brake Pad": { ar: "فحمات وقماشات الفرامل (سفايف) — Brake Pads", en: "Brake Pads" },
+  "Rotor": { ar: "هوبات وأقراص الفرامل (درام ويل) — Brake Rotors", en: "Brake Rotors" },
+  "Caliper": { ar: "كليبر وملاقط الفرامل — Calipers", en: "Brake Calipers" },
+  "ABS Control Module": { ar: "منظم مانع الانزلاق (ABS) — ABS Module", en: "ABS Control Module" },
+  "Brake Fluid": { ar: "زيت الفرامل (آيل بريك) — Brake Fluid", en: "Brake Fluid" },
+  "Wheel Bearing & Hub": { ar: "رمان وفلنجة العجل (بيرنج) — Wheel Bearings", en: "Wheel Bearings & Hub" },
+  "Shock / Strut": { ar: "المساعدات وممتص الصدمات (جامبينات) — Shocks & Struts", en: "Shocks & Struts" },
+  "Control Arm": { ar: "المقصات وأذرعة التحكم (شيالات) — Control Arms", en: "Control Arms" },
+  "Coil Spring": { ar: "اليايات والزنبركات (سبرنغات) — Coil Springs", en: "Coil Springs" },
+  "Sway Bar Link": { ar: "مسامير وأعمدة التوازن (رودات توازن) — Sway Bar Links", en: "Sway Bar Links" },
+  "Control Arm Bushing": { ar: "جلب وربلات المقصات (بوشات) — Bushings", en: "Control Arm Bushings" },
+  "Rack and Pinion": { ar: "دودة الدركسون (استيرنج راك) — Steering Rack", en: "Rack & Pinion Steering" },
+  "Tie Rod End": { ar: "أذرعة وركب الدركسون (رودات سكان) — Tie Rods", en: "Tie Rod Ends" },
+  "Coolant / Antifreeze": { ar: "سائل وماء تبريد الرديتر (ماي رديتر) — Coolant", en: "Coolant / Antifreeze" },
+  "Water Pump": { ar: "طرمبة ومضخة الماء (واتر بمب) — Water Pump", en: "Water Pump" },
+  "Radiator": { ar: "رديتر تبريد المحرك (رديتر ماي) — Radiator", en: "Engine Radiator" },
+  "Thermostat": { ar: "ثرموستات وكوع الحرارة (بلف حرارة) — Thermostat", en: "Thermostat" },
+  "Radiator Fan Assembly": { ar: "مروحة تبريد الرديتر — Radiator Fan", en: "Radiator Fan Assembly" },
+  "Coolant Reservoir": { ar: "قربة وخزان ماء الرديتر (قربة ماي) — Coolant Tank", en: "Coolant Reservoir" },
+  "A/C Condenser": { ar: "مكثف ورديتر المكيف (كوندنسر) — A/C Condenser", en: "A/C Condenser" },
+  "A/C Compressor": { ar: "كمبروسر وضاغط المكيف (كمبريسر) — A/C Compressor", en: "A/C Compressor" },
+  "Cabin Air Filter": { ar: "فلتر هواء المكيف والمقصورة (فلتر مكيف) — Cabin Filter", en: "Cabin Air Filter" },
+  "Spark Plug": { ar: "بواجي وشمعات الاحتراق (بلاكات) — Spark Plugs", en: "Spark Plugs" },
+  "Ignition Coil": { ar: "كويلات وملفات الإشعال (كويلات) — Ignition Coils", en: "Ignition Coils" },
+  "Air Filter": { ar: "فلتر هواء المحرك (فلتر مكينة) — Air Filter", en: "Engine Air Filter" },
+  "Fuel Pump & Housing Assembly": { ar: "طرمبة ومضخة الوقود (فيول بمب) — Fuel Pump", en: "Fuel Pump Assembly" },
+  "Fuel Injector": { ar: "بخاخات وحاقن الوقود (نوزلات) — Fuel Injectors", en: "Fuel Injectors" },
+  "Filter": { ar: "فلتر زيت القير (فلتر جير) — Transmission Filter", en: "Transmission Filter" },
+  "Transmission Fluid": { ar: "زيت وسوائل القير (آيل جير / ATF) — ATF Fluid", en: "Transmission Fluid" },
+  "CV Axle": { ar: "العكوس ومحاور الدفع (أكسلات) — CV Axles", en: "CV Axles" },
+  "Alternator / Generator": { ar: "دينمو وشاحن البطارية (دينمة) — Alternator", en: "Alternator / Generator" },
+  "Starter Motor": { ar: "سلف ومارش التشغيل (ستارتر) — Starter Motor", en: "Starter Motor" },
+  "Battery": { ar: "بطارية السيارة (بتري) — Battery", en: "Battery" },
+  "Catalytic Converter": { ar: "دبة التلوث والبيئة (كربونة) — Catalytic Converter", en: "Catalytic Converter" },
+  "Headlamp Assembly": { ar: "الأنوار والشموع الأمامية (ليتات قدام) — Headlights", en: "Headlamp Assembly" },
+  "Tail Lamp Assembly": { ar: "الأنوار والإسطبات الخلفية (ليتات ورا) — Taillights", en: "Tail Lamp Assembly" },
+  "Fog / Driving Lamp Assembly": { ar: "كشافات الضباب (كشافات) — Fog Lights", en: "Fog / Driving Lights" },
+  "Bumper Cover": { ar: "الصدام الخارجي (دعامية / بمبر) — Bumpers", en: "Bumper Cover" },
+  "Grille": { ar: "الشبك الأمامي (جريل) — Grille", en: "Front Grille" },
+  "Fender": { ar: "الرفرف الجانبي (مدقار) — Fenders", en: "Fenders" },
+  "Hood": { ar: "غطاء المحرك / الكبوت (بانيت) — Hood", en: "Hood / Bonnet" },
+  "Outside Mirror Glass": { ar: "المرايا الجانبية (مناظر) — Side Mirrors", en: "Side Mirrors" },
+  "Wheel": { ar: "الإطارات والرنجات والتواير — Wheels & Tires", en: "Wheels & Tires" },
+  "Lug Nut": { ar: "براغي وصواميل الجنوط (براغي رنج) — Lug Nuts", en: "Lug Nuts" },
+  "Motor Mount": { ar: "كراسي وقواعد المحرك (كراسي مكينة) — Engine Mounts", en: "Motor Mounts" },
+  "Oil Filter": { ar: "فلتر وزيت المحرك (فلتر آيل) — Oil Filter", en: "Oil Filter" },
+  "Belt": { ar: "سيور المحرك الخارجية (قايش) — Belts", en: "Drive Belts" }
 };
 
 interface VisualVehicleSelectorProps {
@@ -40,52 +91,103 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   // 🪜 مراحل التدفق البصري
   const [currentStep, setCurrentStep] = useState<'idle' | 'engine' | 'main_cat' | 'sub_cat' | 'parts'>('idle');
 
-  // البيانات المحملة ديناميكياً
+  // تخزين القطع المفلترة الخاصة بالسيارة المختارة لمنع تكرار طلبات الشبكة
+  const [carFilteredParts, setCarFilteredParts] = useState<any[]>([]);
   const [availableEngines, setAvailableEngines] = useState<string[]>([]);
   const [availableMainCats, setAvailableMainCats] = useState<string[]>([]);
   const [availableSubCats, setAvailableSubCats] = useState<string[]>([]);
   const [matchingParts, setMatchingParts] = useState<any[]>([]);
 
-  // الخيارات المحددة في المسار البصري
   const [chosenEngine, setChosenEngine] = useState('');
   const [chosenMainCat, setChosenMainCat] = useState('');
   const [chosenSubCat, setChosenSubCat] = useState('');
 
   const [loading, setLoading] = useState(false);
 
-  // 1️⃣ عند الضغط على زر "ابحث عن القطع" من صندوق محدد السيارة
+  // 🧠 مطابقة ذكية مرنة للموديل (تدعم العربي والإنجليزي)
+  const isModelMatching = (dbModel: string, targetModel: string): boolean => {
+    if (!dbModel || !targetModel) return true;
+    const d = dbModel.toLowerCase().trim();
+    const t = targetModel.toLowerCase().trim();
+
+    if (d === t || d.includes(t) || t.includes(d)) return true;
+
+    const aliases: Record<string, string[]> = {
+      'باترول': ['patrol', 'باترول', 'فتك'],
+      'كامري': ['camry', 'كامري'],
+      'كورولا': ['corolla', 'كورولا'],
+      'لاندكروزر': ['land cruiser', 'landcruiser', 'لاندكروزر', 'لاند كروزر'],
+      'النترا': ['elantra', 'النترا', 'إلنترا'],
+      'سوناتا': ['sonata', 'سوناتا'],
+      'اوبتيما': ['optima', 'k5', 'أوبتيما', 'اوبتيما'],
+      'تورس': ['taurus', 'تورس', 'توروس'],
+      'تاهو': ['tahoe', 'تاهو'],
+      'التيما': ['altima', 'التيما', 'ألتيما'],
+      'e-class': ['e-class', 'e class', 'e300', 'e200', 'e350'],
+      '6': ['6', 'مازدا 6', 'mazda 6'],
+      'اكورد': ['accord', 'اكورد', 'أكورد']
+    };
+
+    for (const key of Object.keys(aliases)) {
+      const list = aliases[key];
+      if (list.some(a => t.includes(a)) && list.some(a => d.includes(a))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // 🧠 فحص وتطابق سنة الصنع (سواء نطاق 2015-2022 أو سنة مفردة 2019)
+  const isYearMatching = (dbYear: string, targetYear: string): boolean => {
+    if (!dbYear || !targetYear) return true;
+    const yStr = String(dbYear).trim();
+    const target = Number(targetYear);
+
+    if (yStr.includes('-')) {
+      const [start, end] = yStr.split('-').map(Number);
+      if (!isNaN(start) && !isNaN(end)) {
+        return target >= Math.min(start, end) && target <= Math.max(start, end);
+      }
+    }
+    return yStr === targetYear || yStr.includes(targetYear);
+  };
+
+  // 1️⃣ بدء البحث البصري عند الضغط على "استعراض الأقسام"
   const handleStartSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMake || !selectedModel || !selectedYear) return;
 
     setLoading(true);
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(selectedMake)}&model=eq.${encodeURIComponent(selectedModel)}&select=*`;
+      const enMake = CAR_DATA[selectedMake]?.en || selectedMake;
+      
+      // جلب القطع بمرونة تشمل الاسم العربي أو الإنجليزي للماركة
+      const url = `${SUPABASE_URL}/parts?or=(make.ilike.*${encodeURIComponent(selectedMake)}*,make.ilike.*${encodeURIComponent(enMake)}*)&select=*`;
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       const data = await res.json();
 
-      // تصفية القطع بناءً على السنة
-      const yearFiltered = (data || []).filter((p: any) => {
-        const yStr = String(p.year || '').trim();
-        if (yStr.includes('-')) {
-          const [start, end] = yStr.split('-').map(Number);
-          const target = Number(selectedYear);
-          return target >= Math.min(start, end) && target <= Math.max(start, end);
-        }
-        return yStr === selectedYear;
+      // تصفية القطع بناءً على الموديل وسنة الصنع بذكاء
+      const matchedVehicles = (data || []).filter((p: any) => {
+        const matchModel = isModelMatching(p.model || '', selectedModel);
+        const matchYear = isYearMatching(p.year || '', selectedYear);
+        return matchModel && matchYear;
       });
 
-      // استخراج المحركات المتوفرة لهذه السيارة
-      const enginesList = Array.from(new Set(yearFiltered.map((p: any) => p.engine && p.engine.trim() !== '' ? p.engine : (isRtl ? 'عام / كل المحركات' : 'General')))) as string[];
-      setAvailableEngines(enginesList.length > 0 ? enginesList : [isRtl ? 'عام / كل المحركات' : 'General']);
+      setCarFilteredParts(matchedVehicles);
 
-      // ⚡ التحقق الذكي: إذا حدد المستخدم محركاً في القائمة المنسدلة، نتخطى مرحلة المحرك فوراً
+      // استخراج المحركات المتاحة
+      const rawEngines = matchedVehicles.map((p: any) => p.engine && p.engine.trim() !== '' ? p.engine : (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'));
+      const enginesList = Array.from(new Set(rawEngines)) as string[];
+      setAvailableEngines(enginesList.length > 0 ? enginesList : [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines']);
+
+      // الانتقال الذكي للخطوة التالية
       if (selectedEngine) {
         setChosenEngine(selectedEngine);
-        loadMainCategories(yearFiltered, selectedEngine);
-      } else if (enginesList.length === 1) {
-        setChosenEngine(enginesList[0]);
-        loadMainCategories(yearFiltered, enginesList[0]);
+        loadMainCategories(matchedVehicles, selectedEngine);
+      } else if (enginesList.length <= 1) {
+        const defaultEng = enginesList[0] || (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines');
+        setChosenEngine(defaultEng);
+        loadMainCategories(matchedVehicles, defaultEng);
       } else {
         setCurrentStep('engine');
       }
@@ -96,18 +198,14 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     }
   };
 
-  // 2️⃣ استخراج وتجهيز الأقسام الرئيسية
-  const loadMainCategories = (parts: any[], engine: string) => {
-    const filtered = parts.filter((p: any) => {
-      const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (isRtl ? 'عام / كل المحركات' : 'General');
-      return pEng === engine || pEng === (isRtl ? 'عام / كل المحركات' : 'General') || engine === (isRtl ? 'عام / كل المحركات' : 'General');
-    });
-
+  // 2️⃣ استخراج الأقسام الرئيسية المتاحة للسيارة
+  const loadMainCategories = (partsList: any[], engine: string) => {
     const mainCats = new Set<string>();
-    filtered.forEach((p: any) => {
+
+    partsList.forEach((p: any) => {
       const pCat = p.category || '';
       const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-      if (main) mainCats.add(main);
+      if (main && main !== 'عام') mainCats.add(main);
     });
 
     setAvailableMainCats(Array.from(mainCats));
@@ -115,76 +213,50 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   };
 
   // 3️⃣ عند اختيار المحرك بصرياً
-  const handleSelectEngine = async (eng: string) => {
+  const handleSelectEngine = (eng: string) => {
     setChosenEngine(eng);
-    setLoading(true);
-    try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(selectedMake)}&model=eq.${encodeURIComponent(selectedModel)}&select=*`;
-      const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
-      const data = await res.json();
-      loadMainCategories(data || [], eng);
-    } catch (err) {} finally {
-      setLoading(false);
-    }
+    loadMainCategories(carFilteredParts, eng);
   };
 
-  // 4️⃣ عند اختيار القسم الرئيسي بصرياً
-  const handleSelectMainCat = async (cat: string) => {
+  // 4️⃣ عند اختيار القسم الرئيسي
+  const handleSelectMainCat = (cat: string) => {
     setChosenMainCat(cat);
-    setLoading(true);
-    try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(selectedMake)}&model=eq.${encodeURIComponent(selectedModel)}&select=*`;
-      const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
-      const data = await res.json();
 
-      const subCats = new Set<string>();
-      (data || []).forEach((p: any) => {
-        const pCat = p.category || '';
-        const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-        const sub = pCat.includes('>') ? pCat.split('>')[1].trim() : (isRtl ? 'قطع عامة' : 'General Parts');
-        if (main === cat) subCats.add(sub);
-      });
+    const subCats = new Set<string>();
+    carFilteredParts.forEach((p: any) => {
+      const pCat = p.category || '';
+      const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
+      const sub = pCat.includes('>') ? pCat.split('>')[1].trim() : '';
 
+      if (main === cat && sub) {
+        subCats.add(sub);
+      }
+    });
+
+    // إذا لم تكن هناك أقسام فرعية محددة، ننتقل لعرض القطع مباشرة
+    if (subCats.size === 0) {
+      const parts = carFilteredParts.filter(p => (p.category || '').includes(cat));
+      setMatchingParts(parts);
+      setCurrentStep('parts');
+    } else {
       setAvailableSubCats(Array.from(subCats));
       setCurrentStep('sub_cat');
-    } catch (err) {} finally {
-      setLoading(false);
     }
   };
 
-  // 5️⃣ عند اختيار القسم الفرعي بصرياً وعرض القطع
-  const handleSelectSubCat = async (subCat: string) => {
+  // 5️⃣ عند اختيار القسم الفرعي وعرض القطع المتوافقة
+  const handleSelectSubCat = (subCat: string) => {
     setChosenSubCat(subCat);
-    setLoading(true);
-    try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(selectedMake)}&model=eq.${encodeURIComponent(selectedModel)}&select=*`;
-      const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
-      const data = await res.json();
 
-      const finalParts = (data || []).filter((p: any) => {
-        const yStr = String(p.year || '').trim();
-        let matchYear = yStr === selectedYear;
-        if (yStr.includes('-')) {
-          const [start, end] = yStr.split('-').map(Number);
-          const target = Number(selectedYear);
-          matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
-        }
+    const finalParts = carFilteredParts.filter((p: any) => {
+      const pCat = p.category || '';
+      const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
+      const sub = pCat.includes('>') ? pCat.split('>')[1].trim() : '';
+      return main === chosenMainCat && (sub === subCat || !sub);
+    });
 
-        const pEng = p.engine && p.engine.trim() !== '' ? p.engine : (isRtl ? 'عام / كل المحركات' : 'General');
-        const matchEngine = pEng === chosenEngine || pEng === (isRtl ? 'عام / كل المحركات' : 'General') || chosenEngine === (isRtl ? 'عام / كل المحركات' : 'General');
-
-        const pCat = p.category || '';
-        const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-        const sub = pCat.includes('>') ? pCat.split('>')[1].trim() : (isRtl ? 'قطع عامة' : 'General Parts');
-
-        return matchYear && matchEngine && main === chosenMainCat && sub === subCat;
-      });
-
-      setMatchingParts(finalParts);
-      setCurrentStep('parts');
-    } catch (err) {} finally {
-      setLoading(false);
-    }
+    setMatchingParts(finalParts);
+    setCurrentStep('parts');
   };
 
   return (
@@ -295,8 +367,8 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 18px', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '13px', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 'bold', color: '#1f3a5f' }}>🚘 {selectedMake} {selectedModel} ({selectedYear})</span>
           {chosenEngine && <span style={{ color: '#64748b' }}> › ⚡ {chosenEngine}</span>}
-          {chosenMainCat && <span style={{ color: '#64748b' }}> › 🗂️ {CATEGORY_META[chosenMainCat]?.ar || chosenMainCat}</span>}
-          {chosenSubCat && <span style={{ color: '#e0872a', fontWeight: 'bold' }}> › 📂 {chosenSubCat}</span>}
+          {chosenMainCat && <span style={{ color: '#64748b' }}> › 🗂️ {isRtl ? (CATEGORY_META[chosenMainCat]?.ar || chosenMainCat) : (CATEGORY_META[chosenMainCat]?.en || chosenMainCat)}</span>}
+          {chosenSubCat && <span style={{ color: '#e0872a', fontWeight: 'bold' }}> › 📂 {isRtl ? (SUBCATEGORY_NAMES[chosenSubCat]?.ar || chosenSubCat) : (SUBCATEGORY_NAMES[chosenSubCat]?.en || chosenSubCat)}</span>}
           
           <button
             onClick={() => setCurrentStep('idle')}
@@ -347,13 +419,21 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
             🗂️ {isRtl ? 'اختر القسم الرئيسي لقطعة الغيار:' : 'Select Main Category:'}
           </h4>
           {availableMainCats.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#94a3b8', padding: '30px 0' }}>
-              {isRtl ? 'لا توجد قطع معروضة حالياً لهذه الفئة.' : 'No parts available for this vehicle.'}
-            </p>
+            <div style={{ textAlign: 'center', padding: '30px 0' }}>
+              <p style={{ color: '#64748b', fontWeight: 'bold' }}>
+                {isRtl ? 'لا توجد قطع معروضة حالياً لسيارة:' : 'No parts available for:'} ({selectedMake} {selectedModel} {selectedYear})
+              </p>
+              <button
+                onClick={() => setCurrentStep('idle')}
+                style={{ padding: '8px 18px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}
+              >
+                🔄 {isRtl ? 'اختيار سيارة أخرى' : 'Select Another Vehicle'}
+              </button>
+            </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px' }}>
               {availableMainCats.map((cat) => {
-                const meta = CATEGORY_META[cat] || { ar: cat, icon: '📦', bg: '#f8fafc' };
+                const meta = CATEGORY_META[cat] || { ar: cat, en: cat, icon: '📦', bg: '#f8fafc' };
                 return (
                   <div
                     key={cat}
@@ -372,7 +452,9 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
                     onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)'; }}
                   >
                     <div style={{ fontSize: '32px', marginBottom: '8px' }}>{meta.icon}</div>
-                    <strong style={{ fontSize: '14px', color: '#1f3a5f', display: 'block' }}>{isRtl ? meta.ar : cat}</strong>
+                    <strong style={{ fontSize: '14px', color: '#1f3a5f', display: 'block', marginBottom: '4px' }}>
+                      {isRtl ? meta.ar : meta.en}
+                    </strong>
                     <span style={{ fontSize: '11px', color: '#64748b' }}>{cat}</span>
                   </div>
                 );
@@ -387,7 +469,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h4 style={{ margin: 0, color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-              📂 {isRtl ? `القطع والأقسام الفرعية في (${CATEGORY_META[chosenMainCat]?.ar || chosenMainCat}):` : `Subcategories in (${chosenMainCat}):`}
+              📂 {isRtl ? `الأقسام الفرعية المتوفرة في (${CATEGORY_META[chosenMainCat]?.ar || chosenMainCat}):` : `Subcategories in (${chosenMainCat}):`}
             </h4>
             <button
               onClick={() => setCurrentStep('main_cat')}
@@ -396,32 +478,37 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
               ↩️ {isRtl ? 'رجوع للأقسام الرئيسية' : 'Back to Categories'}
             </button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-            {availableSubCats.map((sub) => (
-              <div
-                key={sub}
-                onClick={() => handleSelectSubCat(sub)}
-                style={{
-                  padding: '16px',
-                  borderRadius: '12px',
-                  border: '1.5px solid #cbd5e0',
-                  backgroundColor: '#f8fafc',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'all 0.2s ease',
-                  fontWeight: 'bold',
-                  color: '#1f3a5f',
-                  fontSize: '13px'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#16a34a'; e.currentTarget.style.backgroundColor = '#f0fdf4'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e0'; e.currentTarget.style.backgroundColor = '#f8fafc'; }}
-              >
-                <span style={{ fontSize: '20px' }}>🔸</span>
-                <span>{sub}</span>
-              </div>
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+            {availableSubCats.map((sub) => {
+              const subName = SUBCATEGORY_NAMES[sub] 
+                ? (isRtl ? subName?.ar || sub : subName?.en || sub)
+                : sub;
+              return (
+                <div
+                  key={sub}
+                  onClick={() => handleSelectSubCat(sub)}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e0',
+                    backgroundColor: '#f8fafc',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    transition: 'all 0.2s ease',
+                    fontWeight: 'bold',
+                    color: '#1f3a5f',
+                    fontSize: '13px'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#16a34a'; e.currentTarget.style.backgroundColor = '#f0fdf4'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e0'; e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                >
+                  <span style={{ fontSize: '20px' }}>🔸</span>
+                  <span>{SUBCATEGORY_NAMES[sub] ? (isRtl ? SUBCATEGORY_NAMES[sub].ar : SUBCATEGORY_NAMES[sub].en) : sub}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -431,13 +518,13 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h4 style={{ margin: 0, color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-              🛒 {isRtl ? `القطع المتوفرة (${matchingParts.length}):` : `Available Parts (${matchingParts.length}):`}
+              🛒 {isRtl ? `القطع المتوافقة المتوفرة (${matchingParts.length}):` : `Compatible Parts (${matchingParts.length}):`}
             </h4>
             <button
-              onClick={() => setCurrentStep('sub_cat')}
+              onClick={() => setCurrentStep(availableSubCats.length > 0 ? 'sub_cat' : 'main_cat')}
               style={{ background: 'none', border: '1px solid #cbd5e0', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              ↩️ {isRtl ? 'تغيير القسم الفرعي' : 'Change Subcategory'}
+              ↩️ {isRtl ? 'تغيير القسم' : 'Change Category'}
             </button>
           </div>
 
@@ -456,3 +543,5 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     </div>
   );
 };
+
+export default VisualVehicleSelector;
