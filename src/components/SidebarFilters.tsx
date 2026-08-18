@@ -14,7 +14,7 @@ const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
 
 // 🗂️ قاموس ترجمة الأقسام الرئيسية
-const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
+const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en?: string }> = {
   "Belt Drive": { ar: "نظام السيور والقوايش — Belt Drive", en: "Belt Drive" },
   "Body & Lamp Assembly": { ar: "الهيكل والإضاءة (بدي وليتات) — Body & Lamp Assembly", en: "Body & Lamp Assembly" },
   "Brake & Wheel Hub": { ar: "الفرامل والسفايف والدرامات — Brake & Wheel Hub", en: "Brake & Wheel Hub" },
@@ -36,11 +36,11 @@ const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   "Transmission-Automatic": { ar: "القير الأوتوماتيك (الجير) — Transmission-Automatic", en: "Transmission-Automatic" },
   "Transmission-Manual": { ar: "القير العادي (الكلتش) — Transmission-Manual", en: "Transmission-Manual" },
   "Wheel": { ar: "الإطارات والرنجات والتواير — Wheel", en: "Wheel" },
-  "Wiper & Washer": { ar: "المساحات وبخاخات ماي الجام — Wiper & Washer" }
+  "Wiper & Washer": { ar: "المساحات وبخاخات ماي الجام — Wiper & Washer", en: "Wiper & Washer" }
 };
 
-// 📂 قاموس ترجمة الأقسام الفرعية الشامل بالمصطلحات القطرية والإنجليزية
-const SUBCATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
+// 📂 قاموس ترجمة الأقسام الفرعية بالمصطلحات القطرية والإنجليزية
+const SUBCATEGORY_TRANSLATIONS: Record<string, { ar: string; en?: string }> = {
   "Brake Pad": { ar: "فحمات وقماشات الفرامل (سفايف) — Brake Pads", en: "Brake Pads" },
   "Rotor": { ar: "هوبات وأقراص الفرامل (درام ويل / ديسكات) — Brake Rotors", en: "Brake Rotors" },
   "Caliper": { ar: "كليبر وملاقط الفرامل — Calipers", en: "Brake Calipers" },
@@ -111,7 +111,7 @@ const SUBCATEGORY_TRANSLATIONS: Record<string, { ar: string; en: string }> = {
   "Washer Pump": { ar: "طرمبة ومضخة ماء المساحات (طرمبة ماي جام) — Washer Pump", en: "Washer Pump" }
 };
 
-// 🔄 دالة ترجمة اسم القطعة الثنائية
+// 🔄 دالة ترجمة وتنسيق اسم القطعة ثنائية اللغة
 const formatBilingualPartName = (name: string, lang: 'ar' | 'en'): string => {
   if (!name) return '';
   if (lang === 'en') {
@@ -255,16 +255,33 @@ const nodeStyle: React.CSSProperties = {
   userSelect: 'none',
 };
 
+// 🌟 واجهة الخصائص الشاملة المتوافقة مع App.tsx
 interface SidebarProps {
   lang: 'ar' | 'en';
   carData?: any;
   years?: string[];
+  translateMake?: Record<string, string>;
+  translateModel?: Record<string, string>;
+  categories?: string[];
+  expandedCategories?: string[];
+  toggleCategory?: (category: string) => void;
   inventory: any[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  filterMake?: string;
+  setFilterMake?: (make: string) => void;
+  filterModel?: string;
+  setFilterModel?: (model: string) => void;
+  filterYear?: string;
+  setFilterYear?: (year: string) => void;
+  filterCategory?: string;
+  setFilterCategory?: (cat: string) => void;
+  filterEngine?: string;
+  setFilterEngine?: (engine: string) => void;
   addToCart?: (item: any, quantity: number) => void;
   onInquire?: (item: any) => void;
   siteSettings?: any;
+  [key: string]: any;
 }
 
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
@@ -1171,9 +1188,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                 const mainCatKey = `maincat_${make}_${year}_${model}_${engine}_${mainCategory}`;
                                                                 const isMainCatOpen = !!expandedNodes[mainCatKey];
                                                                 
+                                                                // 🌟 العرض المزدوج للقسم الرئيسي
                                                                 const mainCatInfo = CATEGORY_TRANSLATIONS[mainCategory];
                                                                 const displayMainCategory = mainCatInfo 
-                                                                  ? (isRtl ? mainCatInfo.ar : mainCatInfo.en) 
+                                                                  ? (isRtl ? mainCatInfo.ar : (mainCatInfo.en || mainCategory)) 
                                                                   : mainCategory;
                                                                 
                                                                 const subCatsCacheKey = `subcats_${make}_${year}_${model}_${engine}_${mainCategory}`;
@@ -1198,9 +1216,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                             const subCatKey = `subcat_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
                                                                             const isSubCatOpen = !!expandedNodes[subCatKey];
                                                                             
+                                                                            // 🌟 العرض المزدوج للقسم الفرعي
                                                                             const subCatInfo = SUBCATEGORY_TRANSLATIONS[subCategory];
                                                                             const displaySubCategory = subCatInfo 
-                                                                              ? (isRtl ? subCatInfo.ar : subCatInfo.en) 
+                                                                              ? (isRtl ? subCatInfo.ar : (subCatInfo.en || subCategory)) 
                                                                               : subCategory;
 
                                                                             const partsCacheKey = `parts_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
