@@ -13,61 +13,97 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const apiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.REACT_APP_GEMINI_API_KEY ||
+    process.env.VITE_GEMINI_API_KEY;
+
   if (!apiKey) {
-    return res.status(500).json({ error: 'Missing Gemini API Key on server' });
+    return res.status(500).json({ error: 'Missing GEMINI_API_KEY in Vercel Environment Variables' });
   }
 
   try {
-    let { imageBase64, mimeType } = req.body || {};
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {}
+    }
+
+    let { imageBase64, mimeType } = body || {};
     if (!imageBase64) {
       return res.status(400).json({ error: 'Image data is required' });
     }
 
-    if (imageBase64.includes(',')) {
+    // تنظيف Base64 من أي بادئات
+    if (imageBase64.includes('base64,')) {
+      imageBase64 = imageBase64.split('base64,')[1];
+    } else if (imageBase64.includes(',')) {
       imageBase64 = imageBase64.split(',')[1];
     }
+    imageBase64 = imageBase64.trim().replace(/\s/g, '');
 
-    const promptText = `Analyze this Qatari vehicle registration card (استمارة ترخيص تسيير مركبة دولة قطر).
-Extract strictly:
-1. 17-character Chassis/VIN number (رقم القاعدة / الشاصي).
-2. Make / نوع المركبة (e.g. TOYOTA).
-3. Model / الطراز (e.g. CAMRY).
-4. Year / سنة الصنع (e.g. 2015).
-5. Engine / رقم المحرك (e.g. 2AR).
+    const promptText = `Analyze this Qatari vehicle registration card (استمارة ترخيص تسيير مركبة - دولة قطر).
+Focus strictly on the "بيانات المركبة / Vehicle Information" section at the bottom:
+1. Extract Chassis No. / رقم القاعدة (17 alphanumeric characters, e.g. 6T1BF9FK9FX540435).
+2. Extract Make / نوع المركبة (e.g. TOYOTA).
+3. Extract Model / الطراز (e.g. CAMRY).
+4. Extract Year / سنة الصنع (4-digit year, e.g. 2015).
 
-Respond ONLY with a JSON object:
-{"vin": "6T1BF9FK9FX540435", "make": "Toyota", "model": "Camry", "year": "2015"}`;
+Return JSON with keys: vin, make, model, year.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const geminiPayload = {
+      contents: [
+        {
+          role: 'user',
           parts: [
             { text: promptText },
-            { inline_data: { mime_type: mimeType || 'image/jpeg', data: imageBase64 } }
+            {
+              inlineData: {
+                mimeType: mimeType || 'image/jpeg',
+                data: imageBase64
+              }
+            }
           ]
-        }]
-      })
+        }
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.1
+      }
+    };
+
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiPayload)
     });
 
     const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    // استخراج رقم الشاصي (17 حرف/رقم) عبر Regex كخيار أساسي ومضمون
-    const vinMatch = rawText.match(/[A-HJ-NPR-Z0-9]{17}/i);
-    let detectedVin = vinMatch ? vinMatch[0].toUpperCase() : '';
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data?.error?.message || 'Gemini API Error'
+      });
+    }
 
-    // تنظيف نص الرد من علامات Markdown
-    const cleanJsonStr = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const jsonMatch = cleanJsonStr.match(/\{[\s\S]*\}/);
+    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
+    // 1. استخراج رقم الشاصي (17 حرف ورقم)
+    const vinRegexMatch = rawText.match(/[A-HJ-NPR-Z0-9]{17}/i);
+    let detectedVin = vinRegexMatch ? vinRegexMatch[0].toUpperCase() : '';
+
+    // 2. تحليل JSON
     let parsed: any = {};
-    if (jsonMatch) {
-      try {
-        parsed = JSON.parse(jsonMatch[0]);
-      } catch (e) {}
+    try {
+      parsed = JSON.parse(rawText);
+    } catch (e) {
+      const match = rawText.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { parsed = JSON.parse(match[0]); } catch (err) {}
+      }
     }
 
     if (!detectedVin && parsed.vin) {
@@ -78,8 +114,7 @@ Respond ONLY with a JSON object:
       vin: detectedVin || parsed.vin || '',
       make: parsed.make || '',
       model: parsed.model || '',
-      year: parsed.year || '',
-      engine: parsed.engine || ''
+      year: parsed.year || ''
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'Internal server error' });
