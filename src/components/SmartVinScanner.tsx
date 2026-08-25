@@ -1,7 +1,9 @@
 // src/components/SmartVinScanner.tsx
 import React, { useState, useRef } from 'react';
-import { VehicleProfile } from '../utils/vinMatcher';
+import type { VehicleProfile } from '../utils/vinMatcher';
 import { CAR_DATA } from '../data/carData';
+
+declare const process: any;
 
 interface SmartVinScannerProps {
   lang: 'ar' | 'en';
@@ -63,7 +65,6 @@ export const SmartVinScanner: React.FC<SmartVinScannerProps> = ({
       }
       throw new Error('Could not decode VIN directly');
     } catch (err) {
-      // مطابقة مبدئية إذا تعذر الوصول لـ API الدولي
       onVehicleIdentified({
         vin: cleanVin,
         make: '',
@@ -88,10 +89,12 @@ export const SmartVinScanner: React.FC<SmartVinScannerProps> = ({
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const base64Data = (reader.result as string).split(',')[1];
-        const geminiApiKey = (typeof process !== 'undefined' && (process.env?.REACT_APP_GEMINI_API_KEY || (process.env as any)?.VITE_GEMINI_API_KEY)) || "";
+        const geminiApiKey = 
+          (typeof process !== 'undefined' && (process?.env?.REACT_APP_GEMINI_API_KEY || process?.env?.VITE_GEMINI_API_KEY)) || 
+          (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_GEMINI_API_KEY) || 
+          "";
 
         if (!geminiApiKey) {
-          // إذا لم يتوفر مفتاح Gemini يتم استخراج أي رقم شاصي تجريبي أو تنبيه المستخدم
           alert(isRtl ? 'يرجى إدخال رقم الشاصي يدوياً أو تفعيل مفتاح الذكاء الاصطناعي.' : 'Please enter VIN manually or enable AI Key.');
           setIsProcessing(false);
           return;
@@ -161,7 +164,6 @@ Return ONLY a valid JSON object matching this structure:
       marginBottom: '24px',
       direction: isRtl ? 'rtl' : 'ltr'
     }}>
-      {/* رأس القسم */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#1f3a5f', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -193,7 +195,6 @@ Return ONLY a valid JSON object matching this structure:
         )}
       </div>
 
-      {/* شريط السيارة المحددة بنجاح */}
       {activeVehicle ? (
         <div style={{
           backgroundColor: '#f0fdf4',
@@ -230,10 +231,8 @@ Return ONLY a valid JSON object matching this structure:
           </div>
         </div>
       ) : (
-        /* خيارات المسح والإدخال */
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           
-          {/* 1. رفع / تصوير الاستمارة */}
           <div
             onClick={() => !isProcessing && fileInputRef.current?.click()}
             style={{
@@ -264,7 +263,6 @@ Return ONLY a valid JSON object matching this structure:
             </span>
           </div>
 
-          {/* 2. إدخال رقم الشاصي يدوياً */}
           <form
             onSubmit={(e) => { e.preventDefault(); decodeVinNumber(vinText); }}
             style={{
@@ -322,7 +320,6 @@ Return ONLY a valid JSON object matching this structure:
         </div>
       )}
 
-      {/* شريط حالة المعالجة */}
       {isProcessing && (
         <div style={{ marginTop: '14px', textAlign: 'center', color: '#0369a1', fontWeight: 'bold', fontSize: '13px' }}>
           🔄 {statusMsg}
