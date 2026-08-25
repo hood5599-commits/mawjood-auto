@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { CAR_DATA, CAR_YEARS } from '../data/carData';
-
-const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
-const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
+import { SUPABASE_URL, API_KEY } from '../config/supabase';
 
 // 🗂️ أيقونات وبيانات الأقسام الرئيسية
 const CATEGORY_META: Record<string, { ar: string; en: string; icon: string; bg: string }> = {
@@ -60,7 +58,7 @@ const SUBCATEGORY_NAMES: Record<string, { ar: string; en: string }> = {
   "Battery": { ar: "بطارية السيارة (بتري) — Battery", en: "Battery" },
   "Catalytic Converter": { ar: "دبة التلوث والبيئة (كربونة) — Catalytic Converter", en: "Catalytic Converter" },
   "Headlamp Assembly": { ar: "الأنوار والشموع الأمامية (ليتات قدام) — Headlights", en: "Headlamp Assembly" },
-  "Tail Lamp Assembly": { ar: "الأنوار والإسطبات الخلفية (ليتات ورا) — Taillights", en: "Tail Lamp Assembly" },
+  "Tail Lamp Assembly": { ar: "الأنوار والإسطبات الخلفية (ليتات ورا) — Tail Lamp Assembly", en: "Tail Lamp Assembly" },
   "Fog / Driving Lamp Assembly": { ar: "كشافات الضباب (كشافات) — Fog Lights", en: "Fog / Driving Lights" },
   "Bumper Cover": { ar: "الصدام الخارجي (دعامية / بمبر) — Bumpers", en: "Bumper Cover" },
   "Grille": { ar: "الشبك الأمامي (جريل) — Grille", en: "Front Grille" },
