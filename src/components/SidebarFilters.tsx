@@ -347,7 +347,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }
   };
 
-  togglePartCardExpand = (partId: number) => {
+  const togglePartCardExpand = (partId: number) => {
     setExpandedPartCards(prev => ({ ...prev, [partId]: !prev[partId] }));
   };
 
