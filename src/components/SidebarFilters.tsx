@@ -11,6 +11,8 @@ import { VisualVehicleSelector } from './VisualVehicleSelector';
 import { CAR_DATA } from '../data/carData';
 import { SUPABASE_URL, API_KEY } from '../config/supabase';
 
+declare const process: any;
+
 // 🗂️ قاموس ترجمة الأقسام الرئيسية
 const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en?: string }> = {
   "Belt Drive": { ar: "نظام السيور والقوايش — Belt Drive", en: "Belt Drive" },
