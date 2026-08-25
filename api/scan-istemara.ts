@@ -42,18 +42,17 @@ export default async function handler(req: any, res: any) {
 
     const promptText = `Analyze this Qatari vehicle registration card (استمارة ترخيص تسيير مركبة دولة قطر).
 Extract strictly:
-1. Chassis No. / رقم القاعدة (17-char alphanumeric VIN).
-2. Make / نوع المركبة (e.g. TOYOTA).
-3. Model / الطراز (e.g. CAMRY).
-4. Year / سنة الصنع (4-digit year, e.g. 2015).
+1. Chassis No. / رقم القاعدة (17-character VIN).
+2. Make / نوع المركبة.
+3. Model / الطراز.
+4. Year / سنة الصنع.
 
-Respond strictly with a JSON object:
+Respond ONLY with a valid JSON object:
 {"vin": "6T1BF9FK9FX540435", "make": "Toyota", "model": "Camry", "year": "2015"}`;
 
     const modelsToTry = [
-      'gemini-2.0-flash',
-      'gemini-1.5-flash-002',
       'gemini-1.5-flash',
+      'gemini-2.0-flash',
       'gemini-1.5-pro'
     ];
 
@@ -63,10 +62,13 @@ Respond strictly with a JSON object:
     for (const modelName of modelsToTry) {
       try {
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey // دعم رسمي لمفاتيح AQ و AIzaSy
+            },
             body: JSON.stringify({
               contents: [{
                 parts: [
