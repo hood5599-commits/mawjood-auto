@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   getPartCategory, 
-  matchesSmartSearch, 
   classifyPartTier 
 } from '../utils/categoryHelper';
 import { PartMoreInfo } from './PartMoreInfo';
@@ -263,7 +262,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [isSubmittingReq, setIsSubmittingReq] = useState(false);
   const [reqSubmitted, setReqSubmitted] = useState(false);
 
-  // 🔢 عدد القطع المعروضة والتحميل التلقائي عند التمرير
+  // 🔢 عدد القطع المعروضة والتحميل التلقائي عند التمرير (يبدأ بـ 20 قطعة)
   const [displayLimit, setDisplayLimit] = useState<number>(20);
 
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'default'>('default');
@@ -470,6 +469,27 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }
 
     return 'uncertain';
+  };
+
+  // 🔍 دالة فحص رقم القطعة فقط (تجاهل النصوص والأسماء العامة)
+  const matchesPartNumberOnly = (part: any, query: string): boolean => {
+    if (!query) return false;
+    const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
+    if (!cleanQuery) return false;
+
+    const partNo = String(part.part_number || '').toLowerCase().replace(/[\s\-_]/g, '');
+    const code = String(part.code || '').toLowerCase().replace(/[\s\-_]/g, '');
+    const sku = String(part.sku || '').toLowerCase().replace(/[\s\-_]/g, '');
+    const oem = String(part.oem_number || '').toLowerCase().replace(/[\s\-_]/g, '');
+    const id = String(part.id || '');
+
+    return (
+      (partNo !== '' && partNo.includes(cleanQuery)) ||
+      (code !== '' && code.includes(cleanQuery)) ||
+      (sku !== '' && sku.includes(cleanQuery)) ||
+      (oem !== '' && oem.includes(cleanQuery)) ||
+      (id === cleanQuery)
+    );
   };
 
   const fetchYearsForMake = async (make: string) => {
@@ -722,11 +742,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return partsList;
   };
 
-  // تصفية وعرض القطع وترتيبها بحيث تظهر القطع المتوافقة أولاً، ثم غير المؤكدة، ثم غير المتوافقة
+  // 🎯 نتائج البحث الحصري برقم القطعة مع تقديم المتطابقة
   const searchResults = processAndSortParts(
     inventory.filter((part: any) => {
-      if (activeSearchQuery) return matchesSmartSearch(part, activeSearchQuery);
-      return true;
+      if (activeSearchQuery) return matchesPartNumberOnly(part, activeSearchQuery);
+      return false; // إذا لم يبحث برقم قطعة لا يعرض شيء في نتائج البحث المباشرة
     })
   ).sort((a: any, b: any) => {
     if (!decodedVehicle) return 0;
@@ -748,7 +768,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         method: 'POST',
         headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify([{
-          part_name: isRtl ? `طلب خاص: ${activeSearchQuery || decodedVehicle?.vin || 'طلب قطعة'}` : `Special Request: ${activeSearchQuery || decodedVehicle?.vin}`,
+          part_name: isRtl ? `طلب خاص برقم: ${activeSearchQuery || decodedVehicle?.vin || 'طلب قطعة'}` : `Special Request PN: ${activeSearchQuery || decodedVehicle?.vin}`,
           price: 0,
           customer_phone: custPhone,
           status: 'pending',
@@ -1035,7 +1055,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               {decodedVehicle.vin && <span style={{ fontSize: '12px', color: '#166534', fontFamily: 'monospace', fontWeight: 'bold' }}>[VIN: {decodedVehicle.vin}]</span>}
             </div>
             <span style={{ backgroundColor: '#166534', color: 'white', padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-              🎯 {isRtl ? 'يتم ترتيب القطع المتوافقة في المقدمة' : 'Compatible parts shown first'}
+              🎯 {isRtl ? 'تم تفعيل فحص التوافق على جميع القطع' : 'Fitment filter active on all parts'}
             </span>
           </div>
         ) : (
@@ -1117,7 +1137,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         )}
       </div>
 
-      {/* 🌟 2. بطاقات اختيار طريقة البحث الأخرى */}
+      {/* 🌟 2. بطاقات اختيار طريقة البحث (البصري / الكتالوج الهرمي) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', direction: isRtl ? 'rtl' : 'ltr' }}>
         
         {/* الخيار 1: البحث البصري السريع */}
@@ -1178,29 +1198,29 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
       </div>
 
-      {/* 🚀 عرض الطريقة الأولى: محدد السيارة البصري */}
-      {searchMode === 'visual' && !decodedVehicle && (
+      {/* 🚀 عرض الطريقة الأولى: محدد السيارة البصري (يظل متاحاً دائماً) */}
+      {searchMode === 'visual' && !activeSearchQuery && (
         <VisualVehicleSelector 
           lang={lang} 
           renderPartCard={renderPartCard} 
         />
       )}
 
-      {/* 🚀 عرض الطريقة الثانية: شجرة التصفية / نتائج البحث الشاملة */}
-      {(decodedVehicle || searchMode === 'tree') && (
+      {/* 🚀 عرض الطريقة الثانية: شجرة التصفية / نتائج البحث برقم القطعة */}
+      {(activeSearchQuery || searchMode === 'tree') && (
         <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
           
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
             <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
               <input 
                 type="text" 
-                placeholder={isRtl ? "ابحث برقم القطعة، الكود، أو الاسم (سفايف، جامبينات، رنجات)..." : "Search by Part Number, Code, or Name..."} 
+                placeholder={isRtl ? "ابحث برقم القطعة أو الكود الحصري فقط (مثال: 04465-33470)..." : "Search strictly by Part Number, Code or SKU..."} 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
-                style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px' }} 
+                style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px', fontFamily: 'monospace' }} 
               />
               <button type="submit" style={{ padding: '0 20px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
-                🔍 {isRtl ? 'بحث' : 'Search'}
+                🔍 {isRtl ? 'بحث برقم القطعة' : 'Search Number'}
               </button>
             </form>
 
@@ -1215,13 +1235,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             </select>
           </div>
 
-          {(decodedVehicle || activeSearchQuery) ? (
+          {activeSearchQuery ? (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ color: '#1f3a5f', margin: 0 }}>
-                  🛒 {decodedVehicle 
-                    ? (isRtl ? `القطع المعروضة (مع ترتيب التوافق لـ ${decodedVehicle.make} ${decodedVehicle.model}):` : `Catalog Parts (Sorted for ${decodedVehicle.make} ${decodedVehicle.model}):`)
-                    : (isRtl ? `نتائج البحث عن: "${activeSearchQuery}"` : `Search results for: "${activeSearchQuery}"`)}
+                  🔍 {isRtl ? `نتائج البحث عن رقم القطعة: "${activeSearchQuery}"` : `Results for Part Number: "${activeSearchQuery}"`}
                 </h3>
                 <button onClick={clearSearch} style={{ padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', border: '1px solid #cbd5e0', backgroundColor: '#ffffff', fontWeight: 'bold', fontSize: '12.5px' }}>
                   ↩️ {isRtl ? 'العودة للكتالوج' : 'Back to Catalog'}
@@ -1230,9 +1248,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
               {searchResults.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <p style={{ color: '#64748b', fontWeight: 'bold' }}>{isRtl ? 'عفواً، لا توجد قطع متوفرة مطابقة حالياً.' : 'Sorry, no parts found for this match.'}</p>
+                  <p style={{ color: '#64748b', fontWeight: 'bold' }}>
+                    {isRtl 
+                      ? 'عفواً، لا توجد قطعة مطابقة لهذا الرقم تماماً (البحث مخصص فقط لأرقام وأكواد القطع وليس للأسماء العامة).' 
+                      : 'No exact part number match found (Search strictly requires Part Numbers/Codes, not general names).'}
+                  </p>
                   <button onClick={() => { setReqSubmitted(false); setShowRequestModal(true); }} style={{ padding: '10px 20px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
-                    📩 {isRtl ? 'إرسال طلب قطعة داخل البرنامج' : 'Request a part in-app'}
+                    📩 {isRtl ? 'إرسال طلب قطعة بهذا الرقم' : 'Request part with this number'}
                   </button>
                 </div>
               ) : (
