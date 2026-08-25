@@ -1023,7 +1023,6 @@ Return ONLY a valid JSON object matching: {"vin": "17_CHAR_VIN", "make": "Toyota
                 type="file"
                 ref={fileInputRef}
                 accept="image/*"
-                capture="environment"
                 onChange={handleIstemaraUpload}
                 style={{ display: 'none' }}
                 disabled={isDecodingVin}
