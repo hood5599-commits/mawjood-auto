@@ -7,7 +7,7 @@ import {
 import { PartMoreInfo } from './PartMoreInfo';
 import { VisualVehicleSelector } from './VisualVehicleSelector';
 
-// 🚗 استيراد بيانات السيارات المركزية والمتغيرات الآمنة
+// 🚗 استيراد بيانات السيارات المركزية
 import { CAR_DATA } from '../data/carData';
 import { SUPABASE_URL, API_KEY } from '../config/supabase';
 
@@ -205,7 +205,7 @@ const nodeStyle: React.CSSProperties = {
   userSelect: 'none',
 };
 
-// 🌟 واجهة الخصائص الشاملة المتوافقة مع App.tsx
+// 🌟 واجهة الخصائص الشاملة
 interface SidebarProps {
   lang: 'ar' | 'en';
   carData?: any;
@@ -245,7 +245,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 🚘 حالات فحص الشاصي والاستمارة
-  const [searchMode, setSearchMode] = useState<'visual' | 'tree'>('visual');
+  const [searchMode, setSearchMode] = useState<'visual' | 'tree' | 'vin'>('visual');
   const [vinInput, setVinInput] = useState('');
   const [isDecodingVin, setIsDecodingVin] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
@@ -363,13 +363,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setStatusMsg('');
     }
   };
-  
+
+  // 📷 قراءة الاستمارة القطرية بالذكاء الاصطناعي عبر السيرفر بأمان
   const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsDecodingVin(true);
-    setStatusMsg(isRtl ? 'جاري فحص الاستمارة بالذكاء الاصطناعي...' : 'Scanning registration card with AI...');
+    setStatusMsg(isRtl ? 'جاري فحص الاستمارة القطرية بالذكاء الاصطناعي...' : 'Scanning registration card with AI...');
 
     try {
       const reader = new FileReader();
@@ -411,21 +412,61 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             make: matchedMakeKey || 'Toyota',
             model: parsed.model || 'Camry',
             year: parsed.year || '2015',
+            engine: parsed.engine || '',
             vin: detectedVin
           });
           setIsDecodingVin(false);
           return;
         }
 
-        alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى إدخاله يدوياً.' : 'Could not read VIN clearly. Please type it manually.');
+        alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته يدوياً.' : 'Could not read VIN clearly. Please enter it manually.');
         setIsDecodingVin(false);
       };
     } catch (err) {
-      alert(isRtl ? 'حدث خطأ أثناء رفع الصورة.' : 'Error uploading image.');
+      alert(isRtl ? 'حدث خطأ أثناء رفع الصورة.' : 'Error reading image.');
       setIsDecodingVin(false);
     }
   };
-  
+
+  // 🎯 محرك مطابقة الشاصي والسيارة مع القطع
+  const isPartFitWithVehicle = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string }) => {
+    const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
+    if (excelVins && vehicle.vin) {
+      const cleanVin = vehicle.vin.toUpperCase().trim();
+      const vinList = String(excelVins).toUpperCase().split(/[,;\s\n/]+/).map(v => v.trim()).filter(Boolean);
+      if (vinList.some(v => cleanVin === v || cleanVin.startsWith(v) || v.startsWith(cleanVin.substring(0, 8)))) {
+        return true;
+      }
+    }
+
+    if (vehicle.make && part.make) {
+      const pMake = (part.make || '').toLowerCase();
+      const vMake = vehicle.make.toLowerCase();
+      if (!pMake.includes(vMake) && !vMake.includes(pMake)) return false;
+    }
+
+    if (vehicle.model && part.model) {
+      const pModel = (part.model || '').toLowerCase();
+      const vModel = vehicle.model.toLowerCase();
+      if (!pModel.includes(vModel) && !vModel.includes(pModel)) return false;
+    }
+
+    if (vehicle.year && part.year) {
+      const pYearStr = String(part.year).trim();
+      const vYear = Number(vehicle.year);
+      if (pYearStr.includes('-')) {
+        const [start, end] = pYearStr.split('-').map(Number);
+        if (!isNaN(start) && !isNaN(end) && !isNaN(vYear)) {
+          if (vYear < Math.min(start, end) || vYear > Math.max(start, end)) return false;
+        }
+      } else if (!isNaN(vYear) && !pYearStr.includes(String(vYear))) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const fetchYearsForMake = async (make: string) => {
     const cacheKey = `years_${make}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
@@ -914,7 +955,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* 🚀 1. الماسح الذكي لرقم الشاصي وصورة الاستمارة (في أعلى الصفحة) */}
+      {/* 🚀 1. الفاحص الذكي لرقم الشاصي وصورة الاستمارة (أعلى الصفحة) */}
       <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '2px solid #e0872a', boxShadow: '0 8px 24px rgba(224,135,42,0.08)', direction: isRtl ? 'rtl' : 'ltr' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
           <div>
