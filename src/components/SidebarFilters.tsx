@@ -1,6 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { createWorker } from 'tesseract.js';
-import { scanIstemara } from '../utils/istemaraScanner';
 import { 
   getPartCategory, 
   matchesSmartSearch, 
@@ -8,6 +6,7 @@ import {
 } from '../utils/categoryHelper';
 import { PartMoreInfo } from './PartMoreInfo';
 import { VisualVehicleSelector } from './VisualVehicleSelector';
+import { scanIstemara } from '../utils/istemaraScanner';
 
 // 🚗 استيراد بيانات السيارات المركزية
 import { CAR_DATA } from '../data/carData';
