@@ -1,5 +1,3 @@
-// src/config/supabase.ts
-
 // قراءة الرابط والمفتاح من بيئة التشغيل بأمان تام
 const rawUrl = 
   (typeof process !== 'undefined' && process.env?.REACT_APP_SUPABASE_URL) ||
