@@ -9,9 +9,7 @@ import { VisualVehicleSelector } from './VisualVehicleSelector';
 
 // 🚗 استيراد بيانات السيارات المركزية
 import { CAR_DATA } from '../data/carData';
-
-const SUPABASE_URL = "https://shszpcjmhkemqwborfwy.supabase.co/rest/v1";
-const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoc3pwY2ptaGtlbXF3Ym9yZnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDcxNzMsImV4cCI6MjA5OTY4MzE3M30.QycaUsYnhXX-uyeq3LVht_b1HVR0V0Tp72yMZUkdz2k";
+import { SUPABASE_URL, API_KEY } from '../config/supabase';
 
 // 🗂️ قاموس ترجمة الأقسام الرئيسية
 const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en?: string }> = {
@@ -349,7 +347,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }
   };
 
-  const togglePartCardExpand = (partId: number) => {
+  togglePartCardExpand = (partId: number) => {
     setExpandedPartCards(prev => ({ ...prev, [partId]: !prev[partId] }));
   };
 
