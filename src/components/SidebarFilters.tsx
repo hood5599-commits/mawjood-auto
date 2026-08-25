@@ -389,7 +389,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           return;
         }
 
-        // برومبت مخصص لجدول بيانات المركبة في الاستمارة القطرية
         const promptText = `You are a precision OCR engine for the State of Qatar Ministry of Interior Vehicle Registration Card (ترخيص تسيير مركبة - دولة قطر).
 Focus strictly on the "بيانات المركبة / Vehicle Information" section in the lower card:
 1. "Chassis No." / "رقم القاعدة": Extract the exact 17-character alphanumeric VIN (e.g. 6T1BF9FK9FX540435).
@@ -417,26 +416,22 @@ Respond ONLY with a clean JSON object without backticks or markdown, exactly lik
         const data = await response.json();
         const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-        // استخراج كائن الـ JSON وتنظيف رقم الشاصي
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
         let parsed: any = {};
         if (jsonMatch) {
           try { parsed = JSON.parse(jsonMatch[0]); } catch (e) {}
         }
 
-        // استخراج الشاصي المكون من 17 حرفاً ورقم
         let detectedVin = (parsed.vin || rawText.match(/[A-HJ-NPR-Z0-9]{17}/i)?.[0] || '')
           .replace(/[^A-HJ-NPR-Z0-9]/gi, '')
           .toUpperCase();
 
         if (detectedVin.length === 17) {
-          // مطابقة الشاصي وفك التشفير التلقائي
           setVinInput(detectedVin);
           await decodeVinNumber(detectedVin);
           return;
         }
 
-        // في حال استخراج الماركة والموديل دون الشاصي الكامل
         if (parsed.make || parsed.model) {
           let matchedMakeKey = Object.keys(activeCarData).find(
             m => m.toLowerCase() === (parsed.make || '').toLowerCase() || activeCarData[m]?.en?.toLowerCase() === (parsed.make || '').toLowerCase()
@@ -460,40 +455,10 @@ Respond ONLY with a clean JSON object without backticks or markdown, exactly lik
       alert(isRtl ? 'حدث خطأ أثناء فحص الصورة.' : 'Error reading image.');
       setIsDecodingVin(false);
     }
-  }; 
-
-        const data = await response.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.vin && parsed.vin.length === 17) {
-            decodeVinNumber(parsed.vin.toUpperCase());
-            return;
-          } else if (parsed.make || parsed.model) {
-            setDecodedVehicle({
-              make: parsed.make || '',
-              model: parsed.model || '',
-              year: parsed.year || '',
-              vin: parsed.vin || ''
-            });
-            setIsDecodingVin(false);
-            return;
-          }
-        }
-        alert(isRtl ? 'تعذر استخراج رقم الشاصي تلقائياً، يرجى كتابته في الخانة المجاورة.' : 'Could not detect VIN clearly. Please type it manually.');
-        setIsDecodingVin(false);
-      };
-    } catch (err) {
-      alert(isRtl ? 'حدث خطأ أثناء فحص صورة الاستمارة.' : 'Error scanning Istemara photo.');
-      setIsDecodingVin(false);
-    }
   };
 
   // 🎯 محرك مطابقة الشاصي وملفات الإكسل المرفوعة (Fitment Engine)
   const isPartFitWithVehicle = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string }) => {
-    // 1️⃣ فحص أعمدة الشواصي المتوافقة لملفات الإكسل المرفوعة من الكراجات (compatible_vins, chassis_code)
     const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
     if (excelVins && vehicle.vin) {
       const cleanVin = vehicle.vin.toUpperCase().trim();
@@ -503,21 +468,18 @@ Respond ONLY with a clean JSON object without backticks or markdown, exactly lik
       }
     }
 
-    // 2️⃣ مطابقة الشركة الصانعة
     if (vehicle.make && part.make) {
       const pMake = (part.make || '').toLowerCase();
       const vMake = vehicle.make.toLowerCase();
       if (!pMake.includes(vMake) && !vMake.includes(pMake)) return false;
     }
 
-    // 3️⃣ مطابقة الموديل
     if (vehicle.model && part.model) {
       const pModel = (part.model || '').toLowerCase();
       const vModel = vehicle.model.toLowerCase();
       if (!pModel.includes(vModel) && !vModel.includes(pModel)) return false;
     }
 
-    // 4️⃣ مطابقة سنة الصنع ومدى السنوات (مثال: 2018-2023)
     if (vehicle.year && part.year) {
       const pYearStr = String(part.year).trim();
       const vYear = Number(vehicle.year);
