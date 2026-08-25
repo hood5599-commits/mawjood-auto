@@ -364,7 +364,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }
   };
 
- const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 📷 قراءة الاستمارة القطرية بالذكاء الاصطناعي بدقة متناهية
+  const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -417,50 +418,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         }
 
         alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته يدوياً.' : 'Could not read VIN clearly. Please enter it manually.');
-        setIsDecodingVin(false);
-      };
-    } catch (err) {
-      alert(isRtl ? 'حدث خطأ أثناء فحص الصورة.' : 'Error reading image.');
-      setIsDecodingVin(false);
-    }
-  };
-
-        const data = await response.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        let parsed: any = {};
-        if (jsonMatch) {
-          try { parsed = JSON.parse(jsonMatch[0]); } catch (e) {}
-        }
-
-        let detectedVin = (parsed.vin || rawText.match(/[A-HJ-NPR-Z0-9]{17}/i)?.[0] || '')
-          .replace(/[^A-HJ-NPR-Z0-9]/gi, '')
-          .toUpperCase();
-
-        if (detectedVin.length === 17) {
-          setVinInput(detectedVin);
-          await decodeVinNumber(detectedVin);
-          return;
-        }
-
-        if (parsed.make || parsed.model) {
-          let matchedMakeKey = Object.keys(activeCarData).find(
-            m => m.toLowerCase() === (parsed.make || '').toLowerCase() || activeCarData[m]?.en?.toLowerCase() === (parsed.make || '').toLowerCase()
-          ) || parsed.make;
-
-          setDecodedVehicle({
-            make: matchedMakeKey || 'Toyota',
-            model: parsed.model || 'Camry',
-            year: parsed.year || '2015',
-            engine: parsed.engine || '',
-            vin: detectedVin
-          });
-          setIsDecodingVin(false);
-          return;
-        }
-
-        alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته في الحقل المخصص.' : 'Could not read VIN clearly. Please enter it manually.');
         setIsDecodingVin(false);
       };
     } catch (err) {
