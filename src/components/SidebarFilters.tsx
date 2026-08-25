@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   getPartCategory, 
   matchesSmartSearch, 
@@ -263,6 +263,9 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [isSubmittingReq, setIsSubmittingReq] = useState(false);
   const [reqSubmitted, setReqSubmitted] = useState(false);
 
+  // 🔢 عدد القطع المعروضة والتحميل التلقائي عند التمرير
+  const [displayLimit, setDisplayLimit] = useState<number>(20);
+
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'default'>('default');
   const [partImageIndexes, setPartImageIndex] = useState<Record<number, number>>({});
   const [expandedPartCards, setExpandedPartCards] = useState<Record<number, boolean>>({});
@@ -270,6 +273,22 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
   const isBNPLEnabled = siteSettings?.enableBNPL ?? true;
+
+  // إعادة ضبط الحد عند كل بحث جديد
+  useEffect(() => {
+    setDisplayLimit(20);
+  }, [searchTerm, activeSearchQuery, decodedVehicle]);
+
+  // مستمع التمرير لأسفل الصفحة لزيادة عدد القطع المعروضة تلقائياً (+20)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 400) {
+        setDisplayLimit(prev => prev + 20);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const getQty = (id: number) => partQuantities[id] || 1;
 
@@ -315,6 +334,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     setActiveSearchQuery('');
     setDecodedVehicle(null);
     setVinInput('');
+    setDisplayLimit(20);
   };
 
   // 🧠 فك تشفير رقم الشاصي (NHTSA Decoder)
@@ -360,8 +380,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setIsDecodingVin(false);
       setStatusMsg('');
     }
- 
-    const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  };
+
+  // 📷 فحص وقراءة الاستمارة بالذكاء الاصطناعي
+  const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -394,6 +416,60 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setIsDecodingVin(false);
       setStatusMsg('');
     }
+  };
+
+  // 🎯 محرك تقييم مطابقة الشاصي والسيارة (متطابق / غير متطابق / اسأل البائع)
+  const getPartFitmentStatus = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string } | null): 'compatible' | 'incompatible' | 'uncertain' => {
+    if (!vehicle) return 'uncertain';
+
+    // إذا لم تتوفر معلومات واضحة عن الماركة أو الشاصي
+    if (!vehicle.make && !vehicle.vin) return 'uncertain';
+
+    const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
+    if (excelVins && vehicle.vin) {
+      const cleanVin = vehicle.vin.toUpperCase().trim();
+      const vinList = String(excelVins).toUpperCase().split(/[,;\s\n/]+/).map(v => v.trim()).filter(Boolean);
+      if (vinList.some(v => cleanVin === v || cleanVin.startsWith(v) || v.startsWith(cleanVin.substring(0, 8)))) {
+        return 'compatible';
+      }
+    }
+
+    // إذا كانت بيانات توافق القطعة غير مدخلة بالكراج
+    const hasPartVehicleData = !!(part.make || part.model || part.year || excelVins);
+    if (!hasPartVehicleData) {
+      return 'uncertain';
+    }
+
+    if (vehicle.make && part.make) {
+      const pMake = (part.make || '').toLowerCase();
+      const vMake = vehicle.make.toLowerCase();
+      if (!pMake.includes(vMake) && !vMake.includes(pMake)) return 'incompatible';
+    }
+
+    if (vehicle.model && part.model) {
+      const pModel = (part.model || '').toLowerCase();
+      const vModel = vehicle.model.toLowerCase();
+      if (!pModel.includes(vModel) && !vModel.includes(pModel)) return 'incompatible';
+    }
+
+    if (vehicle.year && part.year) {
+      const pYearStr = String(part.year).trim();
+      const vYear = Number(vehicle.year);
+      if (pYearStr.includes('-')) {
+        const [start, end] = pYearStr.split('-').map(Number);
+        if (!isNaN(start) && !isNaN(end) && !isNaN(vYear)) {
+          if (vYear < Math.min(start, end) || vYear > Math.max(start, end)) return 'incompatible';
+        }
+      } else if (!isNaN(vYear) && !pYearStr.includes(String(vYear))) {
+        return 'incompatible';
+      }
+    }
+
+    if (vehicle.make && part.make) {
+      return 'compatible';
+    }
+
+    return 'uncertain';
   };
 
   const fetchYearsForMake = async (make: string) => {
@@ -646,17 +722,21 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return partsList;
   };
 
-  // تصفية القطع بناءً على الشاصي والبحث
-  const searchResults = processAndSortParts(inventory.filter((part: any) => {
-    if (decodedVehicle) {
-      const matchVehicle = isPartFitWithVehicle(part, decodedVehicle);
-      if (!matchVehicle) return false;
+  // تصفية وعرض القطع وترتيبها بحيث تظهر القطع المتوافقة أولاً، ثم غير المؤكدة، ثم غير المتوافقة
+  const searchResults = processAndSortParts(
+    inventory.filter((part: any) => {
       if (activeSearchQuery) return matchesSmartSearch(part, activeSearchQuery);
       return true;
-    }
-    if (activeSearchQuery) return matchesSmartSearch(part, activeSearchQuery);
-    return false;
-  }));
+    })
+  ).sort((a: any, b: any) => {
+    if (!decodedVehicle) return 0;
+    const rank: Record<string, number> = { compatible: 3, uncertain: 2, incompatible: 1 };
+    const aRank = rank[getPartFitmentStatus(a, decodedVehicle)] || 0;
+    const bRank = rank[getPartFitmentStatus(b, decodedVehicle)] || 0;
+    return bRank - aRank;
+  });
+
+  const displayedSearchResults = searchResults.slice(0, displayLimit);
 
   const handleInAppRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -682,7 +762,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
-    const isCompatible = decodedVehicle ? isPartFitWithVehicle(part, decodedVehicle) : null;
+    const fitmentStatus = decodedVehicle ? getPartFitmentStatus(part, decodedVehicle) : null;
     const qty = getQty(part.id);
     const maxStock = typeof part.stock !== 'undefined' && part.stock !== null ? Number(part.stock) : 5;
     const isOutOfStock = maxStock <= 0;
@@ -760,31 +840,43 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             <div style={{ fontSize: '11.5px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold', display: 'inline-block', marginBottom: '4px', border: '1px solid #bae6fd', fontFamily: 'monospace' }}>
               🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {partNo}
             </div>
-            
-{decodedVehicle && (
-      <div style={{
-        margin: '6px 0',
-        padding: '5px 10px',
-        borderRadius: '8px',
-        fontSize: '11.5px',
-        fontWeight: 'bold',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        backgroundColor: isCompatible ? '#f0fdf4' : '#fef2f2',
-        color: isCompatible ? '#166534' : '#991b1b',
-        border: `1px solid ${isCompatible ? '#86efac' : '#fca5a5'}`
-      }}>
-        <span>{isCompatible ? '✅' : '⚠️'}</span>
-        <span>
-          {isCompatible
-            ? (isRtl ? `متطابق 100% مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})` : `100% Compatible with your (${decodedVehicle.make} ${decodedVehicle.model})`)
-            : (isRtl ? `غير متطابق مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})` : `Not Compatible with your (${decodedVehicle.make} ${decodedVehicle.model})`)
-          }
-        </span>
-      </div>
-    )}
-            
+
+            {/* 🎯 شارة التوافق الذكية (متطابق / غير متطابق / اسأل البائع) */}
+            {decodedVehicle && fitmentStatus && (
+              <div style={{
+                margin: '6px 0',
+                padding: '6px 10px',
+                borderRadius: '8px',
+                fontSize: '11.5px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: fitmentStatus === 'compatible' ? '#f0fdf4' : fitmentStatus === 'incompatible' ? '#fef2f2' : '#fffbeb',
+                color: fitmentStatus === 'compatible' ? '#166534' : fitmentStatus === 'incompatible' ? '#991b1b' : '#b45309',
+                border: `1px solid ${fitmentStatus === 'compatible' ? '#86efac' : fitmentStatus === 'incompatible' ? '#fca5a5' : '#fde68a'}`
+              }}>
+                <span>{fitmentStatus === 'compatible' ? '✅' : fitmentStatus === 'incompatible' ? '⚠️' : '💬'}</span>
+                <span>
+                  {fitmentStatus === 'compatible' && (
+                    isRtl 
+                      ? `متطابق 100% مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})` 
+                      : `100% Compatible with (${decodedVehicle.make} ${decodedVehicle.model})`
+                  )}
+                  {fitmentStatus === 'incompatible' && (
+                    isRtl 
+                      ? `غير متطابق مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})` 
+                      : `Not Compatible with (${decodedVehicle.make} ${decodedVehicle.model})`
+                  )}
+                  {fitmentStatus === 'uncertain' && (
+                    isRtl 
+                      ? 'اسأل البائع للتأكد من التوافق مع سيارتك' 
+                      : 'Ask Seller to confirm vehicle fitment'
+                  )}
+                </span>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: tierInfo.tier === 'oem' ? '#0369a1' : '#c2410c', backgroundColor: tierInfo.badgeColor, padding: '1px 6px', borderRadius: '4px' }}>
                 {part.part_type || (tierInfo.tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? tierInfo.label : 'Aftermarket'))}
@@ -918,8 +1010,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             </h3>
             <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>
               {isRtl 
-                ? 'صوّر استمارة سيارتك أو أدخل رقم الشاصي (17 حرف) ليقوم النظام بعرض القطع المتوافقة مع سيارتك فقط.' 
-                : 'Upload vehicle Istemara or enter 17-digit VIN to filter 100% compatible parts.'}
+                ? 'صوّر استمارة سيارتك أو أدخل رقم الشاصي (17 حرف) ليقوم النظام بعرض حالة التوافق لكل قطعة تلقائياً.' 
+                : 'Upload vehicle Istemara or enter 17-digit VIN to automatically identify compatibility.'}
             </p>
           </div>
 
@@ -943,7 +1035,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               {decodedVehicle.vin && <span style={{ fontSize: '12px', color: '#166534', fontFamily: 'monospace', fontWeight: 'bold' }}>[VIN: {decodedVehicle.vin}]</span>}
             </div>
             <span style={{ backgroundColor: '#166534', color: 'white', padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-              🎯 {isRtl ? 'الموقع الآن يعرض قطع هذه السيارة فقط' : 'Active Fitment Filter'}
+              🎯 {isRtl ? 'يتم ترتيب القطع المتوافقة في المقدمة' : 'Compatible parts shown first'}
             </span>
           </div>
         ) : (
@@ -975,7 +1067,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 {isRtl ? 'اضغط لتصوير أو رفع الاستمارة' : 'Snap / Upload Istemara Photo'}
               </strong>
               <span style={{ fontSize: '11px', color: '#64748b' }}>
-                {isRtl ? 'استخراج وقراءة فورية بدون خوادم خارجية' : 'Instant In-Browser OCR Reading'}
+                {isRtl ? 'استخراج وقراءة فورية بالذكاء الاصطناعي' : 'Instant AI OCR Reading'}
               </span>
             </div>
 
@@ -1094,7 +1186,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         />
       )}
 
-      {/* 🚀 عرض الطريقة الثانية: شجرة التصفية / نتائج مطابقة الشاصي */}
+      {/* 🚀 عرض الطريقة الثانية: شجرة التصفية / نتائج البحث الشاملة */}
       {(decodedVehicle || searchMode === 'tree') && (
         <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
           
@@ -1128,13 +1220,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ color: '#1f3a5f', margin: 0 }}>
                   🛒 {decodedVehicle 
-                    ? (isRtl ? `القطع المتوافقة مع (${decodedVehicle.make} ${decodedVehicle.model} ${decodedVehicle.year}):` : `Compatible Parts for (${decodedVehicle.make} ${decodedVehicle.model}):`)
+                    ? (isRtl ? `القطع المعروضة (مع ترتيب التوافق لـ ${decodedVehicle.make} ${decodedVehicle.model}):` : `Catalog Parts (Sorted for ${decodedVehicle.make} ${decodedVehicle.model}):`)
                     : (isRtl ? `نتائج البحث عن: "${activeSearchQuery}"` : `Search results for: "${activeSearchQuery}"`)}
                 </h3>
                 <button onClick={clearSearch} style={{ padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', border: '1px solid #cbd5e0', backgroundColor: '#ffffff', fontWeight: 'bold', fontSize: '12.5px' }}>
                   ↩️ {isRtl ? 'العودة للكتالوج' : 'Back to Catalog'}
                 </button>
               </div>
+
               {searchResults.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                   <p style={{ color: '#64748b', fontWeight: 'bold' }}>{isRtl ? 'عفواً، لا توجد قطع متوفرة مطابقة حالياً.' : 'Sorry, no parts found for this match.'}</p>
@@ -1143,9 +1236,31 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   </button>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
-                  {searchResults.map((part: any) => renderPartCard(part))}
-                </div>
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
+                    {displayedSearchResults.map((part: any) => renderPartCard(part))}
+                  </div>
+
+                  {displayLimit < searchResults.length && (
+                    <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                      <button
+                        onClick={() => setDisplayLimit(prev => prev + 20)}
+                        style={{
+                          padding: '10px 24px',
+                          backgroundColor: '#f1f5f9',
+                          border: '1.5px solid #cbd5e0',
+                          borderRadius: '12px',
+                          fontWeight: 'bold',
+                          color: '#1f3a5f',
+                          cursor: 'pointer',
+                          fontSize: '13px'
+                        }}
+                      >
+                        🔽 {isRtl ? `عرض المزيد من القطع (${displayedSearchResults.length} من ${searchResults.length})` : `Load More Parts (${displayedSearchResults.length} of ${searchResults.length})`}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : (
