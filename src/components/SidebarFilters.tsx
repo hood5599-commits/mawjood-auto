@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createWorker } from 'tesseract.js';
 import { 
   getPartCategory, 
   matchesSmartSearch, 
@@ -10,8 +11,6 @@ import { VisualVehicleSelector } from './VisualVehicleSelector';
 // 🚗 استيراد بيانات السيارات المركزية
 import { CAR_DATA } from '../data/carData';
 import { SUPABASE_URL, API_KEY } from '../config/supabase';
-
-declare const process: any;
 
 // 🗂️ قاموس ترجمة الأقسام الرئيسية
 const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en?: string }> = {
@@ -205,7 +204,6 @@ const nodeStyle: React.CSSProperties = {
   userSelect: 'none',
 };
 
-// 🌟 واجهة الخصائص الشاملة
 interface SidebarProps {
   lang: 'ar' | 'en';
   carData?: any;
@@ -245,7 +243,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 🚘 حالات فحص الشاصي والاستمارة
-  const [searchMode, setSearchMode] = useState<'visual' | 'tree' | 'vin'>('visual');
+  const [searchMode, setSearchMode] = useState<'visual' | 'tree'>('visual');
   const [vinInput, setVinInput] = useState('');
   const [isDecodingVin, setIsDecodingVin] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
@@ -364,71 +362,107 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }
   };
 
-  // 📷 قراءة الاستمارة القطرية بالذكاء الاصطناعي عبر السيرفر بأمان
+  // 📸 محرك فحص الاستمارة المطور محلياً بـ Tesseract.js (100% موثوق وآمن وبدون AI API)
   const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsDecodingVin(true);
-    setStatusMsg(isRtl ? 'جاري فحص الاستمارة القطرية بالذكاء الاصطناعي...' : 'Scanning registration card with AI...');
+    setStatusMsg(isRtl ? 'جاري معالجة وقراءة الاستمارة القطرية بالماسح البصري...' : 'Scanning Qatari Registration Card...');
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64Data = reader.result as string;
+      // 1. تشغيل عامل Tesseract
+      const worker = await createWorker('eng');
+      const ret = await worker.recognize(file);
+      await worker.terminate();
 
-        const response = await fetch('/api/scan-istemara', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageBase64: base64Data,
-            mimeType: file.type || 'image/jpeg'
-          })
+      const rawText = ret.data.text || '';
+
+      // 2. البحث الأول: مطابقة رقم الشاصي القياسي المكون من 17 حرفاً ورقم
+      const cleanedText = rawText.replace(/[\s\-_:.]/g, '').toUpperCase();
+      const standardVinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
+      let match = cleanedText.match(standardVinRegex);
+
+      let detectedVin = match ? match[0].toUpperCase() : '';
+
+      // 3. البحث الثاني: البحث في الأسطر الخاصة برقم القاعدة والشاصي
+      if (!detectedVin) {
+        const lines = rawText.split('\n');
+        for (const line of lines) {
+          const lLower = line.toLowerCase();
+          if (lLower.includes('chassis') || lLower.includes('vin') || lLower.includes('engine') || line.includes('القاعدة') || line.includes('الهيكل')) {
+            const extracted = line.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+            const subMatch = extracted.match(/[A-Z0-9]{11,17}/);
+            if (subMatch && subMatch[0].length >= 11) {
+              detectedVin = subMatch[0];
+              break;
+            }
+          }
+        }
+      }
+
+      // 4. تصحيح الأخطاء البصرية الشائعة في الـ VIN
+      if (detectedVin && detectedVin.length === 17) {
+        detectedVin = detectedVin
+          .replace(/I/g, '1')
+          .replace(/O/g, '0')
+          .replace(/Q/g, '0');
+
+        setVinInput(detectedVin);
+        await decodeVinNumber(detectedVin);
+        return;
+      }
+
+      // 5. الاستخراج الذكي الاحتياطي (الماركة، الموديل، السنة) من النص إذا تعذر الشاصي الكامل
+      let foundMake = '';
+      let foundModel = '';
+      let foundYear = '';
+
+      // فحص الماركة
+      for (const m of Object.keys(activeCarData)) {
+        const enName = activeCarData[m]?.en || '';
+        if (rawText.toLowerCase().includes(m.toLowerCase()) || (enName && rawText.toLowerCase().includes(enName.toLowerCase()))) {
+          foundMake = m;
+          // فحص الموديل التابع للماركة
+          const models = activeCarData[m]?.models || [];
+          for (const mod of models) {
+            if (rawText.toLowerCase().includes(mod.toLowerCase())) {
+              foundModel = mod;
+              break;
+            }
+          }
+          break;
+        }
+      }
+
+      // فحص سنة الصنع (4 أرقام تبدأ بـ 19 أو 20)
+      const yearMatch = rawText.match(/\b(19\d\d|20\d\d)\b/);
+      if (yearMatch) {
+        foundYear = yearMatch[0];
+      }
+
+      if (foundMake || foundModel) {
+        setDecodedVehicle({
+          make: foundMake || 'Toyota',
+          model: foundModel || 'Camry',
+          year: foundYear || '2015',
+          vin: detectedVin
         });
-
-        const parsed = await response.json();
-
-        if (!response.ok) {
-          alert((isRtl ? 'تنبيه: ' : 'Error: ') + (parsed.error || 'فشل الفحص'));
-          setIsDecodingVin(false);
-          return;
-        }
-
-        let detectedVin = (parsed.vin || '').replace(/[^A-HJ-NPR-Z0-9]/gi, '').toUpperCase();
-
-        if (detectedVin.length === 17) {
-          setVinInput(detectedVin);
-          await decodeVinNumber(detectedVin);
-          return;
-        }
-
-        if (parsed.make || parsed.model) {
-          let matchedMakeKey = Object.keys(activeCarData).find(
-            m => m.toLowerCase() === (parsed.make || '').toLowerCase() || activeCarData[m]?.en?.toLowerCase() === (parsed.make || '').toLowerCase()
-          ) || parsed.make;
-
-          setDecodedVehicle({
-            make: matchedMakeKey || 'Toyota',
-            model: parsed.model || 'Camry',
-            year: parsed.year || '2015',
-            engine: parsed.engine || '',
-            vin: detectedVin
-          });
-          setIsDecodingVin(false);
-          return;
-        }
-
-        alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته يدوياً.' : 'Could not read VIN clearly. Please enter it manually.');
         setIsDecodingVin(false);
-      };
+        return;
+      }
+
+      alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته في الخانة المجاورة.' : 'Could not read VIN clearly. Please type it manually.');
     } catch (err) {
-      alert(isRtl ? 'حدث خطأ أثناء رفع الصورة.' : 'Error reading image.');
+      console.error("Istemara scan error:", err);
+      alert(isRtl ? 'حدث خطأ أثناء فحص الصورة، يرجى إدخال الشاصي يدوياً.' : 'Scan failed. Please type VIN.');
+    } finally {
       setIsDecodingVin(false);
+      setStatusMsg('');
     }
   };
 
-  // 🎯 محرك مطابقة الشاصي والسيارة مع القطع
+  // 🎯 محرك مطابقة الشاصي والسيارة مع القطع المرفوعة بالكراجات
   const isPartFitWithVehicle = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string }) => {
     const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
     if (excelVins && vehicle.vin) {
@@ -955,7 +989,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* 🚀 1. الفاحص الذكي لرقم الشاصي وصورة الاستمارة (أعلى الصفحة) */}
+      {/* 🚀 1. الماسح الذكي لرقم الشاصي وصورة الاستمارة (أعلى الصفحة) */}
       <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '2px solid #e0872a', boxShadow: '0 8px 24px rgba(224,135,42,0.08)', direction: isRtl ? 'rtl' : 'ltr' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
           <div>
@@ -1021,7 +1055,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 {isRtl ? 'اضغط لتصوير أو رفع الاستمارة' : 'Snap / Upload Istemara Photo'}
               </strong>
               <span style={{ fontSize: '11px', color: '#64748b' }}>
-                {isRtl ? 'استخراج وقراءة تلقائية بالذكاء الاصطناعي' : 'Instant AI OCR Reading'}
+                {isRtl ? 'استخراج وقراءة فورية بدون خوادم خارجية' : 'Instant In-Browser OCR Reading'}
               </span>
             </div>
 
