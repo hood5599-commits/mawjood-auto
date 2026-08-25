@@ -52,7 +52,7 @@ Focus strictly on the "بيانات المركبة / Vehicle Information" sectio
 
 Return JSON with keys: vin, make, model, year.`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const geminiPayload = {
       contents: [
