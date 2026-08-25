@@ -40,14 +40,14 @@ export default async function handler(req: any, res: any) {
     }
     imageBase64 = imageBase64.trim().replace(/\s/g, '');
 
-    const promptText = `You are a precision OCR system for Qatari vehicle registration cards (استمارة ترخيص تسيير مركبة دولة قطر).
+    const promptText = `Analyze this Qatari vehicle registration card (استمارة ترخيص تسيير مركبة دولة قطر).
 Extract strictly:
-1. Chassis No. / رقم القاعدة (17 alphanumeric characters).
-2. Make / نوع المركبة (e.g. TOYOTA).
-3. Model / الطراز (e.g. CAMRY).
-4. Year / سنة الصنع (4-digit year, e.g. 2015).
+1. Chassis No. / رقم القاعدة (17-character VIN).
+2. Make / نوع المركبة.
+3. Model / الطراز.
+4. Year / سنة الصنع.
 
-Respond strictly with a single JSON object:
+Respond ONLY with a valid JSON object:
 {"vin": "6T1BF9FK9FX540435", "make": "Toyota", "model": "Camry", "year": "2015"}`;
 
     const headers = {
@@ -55,34 +55,9 @@ Respond strictly with a single JSON object:
       'x-goog-api-key': apiKey
     };
 
-    // 1. اكتشاف النموذج الفعال لحسابك تلقائياً
-    let activeModelUrl = '';
-    const apiVersions = ['v1beta', 'v1'];
-    
-    for (const ver of apiVersions) {
-      try {
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${apiKey}`, { headers });
-        if (listRes.ok) {
-          const listData = await listRes.json();
-          const models: any[] = listData.models || [];
-          const matched = models.find((m: any) => 
-            m.supportedGenerationMethods?.includes('generateContent') && 
-            (m.name.includes('flash') || m.name.includes('pro') || m.name.includes('gemini'))
-          );
-          if (matched) {
-            activeModelUrl = `https://generativelanguage.googleapis.com/${ver}/${matched.name}:generateContent?key=${apiKey}`;
-            break;
-          }
-        }
-      } catch (e) {}
-    }
+    const targetModel = 'gemini-3.6-flash';
+    const activeModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
 
-    // نموذج احتياطي في حال تعذر الاستكشاف
-    if (!activeModelUrl) {
-      activeModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    }
-
-    // 2. إرسال الطلب
     const response = await fetch(activeModelUrl, {
       method: 'POST',
       headers,
@@ -104,7 +79,7 @@ Respond strictly with a single JSON object:
 
     if (!response.ok) {
       return res.status(response.status).json({
-        error: data?.error?.message || 'Gemini API Error'
+        error: data?.error?.message || `فشل الاتصال بالنموذج (${targetModel})`
       });
     }
 
