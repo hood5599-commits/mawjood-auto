@@ -1,6 +1,6 @@
-import { scanIstemara } from '../utils/istemaraScanner';
 import React, { useState, useRef } from 'react';
 import { createWorker } from 'tesseract.js';
+import { scanIstemara } from '../utils/istemaraScanner';
 import { 
   getPartCategory, 
   matchesSmartSearch, 
@@ -361,7 +361,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setIsDecodingVin(false);
       setStatusMsg('');
     }
-
   };const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -395,6 +394,45 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setIsDecodingVin(false);
       setStatusMsg('');
     }
+  };
+  
+  // 🎯 محرك مطابقة الشاصي والسيارة مع القطع المرفوعة بالكراجات
+  const isPartFitWithVehicle = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string }) => {
+    const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
+    if (excelVins && vehicle.vin) {
+      const cleanVin = vehicle.vin.toUpperCase().trim();
+      const vinList = String(excelVins).toUpperCase().split(/[,;\s\n/]+/).map(v => v.trim()).filter(Boolean);
+      if (vinList.some(v => cleanVin === v || cleanVin.startsWith(v) || v.startsWith(cleanVin.substring(0, 8)))) {
+        return true;
+      }
+    }
+
+    if (vehicle.make && part.make) {
+      const pMake = (part.make || '').toLowerCase();
+      const vMake = vehicle.make.toLowerCase();
+      if (!pMake.includes(vMake) && !vMake.includes(pMake)) return false;
+    }
+
+    if (vehicle.model && part.model) {
+      const pModel = (part.model || '').toLowerCase();
+      const vModel = vehicle.model.toLowerCase();
+      if (!pModel.includes(vModel) && !vModel.includes(pModel)) return false;
+    }
+
+    if (vehicle.year && part.year) {
+      const pYearStr = String(part.year).trim();
+      const vYear = Number(vehicle.year);
+      if (pYearStr.includes('-')) {
+        const [start, end] = pYearStr.split('-').map(Number);
+        if (!isNaN(start) && !isNaN(end) && !isNaN(vYear)) {
+          if (vYear < Math.min(start, end) || vYear > Math.max(start, end)) return false;
+        }
+      } else if (!isNaN(vYear) && !pYearStr.includes(String(vYear))) {
+        return false;
+      }
+    }
+
+    return true;
   };
 
   const fetchYearsForMake = async (make: string) => {
