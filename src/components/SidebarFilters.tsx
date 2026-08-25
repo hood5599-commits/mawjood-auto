@@ -360,12 +360,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setIsDecodingVin(false);
       setStatusMsg('');
     }
-  };const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+ 
+    const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsDecodingVin(true);
-    setStatusMsg(isRtl ? 'جاري فحص الاستمارة بالماسح البصري...' : 'Scanning registration card...');
+    setStatusMsg(isRtl ? 'جاري فحص الاستمارة بالذكاء الاصطناعي...' : 'Scanning registration card with AI...');
 
     try {
       const result = await scanIstemara(file, activeCarData);
@@ -386,52 +387,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         return;
       }
 
-      alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته في الخانة.' : 'Could not detect VIN. Please type it manually.');
+      alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته يدوياً.' : 'Could not detect VIN clearly. Please type it manually.');
     } catch (err) {
       alert(isRtl ? 'حدث خطأ أثناء فحص الصورة.' : 'Error scanning image.');
     } finally {
       setIsDecodingVin(false);
       setStatusMsg('');
     }
-  };
-  
-  // 🎯 محرك مطابقة الشاصي والسيارة مع القطع المرفوعة بالكراجات
-  const isPartFitWithVehicle = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string }) => {
-    const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
-    if (excelVins && vehicle.vin) {
-      const cleanVin = vehicle.vin.toUpperCase().trim();
-      const vinList = String(excelVins).toUpperCase().split(/[,;\s\n/]+/).map(v => v.trim()).filter(Boolean);
-      if (vinList.some(v => cleanVin === v || cleanVin.startsWith(v) || v.startsWith(cleanVin.substring(0, 8)))) {
-        return true;
-      }
-    }
-
-    if (vehicle.make && part.make) {
-      const pMake = (part.make || '').toLowerCase();
-      const vMake = vehicle.make.toLowerCase();
-      if (!pMake.includes(vMake) && !vMake.includes(pMake)) return false;
-    }
-
-    if (vehicle.model && part.model) {
-      const pModel = (part.model || '').toLowerCase();
-      const vModel = vehicle.model.toLowerCase();
-      if (!pModel.includes(vModel) && !vModel.includes(pModel)) return false;
-    }
-
-    if (vehicle.year && part.year) {
-      const pYearStr = String(part.year).trim();
-      const vYear = Number(vehicle.year);
-      if (pYearStr.includes('-')) {
-        const [start, end] = pYearStr.split('-').map(Number);
-        if (!isNaN(start) && !isNaN(end) && !isNaN(vYear)) {
-          if (vYear < Math.min(start, end) || vYear > Math.max(start, end)) return false;
-        }
-      } else if (!isNaN(vYear) && !pYearStr.includes(String(vYear))) {
-        return false;
-      }
-    }
-
-    return true;
   };
 
   const fetchYearsForMake = async (make: string) => {
@@ -720,6 +682,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
+    const isCompatible = decodedVehicle ? isPartFitWithVehicle(part, decodedVehicle) : null;
     const qty = getQty(part.id);
     const maxStock = typeof part.stock !== 'undefined' && part.stock !== null ? Number(part.stock) : 5;
     const isOutOfStock = maxStock <= 0;
@@ -797,7 +760,31 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             <div style={{ fontSize: '11.5px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold', display: 'inline-block', marginBottom: '4px', border: '1px solid #bae6fd', fontFamily: 'monospace' }}>
               🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {partNo}
             </div>
-
+            
+{decodedVehicle && (
+      <div style={{
+        margin: '6px 0',
+        padding: '5px 10px',
+        borderRadius: '8px',
+        fontSize: '11.5px',
+        fontWeight: 'bold',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        backgroundColor: isCompatible ? '#f0fdf4' : '#fef2f2',
+        color: isCompatible ? '#166534' : '#991b1b',
+        border: `1px solid ${isCompatible ? '#86efac' : '#fca5a5'}`
+      }}>
+        <span>{isCompatible ? '✅' : '⚠️'}</span>
+        <span>
+          {isCompatible
+            ? (isRtl ? `متطابق 100% مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})` : `100% Compatible with your (${decodedVehicle.make} ${decodedVehicle.model})`)
+            : (isRtl ? `غير متطابق مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})` : `Not Compatible with your (${decodedVehicle.make} ${decodedVehicle.model})`)
+          }
+        </span>
+      </div>
+    )}
+            
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: tierInfo.tier === 'oem' ? '#0369a1' : '#c2410c', backgroundColor: tierInfo.badgeColor, padding: '1px 6px', borderRadius: '4px' }}>
                 {part.part_type || (tierInfo.tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? tierInfo.label : 'Aftermarket'))}
