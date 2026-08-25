@@ -364,54 +364,66 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     }
   };
 
-  // 📷 قراءة الاستمارة القطرية بالذكاء الاصطناعي بدقة متناهية
-  const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+ const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsDecodingVin(true);
-    setStatusMsg(isRtl ? 'جاري فحص الاستمارة القطرية واستخراج بيانات المركبة...' : 'Scanning Qatari Vehicle Registration Card...');
+    setStatusMsg(isRtl ? 'جاري فحص الاستمارة القطرية بأمان...' : 'Securely scanning Qatari Vehicle Registration Card...');
 
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const base64Data = (reader.result as string).split(',')[1];
-        
-        const geminiApiKey = 
-          (typeof process !== 'undefined' && ((process as any).env?.REACT_APP_GEMINI_API_KEY || (process as any).env?.VITE_GEMINI_API_KEY)) ||
-          (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_GEMINI_API_KEY) ||
-          "";
 
-        if (!geminiApiKey) {
-          alert(isRtl ? 'يرجى إدخال رقم الشاصي يدوياً في الخانة.' : 'Please enter VIN manually.');
+        // إرسال الصورة للدالة الخلفية في Vercel
+        const response = await fetch('/api/scan-istemara', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: base64Data,
+            mimeType: file.type || 'image/jpeg'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Server scanning failed');
+        }
+
+        const parsed = await response.json();
+        let detectedVin = (parsed.vin || '').replace(/[^A-HJ-NPR-Z0-9]/gi, '').toUpperCase();
+
+        if (detectedVin.length === 17) {
+          setVinInput(detectedVin);
+          await decodeVinNumber(detectedVin);
+          return;
+        }
+
+        if (parsed.make || parsed.model) {
+          let matchedMakeKey = Object.keys(activeCarData).find(
+            m => m.toLowerCase() === (parsed.make || '').toLowerCase() || activeCarData[m]?.en?.toLowerCase() === (parsed.make || '').toLowerCase()
+          ) || parsed.make;
+
+          setDecodedVehicle({
+            make: matchedMakeKey || 'Toyota',
+            model: parsed.model || 'Camry',
+            year: parsed.year || '2015',
+            engine: parsed.engine || '',
+            vin: detectedVin
+          });
           setIsDecodingVin(false);
           return;
         }
 
-        const promptText = `You are a precision OCR engine for the State of Qatar Ministry of Interior Vehicle Registration Card (ترخيص تسيير مركبة - دولة قطر).
-Focus strictly on the "بيانات المركبة / Vehicle Information" section in the lower card:
-1. "Chassis No." / "رقم القاعدة": Extract the exact 17-character alphanumeric VIN (e.g. 6T1BF9FK9FX540435).
-2. "نوع المركبة": Extract vehicle Make (e.g. TOYOTA).
-3. "الطراز": Extract vehicle Model (e.g. CAMRY).
-4. "سنة الصنع": Extract 4-digit Year (e.g. 2015).
-5. "رقم المحرك / Engine No." & "الاسطوانات": Extract engine code/cylinders (e.g. 2AR / 4 Cyl).
-
-Respond ONLY with a clean JSON object without backticks or markdown, exactly like this:
-{"vin": "6T1BF9FK9FX540435", "make": "Toyota", "model": "Camry", "year": "2015", "engine": "2AR"}`;
-
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: promptText },
-                { inline_data: { mime_type: file.type || 'image/jpeg', data: base64Data } }
-              ]
-            }]
-          })
-        });
+        alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته يدوياً.' : 'Could not read VIN clearly. Please enter it manually.');
+        setIsDecodingVin(false);
+      };
+    } catch (err) {
+      alert(isRtl ? 'حدث خطأ أثناء فحص الصورة.' : 'Error reading image.');
+      setIsDecodingVin(false);
+    }
+  };
 
         const data = await response.json();
         const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
