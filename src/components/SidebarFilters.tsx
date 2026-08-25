@@ -363,22 +363,20 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setStatusMsg('');
     }
   };
-
-  // 📷 قراءة الاستمارة القطرية بالذكاء الاصطناعي بدقة متناهية
+  
   const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsDecodingVin(true);
-    setStatusMsg(isRtl ? 'جاري فحص الاستمارة القطرية بأمان...' : 'Securely scanning Qatari Vehicle Registration Card...');
+    setStatusMsg(isRtl ? 'جاري فحص الاستمارة بالذكاء الاصطناعي...' : 'Scanning registration card with AI...');
 
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
-        const base64Data = (reader.result as string).split(',')[1];
+        const base64Data = reader.result as string;
 
-        // إرسال الصورة للدالة الخلفية في Vercel
         const response = await fetch('/api/scan-istemara', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -388,11 +386,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           })
         });
 
+        const parsed = await response.json();
+
         if (!response.ok) {
-          throw new Error('Server scanning failed');
+          alert((isRtl ? 'تنبيه: ' : 'Error: ') + (parsed.error || 'فشل الفحص'));
+          setIsDecodingVin(false);
+          return;
         }
 
-        const parsed = await response.json();
         let detectedVin = (parsed.vin || '').replace(/[^A-HJ-NPR-Z0-9]/gi, '').toUpperCase();
 
         if (detectedVin.length === 17) {
@@ -410,61 +411,21 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             make: matchedMakeKey || 'Toyota',
             model: parsed.model || 'Camry',
             year: parsed.year || '2015',
-            engine: parsed.engine || '',
             vin: detectedVin
           });
           setIsDecodingVin(false);
           return;
         }
 
-        alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته يدوياً.' : 'Could not read VIN clearly. Please enter it manually.');
+        alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى إدخاله يدوياً.' : 'Could not read VIN clearly. Please type it manually.');
         setIsDecodingVin(false);
       };
     } catch (err) {
-      alert(isRtl ? 'حدث خطأ أثناء فحص الصورة.' : 'Error reading image.');
+      alert(isRtl ? 'حدث خطأ أثناء رفع الصورة.' : 'Error uploading image.');
       setIsDecodingVin(false);
     }
   };
-
-  // 🎯 محرك مطابقة الشاصي وملفات الإكسل المرفوعة (Fitment Engine)
-  const isPartFitWithVehicle = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string }) => {
-    const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
-    if (excelVins && vehicle.vin) {
-      const cleanVin = vehicle.vin.toUpperCase().trim();
-      const vinList = String(excelVins).toUpperCase().split(/[,;\s\n/]+/).map(v => v.trim()).filter(Boolean);
-      if (vinList.some(v => cleanVin === v || cleanVin.startsWith(v) || v.startsWith(cleanVin.substring(0, 8)))) {
-        return true;
-      }
-    }
-
-    if (vehicle.make && part.make) {
-      const pMake = (part.make || '').toLowerCase();
-      const vMake = vehicle.make.toLowerCase();
-      if (!pMake.includes(vMake) && !vMake.includes(pMake)) return false;
-    }
-
-    if (vehicle.model && part.model) {
-      const pModel = (part.model || '').toLowerCase();
-      const vModel = vehicle.model.toLowerCase();
-      if (!pModel.includes(vModel) && !vModel.includes(pModel)) return false;
-    }
-
-    if (vehicle.year && part.year) {
-      const pYearStr = String(part.year).trim();
-      const vYear = Number(vehicle.year);
-      if (pYearStr.includes('-')) {
-        const [start, end] = pYearStr.split('-').map(Number);
-        if (!isNaN(start) && !isNaN(end) && !isNaN(vYear)) {
-          if (vYear < Math.min(start, end) || vYear > Math.max(start, end)) return false;
-        }
-      } else if (!isNaN(vYear) && !pYearStr.includes(String(vYear))) {
-        return false;
-      }
-    }
-
-    return true;
-  };
-
+  
   const fetchYearsForMake = async (make: string) => {
     const cacheKey = `years_${make}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
