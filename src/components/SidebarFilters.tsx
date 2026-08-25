@@ -1,3 +1,4 @@
+import { scanIstemara } from '../utils/istemaraScanner';
 import React, { useState, useRef } from 'react';
 import { createWorker } from 'tesseract.js';
 import { 
@@ -360,145 +361,40 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       setIsDecodingVin(false);
       setStatusMsg('');
     }
-  };
 
-  // 📸 محرك فحص الاستمارة المطور محلياً بـ Tesseract.js (100% موثوق وآمن وبدون AI API)
-  const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  };const handleIstemaraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsDecodingVin(true);
-    setStatusMsg(isRtl ? 'جاري معالجة وقراءة الاستمارة القطرية بالماسح البصري...' : 'Scanning Qatari Registration Card...');
+    setStatusMsg(isRtl ? 'جاري فحص الاستمارة بالماسح البصري...' : 'Scanning registration card...');
 
     try {
-      // 1. تشغيل عامل Tesseract
-      const worker = await createWorker('eng');
-      const ret = await worker.recognize(file);
-      await worker.terminate();
+      const result = await scanIstemara(file, activeCarData);
 
-      const rawText = ret.data.text || '';
-
-      // 2. البحث الأول: مطابقة رقم الشاصي القياسي المكون من 17 حرفاً ورقم
-      const cleanedText = rawText.replace(/[\s\-_:.]/g, '').toUpperCase();
-      const standardVinRegex = /[A-HJ-NPR-Z0-9]{17}/i;
-      let match = cleanedText.match(standardVinRegex);
-
-      let detectedVin = match ? match[0].toUpperCase() : '';
-
-      // 3. البحث الثاني: البحث في الأسطر الخاصة برقم القاعدة والشاصي
-      if (!detectedVin) {
-        const lines = rawText.split('\n');
-        for (const line of lines) {
-          const lLower = line.toLowerCase();
-          if (lLower.includes('chassis') || lLower.includes('vin') || lLower.includes('engine') || line.includes('القاعدة') || line.includes('الهيكل')) {
-            const extracted = line.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-            const subMatch = extracted.match(/[A-Z0-9]{11,17}/);
-            if (subMatch && subMatch[0].length >= 11) {
-              detectedVin = subMatch[0];
-              break;
-            }
-          }
-        }
-      }
-
-      // 4. تصحيح الأخطاء البصرية الشائعة في الـ VIN
-      if (detectedVin && detectedVin.length === 17) {
-        detectedVin = detectedVin
-          .replace(/I/g, '1')
-          .replace(/O/g, '0')
-          .replace(/Q/g, '0');
-
-        setVinInput(detectedVin);
-        await decodeVinNumber(detectedVin);
+      if (result.success && result.vin && result.vin.length === 17) {
+        setVinInput(result.vin);
+        await decodeVinNumber(result.vin);
         return;
       }
 
-      // 5. الاستخراج الذكي الاحتياطي (الماركة، الموديل، السنة) من النص إذا تعذر الشاصي الكامل
-      let foundMake = '';
-      let foundModel = '';
-      let foundYear = '';
-
-      // فحص الماركة
-      for (const m of Object.keys(activeCarData)) {
-        const enName = activeCarData[m]?.en || '';
-        if (rawText.toLowerCase().includes(m.toLowerCase()) || (enName && rawText.toLowerCase().includes(enName.toLowerCase()))) {
-          foundMake = m;
-          // فحص الموديل التابع للماركة
-          const models = activeCarData[m]?.models || [];
-          for (const mod of models) {
-            if (rawText.toLowerCase().includes(mod.toLowerCase())) {
-              foundModel = mod;
-              break;
-            }
-          }
-          break;
-        }
-      }
-
-      // فحص سنة الصنع (4 أرقام تبدأ بـ 19 أو 20)
-      const yearMatch = rawText.match(/\b(19\d\d|20\d\d)\b/);
-      if (yearMatch) {
-        foundYear = yearMatch[0];
-      }
-
-      if (foundMake || foundModel) {
+      if (result.success && (result.make || result.model)) {
         setDecodedVehicle({
-          make: foundMake || 'Toyota',
-          model: foundModel || 'Camry',
-          year: foundYear || '2015',
-          vin: detectedVin
+          make: result.make || 'Toyota',
+          model: result.model || 'Camry',
+          year: result.year || '2015',
+          vin: result.vin || ''
         });
-        setIsDecodingVin(false);
         return;
       }
 
-      alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته في الخانة المجاورة.' : 'Could not read VIN clearly. Please type it manually.');
+      alert(isRtl ? 'لم نتمكن من قراءة رقم الشاصي بوضوح، يرجى كتابته في الخانة.' : 'Could not detect VIN. Please type it manually.');
     } catch (err) {
-      console.error("Istemara scan error:", err);
-      alert(isRtl ? 'حدث خطأ أثناء فحص الصورة، يرجى إدخال الشاصي يدوياً.' : 'Scan failed. Please type VIN.');
+      alert(isRtl ? 'حدث خطأ أثناء فحص الصورة.' : 'Error scanning image.');
     } finally {
       setIsDecodingVin(false);
       setStatusMsg('');
     }
-  };
-
-  // 🎯 محرك مطابقة الشاصي والسيارة مع القطع المرفوعة بالكراجات
-  const isPartFitWithVehicle = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string }) => {
-    const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
-    if (excelVins && vehicle.vin) {
-      const cleanVin = vehicle.vin.toUpperCase().trim();
-      const vinList = String(excelVins).toUpperCase().split(/[,;\s\n/]+/).map(v => v.trim()).filter(Boolean);
-      if (vinList.some(v => cleanVin === v || cleanVin.startsWith(v) || v.startsWith(cleanVin.substring(0, 8)))) {
-        return true;
-      }
-    }
-
-    if (vehicle.make && part.make) {
-      const pMake = (part.make || '').toLowerCase();
-      const vMake = vehicle.make.toLowerCase();
-      if (!pMake.includes(vMake) && !vMake.includes(pMake)) return false;
-    }
-
-    if (vehicle.model && part.model) {
-      const pModel = (part.model || '').toLowerCase();
-      const vModel = vehicle.model.toLowerCase();
-      if (!pModel.includes(vModel) && !vModel.includes(pModel)) return false;
-    }
-
-    if (vehicle.year && part.year) {
-      const pYearStr = String(part.year).trim();
-      const vYear = Number(vehicle.year);
-      if (pYearStr.includes('-')) {
-        const [start, end] = pYearStr.split('-').map(Number);
-        if (!isNaN(start) && !isNaN(end) && !isNaN(vYear)) {
-          if (vYear < Math.min(start, end) || vYear > Math.max(start, end)) return false;
-        }
-      } else if (!isNaN(vYear) && !pYearStr.includes(String(vYear))) {
-        return false;
-      }
-    }
-
-    return true;
   };
 
   const fetchYearsForMake = async (make: string) => {
