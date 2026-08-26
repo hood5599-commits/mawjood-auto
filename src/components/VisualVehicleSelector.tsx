@@ -3,8 +3,29 @@ import { CAR_DATA, CAR_YEARS } from '../data/carData';
 import { SUPABASE_URL, API_KEY } from '../config/supabase';
 
 /* ============================================================================
-   DESIGN TOKENS — Luxury Obsidian & Brushed Copper Palette
+   🖼️ قسم التحكم السريع في صور الأقسام (عدّل الروابط من هنا في أي وقت)
+   يمكنك وضع رابط مباشر من الإنترنت أو مسار من جهازك داخل مجلد public
 ============================================================================ */
+export const CATEGORY_CUSTOM_IMAGES: Record<string, string> = {
+  "Brake & Wheel Hub": "https://images.unsplash.com/photo-1600706432502-778d9763cb6d?w=500&auto=format&fit=crop&q=80",
+  "Suspension": "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=500&auto=format&fit=crop&q=80",
+  "Engine": "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=500&auto=format&fit=crop&q=80",
+  "Cooling System": "https://images.unsplash.com/photo-1616788494707-ec28f08d05a1?w=500&auto=format&fit=crop&q=80",
+  "Heat & Air Conditioning": "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=500&auto=format&fit=crop&q=80",
+  "Ignition": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=500&auto=format&fit=crop&q=80",
+  "Fuel & Air": "https://images.unsplash.com/photo-1598971861713-54ad16a7e72e?w=500&auto=format&fit=crop&q=80",
+  "Electrical": "https://images.unsplash.com/photo-1597762117709-8588820c7d7e?w=500&auto=format&fit=crop&q=80",
+  "Body & Lamp Assembly": "https://images.unsplash.com/photo-1508974239320-0a029497e820?w=500&auto=format&fit=crop&q=80",
+  "Steering": "https://images.unsplash.com/photo-1541348263662-e0c8de4259ba?w=500&auto=format&fit=crop&q=80",
+  "Drivetrain": "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=500&auto=format&fit=crop&q=80",
+  "Transmission-Automatic": "https://images.unsplash.com/photo-1588644525273-f37b60d78512?w=500&auto=format&fit=crop&q=80",
+  "Transmission-Manual": "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=500&auto=format&fit=crop&q=80",
+  "Wheel": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=500&auto=format&fit=crop&q=80",
+  "Wiper & Washer": "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=500&auto=format&fit=crop&q=80"
+};
+
+const DEFAULT_FALLBACK_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=500&auto=format&fit=crop&q=80";
+
 const TOKENS = {
   obsidian: '#090D16',
   obsidianSoft: '#0F172A',
@@ -14,30 +35,16 @@ const TOKENS = {
   alabaster: '#F8FAFC',
   white: '#FFFFFF',
   hairline: 'rgba(226, 232, 240, 0.85)',
-  hairlineDark: 'rgba(148, 163, 184, 0.22)',
   copper: '#EA580C',
-  copperDeep: '#C2410C',
-  copperBright: '#F97316',
   copperTint: '#FFF7ED',
   copperLine: 'rgba(234, 88, 12, 0.25)',
   success: '#16A34A',
   successTint: '#F0FDF4',
-  successLine: '#86EFAC',
-  sky: '#0284C7',
-  skyTint: '#F0F9FF',
 };
 
-/* ============================================================================
-   ICONOGRAPHY — Bespoke Inline SVG Icons
-============================================================================ */
-type IconName = 'car' | 'search' | 'bolt' | 'folder' | 'chevron' | 'refresh' | 'check' | 'undo' | 'sparkle' | 'layers';
+type IconName = 'car' | 'search' | 'bolt' | 'folder' | 'refresh' | 'undo' | 'layers';
 
-const Icon: React.FC<{ name: IconName; size?: number; color?: string; style?: React.CSSProperties }> = ({
-  name,
-  size = 16,
-  color = 'currentColor',
-  style
-}) => {
+const Icon: React.FC<{ name: IconName; size?: number; color?: string }> = ({ name, size = 16, color = 'currentColor' }) => {
   const icons: Record<IconName, React.ReactNode> = {
     car: (
       <>
@@ -54,14 +61,9 @@ const Icon: React.FC<{ name: IconName; size?: number; color?: string; style?: Re
       </>
     ),
     bolt: <path d="M13 2 4.5 13.5h6l-1.5 8.5 9-12h-6.5z" />,
-    folder: (
-      <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.7l1.7 2h9.6A1.5 1.5 0 0 1 22 8.5v9A1.5 1.5 0 0 1 20.5 19h-16A1.5 1.5 0 0 1 3 17.5Z" />
-    ),
-    chevron: <path d="m6 9 6 6 6-6" />,
+    folder: <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.7l1.7 2h9.6A1.5 1.5 0 0 1 22 8.5v9A1.5 1.5 0 0 1 20.5 19h-16A1.5 1.5 0 0 1 3 17.5Z" />,
     refresh: <path d="M20 11.5A8 8 0 1 0 18.6 16M20 11.5V5.8M20 11.5h-5.7" />,
-    check: <path d="m4 12 5 5L20 6" />,
     undo: <path d="M9 14 4 9l5-5M4 9h10.5a6.5 6.5 0 0 1 0 13H11" />,
-    sparkle: <path d="M12 3c.5 3 2 4.5 5 5-3 .5-4.5 2-5 5-.5-3-2-4.5-5-5 3-.5 4.5-2 5-5Z" />,
     layers: (
       <>
         <path d="m12 3 9 4.7-9 4.7-9-4.7Z" />
@@ -80,109 +82,31 @@ const Icon: React.FC<{ name: IconName; size?: number; color?: string; style?: Re
       strokeWidth={1.75}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ flexShrink: 0, display: 'inline-block', verticalAlign: 'middle', ...style }}
-      aria-hidden="true"
+      style={{ flexShrink: 0, display: 'inline-block', verticalAlign: 'middle' }}
     >
       {icons[name]}
     </svg>
   );
 };
 
-// 🗂️ صور نادرة وعالية الجودة مخصصة لكل قسم رئيسي
-const CATEGORY_META: Record<string, { ar: string; en: string; image: string; tag: string }> = {
-  "Brake & Wheel Hub": {
-    ar: "الفرامل والسفايف والدرامات",
-    en: "Brake & Wheel Hub",
-    image: "https://images.unsplash.com/photo-1600706432502-778d9763cb6d?w=500&auto=format&fit=crop&q=80",
-    tag: "Braking & Rotors"
-  },
-  "Suspension": {
-    ar: "المساعدات والجامبينات والشيالات",
-    en: "Suspension & Shocks",
-    image: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=500&auto=format&fit=crop&q=80",
-    tag: "Chassis & Dampers"
-  },
-  "Engine": {
-    ar: "المحرك ومكونات المكينة",
-    en: "Engine & Components",
-    image: "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=500&auto=format&fit=crop&q=80",
-    tag: "Powertrain & Blocks"
-  },
-  "Cooling System": {
-    ar: "نظام التبريد والرديتر",
-    en: "Cooling & Radiators",
-    image: "https://images.unsplash.com/photo-1616788494707-ec28f08d05a1?w=500&auto=format&fit=crop&q=80",
-    tag: "Thermal Management"
-  },
-  "Heat & Air Conditioning": {
-    ar: "التكييف والكمبريسر والتدفئة",
-    en: "A/C & Climate Control",
-    image: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=500&auto=format&fit=crop&q=80",
-    tag: "Compressors & Condensers"
-  },
-  "Ignition": {
-    ar: "نظام الاشتعال (البلاكات والكويلات)",
-    en: "Ignition System",
-    image: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=500&auto=format&fit=crop&q=80",
-    tag: "Spark Plugs & Coils"
-  },
-  "Fuel & Air": {
-    ar: "الوقود وبترول وهواء المكينة",
-    en: "Fuel & Air Intake",
-    image: "https://images.unsplash.com/photo-1598971861713-54ad16a7e72e?w=500&auto=format&fit=crop&q=80",
-    tag: "Pumps & Injectors"
-  },
-  "Electrical": {
-    ar: "الكهرباء والدينمة والسلف",
-    en: "Electrical & Alternator",
-    image: "https://images.unsplash.com/photo-1597762117709-8588820c7d7e?w=500&auto=format&fit=crop&q=80",
-    tag: "Starters & Dynamos"
-  },
-  "Body & Lamp Assembly": {
-    ar: "الهيكل والإضاءة (بدي وليتات)",
-    en: "Body & Lighting",
-    image: "https://images.unsplash.com/photo-1508974239320-0a029497e820?w=500&auto=format&fit=crop&q=80",
-    tag: "LEDs & Body Panels"
-  },
-  "Steering": {
-    ar: "نظام التوجيه والاستيرنج راك",
-    en: "Steering System",
-    image: "https://images.unsplash.com/photo-1541348263662-e0c8de4259ba?w=500&auto=format&fit=crop&q=80",
-    tag: "Racks & Tie Rods"
-  },
-  "Drivetrain": {
-    ar: "الدفع والمحاور (الأكسلات والشفت)",
-    en: "Drivetrain & Axles",
-    image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=500&auto=format&fit=crop&q=80",
-    tag: "Shafts & CV Axles"
-  },
-  "Transmission-Automatic": {
-    ar: "القير الأوتوماتيك (الجير)",
-    en: "Automatic Transmission",
-    image: "https://images.unsplash.com/photo-1588644525273-f37b60d78512?w=500&auto=format&fit=crop&q=80",
-    tag: "Gearboxes & Torque"
-  },
-  "Transmission-Manual": {
-    ar: "القير العادي (الكلتش)",
-    en: "Manual Transmission",
-    image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=500&auto=format&fit=crop&q=80",
-    tag: "Clutch Kits & Flywheels"
-  },
-  "Wheel": {
-    ar: "الإطارات والرنجات والتواير",
-    en: "Wheels & Tires",
-    image: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=500&auto=format&fit=crop&q=80",
-    tag: "Rims & TPMS"
-  },
-  "Wiper & Washer": {
-    ar: "المساحات وبخاخات ماي الجام",
-    en: "Wipers & Washers",
-    image: "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=500&auto=format&fit=crop&q=80",
-    tag: "Blades & Motors"
-  }
+const CATEGORY_NAMES: Record<string, { ar: string; en: string; tag: string }> = {
+  "Brake & Wheel Hub": { ar: "الفرامل والسفايف والدرامات", en: "Brake & Wheel Hub", tag: "Braking & Rotors" },
+  "Suspension": { ar: "المساعدات والجامبينات والشيالات", en: "Suspension & Shocks", tag: "Chassis & Dampers" },
+  "Engine": { ar: "المحرك ومكونات المكينة", en: "Engine & Components", tag: "Powertrain & Blocks" },
+  "Cooling System": { ar: "نظام التبريد والرديتر", en: "Cooling & Radiators", tag: "Thermal Management" },
+  "Heat & Air Conditioning": { ar: "التكييف والكمبريسر والتدفئة", en: "A/C & Climate Control", tag: "Compressors & A/C" },
+  "Ignition": { ar: "نظام الاشتعال (البلاكات والكويلات)", en: "Ignition System", tag: "Spark Plugs & Coils" },
+  "Fuel & Air": { ar: "الوقود وبترول وهواء المكينة", en: "Fuel & Air Intake", tag: "Pumps & Injectors" },
+  "Electrical": { ar: "الكهرباء والدينمة والسلف", en: "Electrical & Alternator", tag: "Starters & Dynamos" },
+  "Body & Lamp Assembly": { ar: "الهيكل والإضاءة (بدي وليتات)", en: "Body & Lighting", tag: "LEDs & Body Panels" },
+  "Steering": { ar: "نظام التوجيه والاستيرنج راك", en: "Steering System", tag: "Racks & Tie Rods" },
+  "Drivetrain": { ar: "الدفع والمحاور (الأكسلات والشفت)", en: "Drivetrain & Axles", tag: "Shafts & CV Axles" },
+  "Transmission-Automatic": { ar: "القير الأوتوماتيك (الجير)", en: "Automatic Transmission", tag: "Gearboxes & Torque" },
+  "Transmission-Manual": { ar: "القير العادي (الكلتش)", en: "Manual Transmission", tag: "Clutch & Flywheels" },
+  "Wheel": { ar: "الإطارات والرنجات والتواير", en: "Wheels & Tires", tag: "Rims & TPMS" },
+  "Wiper & Washer": { ar: "المساحات وبخاخات ماي الجام", en: "Wipers & Washers", tag: "Blades & Motors" }
 };
 
-// 📂 قاموس ترجمة الأقسام الفرعية بالمصطلحات القطرية والإنجليزية
 const SUBCATEGORY_NAMES: Record<string, { ar: string; en: string }> = {
   "Brake Pad": { ar: "فحمات وقماشات الفرامل (سفايف) — Brake Pads", en: "Brake Pads" },
   "Rotor": { ar: "هوبات وأقراص الفرامل (درام ويل) — Brake Rotors", en: "Brake Rotors" },
@@ -261,12 +185,10 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   const [loading, setLoading] = useState(false);
   const [hoveredCat, setHoveredCat] = useState<string | null>(null);
 
-  // 🧠 مطابقة ذكية مرنة للموديل
   const isModelMatching = (dbModel: string, targetModel: string): boolean => {
     if (!dbModel || !targetModel) return true;
     const d = dbModel.toLowerCase().trim();
     const t = targetModel.toLowerCase().trim();
-
     if (d === t || d.includes(t) || t.includes(d)) return true;
 
     const aliases: Record<string, string[]> = {
@@ -294,7 +216,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     return false;
   };
 
-  // 🧠 فحص وتطابق سنة الصنع
   const isYearMatching = (dbYear: string, targetYear: string): boolean => {
     if (!dbYear || !targetYear) return true;
     const yStr = String(dbYear).trim();
@@ -309,7 +230,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     return yStr === targetYear || yStr.includes(targetYear);
   };
 
-  // 1️⃣ بدء البحث البصري عند الضغط على "استعراض الأقسام"
   const handleStartSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMake || !selectedModel || !selectedYear) return;
@@ -317,7 +237,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     setLoading(true);
     try {
       const enMake = CAR_DATA[selectedMake]?.en || selectedMake;
-      
       const url = `${SUPABASE_URL}/parts?or=(make.ilike.*${encodeURIComponent(selectedMake)}*,make.ilike.*${encodeURIComponent(enMake)}*)&select=*`;
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       const data = await res.json();
@@ -351,7 +270,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     }
   };
 
-  // 2️⃣ استخراج الأقسام الرئيسية المتاحة للسيارة
   const loadMainCategories = (partsList: any[], engine?: string) => {
     const filtered = engine && !engine.includes('جميع المحركات') && !engine.includes('All Engines')
       ? partsList.filter(p => !p.engine || p.engine.includes('جميع') || p.engine.includes('All') || p.engine === engine)
@@ -369,13 +287,11 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     setCurrentStep('main_cat');
   };
 
-  // 3️⃣ عند اختيار المحرك بصرياً
   const handleSelectEngine = (eng: string) => {
     setChosenEngine(eng);
     loadMainCategories(carFilteredParts, eng);
   };
 
-  // 4️⃣ عند اختيار القسم الرئيسي
   const handleSelectMainCat = (cat: string) => {
     setChosenMainCat(cat);
 
@@ -400,7 +316,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     }
   };
 
-  // 5️⃣ عند اختيار القسم الفرعي وعرض القطع المتوافقة
   const handleSelectSubCat = (subCat: string) => {
     setChosenSubCat(subCat);
 
@@ -418,7 +333,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      {/* 🚘 صندوق محدد السيارة بتصميم فخم */}
+      {/* 🚘 صندوق محدد السيارة */}
       <div style={{
         backgroundColor: TOKENS.white,
         padding: '26px',
@@ -544,7 +459,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
             {selectedMake} {selectedModel} ({selectedYear})
           </span>
           {chosenEngine && <span style={{ color: TOKENS.slateText }}> › ⚡ {chosenEngine}</span>}
-          {chosenMainCat && <span style={{ color: TOKENS.slateText }}> › 🗂️ {isRtl ? (CATEGORY_META[chosenMainCat]?.ar || chosenMainCat) : (CATEGORY_META[chosenMainCat]?.en || chosenMainCat)}</span>}
+          {chosenMainCat && <span style={{ color: TOKENS.slateText }}> › 🗂️ {isRtl ? (CATEGORY_NAMES[chosenMainCat]?.ar || chosenMainCat) : (CATEGORY_NAMES[chosenMainCat]?.en || chosenMainCat)}</span>}
           {chosenSubCat && <span style={{ color: TOKENS.copper, fontWeight: 800 }}> › 📂 {isRtl ? (SUBCATEGORY_NAMES[chosenSubCat]?.ar || chosenSubCat) : (SUBCATEGORY_NAMES[chosenSubCat]?.en || chosenSubCat)}</span>}
           
           <button
@@ -593,7 +508,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         </div>
       )}
 
-      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية بصور عالية الدقة */}
+      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية مع صور قابلة للتخصيص */}
       {currentStep === 'main_cat' && (
         <div style={{ backgroundColor: TOKENS.white, padding: '24px', borderRadius: '20px', border: `1px solid ${TOKENS.hairline}` }}>
           <h4 style={{ margin: '0 0 18px 0', color: TOKENS.obsidian, fontSize: '16.5px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -615,12 +530,8 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '16px' }}>
               {availableMainCats.map((cat) => {
-                const meta = CATEGORY_META[cat] || {
-                  ar: cat,
-                  en: cat,
-                  image: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=500&auto=format&fit=crop&q=80",
-                  tag: "Spare Parts"
-                };
+                const meta = CATEGORY_NAMES[cat] || { ar: cat, en: cat, tag: "Spare Parts" };
+                const catImage = CATEGORY_CUSTOM_IMAGES[cat] || DEFAULT_FALLBACK_IMAGE;
                 const isHovered = hoveredCat === cat;
 
                 return (
@@ -642,11 +553,11 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
                       flexDirection: 'column'
                     }}
                   >
-                    {/* صورة القسم عالية الدقة */}
                     <div style={{ position: 'relative', width: '100%', height: '115px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
                       <img
-                        src={meta.image}
+                        src={catImage}
                         alt={meta.ar}
+                        onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FALLBACK_IMAGE; }}
                         style={{
                           width: '100%',
                           height: '100%',
@@ -677,7 +588,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
                       </span>
                     </div>
 
-                    {/* نص القسم */}
                     <div style={{ padding: '14px 12px', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <strong style={{ fontSize: '13.5px', color: isHovered ? TOKENS.copper : TOKENS.obsidian, display: 'block', marginBottom: '3px', fontWeight: 800, transition: 'color 0.2s ease' }}>
                         {isRtl ? meta.ar : meta.en}
@@ -698,22 +608,20 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
             <h4 style={{ margin: 0, color: TOKENS.obsidian, fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Icon name="folder" size={17} color={TOKENS.copper} />
-              {isRtl ? `الأقسام الفرعية المتوفرة في (${CATEGORY_META[chosenMainCat]?.ar || chosenMainCat}):` : `Subcategories in (${chosenMainCat}):`}
+              {isRtl ? `الأقسام الفرعية المتوفرة في (${CATEGORY_NAMES[chosenMainCat]?.ar || chosenMainCat}):` : `Subcategories in (${chosenMainCat}):`}
             </h4>
             <button
               onClick={() => setCurrentStep('main_cat')}
               style={{ background: TOKENS.alabaster, border: `1px solid ${TOKENS.hairline}`, padding: '7px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: TOKENS.obsidian }}
             >
-              <Icon name="undo" size={13} strokeWidth={2} />
+              <Icon name="undo" size={13} />
               {isRtl ? 'رجوع للأقسام الرئيسية' : 'Back to Categories'}
             </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
             {availableSubCats.map((sub) => {
               const subInfo = SUBCATEGORY_NAMES[sub];
-              const displaySubName = subInfo 
-                ? (isRtl ? subInfo.ar : subInfo.en) 
-                : sub;
+              const displaySubName = subInfo ? (isRtl ? subInfo.ar : subInfo.en) : sub;
 
               return (
                 <div
@@ -756,7 +664,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
               onClick={() => setCurrentStep(availableSubCats.length > 0 ? 'sub_cat' : 'main_cat')}
               style={{ background: TOKENS.white, border: `1px solid ${TOKENS.hairline}`, padding: '7px 14px', borderRadius: '10px', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: TOKENS.obsidian }}
             >
-              <Icon name="undo" size={13} strokeWidth={2} />
+              <Icon name="undo" size={13} />
               {isRtl ? 'تغيير القسم' : 'Change Category'}
             </button>
           </div>
