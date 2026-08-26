@@ -3,30 +3,37 @@ import { CAR_DATA, CAR_YEARS } from '../data/carData';
 import { SUPABASE_URL, API_KEY } from '../config/supabase';
 
 /* ============================================================================
-   🖼️ جدول تخصيص الصور للأقسام الرئيسية (يمكنك التعديل عليه في أي وقت)
-   - ضع مسار الصورة من جهازك (مثال: "/images/brakes.png") أو رابط مباشر من الإنترنت.
-   - إذا تركت القيمة فارغة "" سيتم عرض الإيموجي/الأيقونة الفخمة المحددة تلقائياً!
+   🖼️ جدول تخصيص الصور لجميع الأقسام الرئيسية (عدّل أو أضف الروابط هنا)
+   - يمكنك وضع رابط صورة من الإنترنت أو مسار محلي من جهازك مثل: "/images/brakes.png"
+   - عند ترك الرابط فارغاً "" سيتم عرض الإيموجي والأيقونة الفخمة المحددة تلقائياً!
 ============================================================================ */
 export const CATEGORY_CUSTOM_IMAGES: Record<string, string> = {
-  "Brake & Wheel Hub": "",         // مثال: "/images/brakes.png" أو رابط أونلاين
-  "Suspension": "",                // المساعدات والجامبينات والشيالات
-  "Engine": "",                    // المحرك ومكونات المكينة
-  "Cooling System": "",            // نظام التبريد والرديتر
-  "Heat & Air Conditioning": "",   // التكييف والكمبريسر والتدفئة
-  "Ignition": "",                  // نظام الاشتعال (البلاكات والكويلات)
-  "Fuel & Air": "",                // الوقود وبترول وهواء المكينة
-  "Electrical": "",                // الكهرباء والدينمة والسلف
-  "Body & Lamp Assembly": "",      // الهيكل والإضاءة (بدي وليتات)
-  "Steering": "",                  // نظام التوجيه والاستيرنج راك
-  "Drivetrain": "",                // الدفع والمحاور (الأكسلات والشفت)
-  "Transmission-Automatic": "",    // القير الأوتوماتيك (الجير)
-  "Transmission-Manual": "",       // القير العادي (الكلتش)
-  "Wheel": "",                     // الإطارات والرنجات والتواير
-  "Wiper & Washer": ""             // المساحات وبخاخات ماي الجام
+  "Brake & Wheel Hub": "",                   // الفرامل والسفايف والدرامات
+  "Suspension": "",                          // المساعدات والجامبينات والشيالات
+  "Engine": "",                              // المحرك ومكونات المكينة
+  "Cooling System": "",                      // نظام التبريد والرديتر
+  "Heat & Air Conditioning": "",             // التكييف والكمبريسر والتدفئة
+  "Ignition": "",                            // نظام الاشتعال (البلاكات والكويلات)
+  "Fuel & Air": "",                          // الوقود وبترول وهواء المكينة
+  "Electrical": "",                          // الكهرباء والدينمة والسلف
+  "Body & Lamp Assembly": "",                // الهيكل والإضاءة (بدي وليتات)
+  "Steering": "",                            // نظام التوجيه والاستيرنج راك
+  "Drivetrain": "",                          // الدفع والمحاور (الأكسلات والشفت)
+  "Transmission-Automatic": "",              // القير الأوتوماتيك (الجير)
+  "Transmission-Manual": "",                 // القير العادي (الكلتش)
+  "Wheel": "",                               // الإطارات والرنجات والتواير
+  "Wiper & Washer": "",                      // المساحات وبخاخات ماي الجام
+  "Belt Drive": "",                          // نظام السيور والقوايش
+  "Exhaust & Emission": "",                  // العادم والقزوز ودبة البيئة
+  "Electrical-Bulb & Socket": "",            // اللمبات والفيش
+  "Electrical-Connector": "",                // الفيش والتوصيلات
+  "Electrical-Switch & Relay": "",           // المفاتيح والكتاوت
+  "Interior": "",                            // المقصورة والديكور الداخلي
+  "Literature": ""                           // الكتالوجات والكتيبات
 };
 
 /* ============================================================================
-   🎨 ألوان وثيم الواجهة الفاخرة (Obsidian & Copper Luxury Theme)
+   🎨 نظام الألوان واللمسات الفاخرة (Obsidian & Copper Palette)
 ============================================================================ */
 const TOKENS = {
   obsidian: '#090D16',
@@ -45,7 +52,7 @@ const TOKENS = {
   successTint: '#F0FDF4',
 };
 
-// 🗂️ أيقونات وبيانات وتنسيقات الأقسام الرئيسية الـ 15 كاملة
+// 🗂️ القاموس الشامل لبيانات وأيقونات وخلفيات الأقسام الـ 22 كاملة
 const CATEGORY_META: Record<string, { ar: string; en: string; icon: string; bg: string }> = {
   "Brake & Wheel Hub": { ar: "الفرامل والسفايف والدرامات", en: "Brake & Wheel Hub", icon: "🛑", bg: "#fef2f2" },
   "Suspension": { ar: "المساعدات والجامبينات والشيالات", en: "Suspension", icon: "🔩", bg: "#faf5ff" },
@@ -61,7 +68,14 @@ const CATEGORY_META: Record<string, { ar: string; en: string; icon: string; bg: 
   "Transmission-Automatic": { ar: "القير الأوتوماتيك (الجير)", en: "Automatic Transmission", icon: "🕹️", bg: "#f1f5f9" },
   "Transmission-Manual": { ar: "القير العادي (الكلتش)", en: "Manual Transmission", icon: "⚙️", bg: "#f1f5f9" },
   "Wheel": { ar: "الإطارات والرنجات والتواير", en: "Wheels & Tires", icon: "🛞", bg: "#f8fafc" },
-  "Wiper & Washer": { ar: "المساحات وبخاخات ماي الجام", en: "Wipers & Washers", icon: "🌧️", bg: "#eff6ff" }
+  "Wiper & Washer": { ar: "المساحات وبخاخات ماي الجام", en: "Wipers & Washers", icon: "🌧️", bg: "#eff6ff" },
+  "Belt Drive": { ar: "نظام السيور والقوايش", en: "Belt Drive", icon: "🔗", bg: "#fff7ed" },
+  "Exhaust & Emission": { ar: "العادم والقزوز ودبة البيئة", en: "Exhaust & Emission", icon: "💨", bg: "#f1f5f9" },
+  "Electrical-Bulb & Socket": { ar: "اللمبات والفيش", en: "Electrical-Bulb & Socket", icon: "💡", bg: "#fefce8" },
+  "Electrical-Connector": { ar: "الفيش والتوصيلات", en: "Electrical-Connector", icon: "🔌", bg: "#f8fafc" },
+  "Electrical-Switch & Relay": { ar: "المفاتيح والكتاوت", en: "Electrical-Switch & Relay", icon: "🎛️", bg: "#f1f5f9" },
+  "Interior": { ar: "المقصورة والديكور الداخلي", en: "Interior", icon: "🪑", bg: "#f8fafc" },
+  "Literature": { ar: "الكتالوجات والكتيبات", en: "Literature", icon: "📚", bg: "#faf5ff" }
 };
 
 // 📂 قاموس ترجمة الأقسام الفرعية بالمصطلحات القطرية والإنجليزية
@@ -72,6 +86,7 @@ const SUBCATEGORY_NAMES: Record<string, { ar: string; en: string }> = {
   "ABS Control Module": { ar: "منظم مانع الانزلاق (ABS) — ABS Module", en: "ABS Control Module" },
   "Brake Fluid": { ar: "زيت الفرامل (آيل بريك) — Brake Fluid", en: "Brake Fluid" },
   "Wheel Bearing & Hub": { ar: "رمان وفلنجة العجل (بيرنج) — Wheel Bearings", en: "Wheel Bearings & Hub" },
+  "Parking Brake Shoe": { ar: "أقمشة فرامل اليد (سفايف هاند بريك) — Parking Brake", en: "Parking Brake Shoes" },
   "Shock / Strut": { ar: "المساعدات وممتص الصدمات (جامبينات) — Shocks & Struts", en: "Shocks & Struts" },
   "Control Arm": { ar: "المقصات وأذرعة التحكم (شيالات) — Control Arms", en: "Control Arms" },
   "Coil Spring": { ar: "اليايات والزنبركات (سبرنغات) — Coil Springs", en: "Coil Springs" },
@@ -87,19 +102,30 @@ const SUBCATEGORY_NAMES: Record<string, { ar: string; en: string }> = {
   "Coolant Reservoir": { ar: "قربة وخزان ماء الرديتر (قربة ماي) — Coolant Tank", en: "Coolant Reservoir" },
   "A/C Condenser": { ar: "مكثف ورديتر المكيف (كوندنسر) — A/C Condenser", en: "A/C Condenser" },
   "A/C Compressor": { ar: "كمبروسر وضاغط المكيف (كمبريسر) — A/C Compressor", en: "A/C Compressor" },
+  "A/C Evaporator Core": { ar: "ثلاجة ومبخر المكيف (ثلاجة داخلية) — Evaporator", en: "A/C Evaporator Core" },
   "Cabin Air Filter": { ar: "فلتر هواء المكيف والمقصورة (فلتر مكيف) — Cabin Filter", en: "Cabin Air Filter" },
+  "A/C Expansion Valve": { ar: "بلف وصمام تمدد المكيف — Expansion Valve", en: "A/C Expansion Valve" },
   "Spark Plug": { ar: "بواجي وشمعات الاحتراق (بلاكات) — Spark Plugs", en: "Spark Plugs" },
   "Ignition Coil": { ar: "كويلات وملفات الإشعال (كويلات) — Ignition Coils", en: "Ignition Coils" },
   "Air Filter": { ar: "فلتر هواء المحرك (فلتر مكينة) — Air Filter", en: "Engine Air Filter" },
   "Fuel Pump & Housing Assembly": { ar: "طرمبة ومضخة الوقود (فيول بمب) — Fuel Pump", en: "Fuel Pump Assembly" },
   "Fuel Injector": { ar: "بخاخات وحاقن الوقود (نوزلات) — Fuel Injectors", en: "Fuel Injectors" },
+  "Fuel Line / Hose": { ar: "فلاتر وخراطيم الوقود (فلتر بترول) — Fuel Lines", en: "Fuel Filter / Line" },
+  "Throttle Body": { ar: "بوابة وهواء الثروتل (ثروتل بدي) — Throttle Body", en: "Throttle Body" },
   "Filter": { ar: "فلتر زيت القير (فلتر جير) — Transmission Filter", en: "Transmission Filter" },
   "Transmission Fluid": { ar: "زيت وسوائل القير (آيل جير / ATF) — ATF Fluid", en: "Transmission Fluid" },
+  "Clutch Kit": { ar: "طقم وصحن الكلتش — Clutch Kit", en: "Clutch Kit" },
   "CV Axle": { ar: "العكوس ومحاور الدفع (أكسلات) — CV Axles", en: "CV Axles" },
+  "Drive Shaft": { ar: "عمود الكردان والشفت (درايف شفت) — Driveshaft", en: "Drive Shaft" },
   "Alternator / Generator": { ar: "دينمو وشاحن البطارية (دينمة) — Alternator", en: "Alternator / Generator" },
   "Starter Motor": { ar: "سلف ومارش التشغيل (ستارتر) — Starter Motor", en: "Starter Motor" },
   "Battery": { ar: "بطارية السيارة (بتري) — Battery", en: "Battery" },
+  "Engine Control Module (ECM Computer)": { ar: "كمبيوتر وعقل المحرك (كمبيوتر ECU/ECM) — ECU", en: "Engine ECU / ECM" },
+  "Speed Sensor": { ar: "حساسات السرعة والقير (سبيد سنسر) — Speed Sensor", en: "Speed Sensor" },
+  "Oxygen (O2) Sensor": { ar: "حساسات الأكسجين والقزوز (O2 سنسر) — O2 Sensor", en: "Oxygen (O2) Sensor" },
+  "Mass Air Flow (MAF) Sensor": { ar: "حساس تدفق الهواء (MAF سنسر) — MAF Sensor", en: "Mass Air Flow Sensor" },
   "Catalytic Converter": { ar: "دبة التلوث والبيئة (كربونة) — Catalytic Converter", en: "Catalytic Converter" },
+  "Vapor Canister Purge Valve / Solenoid": { ar: "بلف تبخير الوقود (PCV بلف) — Purge Valve", en: "Purge / PCV Valve" },
   "Headlamp Assembly": { ar: "الأنوار والشموع الأمامية (ليتات قدام) — Headlights", en: "Headlamp Assembly" },
   "Tail Lamp Assembly": { ar: "الأنوار والإسطبات الخلفية (ليتات ورا) — Tail Lamp Assembly", en: "Tail Lamp Assembly" },
   "Fog / Driving Lamp Assembly": { ar: "كشافات الضباب (كشافات) — Fog Lights", en: "Fog / Driving Lights" },
@@ -108,11 +134,20 @@ const SUBCATEGORY_NAMES: Record<string, { ar: string; en: string }> = {
   "Fender": { ar: "الرفرف الجانبي (مدقار) — Fenders", en: "Fenders" },
   "Hood": { ar: "غطاء المحرك / الكبوت (بانيت) — Hood", en: "Hood / Bonnet" },
   "Outside Mirror Glass": { ar: "المرايا الجانبية (مناظر) — Side Mirrors", en: "Side Mirrors" },
+  "Glass": { ar: "زجاج وجامات السيارة (جام) — Glass", en: "Auto Glass / Windshield" },
   "Wheel": { ar: "الإطارات والرنجات والتواير — Wheels & Tires", en: "Wheels & Tires" },
   "Lug Nut": { ar: "براغي وصواميل الجنوط (براغي رنج) — Lug Nuts", en: "Lug Nuts" },
+  "Tire Pressure Monitoring System (TPMS) Sensor": { ar: "حساس ضغط الإطارات (حساس تواير TPMS) — TPMS", en: "TPMS Sensor" },
   "Motor Mount": { ar: "كراسي وقواعد المحرك (كراسي مكينة) — Engine Mounts", en: "Motor Mounts" },
   "Oil Filter": { ar: "فلتر وزيت المحرك (فلتر آيل) — Oil Filter", en: "Oil Filter" },
-  "Belt": { ar: "سيور المحرك الخارجية (قايش) — Belts", en: "Drive Belts" }
+  "Belt": { ar: "سيور المحرك الخارجية (قايش) — Belts", en: "Drive Belts" },
+  "Belt Tensioner": { ar: "شداد وبكرات السيور (شداد قايش) — Belt Tensioners", en: "Belt Tensioners" },
+  "Oil Pump": { ar: "طرمبة ومضخة زيت المحرك (طرمبة آيل) — Oil Pump", en: "Oil Pump" },
+  "Piston": { ar: "البساتم والشنابر (بساتم) — Pistons", en: "Pistons & Rings" },
+  "Timing Chain": { ar: "جنزير وسير التايمنج (جنزير صدر) — Timing Chain", en: "Timing Chain" },
+  "Cylinder Head Gasket": { ar: "قزقيت ووجه رأس المحرك (قازقيت مكينة) — Head Gasket", en: "Cylinder Head Gasket" },
+  "Wiper Blade": { ar: "مساحات وشفرات الزجاج (مساحات جام) — Wiper Blades", en: "Wiper Blades" },
+  "Washer Pump": { ar: "طرمبة ومضخة ماء المساحات (طرمبة ماي جام) — Washer Pump", en: "Washer Pump" }
 };
 
 interface VisualVehicleSelectorProps {
@@ -300,7 +335,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      {/* 🚘 صندوق محدد السيارة بتصميم فخم */}
+      {/* 🚘 صندوق محدد السيارة */}
       <div style={{
         backgroundColor: TOKENS.white,
         padding: '26px',
@@ -474,7 +509,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         </div>
       )}
 
-      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية (تدعم الصور أو الإيموجيات الفخمة تلقائياً) */}
+      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية الـ 22 كاملة */}
       {currentStep === 'main_cat' && (
         <div style={{ backgroundColor: TOKENS.white, padding: '24px', borderRadius: '20px', border: `1px solid ${TOKENS.hairline}` }}>
           <h4 style={{ margin: '0 0 18px 0', color: TOKENS.obsidian, fontSize: '16.5px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -522,7 +557,6 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
                       textAlign: 'center'
                     }}
                   >
-                    {/* إذا وضعت رابط صورة مخصص يتم عرضه، وإلا يتم عرض الإيموجي الفاخر */}
                     {customImage ? (
                       <div style={{ position: 'relative', width: '100%', height: '115px', overflow: 'hidden', backgroundColor: '#f1f5f9', marginBottom: '10px' }}>
                         <img
