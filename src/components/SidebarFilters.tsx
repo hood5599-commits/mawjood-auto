@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  getPartCategory, 
-  classifyPartTier 
+import {
+  getPartCategory,
+  classifyPartTier
 } from '../utils/categoryHelper';
 import { PartMoreInfo } from './PartMoreInfo';
 import { VisualVehicleSelector } from './VisualVehicleSelector';
@@ -10,6 +10,233 @@ import { scanIstemara } from '../utils/istemaraScanner';
 // 🚗 استيراد بيانات السيارات المركزية
 import { CAR_DATA } from '../data/carData';
 import { SUPABASE_URL, API_KEY } from '../config/supabase';
+
+/* ============================================================================
+   DESIGN TOKENS — "Mawjood Auto" Luxury System
+   Obsidian / Slate surfaces, Alabaster canvas, Copper–Champagne accent.
+   Cairo for Arabic, Inter for Latin. Every color below is referenced by name,
+   not re-typed, so the palette stays a single source of truth.
+============================================================================ */
+const TOKENS = {
+  obsidian: '#090D16',
+  obsidianSoft: '#0F172A',
+  slate: '#1E293B',
+  slateLine: 'rgba(226, 232, 240, 0.10)',
+  hairline: 'rgba(226, 232, 240, 0.85)',
+  hairlineDark: 'rgba(148, 163, 184, 0.22)',
+  alabaster: '#F8FAFC',
+  white: '#FFFFFF',
+  ink: '#0B1220',
+  slateText: '#475569',
+  mutedText: '#64748B',
+  copper: '#EA580C',
+  copperDeep: '#C2410C',
+  copperBright: '#F97316',
+  copperTint: '#FFF7ED',
+  copperLine: 'rgba(234, 88, 12, 0.28)',
+  success: '#16A34A',
+  successTint: '#F0FDF4',
+  successLine: '#86EFAC',
+  successInk: '#166534',
+  danger: '#DC2626',
+  dangerTint: '#FEF2F2',
+  dangerLine: '#FCA5A5',
+  dangerInk: '#991B1B',
+  amber: '#B45309',
+  amberTint: '#FFFBEB',
+  amberLine: '#FDE68A',
+  sky: '#0284C7',
+  skyTint: '#F0F9FF',
+  skyLine: '#BAE6FD',
+};
+
+const fontFor = (lang: 'ar' | 'en') =>
+  lang === 'ar'
+    ? "'Cairo', 'Segoe UI', system-ui, sans-serif"
+    : "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif";
+
+/* ============================================================================
+   ICONOGRAPHY — bespoke feather-weight SVG set, replaces every emoji.
+   Single-color, stroke-based, inherits currentColor for perfect theming.
+============================================================================ */
+type IconName =
+  | 'car' | 'camera' | 'search' | 'cart' | 'share' | 'star' | 'bolt'
+  | 'message' | 'alertTriangle' | 'checkCircle' | 'x' | 'refresh'
+  | 'calendar' | 'folder' | 'dot' | 'doc' | 'mail' | 'target'
+  | 'sortVertical' | 'trendingDown' | 'trendingUp' | 'chevronDown'
+  | 'undo' | 'chevronLeft' | 'chevronRight' | 'plus' | 'minus'
+  | 'layers' | 'sparkle' | 'shield' | 'truck' | 'wallet' | 'clock' | 'tag';
+
+const ICON_PATHS: Record<IconName, React.ReactNode> = {
+  car: (
+    <>
+      <path d="M3 12.5 4.8 7.2A2 2 0 0 1 6.7 5.8h10.6a2 2 0 0 1 1.9 1.4l1.8 5.3" />
+      <rect x="2.5" y="12.5" width="19" height="6" rx="2" />
+      <circle cx="7" cy="18.5" r="1.6" />
+      <circle cx="17" cy="18.5" r="1.6" />
+    </>
+  ),
+  camera: (
+    <>
+      <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.1l1-1.6h6.8l1 1.6h2.1A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5z" />
+      <circle cx="12" cy="12.5" r="3.4" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="10.8" cy="10.8" r="6.3" />
+      <path d="m20 20-4.35-4.35" />
+    </>
+  ),
+  cart: (
+    <>
+      <circle cx="9.5" cy="20" r="1.3" />
+      <circle cx="17.5" cy="20" r="1.3" />
+      <path d="M2.5 3h2l2.2 11.4a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.6L20.5 7H6" />
+    </>
+  ),
+  share: (
+    <>
+      <circle cx="18" cy="5.5" r="2.1" />
+      <circle cx="6" cy="12" r="2.1" />
+      <circle cx="18" cy="18.5" r="2.1" />
+      <path d="m7.9 10.8 8.2-4.3M7.9 13.2l8.2 4.3" />
+    </>
+  ),
+  star: (
+    <path d="m12 3.6 2.5 5.2 5.7.7-4.2 4 1 5.7L12 16.4l-5 2.8 1-5.7-4.2-4 5.7-.7z" />
+  ),
+  bolt: <path d="M12.9 2.4 4.6 13.5h5.6l-1.2 8.1 8.4-11.1h-5.7z" />,
+  message: (
+    <path d="M4 5.5h16A1.5 1.5 0 0 1 21.5 7v8A1.5 1.5 0 0 1 20 16.5H9l-4 3.4v-3.4H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5Z" />
+  ),
+  alertTriangle: (
+    <>
+      <path d="M12 3.6 22 20H2Z" />
+      <path d="M12 9.5v4.6M12 16.9h.01" />
+    </>
+  ),
+  checkCircle: (
+    <>
+      <circle cx="12" cy="12" r="8.6" />
+      <path d="m8.3 12.2 2.5 2.5 5-5.2" />
+    </>
+  ),
+  x: <path d="M6 6l12 12M18 6 6 18" />,
+  refresh: (
+    <path d="M20 11.5A8 8 0 1 0 18.6 16M20 11.5V5.8M20 11.5h-5.7" />
+  ),
+  calendar: (
+    <>
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+      <path d="M3.5 9.7h17M8 3v3.6M16 3v3.6" />
+    </>
+  ),
+  folder: (
+    <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.7l1.7 2h9.6A1.5 1.5 0 0 1 22 8.5v9A1.5 1.5 0 0 1 20.5 19h-16A1.5 1.5 0 0 1 3 17.5Z" />
+  ),
+  dot: <circle cx="12" cy="12" r="3.6" />,
+  doc: (
+    <>
+      <path d="M6.5 2.8h7.4L18 7.2v13.5a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1V3.8a1 1 0 0 1 1-1Z" />
+      <path d="M13.6 2.8V7h4.3M8.3 12.4h7.1M8.3 15.7h7.1M8.3 9.1h3" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="3" y="5.5" width="18" height="13" rx="2" />
+      <path d="m4 7 8 6.2L20 7" />
+    </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="8.4" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none" />
+    </>
+  ),
+  sortVertical: (
+    <path d="M7 4v16M7 4l-3 3M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3" />
+  ),
+  trendingDown: (
+    <>
+      <path d="m3.5 6.5 7 7 4-4 6 6" />
+      <path d="M20.5 9.5v6h-6" />
+    </>
+  ),
+  trendingUp: (
+    <>
+      <path d="m3.5 17.5 7-7 4 4 6-6" />
+      <path d="M20.5 14.5v-6h-6" />
+    </>
+  ),
+  chevronDown: <path d="m5 8.5 7 7 7-7" />,
+  undo: <path d="M8.5 8.5H4V4M4 8.5A8.5 8.5 0 1 1 6 18.3" />,
+  chevronLeft: <path d="m14.5 5-7 7 7 7" />,
+  chevronRight: <path d="m9.5 5 7 7-7 7" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
+  layers: (
+    <>
+      <path d="m12 3 9 4.7-9 4.7-9-4.7Z" />
+      <path d="m3 12.2 9 4.7 9-4.7M3 16.7l9 4.7 9-4.7" />
+    </>
+  ),
+  sparkle: (
+    <path d="M12 3.5c.5 3 1.9 4.4 4.9 4.9-3 .5-4.4 1.9-4.9 4.9-.5-3-1.9-4.4-4.9-4.9 3-.5 4.4-1.9 4.9-4.9Z M18.5 15c.3 1.5 1 2.2 2.5 2.5-1.5.3-2.2 1-2.5 2.5-.3-1.5-1-2.2-2.5-2.5 1.5-.3 2.2-1 2.5-2.5Z" />
+  ),
+  shield: (
+    <path d="M12 3 4.5 5.8v5.6c0 4.5 3.1 7.9 7.5 9.1 4.4-1.2 7.5-4.6 7.5-9.1V5.8Z" />
+  ),
+  truck: (
+    <>
+      <path d="M2.5 6.5h11v9h-11ZM13.5 10.5h4l3 3v2h-7Z" />
+      <circle cx="7" cy="17.5" r="1.6" />
+      <circle cx="17" cy="17.5" r="1.6" />
+    </>
+  ),
+  wallet: (
+    <>
+      <path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h13a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 18 19H5a1.5 1.5 0 0 1-1.5-1.5Z" />
+      <path d="M14.5 12.6a1.4 1.4 0 1 0 0-.2Z M16 10.8h2.5v3.6H16a1.8 1.8 0 0 1 0-3.6Z" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.4" />
+      <path d="M12 7.2V12l3.2 2" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M12.6 3.5h5.9a1 1 0 0 1 1 1v5.9a1 1 0 0 1-.3.7l-8.6 8.6a1 1 0 0 1-1.4 0l-6.9-6.9a1 1 0 0 1 0-1.4l8.6-8.6a1 1 0 0 1 .7-.3Z" />
+      <circle cx="16.3" cy="7.7" r="1.1" fill="currentColor" stroke="none" />
+    </>
+  ),
+};
+
+const Icon: React.FC<{
+  name: IconName;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+  style?: React.CSSProperties;
+}> = ({ name, size = 16, strokeWidth = 1.75, color = 'currentColor', style }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ flexShrink: 0, display: 'block', ...style }}
+    aria-hidden="true"
+  >
+    {ICON_PATHS[name]}
+  </svg>
+);
 
 // 🗂️ قاموس ترجمة الأقسام الرئيسية
 const CATEGORY_TRANSLATIONS: Record<string, { ar: string; en?: string }> = {
@@ -192,17 +419,6 @@ const MAKE_DOMAINS: Record<string, string> = {
   "لاند روفر": "landrover.com", "Land Rover": "landrover.com"
 };
 
-const nodeStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  cursor: 'pointer',
-  padding: '8px 12px',
-  borderRadius: '10px',
-  transition: 'all 0.15s ease-in-out',
-  userSelect: 'none',
-};
-
 interface SidebarProps {
   lang: 'ar' | 'en';
   carData?: any;
@@ -232,14 +448,15 @@ interface SidebarProps {
 }
 
 export const SidebarFilters: React.FC<SidebarProps> = (props) => {
-  const { 
-    lang, carData, inventory, 
-    searchTerm, setSearchTerm, addToCart, onInquire, siteSettings 
+  const {
+    lang, carData, inventory,
+    searchTerm, setSearchTerm, addToCart, onInquire, siteSettings
   } = props;
 
   const activeCarData = carData || CAR_DATA;
   const isRtl = lang === 'ar';
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fontFamily = fontFor(lang);
 
   // 🚘 حالات فحص الشاصي والاستمارة
   const [searchMode, setSearchMode] = useState<'visual' | 'tree'>('visual');
@@ -269,6 +486,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [partImageIndexes, setPartImageIndex] = useState<Record<number, number>>({});
   const [expandedPartCards, setExpandedPartCards] = useState<Record<number, boolean>>({});
   const [detailedPart, setDetailedPart] = useState<any | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
   const isBNPLEnabled = siteSettings?.enableBNPL ?? true;
@@ -782,6 +1000,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     } catch (err) {} finally { setIsSubmittingReq(false); }
   };
 
+  /* ==========================================================================
+     PART CARD — high-end product tile: refined thumbnail rail, monospace
+     part-number chip, fitment guarantee badge, stepper, dual CTA.
+  ========================================================================== */
   const renderPartCard = (part: any) => {
     const partNo = part.part_number || part.code || part.sku || part.id;
     const fitmentStatus = decodedVehicle ? getPartFitmentStatus(part, decodedVehicle) : null;
@@ -791,9 +1013,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     const tierInfo = classifyPartTier(part);
     const isExpanded = !!expandedPartCards[part.id];
+    const isHovered = hoveredCard === part.id;
 
-    const allImages: string[] = part.additional_images && part.additional_images.length > 0 
-      ? part.additional_images 
+    const allImages: string[] = part.additional_images && part.additional_images.length > 0
+      ? part.additional_images
       : [part.image_url || part.image || DEFAULT_IMAGE];
 
     const currentImgIndex = partImageIndexes[part.id] || 0;
@@ -826,73 +1049,106 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     const installmentValue = (Number(part.price || 0) / 4).toFixed(2);
     const displayName = formatBilingualPartName(part.name, lang);
 
+    const fitmentPalette = fitmentStatus === 'compatible'
+      ? { bg: TOKENS.successTint, fg: TOKENS.successInk, line: TOKENS.successLine, icon: 'checkCircle' as IconName }
+      : fitmentStatus === 'incompatible'
+      ? { bg: TOKENS.dangerTint, fg: TOKENS.dangerInk, line: TOKENS.dangerLine, icon: 'alertTriangle' as IconName }
+      : { bg: TOKENS.amberTint, fg: TOKENS.amber, line: TOKENS.amberLine, icon: 'message' as IconName };
+
     return (
-      <div 
-        key={part.id} 
-        style={{ 
-          backgroundColor: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', 
-          display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', 
-          position: 'relative', transition: 'all 0.25s ease-in-out' 
+      <div
+        key={part.id}
+        onMouseEnter={() => setHoveredCard(part.id)}
+        onMouseLeave={() => setHoveredCard(null)}
+        style={{
+          backgroundColor: TOKENS.white,
+          padding: '18px',
+          borderRadius: '18px',
+          border: `1px solid ${isHovered ? TOKENS.copperLine : TOKENS.hairline}`,
+          display: 'flex', flexDirection: 'column', gap: '13px',
+          boxShadow: isHovered
+            ? '0 18px 34px -14px rgba(9,13,22,0.16), 0 2px 8px rgba(234,88,12,0.06)'
+            : '0 2px 14px rgba(9,13,22,0.045)',
+          position: 'relative',
+          transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+          transition: 'all 0.28s cubic-bezier(0.22, 1, 0.36, 1)',
+          fontFamily
         }}
       >
-        <button 
-          onClick={(e) => handleSharePart(part, e)} 
+        <button
+          onClick={(e) => handleSharePart(part, e)}
           title={isRtl ? "مشاركة القطعة" : "Share Part"}
-          style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#f1f5f9', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', zIndex: 2 }}
+          style={{
+            position: 'absolute', top: '14px', [isRtl ? 'left' : 'right']: '14px',
+            backgroundColor: TOKENS.alabaster, border: `1px solid ${TOKENS.hairline}`, borderRadius: '10px',
+            width: '30px', height: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', zIndex: 2, color: TOKENS.slateText, transition: 'all 0.18s ease'
+          }}
         >
-          🔗
+          <Icon name="share" size={14} />
         </button>
 
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-          <div style={{ position: 'relative', width: '85px', height: '85px', flexShrink: 0 }}>
-            <img src={activeImage} alt={displayName} onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px', border: '1px solid #edf2f7' }} />
+        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+          <div style={{ position: 'relative', width: '88px', height: '88px', flexShrink: 0 }}>
+            <img
+              src={activeImage}
+              alt={displayName}
+              onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '13px', border: `1px solid ${TOKENS.hairline}` }}
+            />
             {allImages.length > 1 && (
               <>
-                <button onClick={(e) => handlePrevImage(part.id, allImages.length, e)} style={{ position: 'absolute', top: '35%', left: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>‹</button>
-                <button onClick={(e) => handleNextImage(part.id, allImages.length, e)} style={{ position: 'absolute', top: '35%', right: '-6px', backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid #cbd5e0', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' }}>›</button>
+                <button
+                  onClick={(e) => handlePrevImage(part.id, allImages.length, e)}
+                  style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: '-8px', backgroundColor: TOKENS.white, border: `1px solid ${TOKENS.hairline}`, borderRadius: '50%', width: '22px', height: '22px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: TOKENS.ink, boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}
+                >
+                  <Icon name="chevronLeft" size={12} strokeWidth={2} />
+                </button>
+                <button
+                  onClick={(e) => handleNextImage(part.id, allImages.length, e)}
+                  style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: '-8px', backgroundColor: TOKENS.white, border: `1px solid ${TOKENS.hairline}`, borderRadius: '50%', width: '22px', height: '22px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: TOKENS.ink, boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}
+                >
+                  <Icon name="chevronRight" size={12} strokeWidth={2} />
+                </button>
               </>
             )}
           </div>
 
-          <div style={{ flex: 1 }}>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold', lineHeight: '1.4' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h4 style={{ margin: '0 0 6px 0', fontSize: '14.5px', color: TOKENS.ink, fontWeight: 700, lineHeight: '1.4', letterSpacing: '-0.01em' }}>
               {displayName}
             </h4>
 
-            <div style={{ fontSize: '11.5px', color: '#1f3a5f', backgroundColor: '#e8f2fc', padding: '2px 6px', borderRadius: '5px', fontWeight: 'bold', display: 'inline-block', marginBottom: '4px', border: '1px solid #bae6fd', fontFamily: 'monospace' }}>
-              🔍 {isRtl ? 'رقم القطعة' : 'Part Number'}: {partNo}
+            <div style={{
+              fontSize: '11px', color: TOKENS.sky, backgroundColor: TOKENS.skyTint, padding: '3px 8px', borderRadius: '6px',
+              fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px', marginBottom: '6px',
+              border: `1px solid ${TOKENS.skyLine}`, fontFamily: "'JetBrains Mono', 'SFMono-Regular', Consolas, monospace"
+            }}>
+              <Icon name="search" size={11} strokeWidth={2} />
+              {isRtl ? 'رقم القطعة' : 'Part No.'}: {partNo}
             </div>
 
-            {/* 🎯 شارة التوافق الذكية (متطابق / غير متطابق / اسأل البائع) */}
             {decodedVehicle && fitmentStatus && (
               <div style={{
-                margin: '6px 0',
-                padding: '6px 10px',
-                borderRadius: '8px',
-                fontSize: '11.5px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: fitmentStatus === 'compatible' ? '#f0fdf4' : fitmentStatus === 'incompatible' ? '#fef2f2' : '#fffbeb',
-                color: fitmentStatus === 'compatible' ? '#166534' : fitmentStatus === 'incompatible' ? '#991b1b' : '#b45309',
-                border: `1px solid ${fitmentStatus === 'compatible' ? '#86efac' : fitmentStatus === 'incompatible' ? '#fca5a5' : '#fde68a'}`
+                margin: '6px 0', padding: '7px 10px', borderRadius: '9px', fontSize: '11.5px', fontWeight: 700,
+                display: 'flex', alignItems: 'center', gap: '7px',
+                backgroundColor: fitmentPalette.bg, color: fitmentPalette.fg, border: `1px solid ${fitmentPalette.line}`
               }}>
-                <span>{fitmentStatus === 'compatible' ? '✅' : fitmentStatus === 'incompatible' ? '⚠️' : '💬'}</span>
+                <Icon name={fitmentPalette.icon} size={14} strokeWidth={2} />
                 <span>
                   {fitmentStatus === 'compatible' && (
-                    isRtl 
-                      ? `متطابق 100% مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})` 
+                    isRtl
+                      ? `متطابق 100% مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})`
                       : `100% Compatible with (${decodedVehicle.make} ${decodedVehicle.model})`
                   )}
                   {fitmentStatus === 'incompatible' && (
-                    isRtl 
-                      ? `غير متطابق مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})` 
+                    isRtl
+                      ? `غير متطابق مع سيارتك (${decodedVehicle.make} ${decodedVehicle.model})`
                       : `Not Compatible with (${decodedVehicle.make} ${decodedVehicle.model})`
                   )}
                   {fitmentStatus === 'uncertain' && (
-                    isRtl 
-                      ? 'اسأل البائع للتأكد من التوافق مع سيارتك' 
+                    isRtl
+                      ? 'اسأل البائع للتأكد من التوافق مع سيارتك'
                       : 'Ask Seller to confirm vehicle fitment'
                   )}
                 </span>
@@ -900,51 +1156,62 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             )}
 
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: tierInfo.tier === 'oem' ? '#0369a1' : '#c2410c', backgroundColor: tierInfo.badgeColor, padding: '1px 6px', borderRadius: '4px' }}>
+              <span style={{
+                fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em',
+                color: tierInfo.tier === 'oem' ? TOKENS.sky : TOKENS.copperDeep,
+                backgroundColor: tierInfo.tier === 'oem' ? TOKENS.skyTint : TOKENS.copperTint,
+                padding: '2px 7px', borderRadius: '5px', display: 'inline-flex', alignItems: 'center', gap: '4px'
+              }}>
+                <Icon name="shield" size={10} strokeWidth={2} />
                 {part.part_type || (tierInfo.tier === 'oem' ? (isRtl ? 'أصلي' : 'OEM') : (isRtl ? tierInfo.label : 'Aftermarket'))}
               </span>
-              <span style={{ fontSize: '10.5px', fontWeight: 'bold', color: '#475569', backgroundColor: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
-                ✨ {part.part_condition || (isRtl ? 'جديد' : 'New')}
+              <span style={{ fontSize: '10px', fontWeight: 700, color: TOKENS.slateText, backgroundColor: TOKENS.alabaster, padding: '2px 7px', borderRadius: '5px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Icon name="sparkle" size={10} strokeWidth={2} />
+                {part.part_condition || (isRtl ? 'جديد' : 'New')}
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '4px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: '#e0872a', backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '1px 6px', borderRadius: '5px' }}>
-                ⭐ {part.garage_rating ? Number(part.garage_rating).toFixed(1) : '4.9'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: TOKENS.copperDeep, backgroundColor: TOKENS.copperTint, border: `1px solid ${TOKENS.copperLine}`, padding: '2px 7px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Icon name="star" size={11} strokeWidth={1.5} />
+                {part.garage_rating ? Number(part.garage_rating).toFixed(1) : '4.9'}
               </span>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>
-                ({part.garage_name || (isRtl ? 'كراج معتمد' : 'Verified Garage')})
+              <span style={{ fontSize: '11px', color: TOKENS.mutedText }}>
+                {part.garage_name || (isRtl ? 'كراج معتمد' : 'Verified Garage')}
               </span>
             </div>
 
-            <div style={{ color: '#e0872a', fontWeight: '900', fontSize: '16.5px', marginTop: '4px' }}>
-              {part.price} {isRtl ? 'ر.ق' : 'QAR'}
+            <div style={{ color: TOKENS.copper, fontWeight: 900, fontSize: '18px', marginTop: '6px', letterSpacing: '-0.02em' }}>
+              {part.price} <span style={{ fontSize: '12px', fontWeight: 700, color: TOKENS.copperDeep }}>{isRtl ? 'ر.ق' : 'QAR'}</span>
             </div>
           </div>
         </div>
 
         {isExpanded && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e0' }}>
-            <div style={{ border: '1px solid #cbd5e0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
-              <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontSize: '11.5px', fontWeight: 'bold', color: '#1f3a5f', borderBottom: '1px solid #cbd5e0', display: 'flex', justifyContent: 'space-between' }}>
-                <span>🚘 {isRtl ? 'توافق القطعة (Buyer\'s Guide):' : 'Part Fitment Guide:'}</span>
-                <span style={{ color: '#0284c7' }}>({formattedFitmentList.length})</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '12px', borderTop: `1px dashed ${TOKENS.hairline}` }}>
+            <div style={{ border: `1px solid ${TOKENS.hairline}`, borderRadius: '12px', overflow: 'hidden', backgroundColor: TOKENS.white }}>
+              <div style={{ backgroundColor: TOKENS.alabaster, padding: '8px 12px', fontSize: '11.5px', fontWeight: 700, color: TOKENS.ink, borderBottom: `1px solid ${TOKENS.hairline}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Icon name="car" size={13} strokeWidth={1.75} color={TOKENS.slateText} />
+                  {isRtl ? 'دليل توافق القطعة' : 'Part Fitment Guide'}
+                </span>
+                <span style={{ color: TOKENS.sky, fontWeight: 700 }}>({formattedFitmentList.length})</span>
               </div>
-              <div style={{ maxHeight: '90px', overflowY: 'auto' }}>
+              <div style={{ maxHeight: '92px', overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: isRtl ? 'right' : 'left' }}>
                   <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', color: '#64748b' }}>
-                      <th style={{ padding: '4px 8px' }}>{isRtl ? 'الشركة' : 'Make'}</th>
-                      <th style={{ padding: '4px 8px' }}>{isRtl ? 'السيارة' : 'Model'}</th>
-                      <th style={{ padding: '4px 8px' }}>{isRtl ? 'السنوات' : 'Years'}</th>
+                    <tr style={{ backgroundColor: TOKENS.alabaster, color: TOKENS.mutedText }}>
+                      <th style={{ padding: '5px 10px', fontWeight: 600 }}>{isRtl ? 'الشركة' : 'Make'}</th>
+                      <th style={{ padding: '5px 10px', fontWeight: 600 }}>{isRtl ? 'السيارة' : 'Model'}</th>
+                      <th style={{ padding: '5px 10px', fontWeight: 600 }}>{isRtl ? 'السنوات' : 'Years'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {formattedFitmentList.map((fit, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{fit.make}</td>
-                        <td style={{ padding: '4px 8px' }}>{fit.model}</td>
-                        <td style={{ padding: '4px 8px', color: '#e0872a', fontWeight: 'bold' }}>{fit.yearRange}</td>
+                      <tr key={idx} style={{ borderBottom: `1px solid ${TOKENS.alabaster}` }}>
+                        <td style={{ padding: '5px 10px', fontWeight: 700 }}>{fit.make}</td>
+                        <td style={{ padding: '5px 10px' }}>{fit.model}</td>
+                        <td style={{ padding: '5px 10px', color: TOKENS.copper, fontWeight: 700 }}>{fit.yearRange}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -952,54 +1219,78 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#fafafa', padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '11.5px' }}>
-              <div style={{ color: '#16a34a', fontWeight: 'bold' }}>⚡ {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}</div>
+            <div style={{ backgroundColor: TOKENS.alabaster, padding: '11px 12px', borderRadius: '12px', border: `1px solid ${TOKENS.hairline}`, fontSize: '11.5px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ color: TOKENS.success, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Icon name="truck" size={13} strokeWidth={1.75} />
+                {isRtl ? 'التوصيل المتوقع: خلال 24 - 48 ساعة' : 'Estimated Delivery: 24-48 Hours'}
+              </div>
               {isBNPLEnabled && (
-                <div style={{ color: '#854d0e', fontWeight: 'bold', marginTop: '4px' }}>
-                  🛒 {isRtl ? `أو قسمها على 4 دفعات بقيمة ${installmentValue} ر.ق` : `Or 4 payments of ${installmentValue} QAR`}
+                <div style={{ color: TOKENS.amber, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Icon name="wallet" size={13} strokeWidth={1.75} />
+                  {isRtl ? `أو قسمها على 4 دفعات بقيمة ${installmentValue} ر.ق` : `Or 4 payments of ${installmentValue} QAR`}
                 </div>
               )}
             </div>
 
-            <button 
+            <button
               onClick={() => setDetailedPart(part)}
-              style={{ width: '100%', padding: '10px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '12.5px', cursor: 'pointer' }}
+              style={{
+                width: '100%', padding: '11px', backgroundColor: TOKENS.obsidianSoft, color: TOKENS.white, border: 'none',
+                borderRadius: '10px', fontWeight: 700, fontSize: '12.5px', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '7px', letterSpacing: '0.01em'
+              }}
             >
-              📄 {isRtl ? 'صفحة المواصفات الفنية الكاملة (More Info)' : 'Full Technical Specifications (More Info)'}
+              <Icon name="doc" size={14} strokeWidth={1.75} />
+              {isRtl ? 'المواصفات الفنية الكاملة' : 'Full Technical Specifications'}
             </button>
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingTop: '6px', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-            <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '26px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-            <span style={{ width: '26px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px' }}>{isOutOfStock ? 0 : qty}</span>
-            <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '26px', height: '32px', border: 'none', backgroundColor: '#e2e8f0', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+        <div style={{ display: 'flex', gap: '7px', alignItems: 'center', paddingTop: '8px', borderTop: `1px solid ${TOKENS.alabaster}`, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${TOKENS.hairline}`, borderRadius: '9px', overflow: 'hidden', backgroundColor: TOKENS.alabaster }}>
+            <button onClick={(e) => { e.stopPropagation(); changeQty(part, -1); }} disabled={qty <= 1 || isOutOfStock} style={{ width: '28px', height: '34px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: TOKENS.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="minus" size={13} strokeWidth={2} />
+            </button>
+            <span style={{ width: '26px', textAlign: 'center', fontWeight: 700, fontSize: '12px', color: TOKENS.ink }}>{isOutOfStock ? 0 : qty}</span>
+            <button onClick={(e) => { e.stopPropagation(); changeQty(part, 1); }} disabled={qty >= maxStock || isOutOfStock} style={{ width: '28px', height: '34px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: TOKENS.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="plus" size={13} strokeWidth={2} />
+            </button>
           </div>
 
           {addToCart && (
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(formattedPart, qty); }}
               disabled={isOutOfStock}
-              style={{ flex: '1 1 90px', backgroundColor: isOutOfStock ? '#94a3b8' : '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{
+                flex: '1 1 100px', backgroundColor: isOutOfStock ? '#CBD5E1' : TOKENS.obsidianSoft, color: 'white', border: 'none',
+                borderRadius: '9px', padding: '9px 8px', fontSize: '12px', fontWeight: 700, cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'background-color 0.18s ease'
+              }}
             >
-              🛒 {isOutOfStock ? (isRtl ? 'غير متوفر' : 'Unavailable') : (isRtl ? 'أضف للسلة' : 'Add to Cart')}
+              <Icon name="cart" size={14} strokeWidth={1.75} />
+              {isOutOfStock ? (isRtl ? 'غير متوفر' : 'Unavailable') : (isRtl ? 'أضف للسلة' : 'Add to Cart')}
             </button>
           )}
 
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); if (onInquire) onInquire(formattedPart); else if (addToCart && !isOutOfStock) addToCart(formattedPart, qty); }}
             disabled={isOutOfStock}
-            style={{ padding: '8px 10px', backgroundColor: '#f1f5f9', color: '#1f3a5f', border: '1px solid #cbd5e0', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '9px 12px', backgroundColor: TOKENS.alabaster, color: TOKENS.ink, border: `1px solid ${TOKENS.hairline}`, borderRadius: '9px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            🔍 {isRtl ? 'فحص / اسأل' : 'Inquire'}
+            <Icon name="message" size={13} strokeWidth={1.75} />
+            {isRtl ? 'اسأل' : 'Inquire'}
           </button>
 
-          <button 
+          <button
             onClick={() => togglePartCardExpand(part.id)}
-            style={{ padding: '8px 10px', backgroundColor: isExpanded ? '#feefe8' : '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{
+              padding: '9px 12px', backgroundColor: isExpanded ? TOKENS.copperTint : TOKENS.white, color: TOKENS.copperDeep,
+              border: `1px solid ${TOKENS.copperLine}`, borderRadius: '9px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '5px'
+            }}
           >
-            {isExpanded ? (isRtl ? 'إغلاق ▲' : 'Less ▲') : (isRtl ? 'المزيد 🔍' : 'More 🔍')}
+            {isExpanded ? (isRtl ? 'إغلاق' : 'Less') : (isRtl ? 'المزيد' : 'More')}
+            <Icon name="chevronDown" size={12} strokeWidth={2} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
           </button>
         </div>
 
@@ -1009,10 +1300,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   if (detailedPart) {
     return (
-      <PartMoreInfo 
-        part={detailedPart} 
-        inventory={inventory} 
-        lang={lang} 
+      <PartMoreInfo
+        part={detailedPart}
+        inventory={inventory}
+        lang={lang}
         siteSettings={siteSettings}
         onAddToCart={addToCart}
         onBack={() => setDetailedPart(null)}
@@ -1020,57 +1311,108 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     );
   }
 
-  return (
-    <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+  /* small helper for the hierarchical tree node row */
+  const treeNodeStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    cursor: 'pointer',
+    padding: '9px 13px',
+    borderRadius: '11px',
+    transition: 'all 0.15s ease-in-out',
+    userSelect: 'none',
+  };
 
-      {/* 🚀 1. الماسح الذكي لرقم الشاصي وصورة الاستمارة (أعلى الصفحة) */}
-      <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '2px solid #e0872a', boxShadow: '0 8px 24px rgba(224,135,42,0.08)', direction: isRtl ? 'rtl' : 'ltr' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+  return (
+    <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '22px', fontFamily }}>
+
+      {/* ================================================================
+          1. EXECUTIVE VERIFICATION BAR — Smart VIN / Istemara scanner
+      ================================================================= */}
+      <div style={{
+        backgroundColor: TOKENS.obsidian,
+        backgroundImage: `radial-gradient(120% 140% at 0% 0%, ${TOKENS.obsidianSoft} 0%, ${TOKENS.obsidian} 55%)`,
+        padding: '26px', borderRadius: '22px', border: `1px solid ${TOKENS.hairlineDark}`,
+        boxShadow: '0 24px 60px -24px rgba(9,13,22,0.55)', direction: isRtl ? 'rtl' : 'ltr', position: 'relative', overflow: 'hidden'
+      }}>
+        <div style={{ position: 'absolute', top: '-40%', [isRtl ? 'left' : 'right']: '-10%', width: '260px', height: '260px', borderRadius: '50%', background: `radial-gradient(circle, ${TOKENS.copper}22 0%, transparent 70%)`, pointerEvents: 'none' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', flexWrap: 'wrap', gap: '12px', position: 'relative' }}>
           <div>
-            <h3 style={{ margin: '0 0 4px 0', color: '#1f3a5f', fontSize: '17px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>📸</span> {isRtl ? 'الفحص الذكي بالاستمارة ورقم الشاصي (مطابقة 100% فورياً)' : 'Smart VIN & Registration Card Scanner (100% Fitment)'}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', backgroundColor: 'rgba(234,88,12,0.12)', border: `1px solid ${TOKENS.copperLine}`, padding: '5px 12px', borderRadius: '999px', marginBottom: '12px' }}>
+              <Icon name="shield" size={13} strokeWidth={1.75} color={TOKENS.copperBright} />
+              <span style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.copperBright, letterSpacing: '0.03em' }}>
+                {isRtl ? 'ضمان مطابقة 100%' : '100% FITMENT GUARANTEE'}
+              </span>
+            </div>
+            <h3 style={{ margin: '0 0 6px 0', color: TOKENS.white, fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.01em' }}>
+              <Icon name="camera" size={19} strokeWidth={1.6} color={TOKENS.copperBright} />
+              {isRtl ? 'الفحص الذكي بالاستمارة أو رقم الشاصي' : 'Smart VIN & Registration Scanner'}
             </h3>
-            <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>
-              {isRtl 
-                ? 'صوّر استمارة سيارتك أو أدخل رقم الشاصي (17 حرف) ليقوم النظام بعرض حالة التوافق لكل قطعة تلقائياً.' 
-                : 'Upload vehicle Istemara or enter 17-digit VIN to automatically identify compatibility.'}
+            <p style={{ margin: 0, fontSize: '12.5px', color: 'rgba(226,232,240,0.65)', maxWidth: '560px', lineHeight: '1.6' }}>
+              {isRtl
+                ? 'صوّر استمارة سيارتك أو أدخل رقم الشاصي (17 حرف) ليقوم النظام بعرض حالة التوافق لكل قطعة تلقائياً.'
+                : 'Upload your vehicle Istemara or enter the 17-digit VIN to identify compatibility across every part automatically.'}
             </p>
           </div>
 
           {decodedVehicle && (
             <button
               onClick={clearSearch}
-              style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '6px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{
+                backgroundColor: 'rgba(220,38,38,0.12)', color: '#FCA5A5', border: '1px solid rgba(220,38,38,0.35)',
+                padding: '8px 16px', borderRadius: '11px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '7px'
+              }}
             >
-              🔄 {isRtl ? 'إلغاء التحديد وعرض كل السيارات' : 'Clear Vehicle Match'}
+              <Icon name="refresh" size={13} strokeWidth={1.75} />
+              {isRtl ? 'إلغاء التحديد' : 'Clear Vehicle'}
             </button>
           )}
         </div>
 
         {decodedVehicle ? (
-          <div style={{ padding: '16px 20px', backgroundColor: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <strong style={{ color: '#166534', fontSize: '15px', display: 'block' }}>
-                ✅ {isRtl ? 'تم التعرف على السيارة بنجاح:' : 'Vehicle Identified:'} {decodedVehicle.make} {decodedVehicle.model} ({decodedVehicle.year})
-              </strong>
-              {decodedVehicle.engine && <span style={{ fontSize: '12.5px', color: '#15803d' }}>⚡ {isRtl ? 'المحرك:' : 'Engine:'} {decodedVehicle.engine} </span>}
-              {decodedVehicle.vin && <span style={{ fontSize: '12px', color: '#166534', fontFamily: 'monospace', fontWeight: 'bold' }}>[VIN: {decodedVehicle.vin}]</span>}
+          <div style={{
+            padding: '18px 22px', backgroundColor: 'rgba(22,163,74,0.10)', border: '1.5px solid rgba(74,222,128,0.35)',
+            borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '38px', height: '38px', borderRadius: '11px', backgroundColor: 'rgba(74,222,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="checkCircle" size={20} strokeWidth={1.75} color="#4ADE80" />
+              </div>
+              <div>
+                <strong style={{ color: '#BBF7D0', fontSize: '15px', display: 'block', fontWeight: 700 }}>
+                  {decodedVehicle.make} {decodedVehicle.model} {decodedVehicle.year && `(${decodedVehicle.year})`}
+                </strong>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '3px' }}>
+                  {decodedVehicle.engine && (
+                    <span style={{ fontSize: '12px', color: 'rgba(220,252,231,0.75)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Icon name="bolt" size={11} strokeWidth={1.75} /> {decodedVehicle.engine}
+                    </span>
+                  )}
+                  {decodedVehicle.vin && (
+                    <span style={{ fontSize: '11.5px', color: 'rgba(220,252,231,0.6)', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                      VIN {decodedVehicle.vin}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <span style={{ backgroundColor: '#166534', color: 'white', padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-              🎯 {isRtl ? 'تم تفعيل فحص التوافق على جميع القطع' : 'Fitment filter active on all parts'}
+            <span style={{ backgroundColor: TOKENS.success, color: 'white', padding: '6px 14px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Icon name="target" size={13} strokeWidth={1.75} />
+              {isRtl ? 'فحص التوافق مفعّل' : 'Fitment filter active'}
             </span>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', position: 'relative' }}>
 
-            {/* زر رفع وتصوير الاستمارة */}
             <div
               onClick={() => !isDecodingVin && fileInputRef.current?.click()}
               style={{
-                border: '2px dashed #0284c7',
-                backgroundColor: '#f0f9ff',
-                borderRadius: '14px',
-                padding: '16px',
+                border: `1.5px dashed ${TOKENS.copperLine}`,
+                backgroundColor: 'rgba(234,88,12,0.06)',
+                borderRadius: '16px',
+                padding: '20px',
                 textAlign: 'center',
                 cursor: isDecodingVin ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease'
@@ -1084,47 +1426,57 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 style={{ display: 'none' }}
                 disabled={isDecodingVin}
               />
-              <div style={{ fontSize: '28px', marginBottom: '4px' }}>📷</div>
-              <strong style={{ color: '#0369a1', fontSize: '13.5px', display: 'block', marginBottom: '2px' }}>
-                {isRtl ? 'اضغط لتصوير أو رفع الاستمارة' : 'Snap / Upload Istemara Photo'}
+              <div style={{ width: '46px', height: '46px', borderRadius: '13px', backgroundColor: 'rgba(234,88,12,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                <Icon name="camera" size={21} strokeWidth={1.6} color={TOKENS.copperBright} />
+              </div>
+              <strong style={{ color: 'white', fontSize: '13.5px', display: 'block', marginBottom: '3px', fontWeight: 700 }}>
+                {isRtl ? 'اضغط لتصوير أو رفع الاستمارة' : 'Snap or Upload Istemara Photo'}
               </strong>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>
-                {isRtl ? 'استخراج وقراءة فورية بالذكاء الاصطناعي' : 'Instant AI OCR Reading'}
+              <span style={{ fontSize: '11px', color: 'rgba(226,232,240,0.55)' }}>
+                {isRtl ? 'استخراج وقراءة فورية بالذكاء الاصطناعي' : 'Instant AI OCR reading'}
               </span>
             </div>
 
-            {/* إدخال رقم الشاصي يدوياً */}
             <form
               onSubmit={(e) => { e.preventDefault(); decodeVinNumber(vinInput.trim().toUpperCase()); }}
               style={{
-                border: '1.5px solid #e2e8f0',
-                backgroundColor: '#f8fafc',
-                borderRadius: '14px',
-                padding: '14px',
+                border: `1.5px solid ${TOKENS.hairlineDark}`,
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                borderRadius: '16px',
+                padding: '16px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                gap: '8px'
+                gap: '9px'
               }}
             >
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#1f3a5f' }}>
-                {isRtl ? 'أو أدخل رقم الشاصي يدوياً (17 حرف ورقم):' : 'Or Enter 17-digit VIN Manually:'}
+              <label style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(226,232,240,0.85)' }}>
+                {isRtl ? 'أو أدخل رقم الشاصي يدوياً (17 حرف)' : 'Or enter the 17-digit VIN manually'}
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '9px' }}>
                 <input
                   type="text"
                   maxLength={17}
                   placeholder={isRtl ? "JTEBU5JR8K5..." : "Enter 17-char VIN..."}
                   value={vinInput}
                   onChange={(e) => setVinInput(e.target.value.toUpperCase())}
-                  style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e0', fontSize: '13px', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '1px' }}
+                  style={{
+                    flex: 1, padding: '12px 14px', borderRadius: '11px', border: `1.5px solid ${TOKENS.hairlineDark}`,
+                    fontSize: '13px', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px',
+                    backgroundColor: 'rgba(255,255,255,0.04)', color: 'white', outline: 'none'
+                  }}
                 />
                 <button
                   type="submit"
                   disabled={isDecodingVin || vinInput.trim().length !== 17}
-                  style={{ padding: '10px 18px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '13px', cursor: (vinInput.trim().length === 17) ? 'pointer' : 'not-allowed', opacity: (vinInput.trim().length === 17) ? 1 : 0.6 }}
+                  style={{
+                    padding: '0 20px', backgroundColor: TOKENS.copper, color: 'white', border: 'none', borderRadius: '11px',
+                    fontWeight: 700, fontSize: '13px', cursor: (vinInput.trim().length === 17) ? 'pointer' : 'not-allowed',
+                    opacity: (vinInput.trim().length === 17) ? 1 : 0.45, display: 'flex', alignItems: 'center', gap: '6px'
+                  }}
                 >
-                  {isRtl ? 'فحص 🚀' : 'Check 🚀'}
+                  {isRtl ? 'فحص' : 'Check'}
+                  <Icon name={isRtl ? 'chevronLeft' : 'chevronRight'} size={13} strokeWidth={2} />
                 </button>
               </div>
             </form>
@@ -1133,130 +1485,146 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         )}
 
         {isDecodingVin && (
-          <div style={{ marginTop: '12px', textAlign: 'center', color: '#0369a1', fontWeight: 'bold', fontSize: '12.5px' }}>
-            🔄 {statusMsg}
+          <div style={{ marginTop: '14px', textAlign: 'center', color: TOKENS.copperBright, fontWeight: 700, fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <Icon name="refresh" size={14} strokeWidth={1.75} style={{ animation: 'mawjood-spin 1s linear infinite' }} />
+            {statusMsg}
           </div>
         )}
+        <style>{`@keyframes mawjood-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
 
-      {/* 🌟 2. بطاقات اختيار طريقة البحث (البصري / الكتالوج الهرمي) */}
+      {/* ================================================================
+          2. SEARCH MODE SELECTOR — visual vs. hierarchical catalog
+      ================================================================= */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', direction: isRtl ? 'rtl' : 'ltr' }}>
 
-        {/* الخيار 1: البحث البصري السريع */}
         <div
           onClick={() => setSearchMode('visual')}
           style={{
-            backgroundColor: searchMode === 'visual' ? '#f0fdf4' : '#ffffff',
-            border: searchMode === 'visual' ? '2.5px solid #16a34a' : '1.5px solid #e2e8f0',
-            borderRadius: '16px',
-            padding: '16px',
-            cursor: 'pointer',
-            transition: 'all 0.25s ease',
-            boxShadow: searchMode === 'visual' ? '0 8px 20px rgba(22,163,74,0.12)' : '0 2px 8px rgba(0,0,0,0.03)',
+            backgroundColor: searchMode === 'visual' ? TOKENS.successTint : TOKENS.white,
+            border: searchMode === 'visual' ? `2px solid ${TOKENS.success}` : `1.5px solid ${TOKENS.hairline}`,
+            borderRadius: '18px', padding: '18px', cursor: 'pointer', transition: 'all 0.25s ease',
+            boxShadow: searchMode === 'visual' ? '0 12px 28px -14px rgba(22,163,74,0.28)' : '0 2px 10px rgba(9,13,22,0.03)',
             position: 'relative'
           }}
         >
           {searchMode === 'visual' && (
-            <span style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#16a34a', color: 'white', fontSize: '10.5px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
-              ✓ {isRtl ? 'المحدد' : 'Active'}
+            <span style={{ position: 'absolute', top: '14px', [isRtl ? 'left' : 'right']: '14px', backgroundColor: TOKENS.success, color: 'white', fontSize: '10px', fontWeight: 700, padding: '3px 9px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Icon name="checkCircle" size={11} strokeWidth={2} /> {isRtl ? 'المحدد' : 'Active'}
             </span>
           )}
-          <div style={{ fontSize: '28px', marginBottom: '6px' }}>🎯</div>
-          <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
-            {isRtl ? '1. البحث البصري (محدد السيارة)' : '1. Visual Selector'}
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: TOKENS.successTint, border: `1px solid ${TOKENS.successLine}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+            <Icon name="target" size={20} strokeWidth={1.6} color={TOKENS.success} />
+          </div>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: TOKENS.ink, fontWeight: 700 }}>
+            {isRtl ? 'البحث البصري' : 'Visual Selector'}
           </h3>
-          <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.4' }}>
-            {isRtl ? 'اختر سيارتك بالصور والبطاقات خطوة بخطوة.' : 'Browse parts visually step-by-step.'}
+          <p style={{ margin: 0, fontSize: '12px', color: TOKENS.mutedText, lineHeight: '1.5' }}>
+            {isRtl ? 'اختر سيارتك بالصور والبطاقات خطوة بخطوة.' : 'Browse parts visually, step by step.'}
           </p>
         </div>
 
-        {/* الخيار 2: شجرة الكتالوج الهرمية */}
         <div
           onClick={() => setSearchMode('tree')}
           style={{
-            backgroundColor: searchMode === 'tree' ? '#e8f2fc' : '#ffffff',
-            border: searchMode === 'tree' ? '2.5px solid #1f3a5f' : '1.5px solid #e2e8f0',
-            borderRadius: '16px',
-            padding: '16px',
-            cursor: 'pointer',
-            transition: 'all 0.25s ease',
-            boxShadow: searchMode === 'tree' ? '0 8px 20px rgba(31,58,95,0.12)' : '0 2px 8px rgba(0,0,0,0.03)',
+            backgroundColor: searchMode === 'tree' ? TOKENS.copperTint : TOKENS.white,
+            border: searchMode === 'tree' ? `2px solid ${TOKENS.copper}` : `1.5px solid ${TOKENS.hairline}`,
+            borderRadius: '18px', padding: '18px', cursor: 'pointer', transition: 'all 0.25s ease',
+            boxShadow: searchMode === 'tree' ? '0 12px 28px -14px rgba(234,88,12,0.28)' : '0 2px 10px rgba(9,13,22,0.03)',
             position: 'relative'
           }}
         >
           {searchMode === 'tree' && (
-            <span style={{ position: 'absolute', top: '12px', [isRtl ? 'left' : 'right']: '12px', backgroundColor: '#1f3a5f', color: 'white', fontSize: '10.5px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
-              ✓ {isRtl ? 'المحدد' : 'Active'}
+            <span style={{ position: 'absolute', top: '14px', [isRtl ? 'left' : 'right']: '14px', backgroundColor: TOKENS.copper, color: 'white', fontSize: '10px', fontWeight: 700, padding: '3px 9px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Icon name="checkCircle" size={11} strokeWidth={2} /> {isRtl ? 'المحدد' : 'Active'}
             </span>
           )}
-          <div style={{ fontSize: '28px', marginBottom: '6px' }}>📂</div>
-          <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#1f3a5f', fontWeight: 'bold' }}>
-            {isRtl ? '2. كتالوج شجرة التصفية' : '2. Full Catalog Tree'}
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: TOKENS.copperTint, border: `1px solid ${TOKENS.copperLine}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+            <Icon name="layers" size={20} strokeWidth={1.6} color={TOKENS.copperDeep} />
+          </div>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', color: TOKENS.ink, fontWeight: 700 }}>
+            {isRtl ? 'كتالوج شجرة التصفية' : 'Full Catalog Tree'}
           </h3>
-          <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.4' }}>
-            {isRtl ? 'تصفح كل الماركات والموديلات بشكل هرمي.' : 'Browse hierarchical catalog.'}
+          <p style={{ margin: 0, fontSize: '12px', color: TOKENS.mutedText, lineHeight: '1.5' }}>
+            {isRtl ? 'تصفح كل الماركات والموديلات بشكل هرمي.' : 'Browse the hierarchical catalog.'}
           </p>
         </div>
 
       </div>
 
-      {/* 🚀 عرض محدد السيارة البصري */}
+      {/* Visual selector */}
       {searchMode === 'visual' && !activeSearchQuery && (
-        <VisualVehicleSelector 
-          lang={lang} 
-          renderPartCard={renderPartCard} 
+        <VisualVehicleSelector
+          lang={lang}
+          renderPartCard={renderPartCard}
         />
       )}
 
-      {/* 🚀 عرض شجرة التصفية أو نتائج البحث برقم القطعة */}
+      {/* Tree catalog / strict part-number search results */}
       {(activeSearchQuery || searchMode === 'tree') && (
-        <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
+        <div style={{ backgroundColor: 'white', padding: '26px', borderRadius: '22px', boxShadow: '0 4px 30px rgba(9,13,22,0.05)', border: `1px solid ${TOKENS.hairline}`, direction: isRtl ? 'rtl' : 'ltr' }}>
 
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
-              <input 
-                type="text" 
-                placeholder={isRtl ? "ابحث برقم القطعة أو الكود الحصري فقط (مثال: 04465-33470)..." : "Search strictly by Part Number, Code or SKU..."} 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-                style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '2px solid #1f3a5f', outline: 'none', fontSize: '13.5px', fontFamily: 'monospace' }} 
-              />
-              <button type="submit" style={{ padding: '0 20px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}>
-                🔍 {isRtl ? 'بحث برقم القطعة' : 'Search Number'}
+          <div style={{ display: 'flex', gap: '11px', marginBottom: '22px', flexWrap: 'wrap' }}>
+            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '9px', flex: 1, minWidth: '260px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <span style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '14px', color: TOKENS.slateText, pointerEvents: 'none' }}>
+                  <Icon name="search" size={16} strokeWidth={1.75} />
+                </span>
+                <input
+                  type="text"
+                  placeholder={isRtl ? "ابحث برقم القطعة أو الكود فقط (مثال: 04465-33470)..." : "Search strictly by Part Number, Code or SKU..."}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%', boxSizing: 'border-box', padding: `13px 16px 13px ${isRtl ? '16px' : '40px'}`,
+                    paddingRight: isRtl ? '40px' : '16px',
+                    borderRadius: '13px', border: `2px solid ${TOKENS.obsidianSoft}`, outline: 'none', fontSize: '13.5px',
+                    fontFamily: "'JetBrains Mono', monospace"
+                  }}
+                />
+              </div>
+              <button type="submit" style={{ padding: '0 22px', backgroundColor: TOKENS.obsidianSoft, color: 'white', border: 'none', borderRadius: '13px', fontWeight: 700, cursor: 'pointer', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {isRtl ? 'بحث' : 'Search'}
               </button>
             </form>
 
-            <select 
-              value={sortBy} 
+            <select
+              value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              style={{ padding: '10px 14px', borderRadius: '12px', border: '1px solid #cbd5e0', fontSize: '13px', backgroundColor: '#f8fafc', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ padding: '11px 16px', borderRadius: '13px', border: `1px solid ${TOKENS.hairline}`, fontSize: '13px', backgroundColor: TOKENS.alabaster, fontWeight: 700, cursor: 'pointer', color: TOKENS.ink }}
             >
-              <option value="default">↕️ {isRtl ? 'الترتيب الافتراضي' : 'Default Sort'}</option>
-              <option value="price_asc">📉 {isRtl ? 'السعر: من الأرخص للأغلى' : 'Price: Low to High'}</option>
-              <option value="price_desc">📈 {isRtl ? 'السعر: من الأعلى للأرخص' : 'Price: High to Low'}</option>
+              <option value="default">{isRtl ? 'الترتيب الافتراضي' : 'Default Sort'}</option>
+              <option value="price_asc">{isRtl ? 'السعر: من الأرخص' : 'Price: Low to High'}</option>
+              <option value="price_desc">{isRtl ? 'السعر: من الأعلى' : 'Price: High to Low'}</option>
             </select>
           </div>
 
           {activeSearchQuery ? (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ color: '#1f3a5f', margin: 0 }}>
-                  🔍 {isRtl ? `نتائج البحث عن رقم القطعة: "${activeSearchQuery}"` : `Results for Part Number: "${activeSearchQuery}"`}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ color: TOKENS.ink, margin: 0, fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '9px' }}>
+                  <Icon name="search" size={17} strokeWidth={1.75} color={TOKENS.copper} />
+                  {isRtl ? `نتائج البحث عن: "${activeSearchQuery}"` : `Results for: "${activeSearchQuery}"`}
                 </h3>
-                <button onClick={clearSearch} style={{ padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', border: '1px solid #cbd5e0', backgroundColor: '#ffffff', fontWeight: 'bold', fontSize: '12.5px' }}>
-                  ↩️ {isRtl ? 'العودة للكتالوج' : 'Back to Catalog'}
+                <button onClick={clearSearch} style={{ padding: '9px 16px', borderRadius: '11px', cursor: 'pointer', border: `1px solid ${TOKENS.hairline}`, backgroundColor: TOKENS.white, fontWeight: 700, fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '7px', color: TOKENS.ink }}>
+                  <Icon name="undo" size={14} strokeWidth={1.75} />
+                  {isRtl ? 'العودة للكتالوج' : 'Back to Catalog'}
                 </button>
               </div>
 
               {searchResults.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <p style={{ color: '#64748b', fontWeight: 'bold' }}>
-                    {isRtl 
-                      ? 'عفواً، لا توجد قطعة مطابقة لهذا الرقم تماماً (البحث مخصص فقط لأرقام وأكواد القطع وليس للأسماء العامة).' 
-                      : 'No exact part number match found (Search strictly requires Part Numbers/Codes, not general names).'}
+                <div style={{ textAlign: 'center', padding: '48px 24px', backgroundColor: TOKENS.alabaster, borderRadius: '16px', border: `1px solid ${TOKENS.hairline}` }}>
+                  <div style={{ width: '52px', height: '52px', borderRadius: '16px', backgroundColor: TOKENS.white, border: `1px solid ${TOKENS.hairline}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                    <Icon name="search" size={24} strokeWidth={1.5} color={TOKENS.mutedText} />
+                  </div>
+                  <p style={{ color: TOKENS.slateText, fontWeight: 600, maxWidth: '420px', margin: '0 auto', lineHeight: '1.6' }}>
+                    {isRtl
+                      ? 'عفواً، لا توجد قطعة مطابقة لهذا الرقم تماماً (البحث مخصص فقط لأرقام وأكواد القطع وليس للأسماء العامة).'
+                      : 'No exact part number match found (search strictly requires Part Numbers/Codes, not general names).'}
                   </p>
-                  <button onClick={() => { setReqSubmitted(false); setShowRequestModal(true); }} style={{ padding: '10px 20px', backgroundColor: '#e0872a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
-                    📩 {isRtl ? 'إرسال طلب قطعة بهذا الرقم' : 'Request part with this number'}
+                  <button onClick={() => { setReqSubmitted(false); setShowRequestModal(true); }} style={{ padding: '11px 22px', backgroundColor: TOKENS.copper, color: 'white', border: 'none', borderRadius: '11px', cursor: 'pointer', fontWeight: 700, marginTop: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <Icon name="mail" size={14} strokeWidth={1.75} />
+                    {isRtl ? 'إرسال طلب قطعة بهذا الرقم' : 'Request part with this number'}
                   </button>
                 </div>
               ) : (
@@ -1266,21 +1634,17 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   </div>
 
                   {displayLimit < searchResults.length && (
-                    <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                    <div style={{ textAlign: 'center', marginTop: '26px' }}>
                       <button
                         onClick={() => setDisplayLimit(prev => prev + 20)}
                         style={{
-                          padding: '10px 24px',
-                          backgroundColor: '#f1f5f9',
-                          border: '1.5px solid #cbd5e0',
-                          borderRadius: '12px',
-                          fontWeight: 'bold',
-                          color: '#1f3a5f',
-                          cursor: 'pointer',
-                          fontSize: '13px'
+                          padding: '11px 26px', backgroundColor: TOKENS.alabaster, border: `1.5px solid ${TOKENS.hairline}`,
+                          borderRadius: '13px', fontWeight: 700, color: TOKENS.ink, cursor: 'pointer', fontSize: '13px',
+                          display: 'inline-flex', alignItems: 'center', gap: '8px'
                         }}
                       >
-                        🔽 {isRtl ? `عرض المزيد من القطع (${displayedSearchResults.length} من ${searchResults.length})` : `Load More Parts (${displayedSearchResults.length} of ${searchResults.length})`}
+                        <Icon name="chevronDown" size={14} strokeWidth={2} />
+                        {isRtl ? `عرض المزيد (${displayedSearchResults.length} من ${searchResults.length})` : `Load More (${displayedSearchResults.length} of ${searchResults.length})`}
                       </button>
                     </div>
                   )}
@@ -1299,22 +1663,22 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                 return (
                   <li key={make} style={{ marginBottom: '8px' }}>
-                    <div onClick={() => toggleNode(makeKey, () => fetchYearsForMake(make))} style={{ ...nodeStyle, backgroundColor: isMakeOpen ? '#e8f2fc' : '#f8fafc', fontWeight: 'bold', padding: '10px 14px' }}>
+                    <div onClick={() => toggleNode(makeKey, () => fetchYearsForMake(make))} style={{ ...treeNodeStyle, backgroundColor: isMakeOpen ? TOKENS.skyTint : TOKENS.alabaster, fontWeight: 700, padding: '11px 15px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {!imgErrors[make] ? (
-                          <img src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`} alt={make} style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={() => setImgErrors(prev => ({...prev, [make]: true}))} />
-                        ) : (<span style={{ fontSize: '16px' }}>🚗</span>)}
-                        <span style={{ fontSize: '14.5px', color: '#1f3a5f' }}>{makeName} {isYearsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
+                          <img src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`} alt={make} style={{ width: '22px', height: '22px', objectFit: 'contain', borderRadius: '4px' }} onError={() => setImgErrors(prev => ({ ...prev, [make]: true }))} />
+                        ) : (<Icon name="car" size={18} strokeWidth={1.6} color={TOKENS.slateText} />)}
+                        <span style={{ fontSize: '14.5px', color: TOKENS.ink }}>{makeName} {isYearsLoading && <small style={{ color: TOKENS.copper, fontWeight: 500 }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                       </div>
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>{isMakeOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                      <Icon name="chevronDown" size={13} strokeWidth={2} color={TOKENS.mutedText} style={{ transform: isMakeOpen ? 'rotate(0deg)' : (isRtl ? 'rotate(90deg)' : 'rotate(-90deg)'), transition: 'transform 0.18s ease' }} />
                     </div>
 
                     {isMakeOpen && (
                       <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                         {isYearsLoading ? (
-                          <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص السنوات المتاحة...' : 'Checking available years...'}</li>
+                          <li style={{ padding: '7px 12px', fontSize: '12px', color: TOKENS.mutedText, display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="refresh" size={12} style={{ animation: 'mawjood-spin 1s linear infinite' }} /> {isRtl ? 'جاري فحص السنوات المتاحة...' : 'Checking available years...'}</li>
                         ) : availableYears.length === 0 ? (
-                          <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد معروضات لهذه الماركة حالياً.' : 'No items available for this make.'}</li>
+                          <li style={{ padding: '7px 12px', fontSize: '12px', color: '#94A3B8' }}>{isRtl ? 'لا توجد معروضات لهذه الماركة حالياً.' : 'No items available for this make.'}</li>
                         ) : (
                           availableYears.map((year: string) => {
                             const yearKey = `year_${make}_${year}`;
@@ -1325,17 +1689,19 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                             return (
                               <li key={year} style={{ marginBottom: '6px' }}>
-                                <div onClick={() => toggleNode(yearKey, () => fetchModelsForYear(make, year))} style={{ ...nodeStyle, backgroundColor: isYearOpen ? '#f0f7ff' : 'transparent', fontSize: '13.5px', color: '#0284c7', padding: '7px 12px', fontWeight: 'bold' }}>
-                                  <span>📅 {year} {isModelsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
-                                  <span style={{ fontSize: '10px' }}>{isYearOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                <div onClick={() => toggleNode(yearKey, () => fetchModelsForYear(make, year))} style={{ ...treeNodeStyle, backgroundColor: isYearOpen ? TOKENS.skyTint : 'transparent', fontSize: '13.5px', color: TOKENS.sky, padding: '8px 12px', fontWeight: 700 }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                    <Icon name="calendar" size={13} strokeWidth={1.75} /> {year} {isModelsLoading && <small style={{ color: TOKENS.copper, fontWeight: 500 }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}
+                                  </span>
+                                  <Icon name="chevronDown" size={11} strokeWidth={2} style={{ transform: isYearOpen ? 'rotate(0deg)' : (isRtl ? 'rotate(90deg)' : 'rotate(-90deg)'), transition: 'transform 0.18s ease' }} />
                                 </div>
 
                                 {isYearOpen && (
                                   <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                     {isModelsLoading ? (
-                                      <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري البحث عن الموديلات...' : 'Checking models...'}</li>
+                                      <li style={{ padding: '7px 12px', fontSize: '12px', color: TOKENS.mutedText }}>{isRtl ? 'جاري البحث عن الموديلات...' : 'Checking models...'}</li>
                                     ) : availableModels.length === 0 ? (
-                                      <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد معروضات لهذه السنة.' : 'No items.'}</li>
+                                      <li style={{ padding: '7px 12px', fontSize: '12px', color: '#94A3B8' }}>{isRtl ? 'لا توجد معروضات لهذه السنة.' : 'No items.'}</li>
                                     ) : (
                                       availableModels.map((model: string) => {
                                         const modelKey = `model_${make}_${year}_${model}`;
@@ -1347,15 +1713,17 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                         return (
                                           <li key={model} style={{ marginBottom: '6px' }}>
-                                            <div onClick={() => toggleNode(modelKey, () => fetchEnginesForVehicle(make, year, model))} style={{ ...nodeStyle, backgroundColor: isModelOpen ? '#f1f5f9' : 'transparent', fontSize: '13.5px', padding: '7px 12px' }}>
-                                              <span>🚘 {modelName} {isEnginesLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
-                                              <span style={{ fontSize: '10px', color: '#64748b' }}>{isModelOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                            <div onClick={() => toggleNode(modelKey, () => fetchEnginesForVehicle(make, year, model))} style={{ ...treeNodeStyle, backgroundColor: isModelOpen ? TOKENS.alabaster : 'transparent', fontSize: '13.5px', padding: '8px 12px' }}>
+                                              <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                                <Icon name="car" size={13} strokeWidth={1.75} color={TOKENS.slateText} /> {modelName} {isEnginesLoading && <small style={{ color: TOKENS.copper, fontWeight: 500 }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}
+                                              </span>
+                                              <Icon name="chevronDown" size={11} strokeWidth={2} color={TOKENS.mutedText} style={{ transform: isModelOpen ? 'rotate(0deg)' : (isRtl ? 'rotate(90deg)' : 'rotate(-90deg)'), transition: 'transform 0.18s ease' }} />
                                             </div>
 
                                             {isModelOpen && (
                                               <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '18px', marginTop: '6px' }}>
                                                 {isEnginesLoading ? (
-                                                  <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري الفحص...' : 'Checking...'}</li>
+                                                  <li style={{ padding: '7px 12px', fontSize: '12px', color: TOKENS.mutedText }}>{isRtl ? 'جاري الفحص...' : 'Checking...'}</li>
                                                 ) : (
                                                   availableEngines.map((engine: string) => {
                                                     const engineKey = `eng_${make}_${year}_${model}_${engine}`;
@@ -1366,24 +1734,26 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                                     return (
                                                       <li key={engine} style={{ marginBottom: '6px' }}>
-                                                        <div onClick={() => toggleNode(engineKey, () => fetchMainCategoriesForEngine(make, year, model, engine))} style={{ ...nodeStyle, backgroundColor: isEngineOpen ? '#e8f2fc' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: '500' }}>
-                                                          <span>⚡ {engine} {isMainCatsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
-                                                          <span style={{ fontSize: '10px' }}>{isEngineOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                        <div onClick={() => toggleNode(engineKey, () => fetchMainCategoriesForEngine(make, year, model, engine))} style={{ ...treeNodeStyle, backgroundColor: isEngineOpen ? TOKENS.skyTint : 'transparent', fontSize: '13px', color: TOKENS.ink, padding: '7px 11px', fontWeight: 500 }}>
+                                                          <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                                            <Icon name="bolt" size={13} strokeWidth={1.75} color={TOKENS.copper} /> {engine} {isMainCatsLoading && <small style={{ color: TOKENS.copper, fontWeight: 500 }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}
+                                                          </span>
+                                                          <Icon name="chevronDown" size={11} strokeWidth={2} style={{ transform: isEngineOpen ? 'rotate(0deg)' : (isRtl ? 'rotate(90deg)' : 'rotate(-90deg)'), transition: 'transform 0.18s ease' }} />
                                                         </div>
 
                                                         {isEngineOpen && (
                                                           <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
                                                             {isMainCatsLoading ? (
-                                                              <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص الأقسام الرئيسية...' : 'Checking main categories...'}</li>
+                                                              <li style={{ padding: '7px 12px', fontSize: '12px', color: TOKENS.mutedText }}>{isRtl ? 'جاري فحص الأقسام الرئيسية...' : 'Checking main categories...'}</li>
                                                             ) : availableMainCategories.length === 0 ? (
-                                                              <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد أقسام متوفرة.' : 'No categories.'}</li>
+                                                              <li style={{ padding: '7px 12px', fontSize: '12px', color: '#94A3B8' }}>{isRtl ? 'لا توجد أقسام متوفرة.' : 'No categories.'}</li>
                                                             ) : (
                                                               availableMainCategories.map((mainCategory: string) => {
                                                                 const mainCatKey = `maincat_${make}_${year}_${model}_${engine}_${mainCategory}`;
                                                                 const isMainCatOpen = !!expandedNodes[mainCatKey];
                                                                 const mainCatInfo = CATEGORY_TRANSLATIONS[mainCategory];
-                                                                const displayMainCategory = mainCatInfo 
-                                                                  ? (isRtl ? mainCatInfo.ar : (mainCatInfo.en || mainCategory)) 
+                                                                const displayMainCategory = mainCatInfo
+                                                                  ? (isRtl ? mainCatInfo.ar : (mainCatInfo.en || mainCategory))
                                                                   : mainCategory;
 
                                                                 const subCatsCacheKey = `subcats_${make}_${year}_${model}_${engine}_${mainCategory}`;
@@ -1392,24 +1762,26 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                                                 return (
                                                                   <li key={mainCategory} style={{ marginBottom: '6px' }}>
-                                                                    <div onClick={() => toggleNode(mainCatKey, () => fetchSubCategoriesForMain(make, year, model, engine, mainCategory))} style={{ ...nodeStyle, backgroundColor: isMainCatOpen ? '#fff7ed' : 'transparent', fontSize: '13px', color: '#1f3a5f', padding: '6px 10px', fontWeight: 'bold' }}>
-                                                                      <span>📂 {displayMainCategory} {isSubCatsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
-                                                                      <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isMainCatOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                                    <div onClick={() => toggleNode(mainCatKey, () => fetchSubCategoriesForMain(make, year, model, engine, mainCategory))} style={{ ...treeNodeStyle, backgroundColor: isMainCatOpen ? TOKENS.copperTint : 'transparent', fontSize: '13px', color: TOKENS.ink, padding: '7px 11px', fontWeight: 700 }}>
+                                                                      <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                                                        <Icon name="folder" size={13} strokeWidth={1.75} color={TOKENS.copperDeep} /> {displayMainCategory} {isSubCatsLoading && <small style={{ color: TOKENS.copper, fontWeight: 500 }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}
+                                                                      </span>
+                                                                      <Icon name="chevronDown" size={11} strokeWidth={2} color="#94A3B8" style={{ transform: isMainCatOpen ? 'rotate(0deg)' : (isRtl ? 'rotate(90deg)' : 'rotate(-90deg)'), transition: 'transform 0.18s ease' }} />
                                                                     </div>
 
                                                                     {isMainCatOpen && (
                                                                       <ul style={{ listStyleType: 'none', padding: 0, [isRtl ? 'marginRight' : 'marginLeft']: '15px', marginTop: '6px' }}>
                                                                         {isSubCatsLoading ? (
-                                                                          <li style={{ padding: '6px 12px', fontSize: '12px', color: '#64748b' }}>🔄 {isRtl ? 'جاري فحص الأقسام الفرعية...' : 'Checking sub-categories...'}</li>
+                                                                          <li style={{ padding: '7px 12px', fontSize: '12px', color: TOKENS.mutedText }}>{isRtl ? 'جاري فحص الأقسام الفرعية...' : 'Checking sub-categories...'}</li>
                                                                         ) : availableSubCategories.length === 0 ? (
-                                                                          <li style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>{isRtl ? 'لا توجد أقسام فرعية.' : 'No sub-categories.'}</li>
+                                                                          <li style={{ padding: '7px 12px', fontSize: '12px', color: '#94A3B8' }}>{isRtl ? 'لا توجد أقسام فرعية.' : 'No sub-categories.'}</li>
                                                                         ) : (
                                                                           availableSubCategories.map((subCategory: string) => {
                                                                             const subCatKey = `subcat_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
                                                                             const isSubCatOpen = !!expandedNodes[subCatKey];
                                                                             const subCatInfo = SUBCATEGORY_TRANSLATIONS[subCategory];
-                                                                            const displaySubCategory = subCatInfo 
-                                                                              ? (isRtl ? subCatInfo.ar : (subCatInfo.en || subCategory)) 
+                                                                            const displaySubCategory = subCatInfo
+                                                                              ? (isRtl ? subCatInfo.ar : (subCatInfo.en || subCategory))
                                                                               : subCategory;
 
                                                                             const partsCacheKey = `parts_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
@@ -1418,17 +1790,19 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                                                             return (
                                                                               <li key={subCategory} style={{ marginBottom: '6px' }}>
-                                                                                <div onClick={() => toggleNode(subCatKey, () => fetchPartsForSubCategory(make, year, model, engine, mainCategory, subCategory))} style={{ ...nodeStyle, backgroundColor: isSubCatOpen ? '#f0fdf4' : 'transparent', fontSize: '12.5px', color: '#166534', padding: '6px 10px', fontWeight: 'bold', borderLeft: isRtl ? 'none' : '3px solid #4ade80', borderRight: isRtl ? '3px solid #4ade80' : 'none' }}>
-                                                                                  <span>🔸 {displaySubCategory} {isPartsLoading && <small style={{ color: '#e0872a' }}>{isRtl ? '(جلب...)' : '(Fetching...)'}</small>}</span>
-                                                                                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isSubCatOpen ? '▼' : isRtl ? '◀' : '▶'}</span>
+                                                                                <div onClick={() => toggleNode(subCatKey, () => fetchPartsForSubCategory(make, year, model, engine, mainCategory, subCategory))} style={{ ...treeNodeStyle, backgroundColor: isSubCatOpen ? TOKENS.successTint : 'transparent', fontSize: '12.5px', color: TOKENS.successInk, padding: '7px 11px', fontWeight: 700, borderLeft: isRtl ? 'none' : `3px solid ${TOKENS.success}55`, borderRight: isRtl ? `3px solid ${TOKENS.success}55` : 'none' }}>
+                                                                                  <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                                                                    <Icon name="dot" size={9} strokeWidth={2} /> {displaySubCategory} {isPartsLoading && <small style={{ color: TOKENS.copper, fontWeight: 500 }}>{isRtl ? '(جلب...)' : '(Fetching...)'}</small>}
+                                                                                  </span>
+                                                                                  <Icon name="chevronDown" size={11} strokeWidth={2} color="#94A3B8" style={{ transform: isSubCatOpen ? 'rotate(0deg)' : (isRtl ? 'rotate(90deg)' : 'rotate(-90deg)'), transition: 'transform 0.18s ease' }} />
                                                                                 </div>
 
                                                                                 {isSubCatOpen && (
-                                                                                  <div style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '14px', border: '1px solid #e2e8f0', marginTop: '8px', marginBottom: '12px' }}>
+                                                                                  <div style={{ padding: '18px', backgroundColor: TOKENS.alabaster, borderRadius: '16px', border: `1px solid ${TOKENS.hairline}`, marginTop: '8px', marginBottom: '12px' }}>
                                                                                     {isPartsLoading ? (
-                                                                                      <p style={{ textAlign: 'center', color: '#64748b', margin: 0 }}>🔄 {isRtl ? 'جاري تحميل القطع المتاحة...' : 'Loading available parts...'}</p>
+                                                                                      <p style={{ textAlign: 'center', color: TOKENS.mutedText, margin: 0 }}>{isRtl ? 'جاري تحميل القطع المتاحة...' : 'Loading available parts...'}</p>
                                                                                     ) : subCategoryParts.length === 0 ? (
-                                                                                      <p style={{ textAlign: 'center', color: '#94a3b8', margin: 0 }}>{isRtl ? 'لا توجد قطع معروضة حالياً.' : 'No parts available currently.'}</p>
+                                                                                      <p style={{ textAlign: 'center', color: '#94A3B8', margin: 0 }}>{isRtl ? 'لا توجد قطع معروضة حالياً.' : 'No parts available currently.'}</p>
                                                                                     ) : (
                                                                                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
                                                                                         {subCategoryParts.map((part: any) => renderPartCard(part))}
@@ -1476,27 +1850,44 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       )}
 
       {showRequestModal && (
-        <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px', maxWidth: '460px', width: '100%', direction: isRtl ? 'rtl' : 'ltr' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #edf2f7', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#1f3a5f', fontWeight: 'bold' }}>📩 {isRtl ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}</h3>
-              <button onClick={() => setShowRequestModal(false)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#94a3b8' }}>✖</button>
+        <div onClick={() => setShowRequestModal(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(9,13,22,0.72)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '22px', padding: '26px', maxWidth: '460px', width: '100%', direction: isRtl ? 'rtl' : 'ltr', boxShadow: '0 30px 70px -20px rgba(9,13,22,0.4)', fontFamily }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `2px solid ${TOKENS.alabaster}`, paddingBottom: '14px', marginBottom: '18px' }}>
+              <h3 style={{ margin: 0, fontSize: '17px', color: TOKENS.ink, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <Icon name="mail" size={18} strokeWidth={1.75} color={TOKENS.copper} />
+                {isRtl ? 'طلب قطعة غير متوفرة' : 'Request Unavailable Part'}
+              </h3>
+              <button onClick={() => setShowRequestModal(false)} style={{ background: TOKENS.alabaster, border: 'none', borderRadius: '9px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: TOKENS.slateText }}>
+                <Icon name="x" size={15} strokeWidth={2} />
+              </button>
             </div>
 
             {reqSubmitted ? (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <span style={{ fontSize: '50px', display: 'block', marginBottom: '10px' }}>✅</span>
-                <h4 style={{ margin: '0 0 8px 0', color: '#16a34a' }}>{isRtl ? 'تم إرسال طلبك بنجاح!' : 'Your request was sent successfully!'}</h4>
-                <button onClick={() => setShowRequestModal(false)} style={{ width: '100%', padding: '12px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+              <div style={{ textAlign: 'center', padding: '22px 0' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '20px', backgroundColor: TOKENS.successTint, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                  <Icon name="checkCircle" size={30} strokeWidth={1.6} color={TOKENS.success} />
+                </div>
+                <h4 style={{ margin: '0 0 10px 0', color: TOKENS.success, fontWeight: 700 }}>{isRtl ? 'تم إرسال طلبك بنجاح!' : 'Your request was sent successfully!'}</h4>
+                <button onClick={() => setShowRequestModal(false)} style={{ width: '100%', padding: '13px', backgroundColor: TOKENS.obsidianSoft, color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
                   {isRtl ? 'تم' : 'Done'}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleInAppRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <input type="tel" placeholder={isRtl ? 'رقم الهاتف للتواصل' : 'Contact Phone Number'} value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} required />
-                <textarea placeholder={isRtl ? 'ملاحظات إضافية...' : 'Additional Notes...'} value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: '1px solid #cbd5e0', boxSizing: 'border-box' }} />
-                <button type="submit" disabled={isSubmittingReq} style={{ width: '100%', padding: '13px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {isSubmittingReq ? (isRtl ? 'جاري الإرسال...' : 'Sending...') : (isRtl ? 'إرسال الطلب الآن 🚀' : 'Submit Request 🚀')}
+                <input type="tel" placeholder={isRtl ? 'رقم الهاتف للتواصل' : 'Contact Phone Number'} value={custPhone} onChange={(e) => setCustPhone(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: '11px', border: `1px solid ${TOKENS.hairline}`, boxSizing: 'border-box', fontSize: '13.5px' }} required />
+                <textarea placeholder={isRtl ? 'ملاحظات إضافية...' : 'Additional Notes...'} value={custNotes} onChange={(e) => setCustNotes(e.target.value)} rows={3} style={{ width: '100%', padding: '12px 14px', borderRadius: '11px', border: `1px solid ${TOKENS.hairline}`, boxSizing: 'border-box', fontSize: '13.5px', fontFamily: 'inherit' }} />
+                <button type="submit" disabled={isSubmittingReq} style={{ width: '100%', padding: '14px', backgroundColor: TOKENS.success, color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  {isSubmittingReq ? (
+                    <>
+                      <Icon name="refresh" size={15} strokeWidth={1.75} style={{ animation: 'mawjood-spin 1s linear infinite' }} />
+                      {isRtl ? 'جاري الإرسال...' : 'Sending...'}
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="mail" size={15} strokeWidth={1.75} />
+                      {isRtl ? 'إرسال الطلب الآن' : 'Submit Request'}
+                    </>
+                  )}
                 </button>
               </form>
             )}
