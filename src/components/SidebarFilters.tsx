@@ -252,7 +252,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [nodeDataCache, setNodeDataCache] = useState<Record<string, any>>({});
   const [loadingNodes, setLoadingNodes] = useState<Record<string, boolean>>({});
-  
+
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
   const [activeSearchQuery, setActiveSearchQuery] = useState<string>('');
@@ -421,7 +421,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const getPartFitmentStatus = (part: any, vehicle: { make: string; model: string; year: string; engine?: string; vin?: string } | null): 'compatible' | 'incompatible' | 'uncertain' => {
     if (!vehicle) return 'uncertain';
 
-    // إذا لم تتوفر معلومات واضحة عن الماركة أو الشاصي
     if (!vehicle.make && !vehicle.vin) return 'uncertain';
 
     const excelVins = part.compatible_vins || part.vin_numbers || part.vins || part.chassis_code;
@@ -433,7 +432,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
       }
     }
 
-    // إذا كانت بيانات توافق القطعة غير مدخلة بالكراج
     const hasPartVehicleData = !!(part.make || part.model || part.year || excelVins);
     if (!hasPartVehicleData) {
       return 'uncertain';
@@ -578,10 +576,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           if (yStr.includes('-')) {
             const [start, end] = yStr.split('-').map(Number);
             const target = Number(year);
-            return target >= Math.min(start, end) && target <= Math.max(start, end);
+            matchTarget(start, end, target);
           }
           return yStr === year;
         });
+
+        function matchTarget(start: number, end: number, target: number) {
+          return target >= Math.min(start, end) && target <= Math.max(start, end);
+        }
 
         let uniqueEngines = Array.from(new Set(filteredData.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines')))) as string[];
         if (uniqueEngines.length === 0) uniqueEngines = [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'];
@@ -742,11 +744,11 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return partsList;
   };
 
-  // 🎯 نتائج البحث الحصري برقم القطعة مع تقديم المتطابقة
+  // 🎯 تصفية القطع حصرياً برقم القطعة وترتيب المتطابقة في المقدمة
   const searchResults = processAndSortParts(
     inventory.filter((part: any) => {
       if (activeSearchQuery) return matchesPartNumberOnly(part, activeSearchQuery);
-      return false; // إذا لم يبحث برقم قطعة لا يعرض شيء في نتائج البحث المباشرة
+      return false;
     })
   ).sort((a: any, b: any) => {
     if (!decodedVehicle) return 0;
@@ -1020,7 +1022,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   return (
     <aside style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
+
       {/* 🚀 1. الماسح الذكي لرقم الشاصي وصورة الاستمارة (أعلى الصفحة) */}
       <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '2px solid #e0872a', boxShadow: '0 8px 24px rgba(224,135,42,0.08)', direction: isRtl ? 'rtl' : 'ltr' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
@@ -1060,7 +1062,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-            
+
             {/* زر رفع وتصوير الاستمارة */}
             <div
               onClick={() => !isDecodingVin && fileInputRef.current?.click()}
@@ -1139,7 +1141,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
       {/* 🌟 2. بطاقات اختيار طريقة البحث (البصري / الكتالوج الهرمي) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', direction: isRtl ? 'rtl' : 'ltr' }}>
-        
+
         {/* الخيار 1: البحث البصري السريع */}
         <div
           onClick={() => setSearchMode('visual')}
@@ -1198,7 +1200,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
       </div>
 
-      {/* 🚀 عرض الطريقة الأولى: محدد السيارة البصري (يظل متاحاً دائماً) */}
+      {/* 🚀 عرض محدد السيارة البصري */}
       {searchMode === 'visual' && !activeSearchQuery && (
         <VisualVehicleSelector 
           lang={lang} 
@@ -1206,10 +1208,10 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         />
       )}
 
-      {/* 🚀 عرض الطريقة الثانية: شجرة التصفية / نتائج البحث برقم القطعة */}
+      {/* 🚀 عرض شجرة التصفية أو نتائج البحث برقم القطعة */}
       {(activeSearchQuery || searchMode === 'tree') && (
         <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 25px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', direction: isRtl ? 'rtl' : 'ltr' }}>
-          
+
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
             <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '260px' }}>
               <input 
@@ -1383,7 +1385,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                                                                 const displayMainCategory = mainCatInfo 
                                                                   ? (isRtl ? mainCatInfo.ar : (mainCatInfo.en || mainCategory)) 
                                                                   : mainCategory;
-                                                                
+
                                                                 const subCatsCacheKey = `subcats_${make}_${year}_${model}_${engine}_${mainCategory}`;
                                                                 const isSubCatsLoading = !!loadingNodes[subCatsCacheKey];
                                                                 const availableSubCategories = nodeDataCache[subCatsCacheKey] || [];
