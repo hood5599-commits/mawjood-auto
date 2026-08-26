@@ -2,23 +2,184 @@ import React, { useState } from 'react';
 import { CAR_DATA, CAR_YEARS } from '../data/carData';
 import { SUPABASE_URL, API_KEY } from '../config/supabase';
 
-// 🗂️ أيقونات وبيانات الأقسام الرئيسية
-const CATEGORY_META: Record<string, { ar: string; en: string; icon: string; bg: string }> = {
-  "Brake & Wheel Hub": { ar: "الفرامل والسفايف والدرامات", en: "Brake & Wheel Hub", icon: "🛑", bg: "#fef2f2" },
-  "Suspension": { ar: "المساعدات والجامبينات والشيالات", en: "Suspension", icon: "🔩", bg: "#faf5ff" },
-  "Engine": { ar: "المحرك ومكونات المكينة", en: "Engine & Components", icon: "⚙️", bg: "#eff6ff" },
-  "Cooling System": { ar: "نظام التبريد والرديتر", en: "Cooling System", icon: "❄️", bg: "#f0fdf4" },
-  "Heat & Air Conditioning": { ar: "التكييف والكمبريسر والتدفئة", en: "Heat & Air Conditioning", icon: "💨", bg: "#fffbeb" },
-  "Ignition": { ar: "نظام الاشتعال (البلاكات والكويلات)", en: "Ignition System", icon: "🔥", bg: "#fff7ed" },
-  "Fuel & Air": { ar: "الوقود وبترول وهواء المكينة", en: "Fuel & Air", icon: "⛽", bg: "#f0fdfa" },
-  "Electrical": { ar: "الكهرباء والدينمة والسلف", en: "Electrical System", icon: "⚡", bg: "#fefce8" },
-  "Body & Lamp Assembly": { ar: "الهيكل والإضاءة (بدي وليتات)", en: "Body & Lighting", icon: "💡", bg: "#f8fafc" },
-  "Steering": { ar: "نظام التوجيه والاستيرنج راك", en: "Steering System", icon: "🎯", bg: "#f5f3ff" },
-  "Drivetrain": { ar: "الدفع والمحاور (الأكسلات والشفت)", en: "Drivetrain & Axles", icon: "🔄", bg: "#fdf2f8" },
-  "Transmission-Automatic": { ar: "القير الأوتوماتيك (الجير)", en: "Automatic Transmission", icon: "🕹️", bg: "#f1f5f9" },
-  "Transmission-Manual": { ar: "القير العادي (الكلتش)", en: "Manual Transmission", icon: "⚙️", bg: "#f1f5f9" },
-  "Wheel": { ar: "الإطارات والرنجات والتواير", en: "Wheels & Tires", icon: "🛞", bg: "#f8fafc" },
-  "Wiper & Washer": { ar: "المساحات وبخاخات ماي الجام", en: "Wipers & Washers", icon: "🌧️", bg: "#eff6ff" }
+/* ============================================================================
+   DESIGN TOKENS — Luxury Obsidian & Brushed Copper Palette
+============================================================================ */
+const TOKENS = {
+  obsidian: '#090D16',
+  obsidianSoft: '#0F172A',
+  slate: '#1E293B',
+  slateText: '#475569',
+  mutedText: '#64748B',
+  alabaster: '#F8FAFC',
+  white: '#FFFFFF',
+  hairline: 'rgba(226, 232, 240, 0.85)',
+  hairlineDark: 'rgba(148, 163, 184, 0.22)',
+  copper: '#EA580C',
+  copperDeep: '#C2410C',
+  copperBright: '#F97316',
+  copperTint: '#FFF7ED',
+  copperLine: 'rgba(234, 88, 12, 0.25)',
+  success: '#16A34A',
+  successTint: '#F0FDF4',
+  successLine: '#86EFAC',
+  sky: '#0284C7',
+  skyTint: '#F0F9FF',
+};
+
+/* ============================================================================
+   ICONOGRAPHY — Bespoke Inline SVG Icons
+============================================================================ */
+type IconName = 'car' | 'search' | 'bolt' | 'folder' | 'chevron' | 'refresh' | 'check' | 'undo' | 'sparkle' | 'layers';
+
+const Icon: React.FC<{ name: IconName; size?: number; color?: string; style?: React.CSSProperties }> = ({
+  name,
+  size = 16,
+  color = 'currentColor',
+  style
+}) => {
+  const icons: Record<IconName, React.ReactNode> = {
+    car: (
+      <>
+        <path d="M3 12.5 4.8 7.2A2 2 0 0 1 6.7 5.8h10.6a2 2 0 0 1 1.9 1.4l1.8 5.3" />
+        <rect x="2.5" y="12.5" width="19" height="6" rx="2" />
+        <circle cx="7" cy="18.5" r="1.6" />
+        <circle cx="17" cy="18.5" r="1.6" />
+      </>
+    ),
+    search: (
+      <>
+        <circle cx="11" cy="11" r="7" />
+        <path d="m21 21-4.35-4.35" />
+      </>
+    ),
+    bolt: <path d="M13 2 4.5 13.5h6l-1.5 8.5 9-12h-6.5z" />,
+    folder: (
+      <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.7l1.7 2h9.6A1.5 1.5 0 0 1 22 8.5v9A1.5 1.5 0 0 1 20.5 19h-16A1.5 1.5 0 0 1 3 17.5Z" />
+    ),
+    chevron: <path d="m6 9 6 6 6-6" />,
+    refresh: <path d="M20 11.5A8 8 0 1 0 18.6 16M20 11.5V5.8M20 11.5h-5.7" />,
+    check: <path d="m4 12 5 5L20 6" />,
+    undo: <path d="M9 14 4 9l5-5M4 9h10.5a6.5 6.5 0 0 1 0 13H11" />,
+    sparkle: <path d="M12 3c.5 3 2 4.5 5 5-3 .5-4.5 2-5 5-.5-3-2-4.5-5-5 3-.5 4.5-2 5-5Z" />,
+    layers: (
+      <>
+        <path d="m12 3 9 4.7-9 4.7-9-4.7Z" />
+        <path d="m3 12.2 9 4.7 9-4.7M3 16.7l9 4.7 9-4.7" />
+      </>
+    )
+  };
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0, display: 'inline-block', verticalAlign: 'middle', ...style }}
+      aria-hidden="true"
+    >
+      {icons[name]}
+    </svg>
+  );
+};
+
+// 🗂️ صور نادرة وعالية الجودة مخصصة لكل قسم رئيسي
+const CATEGORY_META: Record<string, { ar: string; en: string; image: string; tag: string }> = {
+  "Brake & Wheel Hub": {
+    ar: "الفرامل والسفايف والدرامات",
+    en: "Brake & Wheel Hub",
+    image: "https://images.unsplash.com/photo-1600706432502-778d9763cb6d?w=500&auto=format&fit=crop&q=80",
+    tag: "Braking & Rotors"
+  },
+  "Suspension": {
+    ar: "المساعدات والجامبينات والشيالات",
+    en: "Suspension & Shocks",
+    image: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=500&auto=format&fit=crop&q=80",
+    tag: "Chassis & Dampers"
+  },
+  "Engine": {
+    ar: "المحرك ومكونات المكينة",
+    en: "Engine & Components",
+    image: "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=500&auto=format&fit=crop&q=80",
+    tag: "Powertrain & Blocks"
+  },
+  "Cooling System": {
+    ar: "نظام التبريد والرديتر",
+    en: "Cooling & Radiators",
+    image: "https://images.unsplash.com/photo-1616788494707-ec28f08d05a1?w=500&auto=format&fit=crop&q=80",
+    tag: "Thermal Management"
+  },
+  "Heat & Air Conditioning": {
+    ar: "التكييف والكمبريسر والتدفئة",
+    en: "A/C & Climate Control",
+    image: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=500&auto=format&fit=crop&q=80",
+    tag: "Compressors & Condensers"
+  },
+  "Ignition": {
+    ar: "نظام الاشتعال (البلاكات والكويلات)",
+    en: "Ignition System",
+    image: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=500&auto=format&fit=crop&q=80",
+    tag: "Spark Plugs & Coils"
+  },
+  "Fuel & Air": {
+    ar: "الوقود وبترول وهواء المكينة",
+    en: "Fuel & Air Intake",
+    image: "https://images.unsplash.com/photo-1598971861713-54ad16a7e72e?w=500&auto=format&fit=crop&q=80",
+    tag: "Pumps & Injectors"
+  },
+  "Electrical": {
+    ar: "الكهرباء والدينمة والسلف",
+    en: "Electrical & Alternator",
+    image: "https://images.unsplash.com/photo-1597762117709-8588820c7d7e?w=500&auto=format&fit=crop&q=80",
+    tag: "Starters & Dynamos"
+  },
+  "Body & Lamp Assembly": {
+    ar: "الهيكل والإضاءة (بدي وليتات)",
+    en: "Body & Lighting",
+    image: "https://images.unsplash.com/photo-1508974239320-0a029497e820?w=500&auto=format&fit=crop&q=80",
+    tag: "LEDs & Body Panels"
+  },
+  "Steering": {
+    ar: "نظام التوجيه والاستيرنج راك",
+    en: "Steering System",
+    image: "https://images.unsplash.com/photo-1541348263662-e0c8de4259ba?w=500&auto=format&fit=crop&q=80",
+    tag: "Racks & Tie Rods"
+  },
+  "Drivetrain": {
+    ar: "الدفع والمحاور (الأكسلات والشفت)",
+    en: "Drivetrain & Axles",
+    image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=500&auto=format&fit=crop&q=80",
+    tag: "Shafts & CV Axles"
+  },
+  "Transmission-Automatic": {
+    ar: "القير الأوتوماتيك (الجير)",
+    en: "Automatic Transmission",
+    image: "https://images.unsplash.com/photo-1588644525273-f37b60d78512?w=500&auto=format&fit=crop&q=80",
+    tag: "Gearboxes & Torque"
+  },
+  "Transmission-Manual": {
+    ar: "القير العادي (الكلتش)",
+    en: "Manual Transmission",
+    image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=500&auto=format&fit=crop&q=80",
+    tag: "Clutch Kits & Flywheels"
+  },
+  "Wheel": {
+    ar: "الإطارات والرنجات والتواير",
+    en: "Wheels & Tires",
+    image: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=500&auto=format&fit=crop&q=80",
+    tag: "Rims & TPMS"
+  },
+  "Wiper & Washer": {
+    ar: "المساحات وبخاخات ماي الجام",
+    en: "Wipers & Washers",
+    image: "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=500&auto=format&fit=crop&q=80",
+    tag: "Blades & Motors"
+  }
 };
 
 // 📂 قاموس ترجمة الأقسام الفرعية بالمصطلحات القطرية والإنجليزية
@@ -98,6 +259,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   const [chosenSubCat, setChosenSubCat] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [hoveredCat, setHoveredCat] = useState<string | null>(null);
 
   // 🧠 مطابقة ذكية مرنة للموديل
   const isModelMatching = (dbModel: string, targetModel: string): boolean => {
@@ -254,24 +416,40 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', direction: isRtl ? 'rtl' : 'ltr' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      {/* 🚘 صندوق محدد السيارة */}
-      <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '2px solid #1f3a5f', boxShadow: '0 8px 24px rgba(31,58,95,0.06)' }}>
-        <h3 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '17px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>🚘</span> {isRtl ? 'حدد سيارتك لعرض الأقسام والقطع المتوافقة 100%' : 'Select Your Vehicle for 100% Fitment Match'}
-        </h3>
+      {/* 🚘 صندوق محدد السيارة بتصميم فخم */}
+      <div style={{
+        backgroundColor: TOKENS.white,
+        padding: '26px',
+        borderRadius: '20px',
+        border: `1.5px solid ${TOKENS.hairline}`,
+        boxShadow: '0 8px 30px rgba(9,13,22,0.04)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '11px', backgroundColor: TOKENS.copperTint, border: `1px solid ${TOKENS.copperLine}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="car" size={18} color={TOKENS.copper} />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, color: TOKENS.obsidian, fontSize: '16.5px', fontWeight: 800 }}>
+              {isRtl ? 'حدد سيارتك لعرض الأقسام والقطع المتوافقة 100%' : 'Select Your Vehicle for 100% Fitment Match'}
+            </h3>
+            <span style={{ fontSize: '12px', color: TOKENS.mutedText }}>
+              {isRtl ? 'تصفح الكتالوج المخصص لسيارتك بدقة متناهية' : 'Browse catalog tailored exclusively to your model'}
+            </span>
+          </div>
+        </div>
 
         <form onSubmit={handleStartSearch} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', alignItems: 'flex-end' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#475569' }}>
+            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, marginBottom: '6px', color: TOKENS.slateText }}>
               {isRtl ? '1. الماركة *' : '1. Make *'}
             </label>
             <select
               value={selectedMake}
               onChange={(e) => { setSelectedMake(e.target.value); setSelectedModel(''); }}
               required
-              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', fontWeight: 'bold', backgroundColor: '#f8fafc' }}
+              style={{ width: '100%', padding: '12px', borderRadius: '11px', border: `1px solid ${TOKENS.hairline}`, fontSize: '13px', fontWeight: 700, backgroundColor: TOKENS.alabaster, color: TOKENS.obsidian, outline: 'none' }}
             >
               <option value="">{isRtl ? '-- اختر الشركة --' : '-- Select Make --'}</option>
               {Object.keys(CAR_DATA).map(m => (
@@ -281,7 +459,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#475569' }}>
+            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, marginBottom: '6px', color: TOKENS.slateText }}>
               {isRtl ? '2. الموديل *' : '2. Model *'}
             </label>
             <select
@@ -289,7 +467,7 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
               onChange={(e) => setSelectedModel(e.target.value)}
               required
               disabled={!selectedMake}
-              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', fontWeight: 'bold', backgroundColor: '#f8fafc' }}
+              style={{ width: '100%', padding: '12px', borderRadius: '11px', border: `1px solid ${TOKENS.hairline}`, fontSize: '13px', fontWeight: 700, backgroundColor: TOKENS.alabaster, color: TOKENS.obsidian, outline: 'none' }}
             >
               <option value="">{isRtl ? '-- اختر الموديل --' : '-- Select Model --'}</option>
               {selectedMake && CAR_DATA[selectedMake]?.models?.map((mod: string) => (
@@ -299,14 +477,14 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#475569' }}>
+            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, marginBottom: '6px', color: TOKENS.slateText }}>
               {isRtl ? '3. سنة الصنع *' : '3. Year *'}
             </label>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
               required
-              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', fontWeight: 'bold', backgroundColor: '#f8fafc' }}
+              style={{ width: '100%', padding: '12px', borderRadius: '11px', border: `1px solid ${TOKENS.hairline}`, fontSize: '13px', fontWeight: 700, backgroundColor: TOKENS.alabaster, color: TOKENS.obsidian, outline: 'none' }}
             >
               <option value="">{isRtl ? '-- اختر السنة --' : '-- Select Year --'}</option>
               {CAR_YEARS.map(y => (
@@ -316,14 +494,14 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '5px', color: '#475569' }}>
+            <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, marginBottom: '6px', color: TOKENS.slateText }}>
               {isRtl ? '4. المحرك (اختياري)' : '4. Engine (Optional)'}
             </label>
             <select
               value={selectedEngine}
               onChange={(e) => setSelectedEngine(e.target.value)}
               disabled={!selectedMake}
-              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13px', backgroundColor: '#f8fafc' }}
+              style={{ width: '100%', padding: '12px', borderRadius: '11px', border: `1px solid ${TOKENS.hairline}`, fontSize: '13px', backgroundColor: TOKENS.alabaster, color: TOKENS.obsidian, outline: 'none' }}
             >
               <option value="">{isRtl ? '-- كل المحركات --' : '-- All Engines --'}</option>
               {selectedMake && CAR_DATA[selectedMake]?.engines?.map((eng: string) => (
@@ -336,48 +514,55 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
             type="submit"
             disabled={loading}
             style={{
-              padding: '12px 20px',
-              backgroundColor: '#e0872a',
+              padding: '13px 20px',
+              backgroundColor: TOKENS.copper,
               color: '#ffffff',
               border: 'none',
-              borderRadius: '10px',
-              fontWeight: 'bold',
-              fontSize: '14px',
+              borderRadius: '11px',
+              fontWeight: 800,
+              fontSize: '13.5px',
               cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(224,135,42,0.35)',
+              boxShadow: '0 4px 14px rgba(234, 88, 12, 0.3)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px'
+              gap: '8px',
+              transition: 'all 0.2s ease'
             }}
           >
-            🔍 {loading ? (isRtl ? 'جاري الفحص...' : 'Checking...') : (isRtl ? 'استعراض الأقسام' : 'Explore Parts')}
+            <Icon name="search" size={15} color="white" />
+            <span>{loading ? (isRtl ? 'جاري الفحص...' : 'Checking...') : (isRtl ? 'استعراض الأقسام' : 'Explore Parts')}</span>
           </button>
         </form>
       </div>
 
-      {/* 🧭 مسار التنقل البصري (Breadcrumbs) */}
+      {/* 🧭 مسار التنقل (Breadcrumbs) */}
       {currentStep !== 'idle' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 18px', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '13px', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 'bold', color: '#1f3a5f' }}>🚘 {selectedMake} {selectedModel} ({selectedYear})</span>
-          {chosenEngine && <span style={{ color: '#64748b' }}> › ⚡ {chosenEngine}</span>}
-          {chosenMainCat && <span style={{ color: '#64748b' }}> › 🗂️ {isRtl ? (CATEGORY_META[chosenMainCat]?.ar || chosenMainCat) : (CATEGORY_META[chosenMainCat]?.en || chosenMainCat)}</span>}
-          {chosenSubCat && <span style={{ color: '#e0872a', fontWeight: 'bold' }}> › 📂 {isRtl ? (SUBCATEGORY_NAMES[chosenSubCat]?.ar || chosenSubCat) : (SUBCATEGORY_NAMES[chosenSubCat]?.en || chosenSubCat)}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 18px', backgroundColor: TOKENS.white, borderRadius: '14px', border: `1px solid ${TOKENS.hairline}`, fontSize: '13px', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 800, color: TOKENS.obsidian, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Icon name="car" size={14} color={TOKENS.copper} />
+            {selectedMake} {selectedModel} ({selectedYear})
+          </span>
+          {chosenEngine && <span style={{ color: TOKENS.slateText }}> › ⚡ {chosenEngine}</span>}
+          {chosenMainCat && <span style={{ color: TOKENS.slateText }}> › 🗂️ {isRtl ? (CATEGORY_META[chosenMainCat]?.ar || chosenMainCat) : (CATEGORY_META[chosenMainCat]?.en || chosenMainCat)}</span>}
+          {chosenSubCat && <span style={{ color: TOKENS.copper, fontWeight: 800 }}> › 📂 {isRtl ? (SUBCATEGORY_NAMES[chosenSubCat]?.ar || chosenSubCat) : (SUBCATEGORY_NAMES[chosenSubCat]?.en || chosenSubCat)}</span>}
           
           <button
             onClick={() => setCurrentStep('idle')}
-            style={{ marginRight: isRtl ? 'auto' : '0', marginLeft: isRtl ? '0' : 'auto', background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ marginRight: isRtl ? 'auto' : '0', marginLeft: isRtl ? '0' : 'auto', background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
           >
-            🔄 {isRtl ? 'إعادة ضبط الاختيار' : 'Reset Selection'}
+            <Icon name="refresh" size={12} color="#dc2626" />
+            {isRtl ? 'إعادة ضبط الاختيار' : 'Reset Selection'}
           </button>
         </div>
       )}
 
       {/* 1️⃣ شبكة اختيار نوع المحرك */}
       {currentStep === 'engine' && (
-        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
-          <h4 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-            ⚡ {isRtl ? 'اختر نوع المحرك لسيارتك:' : 'Select Your Vehicle Engine:'}
+        <div style={{ backgroundColor: TOKENS.white, padding: '24px', borderRadius: '20px', border: `1px solid ${TOKENS.hairline}` }}>
+          <h4 style={{ margin: '0 0 16px 0', color: TOKENS.obsidian, fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Icon name="bolt" size={17} color={TOKENS.copper} />
+            {isRtl ? 'اختر نوع المحرك لسيارتك:' : 'Select Your Vehicle Engine:'}
           </h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px' }}>
             {availableEngines.map((eng, idx) => (
@@ -386,19 +571,21 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
                 onClick={() => handleSelectEngine(eng)}
                 style={{
                   padding: '20px',
-                  borderRadius: '14px',
-                  border: '1.5px solid #cbd5e0',
-                  backgroundColor: '#f8fafc',
+                  borderRadius: '16px',
+                  border: `1.5px solid ${TOKENS.hairline}`,
+                  backgroundColor: TOKENS.alabaster,
                   textAlign: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  fontWeight: 'bold',
-                  color: '#1f3a5f'
+                  fontWeight: 800,
+                  color: TOKENS.obsidian
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#e0872a'; e.currentTarget.style.backgroundColor = '#fff7ed'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e0'; e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = TOKENS.copper; e.currentTarget.style.backgroundColor = TOKENS.copperTint; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = TOKENS.hairline; e.currentTarget.style.backgroundColor = TOKENS.alabaster; }}
               >
-                <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚡</div>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', backgroundColor: TOKENS.copperTint, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                  <Icon name="bolt" size={20} color={TOKENS.copper} />
+                </div>
                 <div>{eng}</div>
               </div>
             ))}
@@ -406,50 +593,97 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         </div>
       )}
 
-      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية */}
+      {/* 2️⃣ شبكة بطاقات الأقسام الرئيسية بصور عالية الدقة */}
       {currentStep === 'main_cat' && (
-        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
-          <h4 style={{ margin: '0 0 16px 0', color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-            🗂️ {isRtl ? 'اختر القسم الرئيسي لقطعة الغيار:' : 'Select Main Category:'}
+        <div style={{ backgroundColor: TOKENS.white, padding: '24px', borderRadius: '20px', border: `1px solid ${TOKENS.hairline}` }}>
+          <h4 style={{ margin: '0 0 18px 0', color: TOKENS.obsidian, fontSize: '16.5px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Icon name="layers" size={18} color={TOKENS.copper} />
+            {isRtl ? 'اختر القسم الرئيسي لقطعة الغيار:' : 'Select Main Category:'}
           </h4>
           {availableMainCats.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px 0' }}>
-              <p style={{ color: '#64748b', fontWeight: 'bold' }}>
+            <div style={{ textAlign: 'center', padding: '36px 0' }}>
+              <p style={{ color: TOKENS.mutedText, fontWeight: 700 }}>
                 {isRtl ? 'لا توجد قطع معروضة حالياً لسيارة:' : 'No parts available for:'} ({selectedMake} {selectedModel} {selectedYear})
               </p>
               <button
                 onClick={() => setCurrentStep('idle')}
-                style={{ padding: '8px 18px', backgroundColor: '#1f3a5f', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}
+                style={{ padding: '9px 20px', backgroundColor: TOKENS.obsidian, color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, marginTop: '10px' }}
               >
-                🔄 {isRtl ? 'اختيار سيارة أخرى' : 'Select Another Vehicle'}
+                {isRtl ? 'اختيار سيارة أخرى' : 'Select Another Vehicle'}
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '16px' }}>
               {availableMainCats.map((cat) => {
-                const meta = CATEGORY_META[cat] || { ar: cat, en: cat, icon: '📦', bg: '#f8fafc' };
+                const meta = CATEGORY_META[cat] || {
+                  ar: cat,
+                  en: cat,
+                  image: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=500&auto=format&fit=crop&q=80",
+                  tag: "Spare Parts"
+                };
+                const isHovered = hoveredCat === cat;
+
                 return (
                   <div
                     key={cat}
                     onClick={() => handleSelectMainCat(cat)}
+                    onMouseEnter={() => setHoveredCat(cat)}
+                    onMouseLeave={() => setHoveredCat(null)}
                     style={{
-                      padding: '22px 14px',
-                      borderRadius: '16px',
-                      border: '1.5px solid #e2e8f0',
-                      backgroundColor: meta.bg,
-                      textAlign: 'center',
+                      borderRadius: '18px',
+                      border: `1.5px solid ${isHovered ? TOKENS.copperLine : TOKENS.hairline}`,
+                      backgroundColor: TOKENS.white,
+                      overflow: 'hidden',
                       cursor: 'pointer',
-                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                      transition: 'all 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
+                      boxShadow: isHovered ? '0 14px 28px -10px rgba(9,13,22,0.12), 0 2px 6px rgba(234,88,12,0.06)' : '0 2px 10px rgba(9,13,22,0.03)',
+                      transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+                      display: 'flex',
+                      flexDirection: 'column'
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.08)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)'; }}
                   >
-                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>{meta.icon}</div>
-                    <strong style={{ fontSize: '14px', color: '#1f3a5f', display: 'block', marginBottom: '4px' }}>
-                      {isRtl ? meta.ar : meta.en}
-                    </strong>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>{cat}</span>
+                    {/* صورة القسم عالية الدقة */}
+                    <div style={{ position: 'relative', width: '100%', height: '115px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+                      <img
+                        src={meta.image}
+                        alt={meta.ar}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          transform: isHovered ? 'scale(1.08)' : 'scale(1)',
+                          transition: 'transform 0.4s ease'
+                        }}
+                      />
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '40px',
+                        background: 'linear-gradient(to top, rgba(15,23,42,0.6) 0%, transparent 100%)'
+                      }} />
+                      <span style={{
+                        position: 'absolute',
+                        bottom: '6px',
+                        [isRtl ? 'right' : 'left']: '8px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: '#ffffff',
+                        letterSpacing: '0.03em',
+                        textTransform: 'uppercase'
+                      }}>
+                        {meta.tag}
+                      </span>
+                    </div>
+
+                    {/* نص القسم */}
+                    <div style={{ padding: '14px 12px', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <strong style={{ fontSize: '13.5px', color: isHovered ? TOKENS.copper : TOKENS.obsidian, display: 'block', marginBottom: '3px', fontWeight: 800, transition: 'color 0.2s ease' }}>
+                        {isRtl ? meta.ar : meta.en}
+                      </strong>
+                      <span style={{ fontSize: '11px', color: TOKENS.mutedText }}>{cat}</span>
+                    </div>
                   </div>
                 );
               })}
@@ -460,16 +694,18 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
 
       {/* 3️⃣ شبكة بطاقات الأقسام الفرعية */}
       {currentStep === 'sub_cat' && (
-        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h4 style={{ margin: 0, color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
-              📂 {isRtl ? `الأقسام الفرعية المتوفرة في (${CATEGORY_META[chosenMainCat]?.ar || chosenMainCat}):` : `Subcategories in (${chosenMainCat}):`}
+        <div style={{ backgroundColor: TOKENS.white, padding: '24px', borderRadius: '20px', border: `1px solid ${TOKENS.hairline}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+            <h4 style={{ margin: 0, color: TOKENS.obsidian, fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Icon name="folder" size={17} color={TOKENS.copper} />
+              {isRtl ? `الأقسام الفرعية المتوفرة في (${CATEGORY_META[chosenMainCat]?.ar || chosenMainCat}):` : `Subcategories in (${chosenMainCat}):`}
             </h4>
             <button
               onClick={() => setCurrentStep('main_cat')}
-              style={{ background: 'none', border: '1px solid #cbd5e0', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ background: TOKENS.alabaster, border: `1px solid ${TOKENS.hairline}`, padding: '7px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: TOKENS.obsidian }}
             >
-              ↩️ {isRtl ? 'رجوع للأقسام الرئيسية' : 'Back to Categories'}
+              <Icon name="undo" size={13} strokeWidth={2} />
+              {isRtl ? 'رجوع للأقسام الرئيسية' : 'Back to Categories'}
             </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
@@ -484,23 +720,23 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
                   key={sub}
                   onClick={() => handleSelectSubCat(sub)}
                   style={{
-                    padding: '16px',
-                    borderRadius: '12px',
-                    border: '1.5px solid #cbd5e0',
-                    backgroundColor: '#f8fafc',
+                    padding: '16px 14px',
+                    borderRadius: '14px',
+                    border: `1.5px solid ${TOKENS.hairline}`,
+                    backgroundColor: TOKENS.alabaster,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
                     transition: 'all 0.2s ease',
-                    fontWeight: 'bold',
-                    color: '#1f3a5f',
+                    fontWeight: 700,
+                    color: TOKENS.obsidian,
                     fontSize: '13px'
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#16a34a'; e.currentTarget.style.backgroundColor = '#f0fdf4'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e0'; e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = TOKENS.success; e.currentTarget.style.backgroundColor = TOKENS.successTint; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = TOKENS.hairline; e.currentTarget.style.backgroundColor = TOKENS.alabaster; }}
                 >
-                  <span style={{ fontSize: '20px' }}>🔸</span>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: TOKENS.copper, flexShrink: 0 }} />
                   <span>{displaySubName}</span>
                 </div>
               );
@@ -512,21 +748,24 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
       {/* 4️⃣ عرض قطع الغيار المطابقة */}
       {currentStep === 'parts' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h4 style={{ margin: 0, color: '#1f3a5f', fontSize: '16px', fontWeight: 'bold' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+            <h4 style={{ margin: 0, color: TOKENS.obsidian, fontSize: '16.5px', fontWeight: 800 }}>
               🛒 {isRtl ? `القطع المتوافقة المتوفرة (${matchingParts.length}):` : `Compatible Parts (${matchingParts.length}):`}
             </h4>
             <button
               onClick={() => setCurrentStep(availableSubCats.length > 0 ? 'sub_cat' : 'main_cat')}
-              style={{ background: 'none', border: '1px solid #cbd5e0', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ background: TOKENS.white, border: `1px solid ${TOKENS.hairline}`, padding: '7px 14px', borderRadius: '10px', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: TOKENS.obsidian }}
             >
-              ↩️ {isRtl ? 'تغيير القسم' : 'Change Category'}
+              <Icon name="undo" size={13} strokeWidth={2} />
+              {isRtl ? 'تغيير القسم' : 'Change Category'}
             </button>
           </div>
 
           {matchingParts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-              <p style={{ color: '#64748b', fontWeight: 'bold' }}>{isRtl ? 'عفواً، لا توجد قطع متوفرة لهذا القسم حالياً.' : 'No parts available for this section.'}</p>
+            <div style={{ textAlign: 'center', padding: '40px', backgroundColor: TOKENS.white, borderRadius: '18px', border: `1px solid ${TOKENS.hairline}` }}>
+              <p style={{ color: TOKENS.mutedText, fontWeight: 700 }}>
+                {isRtl ? 'عفواً، لا توجد قطع متوفرة لهذا القسم حالياً.' : 'No parts available for this section.'}
+              </p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
