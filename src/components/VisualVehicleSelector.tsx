@@ -8,23 +8,23 @@ import { SUPABASE_URL, API_KEY } from '../config/supabase';
    - عند ترك الرابط فارغاً "" سيتم عرض الإيموجي والأيقونة الفخمة المحددة تلقائياً!
 ============================================================================ */
 export const CATEGORY_CUSTOM_IMAGES: Record<string, string> = {
-  "Brake & Wheel Hub": "",                   // الفرامل والسفايف والدرامات
-  "Suspension": "",                          // المساعدات والجامبينات والشيالات
-  "Engine": "",                              // المحرك ومكونات المكينة
-  "Cooling System": "images/Cooling System.jpg",                      // نظام التبريد والرديتر
-  "Heat & Air Conditioning": "",             // التكييف والكمبريسر والتدفئة
-  "Ignition": "",                            // نظام الاشتعال (البلاكات والكويلات)
-  "Fuel & Air": "",                          // الوقود وبترول وهواء المكينة
-  "Electrical": "",                          // الكهرباء والدينمة والسلف
-  "Body & Lamp Assembly": "",                // الهيكل والإضاءة (بدي وليتات)
-  "Steering": "",                            // نظام التوجيه والاستيرنج راك
-  "Drivetrain": "",                          // الدفع والمحاور (الأكسلات والشفت)
-  "Transmission-Automatic": "",              // القير الأوتوماتيك (الجير)
-  "Transmission-Manual": "",                 // القير العادي (الكلتش)
-  "Wheel": "",                               // الإطارات والرنجات والتواير
-  "Wiper & Washer": "",                      // المساحات وبخاخات ماي الجام
-  "Belt Drive": "",                          // نظام السيور والقوايش
-  "Exhaust & Emission": "",                  // العادم والقزوز ودبة البيئة
+  "Brake & Wheel Hub": "/images/brakes.png.jpg",                   // الفرامل والسفايف والدرامات
+  "Suspension": "/images/Suspension.jpg",                          // المساعدات والجامبينات والشيالات
+  "Engine": "/images/Engine.jpg",                              // المحرك ومكونات المكينة
+  "Cooling System": "/images/Cooling System.jpg",                      // نظام التبريد والرديتر
+  "Heat & Air Conditioning": "/images/Heat & Air Conditioning.jpg",             // التكييف والكمبريسر والتدفئة
+  "Ignition": "/images/Ignition.jpg",                            // نظام الاشتعال (البلاكات والكويلات)
+  "Fuel & Air": "/images/Fuel & Air.jpg",                          // الوقود وبترول وهواء المكينة
+  "Electrical": "/images/Electrical.jpg",                          // الكهرباء والدينمة والسلف
+  "Body & Lamp Assembly": "/images/Body & Lamp Assembly.jpg",                // الهيكل والإضاءة (بدي وليتات)
+  "Steering": "/images/Steering.jpg",                            // نظام التوجيه والاستيرنج راك
+  "Drivetrain": "/images/Drivetrain.jpg",                          // الدفع والمحاور (الأكسلات والشفت)
+  "Transmission-Automatic": "/images/Transmission-Automatic.jpg",              // القير الأوتوماتيك (الجير)
+  "Transmission-Manual": "/images/Transmission-Automatic.jpg",                 // القير العادي (الكلتش)
+  "Wheel": "/images/wheels.jpg",                               // الإطارات والرنجات والتواير
+  "Wiper & Washer": "/images/Wiper & Washer.jpg",                      // المساحات وبخاخات ماي الجام
+  "Belt Drive": "/images/Belt Drive.jpg",                          // نظام السيور والقوايش
+  "Exhaust & Emission": "/images/Exhaust & Emission.jpg",                  // العادم والقزوز ودبة البيئة
   "Electrical-Bulb & Socket": "",            // اللمبات والفيش
   "Electrical-Connector": "",                // الفيش والتوصيلات
   "Electrical-Switch & Relay": "",           // المفاتيح والكتاوت
