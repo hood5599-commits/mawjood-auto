@@ -11,7 +11,7 @@ export const CATEGORY_CUSTOM_IMAGES: Record<string, string> = {
   "Brake & Wheel Hub": "",                   // الفرامل والسفايف والدرامات
   "Suspension": "",                          // المساعدات والجامبينات والشيالات
   "Engine": "",                              // المحرك ومكونات المكينة
-  "Cooling System": "",                      // نظام التبريد والرديتر
+  "Cooling System": "Cooling System.jpg",                      // نظام التبريد والرديتر
   "Heat & Air Conditioning": "",             // التكييف والكمبريسر والتدفئة
   "Ignition": "",                            // نظام الاشتعال (البلاكات والكويلات)
   "Fuel & Air": "",                          // الوقود وبترول وهواء المكينة
