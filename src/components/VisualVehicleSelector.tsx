@@ -25,11 +25,11 @@ export const CATEGORY_CUSTOM_IMAGES: Record<string, string> = {
   "Wiper & Washer": "/images/Wiper & Washer.jpg",                      // المساحات وبخاخات ماي الجام
   "Belt Drive": "/images/Belt Drive.jpg",                          // نظام السيور والقوايش
   "Exhaust & Emission": "/images/Exhaust & Emission.jpg",                  // العادم والقزوز ودبة البيئة
-  "Electrical-Bulb & Socket": "",            // اللمبات والفيش
-  "Electrical-Connector": "",                // الفيش والتوصيلات
-  "Electrical-Switch & Relay": "",           // المفاتيح والكتاوت
-  "Interior": "",                            // المقصورة والديكور الداخلي
-  "Literature": ""                           // الكتالوجات والكتيبات
+  "Electrical-Bulb & Socket": "images/Electrical-Bulb & Socket.jpg",            // اللمبات والفيش
+  "Electrical-Connector": "images/Electrical-Connector.jpg",                // الفيش والتوصيلات
+  "Electrical-Switch & Relay": "images/Electrical-Switch & Relay.jpg",           // المفاتيح والكتاوت
+  "Interior": "images/Interior.jpg",                            // المقصورة والديكور الداخلي
+  "Literature": "images/Literature.jpg"                           // الكتالوجات والكتيبات
 };
 
 /* ============================================================================
