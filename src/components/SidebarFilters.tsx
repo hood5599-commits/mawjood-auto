@@ -1330,26 +1330,30 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
           1. EXECUTIVE VERIFICATION BAR — Smart VIN / Istemara scanner
       ================================================================= */}
       <div style={{
-        backgroundColor: TOKENS.obsidian,
-        backgroundImage: `radial-gradient(120% 140% at 0% 0%, ${TOKENS.obsidianSoft} 0%, ${TOKENS.obsidian} 55%)`,
-        padding: '26px', borderRadius: '22px', border: `1px solid ${TOKENS.hairlineDark}`,
-        boxShadow: '0 24px 60px -24px rgba(9,13,22,0.55)', direction: isRtl ? 'rtl' : 'ltr', position: 'relative', overflow: 'hidden'
+        backgroundColor: TOKENS.white,
+        padding: '24px',
+        borderRadius: '20px',
+        border: `1.5px solid ${TOKENS.hairline}`,
+        boxShadow: '0 4px 20px rgba(9,13,22,0.04)',
+        direction: isRtl ? 'rtl' : 'ltr',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <div style={{ position: 'absolute', top: '-40%', [isRtl ? 'left' : 'right']: '-10%', width: '260px', height: '260px', borderRadius: '50%', background: `radial-gradient(circle, ${TOKENS.copper}22 0%, transparent 70%)`, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: '-40%', [isRtl ? 'left' : 'right']: '-10%', width: '240px', height: '240px', borderRadius: '50%', background: `radial-gradient(circle, ${TOKENS.copper}15 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', flexWrap: 'wrap', gap: '12px', position: 'relative' }}>
           <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', backgroundColor: 'rgba(234,88,12,0.12)', border: `1px solid ${TOKENS.copperLine}`, padding: '5px 12px', borderRadius: '999px', marginBottom: '12px' }}>
-              <Icon name="shield" size={13} strokeWidth={1.75} color={TOKENS.copperBright} />
-              <span style={{ fontSize: '11px', fontWeight: 700, color: TOKENS.copperBright, letterSpacing: '0.03em' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: TOKENS.copperTint, border: `1px solid ${TOKENS.copperLine}`, padding: '5px 12px', borderRadius: '999px', marginBottom: '10px' }}>
+              <Icon name="shield" size={13} color={TOKENS.copper} />
+              <span style={{ fontSize: '11px', fontWeight: 800, color: TOKENS.copperDeep, letterSpacing: '0.03em' }}>
                 {isRtl ? 'ضمان مطابقة 100%' : '100% FITMENT GUARANTEE'}
               </span>
             </div>
-            <h3 style={{ margin: '0 0 6px 0', color: TOKENS.white, fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.01em' }}>
-              <Icon name="camera" size={19} strokeWidth={1.6} color={TOKENS.copperBright} />
+            <h3 style={{ margin: '0 0 6px 0', color: TOKENS.obsidian, fontSize: '17px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.01em' }}>
+              <Icon name="camera" size={19} color={TOKENS.copper} />
               {isRtl ? 'الفحص الذكي بالاستمارة أو رقم الشاصي' : 'Smart VIN & Registration Scanner'}
             </h3>
-            <p style={{ margin: 0, fontSize: '12.5px', color: 'rgba(226,232,240,0.65)', maxWidth: '560px', lineHeight: '1.6' }}>
+            <p style={{ margin: 0, fontSize: '12.5px', color: TOKENS.mutedText, maxWidth: '560px', lineHeight: '1.6' }}>
               {isRtl
                 ? 'صوّر استمارة سيارتك أو أدخل رقم الشاصي (17 حرف) ليقوم النظام بعرض حالة التوافق لكل قطعة تلقائياً.'
                 : 'Upload your vehicle Istemara or enter the 17-digit VIN to identify compatibility across every part automatically.'}
@@ -1360,12 +1364,21 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             <button
               onClick={clearSearch}
               style={{
-                backgroundColor: 'rgba(220,38,38,0.12)', color: '#FCA5A5', border: '1px solid rgba(220,38,38,0.35)',
-                padding: '8px 16px', borderRadius: '11px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '7px'
+                backgroundColor: '#FEF2F2',
+                color: '#DC2626',
+                border: '1px solid #FCA5A5',
+                padding: '8px 16px',
+                borderRadius: '11px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                transition: 'all 0.2s ease'
               }}
             >
-              <Icon name="refresh" size={13} strokeWidth={1.75} />
+              <Icon name="refresh" size={13} color="#DC2626" />
               {isRtl ? 'إلغاء التحديد' : 'Clear Vehicle'}
             </button>
           )}
@@ -1373,33 +1386,41 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
         {decodedVehicle ? (
           <div style={{
-            padding: '18px 22px', backgroundColor: 'rgba(22,163,74,0.10)', border: '1.5px solid rgba(74,222,128,0.35)',
-            borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative'
+            padding: '16px 20px',
+            backgroundColor: TOKENS.successTint,
+            border: '1.5px solid #86EFAC',
+            borderRadius: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '14px',
+            position: 'relative'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '38px', height: '38px', borderRadius: '11px', backgroundColor: 'rgba(74,222,128,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon name="checkCircle" size={20} strokeWidth={1.75} color="#4ADE80" />
+              <div style={{ width: '38px', height: '38px', borderRadius: '11px', backgroundColor: 'rgba(22,163,74,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="checkCircle" size={20} color={TOKENS.success} />
               </div>
               <div>
-                <strong style={{ color: '#BBF7D0', fontSize: '15px', display: 'block', fontWeight: 700 }}>
+                <strong style={{ color: '#166534', fontSize: '15px', display: 'block', fontWeight: 800 }}>
                   {decodedVehicle.make} {decodedVehicle.model} {decodedVehicle.year && `(${decodedVehicle.year})`}
                 </strong>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '3px' }}>
                   {decodedVehicle.engine && (
-                    <span style={{ fontSize: '12px', color: 'rgba(220,252,231,0.75)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Icon name="bolt" size={11} strokeWidth={1.75} /> {decodedVehicle.engine}
+                    <span style={{ fontSize: '12px', color: '#15803D', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                      <Icon name="bolt" size={12} color="#15803D" /> {decodedVehicle.engine}
                     </span>
                   )}
                   {decodedVehicle.vin && (
-                    <span style={{ fontSize: '11.5px', color: 'rgba(220,252,231,0.6)', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-                      VIN {decodedVehicle.vin}
+                    <span style={{ fontSize: '12px', color: '#166534', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                      VIN: {decodedVehicle.vin}
                     </span>
                   )}
                 </div>
               </div>
             </div>
             <span style={{ backgroundColor: TOKENS.success, color: 'white', padding: '6px 14px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Icon name="target" size={13} strokeWidth={1.75} />
+              <Icon name="target" size={13} color="white" />
               {isRtl ? 'فحص التوافق مفعّل' : 'Fitment filter active'}
             </span>
           </div>
@@ -1410,7 +1431,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
               onClick={() => !isDecodingVin && fileInputRef.current?.click()}
               style={{
                 border: `1.5px dashed ${TOKENS.copperLine}`,
-                backgroundColor: 'rgba(234,88,12,0.06)',
+                backgroundColor: TOKENS.copperTint,
                 borderRadius: '16px',
                 padding: '20px',
                 textAlign: 'center',
@@ -1426,13 +1447,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 style={{ display: 'none' }}
                 disabled={isDecodingVin}
               />
-              <div style={{ width: '46px', height: '46px', borderRadius: '13px', backgroundColor: 'rgba(234,88,12,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
-                <Icon name="camera" size={21} strokeWidth={1.6} color={TOKENS.copperBright} />
+              <div style={{ width: '46px', height: '46px', borderRadius: '13px', backgroundColor: TOKENS.white, border: `1px solid ${TOKENS.copperLine}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                <Icon name="camera" size={21} color={TOKENS.copper} />
               </div>
-              <strong style={{ color: 'white', fontSize: '13.5px', display: 'block', marginBottom: '3px', fontWeight: 700 }}>
+              <strong style={{ color: TOKENS.obsidian, fontSize: '13.5px', display: 'block', marginBottom: '3px', fontWeight: 800 }}>
                 {isRtl ? 'اضغط لتصوير أو رفع الاستمارة' : 'Snap or Upload Istemara Photo'}
               </strong>
-              <span style={{ fontSize: '11px', color: 'rgba(226,232,240,0.55)' }}>
+              <span style={{ fontSize: '11.5px', color: TOKENS.mutedText }}>
                 {isRtl ? 'استخراج وقراءة فورية بالذكاء الاصطناعي' : 'Instant AI OCR reading'}
               </span>
             </div>
@@ -1440,8 +1461,8 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             <form
               onSubmit={(e) => { e.preventDefault(); decodeVinNumber(vinInput.trim().toUpperCase()); }}
               style={{
-                border: `1.5px solid ${TOKENS.hairlineDark}`,
-                backgroundColor: 'rgba(255,255,255,0.03)',
+                border: `1.5px solid ${TOKENS.hairline}`,
+                backgroundColor: TOKENS.alabaster,
                 borderRadius: '16px',
                 padding: '16px',
                 display: 'flex',
@@ -1450,7 +1471,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                 gap: '9px'
               }}
             >
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(226,232,240,0.85)' }}>
+              <label style={{ fontSize: '12px', fontWeight: 800, color: TOKENS.obsidianSoft }}>
                 {isRtl ? 'أو أدخل رقم الشاصي يدوياً (17 حرف)' : 'Or enter the 17-digit VIN manually'}
               </label>
               <div style={{ display: 'flex', gap: '9px' }}>
@@ -1461,22 +1482,39 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   value={vinInput}
                   onChange={(e) => setVinInput(e.target.value.toUpperCase())}
                   style={{
-                    flex: 1, padding: '12px 14px', borderRadius: '11px', border: `1.5px solid ${TOKENS.hairlineDark}`,
-                    fontSize: '13px', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px',
-                    backgroundColor: 'rgba(255,255,255,0.04)', color: 'white', outline: 'none'
+                    flex: 1,
+                    padding: '11px 14px',
+                    borderRadius: '11px',
+                    border: '1.5px solid #CBD5E1',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    letterSpacing: '1px',
+                    backgroundColor: TOKENS.white,
+                    color: TOKENS.obsidian,
+                    outline: 'none'
                   }}
                 />
                 <button
                   type="submit"
                   disabled={isDecodingVin || vinInput.trim().length !== 17}
                   style={{
-                    padding: '0 20px', backgroundColor: TOKENS.copper, color: 'white', border: 'none', borderRadius: '11px',
-                    fontWeight: 700, fontSize: '13px', cursor: (vinInput.trim().length === 17) ? 'pointer' : 'not-allowed',
-                    opacity: (vinInput.trim().length === 17) ? 1 : 0.45, display: 'flex', alignItems: 'center', gap: '6px'
+                    padding: '0 20px',
+                    backgroundColor: TOKENS.copper,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '11px',
+                    fontWeight: 800,
+                    fontSize: '13px',
+                    cursor: (vinInput.trim().length === 17) ? 'pointer' : 'not-allowed',
+                    opacity: (vinInput.trim().length === 17) ? 1 : 0.45,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
-                  {isRtl ? 'فحص' : 'Check'}
-                  <Icon name={isRtl ? 'chevronLeft' : 'chevronRight'} size={13} strokeWidth={2} />
+                  <span>{isRtl ? 'فحص' : 'Check'}</span>
+                  <Icon name={isRtl ? 'chevronLeft' : 'chevronRight'} size={13} color="white" />
                 </button>
               </div>
             </form>
@@ -1485,14 +1523,14 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
         )}
 
         {isDecodingVin && (
-          <div style={{ marginTop: '14px', textAlign: 'center', color: TOKENS.copperBright, fontWeight: 700, fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <Icon name="refresh" size={14} strokeWidth={1.75} style={{ animation: 'mawjood-spin 1s linear infinite' }} />
+          <div style={{ marginTop: '14px', textAlign: 'center', color: TOKENS.copper, fontWeight: 800, fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <Icon name="refresh" size={14} color={TOKENS.copper} style={{ animation: 'mawjood-spin 1s linear infinite' }} />
             {statusMsg}
           </div>
         )}
         <style>{`@keyframes mawjood-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-      </div>
-
+      </div> 
+      
       {/* ================================================================
           2. SEARCH MODE SELECTOR — visual vs. hierarchical catalog
       ================================================================= */}
