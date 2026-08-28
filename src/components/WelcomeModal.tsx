@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { t } from '../utils/translations';
 
 interface WelcomeProps {
   lang: 'ar' | 'en';
@@ -60,6 +59,17 @@ const IconClose: React.FC<{ size?: number }> = ({ size = 16 }) => (
   </svg>
 );
 
+/* Inline fallback vector used if the logo asset fails to load */
+const IconLogoFallback: React.FC<{ size?: number }> = ({ size = 30 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 15L5.4 9.6C5.7 8.5 6.7 7.7 7.8 7.7H16.2C17.3 7.7 18.3 8.5 18.6 9.6L20 15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M3 15H21V17.5C21 18.3 20.3 19 19.5 19H4.5C3.7 19 3 18.3 3 17.5V15Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round"/>
+    <circle cx="7.5" cy="19" r="1.6" stroke="currentColor" strokeWidth="1.75"/>
+    <circle cx="16.5" cy="19" r="1.6" stroke="currentColor" strokeWidth="1.75"/>
+    <path d="M7 11.5H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
 /* ============================================================
    AMBIENT MECHANICAL ENGINE — pure CSS/SVG, ultra-low opacity
    ============================================================ */
@@ -108,44 +118,144 @@ const AmbientEngineLayer: React.FC = () => (
   </div>
 );
 
+/* ============================================================
+   STAGE 1–2: EXPLODED BLUEPRINT CHASSIS SCENE
+   Zoom-out reveal + laser scan + mechanical convergence
+   ============================================================ */
+
+const BlueprintChassisScene: React.FC<{ isRtl: boolean }> = ({ isRtl }) => (
+  <div
+    className="wm-blueprint-stage"
+    style={{
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      pointerEvents: 'none',
+      zIndex: 1,
+      transform: isRtl ? 'scaleX(-1)' : 'none',
+    }}
+  >
+    <div className="wm-chassis-zoom">
+      <svg
+        className="wm-blueprint-strokes"
+        width="900"
+        height="420"
+        viewBox="0 0 900 420"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Static wireframe chassis silhouette */}
+        <g className="wm-body-fadein">
+          <path
+            d="M120 300 C130 250 180 210 250 205 L320 170 C360 150 420 140 470 140 L560 140 C620 140 660 160 690 200 L740 205 C780 210 810 250 800 300"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path d="M120 300 L800 300" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M330 175 L340 240 M470 145 L470 240 M600 165 L600 240" stroke="currentColor" strokeWidth="0.9" strokeDasharray="3 5" opacity="0.6" />
+          <path d="M250 205 L470 205 L690 205" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 6" opacity="0.5" />
+        </g>
+
+        {/* Front rotor — floats in, converges onto front wheel */}
+        <g className="wm-part wm-part-rotor-front" transform="translate(0,0)">
+          <circle cx="250" cy="305" r="48" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="250" cy="305" r="30" stroke="currentColor" strokeWidth="1" strokeDasharray="3 5" />
+          <circle cx="250" cy="305" r="6" stroke="currentColor" strokeWidth="1" />
+          <path d="M250 275L250 285M250 325L250 335M220 305L230 305M270 305L280 305" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        </g>
+
+        {/* Rear rotor — floats in, converges onto rear wheel */}
+        <g className="wm-part wm-part-rotor-rear" transform="translate(0,0)">
+          <circle cx="670" cy="305" r="48" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="670" cy="305" r="30" stroke="currentColor" strokeWidth="1" strokeDasharray="3 5" />
+          <circle cx="670" cy="305" r="6" stroke="currentColor" strokeWidth="1" />
+          <path d="M670 275L670 285M670 325L670 335M640 305L650 305M690 305L700 305" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        </g>
+
+        {/* Front suspension spring — converges above front wheel */}
+        <g className="wm-part wm-part-spring-front" transform="translate(0,0)">
+          <path
+            d="M250 250 L262 240 L238 228 L262 216 L238 204 L262 192 L250 182"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </g>
+
+        {/* Rear suspension spring — converges above rear wheel */}
+        <g className="wm-part wm-part-spring-rear" transform="translate(0,0)">
+          <path
+            d="M670 250 L682 240 L658 228 L682 216 L658 204 L682 192 L670 182"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </g>
+
+        {/* Engine / piston block — converges under the hood */}
+        <g className="wm-part wm-part-engine" transform="translate(0,0)">
+          <rect x="390" y="235" width="70" height="46" rx="6" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="425" cy="215" r="14" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M425 229 L425 235" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M405 258 L370 258" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+          <circle cx="365" cy="258" r="5" stroke="currentColor" strokeWidth="1.1" />
+        </g>
+      </svg>
+    </div>
+
+    <div className="wm-laser-line" />
+    <div className="wm-flash-bloom" />
+  </div>
+);
+
 export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
   const isRtl = lang === 'ar';
   const [ctaHover, setCtaHover] = useState(false);
   const [dismissHover, setDismissHover] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const OBSIDIAN = '#090D16';
   const SLATE = '#0F172A';
+  const TITANIUM = '#1E293B';
   const ALABASTER = '#F8FAFC';
   const COPPER = '#EA580C';
   const COPPER_LIGHT = '#F97316';
+  const CYAN = '#38BDF8';
 
   const pillars = [
     {
       key: 'brandnew',
       icon: <IconShieldCheck size={24} />,
-      title: lang === 'ar' ? '100% قطع أصلية جديدة' : '100% Brand-New Guarantee',
+      title: lang === 'ar' ? 'قطع جديدة وأصلية 100%' : '100% Factory-New & Certified Guarantee',
       desc:
         lang === 'ar'
-          ? 'لا قطع تالفة، لا قطع مستعملة إطلاقًا — قطع أصلية OEM وبديل فاخر معتمدة من المصنع فقط.'
-          : 'Zero scrap. Zero used parts. Certified factory-new OEM & premium aftermarket only.',
+          ? 'قطع غيار وكالة وتجارية أصلية جديدة بالكرتون مع الضمان الذهبي — تم إلغاء السكراب والمستعمل نهائياً لنضمن لك أعلى معايير الجودة.'
+          : '100% factory-sealed Genuine OEM & certified aftermarket parts with full warranty. Zero scrap, zero compromises.',
     },
     {
       key: 'aiscan',
       icon: <IconScan size={24} />,
-      title: lang === 'ar' ? 'مسح ذكي بالاستمارة و VIN' : 'Smart AI Istemara & VIN Scanner',
+      title: lang === 'ar' ? 'فحص الاستمارة والشاصي الذكي' : 'Instant AI VIN & Istemara Scanner',
       desc:
         lang === 'ar'
-          ? 'مطابقة فورية بدقة 100% لقطع سيارتك عبر الذكاء الاصطناعي.'
-          : 'Instant AI-powered 100% vehicle fitment match, every time.',
+          ? 'محرك ذكاء اصطناعي فوري لمطابقة رقم الشاصي (17 حرف) مع سيارتك لضمان توافق القطعة بنسبة 100% قبل الشراء.'
+          : 'AI-powered optical registration & 17-digit VIN decoding ensuring 100% precise vehicle fitment.',
     },
     {
       key: 'delivery',
       icon: <IconTruckFast size={24} />,
-      title: lang === 'ar' ? 'توصيل قطر السريع' : 'Express Qatar Delivery',
+      title: lang === 'ar' ? 'توصيل فوري لجميع مناطق قطر' : 'Express Qatar Doorstep Delivery',
       desc:
         lang === 'ar'
-          ? 'توصيل سريع إلى باب منزلك خلال 24 إلى 48 ساعة فقط.'
-          : 'Rapid doorstep fulfillment within 24–48 hours across Qatar.',
+          ? 'توصيل سريع ومباشر لباب منزلك أو الكراج خلال ساعتين إلى 24 ساعة في كافة مناطق ومدن دولة قطر.'
+          : 'Rapid fulfillment across all Qatar municipalities within 2 to 24 hours directly to your doorstep or workshop.',
     },
   ];
 
@@ -159,25 +269,19 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         height: '100%',
         zIndex: 9999,
         direction: isRtl ? 'rtl' : 'ltr',
-        fontFamily: 'Cairo, system-ui, sans-serif',
+        fontFamily: isRtl ? "'Cairo', sans-serif" : "'Cairo', system-ui, sans-serif",
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         padding: '24px',
-        background: `radial-gradient(ellipse at 30% 20%, rgba(234,88,12,0.10) 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, rgba(249,115,22,0.08) 0%, transparent 50%), linear-gradient(160deg, ${OBSIDIAN} 0%, ${SLATE} 55%, ${OBSIDIAN} 100%)`,
+        background: `radial-gradient(ellipse at 30% 20%, rgba(56,189,248,0.08) 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, rgba(234,88,12,0.10) 0%, transparent 50%), linear-gradient(160deg, ${OBSIDIAN} 0%, ${SLATE} 55%, ${OBSIDIAN} 100%)`,
         overflow: 'hidden',
       }}
     >
       <style>{`
-        @keyframes wm-spin-cw {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes wm-spin-ccw {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(-360deg); }
-        }
+        @keyframes wm-spin-cw { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes wm-spin-ccw { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
         @keyframes wm-drift {
           0%, 100% { transform: translateY(0px) translateX(0px); }
           50% { transform: translateY(-10px) translateX(6px); }
@@ -190,7 +294,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           from { opacity: 0; transform: translateY(18px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes wm-shimmer {
+        @keyframes shimmerSweep {
           0% { transform: translateX(-120%) skewX(-18deg); }
           100% { transform: translateX(220%) skewX(-18deg); }
         }
@@ -199,297 +303,421 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           50% { box-shadow: 0 0 40px rgba(234,88,12,0.55), 0 12px 30px rgba(0,0,0,0.5); }
         }
 
-        .wm-gear {
-          position: absolute;
-          color: ${ALABASTER};
-          opacity: 0.05;
+        /* ===== STAGE 1: exploded blueprint zoom-out ===== */
+        @keyframes chassisExplodeZoom {
+          0% { transform: scale(2.5); opacity: 0.35; }
+          100% { transform: scale(1); opacity: 1; }
         }
-        .wm-gear-a {
-          top: -60px;
-          inset-inline-end: -40px;
-          animation: wm-spin-cw 60s linear infinite;
+        @keyframes blueprintStrokeCycle {
+          0%, 100% { color: ${CYAN}; }
+          50% { color: ${ALABASTER}; }
         }
-        .wm-gear-b {
-          bottom: -40px;
-          inset-inline-start: -30px;
-          animation: wm-spin-ccw 42s linear infinite;
+        @keyframes wm-body-fadein {
+          from { opacity: 0; }
+          to { opacity: 0.85; }
         }
-        .wm-gear-c {
-          top: 55%;
-          inset-inline-end: 12%;
-          animation: wm-spin-cw 30s linear infinite;
-          opacity: 0.045;
+
+        /* ===== STAGE 2: laser scan + mechanical convergence ===== */
+        @keyframes wm-laser-sweep {
+          0% { transform: translateX(-60%); opacity: 0; }
+          8% { opacity: 1; }
+          92% { opacity: 1; }
+          100% { transform: translateX(760px); opacity: 0; }
         }
-        .wm-piston {
-          position: absolute;
-          top: 12%;
-          inset-inline-start: 8%;
-          color: ${COPPER};
-          opacity: 0.07;
-          animation: wm-drift 14s ease-in-out infinite;
+        @keyframes wm-flash-bloom {
+          0%, 100% { opacity: 0; transform: scale(0.6); }
+          50% { opacity: 0.85; transform: scale(1.6); }
         }
-        .wm-rotor {
-          position: absolute;
-          bottom: 6%;
-          inset-inline-end: 6%;
-          color: ${ALABASTER};
-          opacity: 0.05;
-          animation: wm-spin-cw 70s linear infinite;
+        @keyframes wm-converge-rotor-front {
+          0% { transform: translate(-70px, -60px) scale(1.2); opacity: 0.55; }
+          100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
-        .wm-spark {
-          position: absolute;
-          width: 3px;
-          height: 3px;
-          border-radius: 50%;
-          background: ${COPPER_LIGHT};
+        @keyframes wm-converge-rotor-rear {
+          0% { transform: translate(70px, -60px) scale(1.2); opacity: 0.55; }
+          100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
+        @keyframes wm-converge-spring-front {
+          0% { transform: translate(-30px, -50px); opacity: 0.5; }
+          100% { transform: translate(0, 0); opacity: 1; }
+        }
+        @keyframes wm-converge-spring-rear {
+          0% { transform: translate(30px, -50px); opacity: 0.5; }
+          100% { transform: translate(0, 0); opacity: 1; }
+        }
+        @keyframes wm-converge-engine {
+          0% { transform: translate(90px, -40px) scale(1.15); opacity: 0.5; }
+          100% { transform: translate(0, 0) scale(1); opacity: 1; }
+        }
+        @keyframes wm-scene-recede {
+          0% { opacity: 1; }
+          100% { opacity: 0.1; }
+        }
+
+        /* ===== STAGE 3: logo crown descent ===== */
+        @keyframes wm-logo-descent {
+          0% { transform: translateY(-140px) scale(0.7); opacity: 0; }
+          70% { transform: translateY(6px) scale(1.03); opacity: 1; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes wm-wordmark-fade {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes wm-subhead-fade {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== STAGE 4: glassmorphic value deck ===== */
+        @keyframes wm-deck-slideup {
+          from { opacity: 0; transform: translateY(46px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .wm-gear { position: absolute; color: ${ALABASTER}; opacity: 0.05; will-change: transform; }
+        .wm-gear-a { top: -60px; inset-inline-end: -40px; animation: wm-spin-cw 60s linear infinite; }
+        .wm-gear-b { bottom: -40px; inset-inline-start: -30px; animation: wm-spin-ccw 42s linear infinite; }
+        .wm-gear-c { top: 55%; inset-inline-end: 12%; animation: wm-spin-cw 30s linear infinite; opacity: 0.045; }
+        .wm-piston { position: absolute; top: 12%; inset-inline-start: 8%; color: ${COPPER}; opacity: 0.07; animation: wm-drift 14s ease-in-out infinite; will-change: transform; }
+        .wm-rotor { position: absolute; bottom: 6%; inset-inline-end: 6%; color: ${ALABASTER}; opacity: 0.05; animation: wm-spin-cw 70s linear infinite; will-change: transform; }
+        .wm-spark { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: ${COPPER_LIGHT}; }
         .wm-spark-1 { top: 18%; inset-inline-start: 25%; animation: wm-spark-pulse 4.5s ease-in-out infinite; }
         .wm-spark-2 { top: 65%; inset-inline-start: 40%; animation: wm-spark-pulse 5.8s ease-in-out infinite 1.1s; }
         .wm-spark-3 { top: 35%; inset-inline-end: 30%; animation: wm-spark-pulse 3.8s ease-in-out infinite 0.5s; }
         .wm-spark-4 { top: 78%; inset-inline-end: 18%; animation: wm-spark-pulse 5s ease-in-out infinite 1.8s; }
         .wm-spark-5 { top: 10%; inset-inline-end: 45%; animation: wm-spark-pulse 4.1s ease-in-out infinite 0.9s; }
+        .wm-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(9,13,22,0.65) 100%); }
 
-        .wm-vignette {
+        .wm-blueprint-stage {
+          animation: wm-scene-recede 1s cubic-bezier(0.22, 1, 0.36, 1) 2.6s both;
+        }
+        .wm-chassis-zoom {
+          transform-origin: center center;
+          animation: chassisExplodeZoom 1.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+          will-change: transform, opacity;
+        }
+        .wm-blueprint-strokes {
+          animation: blueprintStrokeCycle 2.4s ease-in-out infinite;
+        }
+        .wm-body-fadein { animation: wm-body-fadein 1s ease-out 0.2s both; }
+
+        .wm-part { will-change: transform, opacity; }
+        .wm-part-rotor-front { animation: wm-converge-rotor-front 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.8s both; }
+        .wm-part-rotor-rear { animation: wm-converge-rotor-rear 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.8s both; }
+        .wm-part-spring-front { animation: wm-converge-spring-front 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.9s both; }
+        .wm-part-spring-rear { animation: wm-converge-spring-rear 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.9s both; }
+        .wm-part-engine { animation: wm-converge-engine 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.85s both; }
+
+        .wm-laser-line {
+          position: absolute;
+          top: 8%;
+          bottom: 8%;
+          left: 6%;
+          width: 3px;
+          background: linear-gradient(180deg, transparent, ${CYAN}, ${ALABASTER}, ${CYAN}, transparent);
+          box-shadow: 0 0 18px 3px rgba(56,189,248,0.65), 0 0 40px 8px rgba(56,189,248,0.3);
+          animation: wm-laser-sweep 0.6s cubic-bezier(0.4, 0, 0.2, 1) 1.8s both;
+          will-change: transform, opacity;
+        }
+        .wm-flash-bloom {
           position: absolute;
           inset: 0;
-          background: radial-gradient(ellipse at center, transparent 40%, rgba(9,13,22,0.65) 100%);
+          margin: auto;
+          width: 60%;
+          height: 60%;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(248,250,252,0.5) 0%, rgba(56,189,248,0.22) 45%, transparent 70%);
+          animation: wm-flash-bloom 0.7s ease-out 2.05s both;
+          will-change: transform, opacity;
         }
 
-        .wm-fade-in {
-          animation: wm-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
+        .wm-content-wrap { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
 
+        .wm-logo-badge {
+          animation: wm-logo-descent 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) 2.2s both;
+          will-change: transform, opacity;
+        }
+        .wm-wordmark { animation: wm-wordmark-fade 0.6s cubic-bezier(0.22, 1, 0.36, 1) 2.5s both; will-change: transform, opacity; }
+        .wm-subhead { animation: wm-subhead-fade 0.6s cubic-bezier(0.22, 1, 0.36, 1) 2.65s both; will-change: transform, opacity; }
+
+        .wm-deck-panel {
+          animation: wm-deck-slideup 0.75s cubic-bezier(0.22, 1, 0.36, 1) 2.75s both;
+          will-change: transform, opacity;
+        }
         .wm-card {
           transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s ease, background-color 0.25s ease;
         }
-        .wm-card:hover {
-          transform: translateY(-4px);
-        }
+        .wm-card:hover { transform: translateY(-4px); }
 
         @media (max-width: 760px) {
-          .wm-pillars {
-            grid-template-columns: 1fr !important;
+          .wm-pillars { grid-template-columns: 1fr !important; }
+          .wm-blueprint-stage { transform: scale(0.75) ${isRtl ? 'scaleX(-1)' : ''}; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .wm-gear, .wm-piston, .wm-rotor, .wm-spark,
+          .wm-chassis-zoom, .wm-blueprint-strokes, .wm-body-fadein,
+          .wm-part-rotor-front, .wm-part-rotor-rear, .wm-part-spring-front, .wm-part-spring-rear, .wm-part-engine,
+          .wm-laser-line, .wm-flash-bloom, .wm-blueprint-stage,
+          .wm-logo-badge, .wm-wordmark, .wm-subhead, .wm-deck-panel {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
           }
         }
       `}</style>
 
       <AmbientEngineLayer />
+      <BlueprintChassisScene isRtl={isRtl} />
 
-      {/* ===== Modal Glass Panel ===== */}
-      <div
-        className="wm-fade-in"
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          width: '100%',
-          maxWidth: '860px',
-          background: 'rgba(15, 23, 42, 0.55)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(226, 232, 240, 0.14)',
-          borderRadius: '28px',
-          boxShadow: '0 30px 80px -20px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06)',
-          padding: '48px 40px 40px',
-          textAlign: 'center',
-          animationDelay: '0.05s',
-        }}
-      >
-        {/* Emblem */}
+      {/* ===== Stage 3 + 4: Brand crown, wordmark, glassmorphic deck ===== */}
+      <div className="wm-content-wrap">
         <div
+          className="wm-logo-badge"
           style={{
-            width: '68px',
-            height: '68px',
-            margin: '0 auto 22px',
-            borderRadius: '18px',
-            background: `linear-gradient(145deg, ${OBSIDIAN} 0%, ${SLATE} 100%)`,
+            width: '78px',
+            height: '78px',
+            marginBottom: '18px',
+            borderRadius: '20px',
+            background: `linear-gradient(145deg, ${OBSIDIAN} 0%, ${TITANIUM} 100%)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             border: `1px solid rgba(234, 88, 12, 0.5)`,
-            boxShadow: `0 0 0 1px rgba(248,250,252,0.05), 0 0 30px rgba(234, 88, 12, 0.28), inset 0 1px 1px rgba(255,255,255,0.08)`,
-          }}
-        >
-          <IconShieldCheck size={30} />
-          <span style={{ color: COPPER, position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} />
-        </div>
-
-        {/* Recolor emblem icon via wrapper */}
-        <style>{`
-          .wm-fade-in > div:first-of-type svg { color: ${COPPER_LIGHT}; }
-        `}</style>
-
-        <h1
-          style={{
-            fontSize: 'clamp(1.9rem, 4vw, 2.7rem)',
-            fontWeight: 900,
-            marginBottom: '12px',
-            color: ALABASTER,
-            letterSpacing: '-0.5px',
-            lineHeight: 1.15,
-          }}
-        >
-          {t[lang].welcomeTitle}
-        </h1>
-
-        <p
-          style={{
-            fontSize: '1.05rem',
-            marginBottom: '10px',
-            color: 'rgba(248,250,252,0.72)',
-            maxWidth: '560px',
-            marginInline: 'auto',
-            lineHeight: 1.7,
-          }}
-        >
-          {t[lang].welcomeDesc}
-        </p>
-
-        {/* Brand-new badge strip */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '6px 16px',
-            borderRadius: '999px',
-            border: '1px solid rgba(234, 88, 12, 0.45)',
-            backgroundColor: 'rgba(234, 88, 12, 0.1)',
-            color: '#fdba74',
-            fontWeight: 800,
-            fontSize: '12px',
-            letterSpacing: isRtl ? '0px' : '0.6px',
-            marginBottom: '36px',
-            marginTop: '6px',
-            textTransform: isRtl ? 'none' : 'uppercase',
-          }}
-        >
-          <IconShieldCheck size={14} />
-          <span>{lang === 'ar' ? 'صفر قطع مستعملة — أصلية جديدة 100%' : 'Zero Used Parts — 100% Brand New'}</span>
-        </div>
-
-        {/* Feature Pillars */}
-        <div
-          className="wm-pillars"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '14px',
-            marginBottom: '38px',
-            textAlign: isRtl ? 'right' : 'left',
-          }}
-        >
-          {pillars.map((p, idx) => (
-            <div
-              key={p.key}
-              className="wm-card"
-              style={{
-                background: 'rgba(248, 250, 252, 0.04)',
-                border: '1px solid rgba(248, 250, 252, 0.12)',
-                borderRadius: '18px',
-                padding: '18px 16px',
-                animation: `wm-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) both`,
-                animationDelay: `${0.15 + idx * 0.1}s`,
-              }}
-            >
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  background: `linear-gradient(145deg, ${SLATE} 0%, ${OBSIDIAN} 100%)`,
-                  border: '1px solid rgba(234,88,12,0.35)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: COPPER_LIGHT,
-                  marginBottom: '12px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-                }}
-              >
-                {p.icon}
-              </div>
-              <div
-                style={{
-                  fontSize: '13.5px',
-                  fontWeight: 800,
-                  color: ALABASTER,
-                  marginBottom: '5px',
-                  lineHeight: 1.35,
-                }}
-              >
-                {p.title}
-              </div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'rgba(248,250,252,0.6)',
-                  lineHeight: 1.55,
-                  fontWeight: 500,
-                }}
-              >
-                {p.desc}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* CTA */}
-        <button
-          onClick={onStart}
-          onMouseEnter={() => setCtaHover(true)}
-          onMouseLeave={() => setCtaHover(false)}
-          style={{
-            position: 'relative',
+            boxShadow: `0 0 0 1px rgba(248,250,252,0.06), 0 0 34px rgba(234, 88, 12, 0.3), 0 10px 24px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)`,
             overflow: 'hidden',
-            padding: '16px 46px',
-            fontSize: '1.02rem',
-            background: `linear-gradient(135deg, ${COPPER} 0%, ${COPPER_LIGHT} 100%)`,
-            color: ALABASTER,
-            border: 'none',
-            borderRadius: '999px',
-            cursor: 'pointer',
-            fontWeight: 800,
-            fontFamily: 'Cairo, system-ui, sans-serif',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '10px',
-            letterSpacing: isRtl ? '0px' : '0.3px',
-            transition: 'transform 0.25s cubic-bezier(0.22,1,0.36,1)',
-            transform: ctaHover ? 'translateY(-3px)' : 'translateY(0)',
-            animation: ctaHover
-              ? 'wm-glow-pulse 1.6s ease-in-out infinite'
-              : 'none',
-            boxShadow: '0 12px 30px -6px rgba(234,88,12,0.5), 0 4px 14px rgba(0,0,0,0.4)',
+          }}
+        >
+          {!logoError ? (
+            <img
+              src="/logo-mawjood-auto.svg"
+              alt="Mawjood Auto"
+              width={38}
+              height={38}
+              style={{
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 0 8px rgba(234,88,12,0.4))',
+              }}
+              onError={() => setLogoError(true)}
+            />
+          ) : (
+            <span style={{ color: COPPER_LIGHT, display: 'inline-flex' }}>
+              <IconLogoFallback size={36} />
+            </span>
+          )}
+        </div>
+
+        <div
+          className="wm-wordmark"
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '8px',
+            marginBottom: '10px',
           }}
         >
           <span
-            aria-hidden="true"
             style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '40%',
-              height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
-              animation: ctaHover ? 'wm-shimmer 1.1s ease-in-out infinite' : 'none',
-              pointerEvents: 'none',
-            }}
-          />
-          <span style={{ position: 'relative', zIndex: 1 }}>{t[lang].startShopping}</span>
-          <span
-            style={{
-              position: 'relative',
-              zIndex: 1,
-              display: 'inline-flex',
-              transform: isRtl ? 'scaleX(-1)' : 'none',
+              fontSize: 'clamp(1.9rem, 4.2vw, 2.8rem)',
+              fontWeight: 900,
+              color: ALABASTER,
+              letterSpacing: '-0.5px',
+              lineHeight: 1.1,
             }}
           >
-            <IconCompassArrow size={17} />
+            {lang === 'ar' ? 'موجود' : 'Mawjood'}
           </span>
-        </button>
+          <span
+            style={{
+              fontSize: 'clamp(1.9rem, 4.2vw, 2.8rem)',
+              fontWeight: 900,
+              color: COPPER,
+              letterSpacing: '-0.5px',
+              lineHeight: 1.1,
+              textShadow: '0 0 22px rgba(234,88,12,0.5)',
+            }}
+          >
+            {lang === 'ar' ? 'أوتو' : 'Auto'}
+          </span>
+        </div>
+
+        <p
+          className="wm-subhead"
+          style={{
+            fontSize: '1.02rem',
+            marginBottom: '30px',
+            color: 'rgba(248,250,252,0.7)',
+            maxWidth: '540px',
+            marginInline: 'auto',
+            lineHeight: 1.7,
+            textAlign: 'center',
+            padding: '0 12px',
+          }}
+        >
+          {lang === 'ar'
+            ? 'منصتك الأولى لقطع غيار السيارات الجديدة والمعتمدة في قطر'
+            : "Qatar's Premier Ecosystem for 100% Brand-New & Genuine Auto Spare Parts"}
+        </p>
+
+        {/* ===== Glassmorphic Value Deck ===== */}
+        <div
+          className="wm-deck-panel"
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: '900px',
+            background: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(226, 232, 240, 0.14)',
+            borderRadius: '28px',
+            boxShadow: '0 30px 80px -20px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06)',
+            padding: '34px 32px 32px',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 16px',
+              borderRadius: '999px',
+              border: '1px solid rgba(234, 88, 12, 0.45)',
+              backgroundColor: 'rgba(234, 88, 12, 0.1)',
+              color: '#fdba74',
+              fontWeight: 800,
+              fontSize: '12px',
+              letterSpacing: isRtl ? '0px' : '0.6px',
+              marginBottom: '26px',
+              textTransform: isRtl ? 'none' : 'uppercase',
+            }}
+          >
+            <IconShieldCheck size={14} />
+            <span>{lang === 'ar' ? 'صفر سكراب — صفر مستعمل — 100% جديد' : 'Zero Scrap — Zero Used — 100% Brand New'}</span>
+          </div>
+
+          <div
+            className="wm-pillars"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '14px',
+              marginBottom: '34px',
+              textAlign: isRtl ? 'right' : 'left',
+            }}
+          >
+            {pillars.map((p) => (
+              <div
+                key={p.key}
+                className="wm-card"
+                style={{
+                  background: 'rgba(248, 250, 252, 0.04)',
+                  border: '1px solid rgba(248, 250, 252, 0.12)',
+                  borderRadius: '18px',
+                  padding: '18px 16px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    background: `linear-gradient(145deg, ${TITANIUM} 0%, ${OBSIDIAN} 100%)`,
+                    border: '1px solid rgba(234,88,12,0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: COPPER_LIGHT,
+                    marginBottom: '12px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+                  }}
+                >
+                  {p.icon}
+                </div>
+                <div
+                  style={{
+                    fontSize: '13.5px',
+                    fontWeight: 800,
+                    color: ALABASTER,
+                    marginBottom: '6px',
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {p.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: 'rgba(248,250,252,0.62)',
+                    lineHeight: 1.6,
+                    fontWeight: 500,
+                  }}
+                >
+                  {p.desc}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={onStart}
+            onMouseEnter={() => setCtaHover(true)}
+            onMouseLeave={() => setCtaHover(false)}
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              padding: '16px 46px',
+              fontSize: '1.02rem',
+              background: `linear-gradient(135deg, ${COPPER} 0%, ${COPPER_LIGHT} 100%)`,
+              color: ALABASTER,
+              border: 'none',
+              borderRadius: '999px',
+              cursor: 'pointer',
+              fontWeight: 800,
+              fontFamily: "'Cairo', system-ui, sans-serif",
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              letterSpacing: isRtl ? '0px' : '0.3px',
+              transition: 'transform 0.25s cubic-bezier(0.22,1,0.36,1)',
+              transform: ctaHover ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
+              animation: ctaHover ? 'wm-glow-pulse 1.6s ease-in-out infinite' : 'none',
+              boxShadow: '0 12px 30px -6px rgba(234,88,12,0.5), 0 4px 14px rgba(0,0,0,0.4)',
+              willChange: 'transform',
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '40%',
+                height: '100%',
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
+                animation: ctaHover ? 'shimmerSweep 1.1s ease-in-out infinite' : 'none',
+                pointerEvents: 'none',
+              }}
+            />
+            <span style={{ position: 'relative', zIndex: 1 }}>
+              {lang === 'ar' ? 'ابدأ استعراض القطع المتوافقة مع سيارتك' : 'Explore Compatible Parts Catalog'}
+            </span>
+            <span
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                display: 'inline-flex',
+                transform: isRtl ? 'scaleX(-1)' : 'none',
+              }}
+            >
+              <IconCompassArrow size={17} />
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Optional close affordance for future use (non-blocking, decorative-safe) */}
+      {/* Decorative-safe dismiss affordance, wired to the same onStart handler */}
       <button
         aria-label={lang === 'ar' ? 'إغلاق' : 'Close'}
         onClick={onStart}
@@ -499,7 +727,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           position: 'absolute',
           top: '22px',
           insetInlineEnd: '22px',
-          zIndex: 2,
+          zIndex: 3,
           width: '36px',
           height: '36px',
           borderRadius: '50%',
