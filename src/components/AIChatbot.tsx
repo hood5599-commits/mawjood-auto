@@ -71,12 +71,17 @@ const IconFilterCheck: React.FC<{ size?: number }> = ({ size = 14 }) => (
   </svg>
 );
 
+const IconChevron: React.FC<{ isRtl: boolean }> = ({ isRtl }) => (
+  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ transform: isRtl ? 'rotate(180deg)' : 'none' }}>
+    <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 /* ============================================================
    SMART AUTOMOTIVE & SYMPTOM DIALECT KNOWLEDGE BASE
    ============================================================ */
 
 const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query: string; tipAr: string; tipEn: string }> = {
-  // تبريد ومكيف
   'حرارة': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan', tipAr: 'ارتفاع الحرارة غالباً يرتبط بمروحة التبريد أو الرديتر أو الثرموستات.', tipEn: 'Overheating is usually caused by radiator fan or coolant leak.' },
   'مروحة': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan', tipAr: 'مروحة التبريد ومجموعتها الكهربائية.', tipEn: 'Radiator cooling fan assembly.' },
   'مروحه': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan', tipAr: 'مروحة التبريد ومجموعتها الكهربائية.', tipEn: 'Radiator cooling fan assembly.' },
@@ -88,8 +93,6 @@ const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query
   'كمبريسر': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor', tipAr: 'كمبروسر مكيف جديد مع صمام التحكم والكلتش.', tipEn: 'Factory-sealed A/C Compressor.' },
   'مكيف': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor', tipAr: 'نظام التكييف وقطع التبريد الداخلي.', tipEn: 'Air conditioning components.' },
   'فلتر مكيف': { main: 'Heat & Air Conditioning', sub: 'Cabin Air Filter', query: 'Cabin Filter', tipAr: 'فلتر هواء المقصورة الداخلي لتنقية هواء التكييف.', tipEn: 'Cabin A/C air filter.' },
-
-  // فرامل وهوبات
   'سفايف': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad', tipAr: 'سفايف / فحمات فرامل سيراميك وشبه معدنية معتمدة.', tipEn: 'High-performance brake pads.' },
   'فحمات': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad', tipAr: 'فحمات فرامل أمامية وخلفية جديدة 100%.', tipEn: 'Front & Rear Brake pads.' },
   'قماشات': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad', tipAr: 'أقمشة فرامل أصلية.', tipEn: 'Brake shoes / pads.' },
@@ -98,16 +101,12 @@ const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query
   'رجة مع البريك': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor', tipAr: 'الرجة عند الضغط على الفرامل تدل على تلف أو اعوجاج الهوبات (Discs).', tipEn: 'Vibration under braking indicates warped brake rotors.' },
   'بيرنج': { main: 'Brake & Wheel Hub', sub: 'Wheel Bearing / Hub', query: 'Bearing', tipAr: 'بيرنج ويل / رولمان بلي وفلنجة العجل.', tipEn: 'Wheel bearing & hub assembly.' },
   'فلنجة': { main: 'Brake & Wheel Hub', sub: 'Wheel Bearing / Hub', query: 'Bearing', tipAr: 'فلنجة العجلات ومجموعة البيرنجات.', tipEn: 'Wheel hub bearing.' },
-
-  // المساعدات والتعليق
   'جامبينات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock', tipAr: 'جامبينات ومساعدات هيدروليك وغاز أصلية.', tipEn: 'OEM shock absorbers / struts.' },
   'مساعدات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock', tipAr: 'مساعدات امتصاص الصدمات الأمامية والخلفية.', tipEn: 'Shock absorbers & struts.' },
   'شيال': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm', tipAr: 'شيالات ومقصات العفشة مع الجلب الكروية (Bushings).', tipEn: 'Suspension control arms.' },
   'مقصات': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm', tipAr: 'مقصات نظام التعليق العلوي والسفلي.', tipEn: 'Suspension control arms.' },
   'طقطقة بالمطبات': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm', tipAr: 'أصوات الطقطقة مع المطبات تشير غالباً للمقصات، مسامير التوازن، أو كراسي المساعدات.', tipEn: 'Clunking over bumps usually indicates worn control arms or sway bar links.' },
   'مسمار توازن': { main: 'Suspension', sub: 'Sway Bar Link', query: 'Sway Bar', tipAr: 'مسامير توازن عمود التثبيت (Sway Bar Links).', tipEn: 'Sway bar stabilizer links.' },
-
-  // كهرباء وإشعال
   'دينمو': { main: 'Electrical', sub: 'Alternator / Generator', query: 'Alternator', tipAr: 'دينمو تعبئة البطارية وتوليد الكهرباء (Alternator).', tipEn: 'Alternator charging unit.' },
   'سلف': { main: 'Electrical', sub: 'Starter Motor', query: 'Starter', tipAr: 'سلف تشغيل المحرك (Starter Motor) جديد بالكرتون.', tipEn: 'Engine starter motor.' },
   'بلاكات': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug', tipAr: 'بواجي / بلاكات إيريديوم وليزر لإشعال قوي وتوفير استهلاك الوقود.', tipEn: 'Iridium / Platinum spark plugs.' },
@@ -115,8 +114,6 @@ const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query
   'كويلات': { main: 'Ignition', sub: 'Ignition Coil', query: 'Ignition Coil', tipAr: 'كويلات إشعال كهربائية لمنع تقطيع المحرك (Misfire).', tipEn: 'Direct ignition coils.' },
   'كويل': { main: 'Ignition', sub: 'Ignition Coil', query: 'Ignition Coil', tipAr: 'كويل إشعال عالي الجهد.', tipEn: 'Ignition coil.' },
   'تقطيع بالمكينة': { main: 'Ignition', sub: 'Ignition Coil', query: 'Ignition Coil', tipAr: 'تقطيع وعطسة المحرك (Misfire) سببه بنسبة 85% تلف البواجي أو الكويلات.', tipEn: 'Engine misfiring is typically caused by worn spark plugs or faulty ignition coils.' },
-
-  // فلاتر ومكينة
   'فلتر بترول': { main: 'Fuel & Air', sub: 'Fuel Filter', query: 'Fuel Filter', tipAr: 'فلتر وقود وبنزين نقي لتغذية البخاخات.', tipEn: 'Fuel filter element.' },
   'فلتر هواء': { main: 'Fuel & Air', sub: 'Air Filter', query: 'Air Filter', tipAr: 'فلتر هواء المحرك لضمان نقاء سحب الهواء وسلاسة العزم.', tipEn: 'Engine air intake filter.' },
   'طرمبة بترول': { main: 'Fuel & Air', sub: 'Fuel Pump', query: 'Fuel Pump', tipAr: 'مضخة بنزين وفيول بمب كهربائي أصلي.', tipEn: 'Electric in-tank fuel pump.' },
@@ -194,7 +191,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
   const processSmartAgentResponse = (userText: string): { text: string; filterData?: Message['appliedFilter'] } => {
     const lowerText = userText.toLowerCase().trim();
 
-    // 1. FAQs & Policy Responses (100% Brand New, Delivery, Payments)
     if (/(سكراب|مستعمل|تشليح|مستعمله|مستعملة|سكرابات|used|scrap)/.test(lowerText)) {
       return {
         text: isRtl
@@ -244,7 +240,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       };
     }
 
-    // 2. Extract Make, Model, Year
+    // Extract Make, Model, Year
     let extractedMake = '';
     let extractedModel = '';
     let extractedYear = '';
@@ -276,7 +272,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       }
     }
 
-    // 3. Extract Category / Symptoms
+    // Extract Category / Symptoms
     let matchedCategory: { main: string; sub: string; query: string; tipAr?: string; tipEn?: string } | null = null;
 
     for (const [key, val] of Object.entries(SYMPTOM_AND_DIALECT_MAP)) {
@@ -298,7 +294,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       }
     }
 
-    // 4. Trigger Automatic Live Screen Filtering
+    // Live Screen Filtering
     if (matchedCategory || extractedMake || extractedModel || extractedYear) {
       onApplyFilters({
         query: matchedCategory?.query || '',
@@ -369,21 +365,21 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
     <div
       style={{
         position: 'fixed',
-        bottom: '24px',
-        [isRtl ? 'left' : 'right']: '24px',
+        bottom: '30px',
+        [isRtl ? 'left' : 'right']: 0,
         zIndex: 1500,
         direction: isRtl ? 'rtl' : 'ltr',
         fontFamily: isRtl ? "'Cairo', sans-serif" : "'Cairo', system-ui, sans-serif"
       }}
     >
       <style>{`
-        @keyframes mwBotPillFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
+        @keyframes mwSideTabGleam {
+          0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 10px rgba(234,88,12,0.25); }
+          50% { box-shadow: 0 6px 25px rgba(0,0,0,0.5), 0 0 20px rgba(234,88,12,0.55); }
         }
-        @keyframes mwBotExpand {
-          0% { opacity: 0; transform: translateY(22px) scale(0.92); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
+        @keyframes mwSlideFromEdge {
+          0% { opacity: 0; transform: translateX(${isRtl ? '-100%' : '100%'}); }
+          100% { opacity: 1; transform: translateX(0); }
         }
         @keyframes mwRadarPing {
           0% { transform: scale(0.8); opacity: 0.8; }
@@ -394,16 +390,15 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
           40% { opacity: 1; transform: scale(1.1); }
         }
 
-        .mw-bot-capsule {
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        .mw-side-docked-tab {
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
         }
-        .mw-bot-capsule:hover {
-          transform: translateY(-3px) scale(1.02);
-          box-shadow: 0 14px 34px -6px rgba(234,88,12,0.45), 0 0 20px rgba(234,88,12,0.25) !important;
+        .mw-side-docked-tab:hover {
+          transform: translateX(${isRtl ? '4px' : '-4px'}) scale(1.02);
         }
 
-        .mw-bot-bubble-in {
-          animation: mwBotExpand 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        .mw-bot-panel {
+          animation: mwSlideFromEdge 0.32s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .mw-chip-tag {
@@ -421,69 +416,78 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
 
         @media (max-width: 480px) {
           .mw-bot-panel {
-            width: calc(100vw - 32px) !important;
+            width: calc(100vw - 20px) !important;
             height: 75vh !important;
+            margin: 0 10px;
           }
         }
       `}</style>
 
       {/* ============================================================
-          1. COLLAPSIBLE TRIGGER (LUXURY FLOATING PILL CAPSULE)
+          1. DOCKED SIDE TAB (ملتصق تماماً بحافة الشاشة ولا يغطي المحتوى)
       ============================================================ */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="mw-bot-capsule"
+          className="mw-side-docked-tab"
+          title={isRtl ? 'فتح مساعد موجود أوتو' : 'Open Mawjood AI Assistant'}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '11px',
-            padding: '11px 20px 11px 14px',
-            borderRadius: '999px',
+            gap: '8px',
+            padding: '10px 14px 10px 12px',
+            borderTopRightRadius: isRtl ? '16px' : '0px',
+            borderBottomRightRadius: isRtl ? '16px' : '0px',
+            borderTopLeftRadius: isRtl ? '0px' : '16px',
+            borderBottomLeftRadius: isRtl ? '0px' : '16px',
             background: 'linear-gradient(135deg, #090D16 0%, #0F172A 100%)',
             color: '#F8FAFC',
-            border: '1.5px solid rgba(234, 88, 12, 0.45)',
-            boxShadow: '0 10px 28px -6px rgba(0,0,0,0.5), 0 0 16px rgba(234,88,12,0.2)',
+            border: '1.5px solid rgba(234, 88, 12, 0.5)',
+            borderLeft: isRtl ? 'none' : '1.5px solid rgba(234, 88, 12, 0.5)',
+            borderRight: isRtl ? '1.5px solid rgba(234, 88, 12, 0.5)' : 'none',
             cursor: 'pointer',
             fontWeight: 800,
-            fontSize: '13.5px',
+            fontSize: '12.5px',
             letterSpacing: isRtl ? '0px' : '0.3px',
-            animation: 'mwBotPillFloat 4.5s ease-in-out infinite'
+            animation: 'mwSideTabGleam 4s ease-in-out infinite'
           }}
         >
-          <div style={{ position: 'relative', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', flexShrink: 0, boxShadow: '0 0 12px rgba(234,88,12,0.6)' }}>
-            <IconRobot size={18} />
-            <span style={{ position: 'absolute', top: '-1px', [isRtl ? 'left' : 'right']: '-1px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #090D16' }} />
+          <div style={{ position: 'relative', width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', flexShrink: 0, boxShadow: '0 0 10px rgba(234,88,12,0.6)' }}>
+            <IconRobot size={15} />
+            <span style={{ position: 'absolute', top: '-1px', [isRtl ? 'left' : 'right']: '-1px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #090D16' }} />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: isRtl ? 'flex-start' : 'flex-start', textAlign: isRtl ? 'right' : 'left' }}>
-            <span style={{ color: '#F8FAFC', lineHeight: 1.2 }}>{isRtl ? 'عبود مساعد موجود' : 'Abboud AI Advisor'}</span>
-            <span style={{ fontSize: '10px', color: '#fdba74', fontWeight: 600 }}>{isRtl ? 'استشارة وفحص فوري' : 'Instant Fitment & Parts'}</span>
-          </div>
+          <span style={{ color: '#F8FAFC', whiteSpace: 'nowrap' }}>
+            {isRtl ? 'عبود مساعد موجود' : 'Abboud AI'}
+          </span>
+
+          <span style={{ color: '#EA580C', display: 'flex', alignItems: 'center' }}>
+            <IconChevron isRtl={isRtl} />
+          </span>
         </button>
       )}
 
       {/* ============================================================
-          2. EXPANDED LUXURY CHAT DECK
+          2. EXPANDED LUXURY CHAT DECK (منزلق من جانب الصفحة)
       ============================================================ */}
       {isOpen && (
         <div
           className="mw-bot-panel"
           style={{
+            margin: isRtl ? '0 0 0 16px' : '0 16px 0 0',
             width: '380px',
             maxWidth: 'calc(100vw - 32px)',
             height: '540px',
             maxHeight: '82vh',
-            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.94) 0%, rgba(9, 13, 22, 0.96) 100%)',
+            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(9, 13, 22, 0.98) 100%)',
             backdropFilter: 'blur(24px) saturate(180%)',
             WebkitBackdropFilter: 'blur(24px) saturate(180%)',
             border: '1.5px solid rgba(226, 232, 240, 0.15)',
             borderRadius: '24px',
-            boxShadow: '0 30px 80px -15px rgba(0,0,0,0.8), 0 0 25px rgba(234,88,12,0.15)',
+            boxShadow: '0 30px 80px -15px rgba(0,0,0,0.85), 0 0 25px rgba(234,88,12,0.15)',
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden',
-            animation: 'mwBotExpand 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+            overflow: 'hidden'
           }}
         >
           {/* Header */}
@@ -538,7 +542,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
 
               <button
                 onClick={() => setIsOpen(false)}
-                title={isRtl ? 'إخفاء وتصغير النافذة' : 'Minimize'}
+                title={isRtl ? 'إخفاء إلى جانب الشاشة' : 'Hide to side'}
                 style={{
                   width: '30px',
                   height: '30px',
@@ -574,7 +578,6 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className="mw-bot-bubble-in"
                 style={{
                   display: 'flex',
                   flexDirection: isRtl ? (msg.sender === 'user' ? 'row' : 'row-reverse') : (msg.sender === 'user' ? 'row-reverse' : 'row'),
