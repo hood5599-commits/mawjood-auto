@@ -80,7 +80,7 @@ export default function App() {
 
   const [inventory, setInventory] = useState<any[]>([]);
   const [session, setSession] = useState<any | null>(null);
-  const [showWelcome, setShowWelcome] = useState<boolean>(false);
+  const [showWelcome, setShowWelcome] = useState<boolean>(true);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   const [siteSettings, setSiteSettings] = useState(() => {
@@ -128,9 +128,6 @@ export default function App() {
   }, [lang, isRtl]);
 
   useEffect(() => {
-    const hasVisited = localStorage.getItem('hasVisitedMawjood');
-    if (!hasVisited) setShowWelcome(true);
-
     const savedSession = localStorage.getItem('mawjood_session');
     if (savedSession) {
       try { 
@@ -275,7 +272,6 @@ export default function App() {
             lang={lang} 
             onStart={() => { 
               setShowWelcome(false); 
-              localStorage.setItem('hasVisitedMawjood', 'true'); 
             }} 
           />
         )}
