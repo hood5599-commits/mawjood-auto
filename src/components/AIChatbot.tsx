@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-
-// 🚗 استيراد بيانات السيارات المركزية كخيار موحد
 import { CAR_DATA as DEFAULT_CAR_DATA } from '../data/carData';
 
-interface AIChatbotProps {
+export interface AIChatbotProps {
   lang: 'ar' | 'en';
-  carData?: any;
+  carData?: Record<string, { ar?: string; en?: string; models?: string[] }>;
   categoryTree: Record<string, string[]>;
-  onApplyFilters: (filters: { query?: string; make?: string; model?: string; year?: string; mainCategory?: string; subCategory?: string }) => void;
+  onApplyFilters: (filters: {
+    query?: string;
+    make?: string;
+    model?: string;
+    year?: string;
+    mainCategory?: string;
+    subCategory?: string;
+  }) => void;
   onCloseFilters: () => void;
 }
 
@@ -16,27 +21,108 @@ interface Message {
   sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  appliedFilter?: {
+    summary: string;
+    make?: string;
+    model?: string;
+    part?: string;
+  };
 }
 
-// القاموس الذكي للربط اللفظي والأعراض الميكانيكية
-const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query: string }> = {
-  'مروحة': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan' },
-  'مروحه': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan' },
-  'رديتر': { main: 'Cooling System', sub: 'Radiator', query: 'Radiator' },
-  'لديتر': { main: 'Cooling System', sub: 'Radiator', query: 'Radiator' },
-  'سفايف': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad' },
-  'قماشات': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad' },
-  'دسيين': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor' },
-  'هوبات': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor' },
-  'جامبينات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock' },
-  'مساعدات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock' },
-  'شيال': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm' },
-  'مقصات': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm' },
-  'كمبروسر': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor' },
-  'مكيف': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor' },
-  'دينمو': { main: 'Electrical', sub: 'Alternator / Generator', query: 'Alternator' },
-  'سلف': { main: 'Electrical', sub: 'Starter Motor', query: 'Starter' },
-  'بلاكات': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug' }
+/* ============================================================
+   BESPOKE LUXURY ICONS (Stroke 1.75px — Zero Emojis)
+   ============================================================ */
+
+const IconRobot: React.FC<{ size?: number }> = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="4" y="8" width="16" height="12" rx="4" stroke="currentColor" strokeWidth="1.75" />
+    <path d="M12 4V8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    <circle cx="12" cy="3" r="1.2" fill="currentColor" />
+    <circle cx="9" cy="13" r="1.5" fill="currentColor" />
+    <circle cx="15" cy="13" r="1.5" fill="currentColor" />
+    <path d="M9.5 17H14.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    <path d="M2 13H4M20 13H22" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+  </svg>
+);
+
+const IconSend: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M21.5 2.5L10 14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M21.5 2.5L14.5 21.5L10 14L2.5 9.5L21.5 2.5Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+  </svg>
+);
+
+const IconClose: React.FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const IconTrash: React.FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M3 6H21M19 6V20C19 20.6 18.6 21 18 21H6C5.4 21 5 20.6 5 20V6M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const IconFilterCheck: React.FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M22 3H2L10 12.46V19L14 21V12.46L22 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M15 9L17.5 11.5L21.5 7.5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/* ============================================================
+   SMART AUTOMOTIVE & SYMPTOM DIALECT KNOWLEDGE BASE
+   ============================================================ */
+
+const SYMPTOM_AND_DIALECT_MAP: Record<string, { main: string; sub: string; query: string; tipAr: string; tipEn: string }> = {
+  // تبريد ومكيف
+  'حرارة': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan', tipAr: 'ارتفاع الحرارة غالباً يرتبط بمروحة التبريد أو الرديتر أو الثرموستات.', tipEn: 'Overheating is usually caused by radiator fan or coolant leak.' },
+  'مروحة': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan', tipAr: 'مروحة التبريد ومجموعتها الكهربائية.', tipEn: 'Radiator cooling fan assembly.' },
+  'مروحه': { main: 'Cooling System', sub: 'Radiator Fan Assembly', query: 'Fan', tipAr: 'مروحة التبريد ومجموعتها الكهربائية.', tipEn: 'Radiator cooling fan assembly.' },
+  'رديتر': { main: 'Cooling System', sub: 'Radiator', query: 'Radiator', tipAr: 'رديتر ماء تبريد أصلي بالكرتون.', tipEn: 'Engine cooling radiator.' },
+  'لديتر': { main: 'Cooling System', sub: 'Radiator', query: 'Radiator', tipAr: 'رديتر ماء تبريد أصلي بالكرتون.', tipEn: 'Engine cooling radiator.' },
+  'طرمبة ماي': { main: 'Cooling System', sub: 'Water Pump', query: 'Water Pump', tipAr: 'مضخة ماء تبريد المحرك (Water Pump).', tipEn: 'Engine water pump.' },
+  'طرمبة ماء': { main: 'Cooling System', sub: 'Water Pump', query: 'Water Pump', tipAr: 'مضخة ماء تبريد المحرك (Water Pump).', tipEn: 'Engine water pump.' },
+  'كمبروسر': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor', tipAr: 'كمبروسر مكيف جديد مع صمام التحكم والكلتش.', tipEn: 'Factory-sealed A/C Compressor.' },
+  'كمبريسر': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor', tipAr: 'كمبروسر مكيف جديد مع صمام التحكم والكلتش.', tipEn: 'Factory-sealed A/C Compressor.' },
+  'مكيف': { main: 'Heat & Air Conditioning', sub: 'A/C Compressor', query: 'Compressor', tipAr: 'نظام التكييف وقطع التبريد الداخلي.', tipEn: 'Air conditioning components.' },
+  'فلتر مكيف': { main: 'Heat & Air Conditioning', sub: 'Cabin Air Filter', query: 'Cabin Filter', tipAr: 'فلتر هواء المقصورة الداخلي لتنقية هواء التكييف.', tipEn: 'Cabin A/C air filter.' },
+
+  // فرامل وهوبات
+  'سفايف': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad', tipAr: 'سفايف / فحمات فرامل سيراميك وشبه معدنية معتمدة.', tipEn: 'High-performance brake pads.' },
+  'فحمات': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad', tipAr: 'فحمات فرامل أمامية وخلفية جديدة 100%.', tipEn: 'Front & Rear Brake pads.' },
+  'قماشات': { main: 'Brake & Wheel Hub', sub: 'Brake Pad', query: 'Brake Pad', tipAr: 'أقمشة فرامل أصلية.', tipEn: 'Brake shoes / pads.' },
+  'دسيين': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor', tipAr: 'ديسكات وهوبات فرامل مهواة عالية التحمل.', tipEn: 'Ventilated brake discs / rotors.' },
+  'هوبات': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor', tipAr: 'هوبات فرامل أصلية بدون رجة.', tipEn: 'Brake rotors.' },
+  'رجة مع البريك': { main: 'Brake & Wheel Hub', sub: 'Rotor', query: 'Rotor', tipAr: 'الرجة عند الضغط على الفرامل تدل على تلف أو اعوجاج الهوبات (Discs).', tipEn: 'Vibration under braking indicates warped brake rotors.' },
+  'بيرنج': { main: 'Brake & Wheel Hub', sub: 'Wheel Bearing / Hub', query: 'Bearing', tipAr: 'بيرنج ويل / رولمان بلي وفلنجة العجل.', tipEn: 'Wheel bearing & hub assembly.' },
+  'فلنجة': { main: 'Brake & Wheel Hub', sub: 'Wheel Bearing / Hub', query: 'Bearing', tipAr: 'فلنجة العجلات ومجموعة البيرنجات.', tipEn: 'Wheel hub bearing.' },
+
+  // المساعدات والتعليق
+  'جامبينات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock', tipAr: 'جامبينات ومساعدات هيدروليك وغاز أصلية.', tipEn: 'OEM shock absorbers / struts.' },
+  'مساعدات': { main: 'Suspension', sub: 'Shock / Strut', query: 'Shock', tipAr: 'مساعدات امتصاص الصدمات الأمامية والخلفية.', tipEn: 'Shock absorbers & struts.' },
+  'شيال': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm', tipAr: 'شيالات ومقصات العفشة مع الجلب الكروية (Bushings).', tipEn: 'Suspension control arms.' },
+  'مقصات': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm', tipAr: 'مقصات نظام التعليق العلوي والسفلي.', tipEn: 'Suspension control arms.' },
+  'طقطقة بالمطبات': { main: 'Suspension', sub: 'Control Arm', query: 'Control Arm', tipAr: 'أصوات الطقطقة مع المطبات تشير غالباً للمقصات، مسامير التوازن، أو كراسي المساعدات.', tipEn: 'Clunking over bumps usually indicates worn control arms or sway bar links.' },
+  'مسمار توازن': { main: 'Suspension', sub: 'Sway Bar Link', query: 'Sway Bar', tipAr: 'مسامير توازن عمود التثبيت (Sway Bar Links).', tipEn: 'Sway bar stabilizer links.' },
+
+  // كهرباء وإشعال
+  'دينمو': { main: 'Electrical', sub: 'Alternator / Generator', query: 'Alternator', tipAr: 'دينمو تعبئة البطارية وتوليد الكهرباء (Alternator).', tipEn: 'Alternator charging unit.' },
+  'سلف': { main: 'Electrical', sub: 'Starter Motor', query: 'Starter', tipAr: 'سلف تشغيل المحرك (Starter Motor) جديد بالكرتون.', tipEn: 'Engine starter motor.' },
+  'بلاكات': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug', tipAr: 'بواجي / بلاكات إيريديوم وليزر لإشعال قوي وتوفير استهلاك الوقود.', tipEn: 'Iridium / Platinum spark plugs.' },
+  'بواجي': { main: 'Ignition', sub: 'Spark Plug', query: 'Spark Plug', tipAr: 'بواجي إشعال أصلية وكالة.', tipEn: 'OEM spark plugs.' },
+  'كويلات': { main: 'Ignition', sub: 'Ignition Coil', query: 'Ignition Coil', tipAr: 'كويلات إشعال كهربائية لمنع تقطيع المحرك (Misfire).', tipEn: 'Direct ignition coils.' },
+  'كويل': { main: 'Ignition', sub: 'Ignition Coil', query: 'Ignition Coil', tipAr: 'كويل إشعال عالي الجهد.', tipEn: 'Ignition coil.' },
+  'تقطيع بالمكينة': { main: 'Ignition', sub: 'Ignition Coil', query: 'Ignition Coil', tipAr: 'تقطيع وعطسة المحرك (Misfire) سببه بنسبة 85% تلف البواجي أو الكويلات.', tipEn: 'Engine misfiring is typically caused by worn spark plugs or faulty ignition coils.' },
+
+  // فلاتر ومكينة
+  'فلتر بترول': { main: 'Fuel & Air', sub: 'Fuel Filter', query: 'Fuel Filter', tipAr: 'فلتر وقود وبنزين نقي لتغذية البخاخات.', tipEn: 'Fuel filter element.' },
+  'فلتر هواء': { main: 'Fuel & Air', sub: 'Air Filter', query: 'Air Filter', tipAr: 'فلتر هواء المحرك لضمان نقاء سحب الهواء وسلاسة العزم.', tipEn: 'Engine air intake filter.' },
+  'طرمبة بترول': { main: 'Fuel & Air', sub: 'Fuel Pump', query: 'Fuel Pump', tipAr: 'مضخة بنزين وفيول بمب كهربائي أصلي.', tipEn: 'Electric in-tank fuel pump.' },
+  'سير مكينة': { main: 'Belt Drive', sub: 'Serpentine Belt', query: 'Belt', tipAr: 'سير مجموعة المحرك والدينمو ومشدات السيور.', tipEn: 'Engine serpentine drive belt.' },
+  'كرسي مكينة': { main: 'Engine', sub: 'Motor Mount', query: 'Mount', tipAr: 'كراسي محرك وجير هيدروليكية لمنع الاهتزاز.', tipEn: 'Engine motor mounts.' },
+  'اهتزاز بالسيارة': { main: 'Engine', sub: 'Motor Mount', query: 'Mount', tipAr: 'الاهتزاز والرجّة عند التوقف في وضعية D تدل بنسبة كبيرة على تلف كراسي المكينة.', tipEn: 'Vibration at idle/D gear points directly to collapsed motor mounts.' }
 };
 
 export const AIChatbot: React.FC<AIChatbotProps> = ({
@@ -47,78 +133,118 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
   onCloseFilters
 }) => {
   const activeCarData = carData || DEFAULT_CAR_DATA;
+  const isRtl = lang === 'ar';
 
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isRtl = lang === 'ar';
-
   const QUICK_SUGGESTIONS = isRtl
-    ? ['كيف اطلب؟', 'مدة التوصيل', 'طرق الدفع', 'قطعة غير متوفرة']
-    : ['How to order?', 'Delivery time', 'Payment methods', 'Part not found'];
+    ? ['سفايف لكزس', 'حرارة الموتر', 'تقطيع بالمكينة', 'مدة التوصيل', 'ضمان القطع']
+    : ['Lexus Brake Pads', 'Engine Overheating', 'Engine Misfire', 'Delivery Time', 'Warranty'];
 
+  // Welcome Message Init
   useEffect(() => {
     if (messages.length === 0) {
       setMessages([
         {
           id: 'welcome',
           sender: 'assistant',
-          text: isRtl ? 'أهلاً! أنا عبود مساعدك في موجود أوتو. وش القطعة أو السيارة اللي تدور عليها؟' : 'Hi! I am Abboud, your Mawjood Auto assistant. What part or car are you looking for?',
+          text: isRtl
+            ? 'مرحباً بك! أنا عبود، مهندسك ومستشارك الذكي في موجود أوتو. كل القطع لدينا جديدة وأصلية 100% بالكرتون مع الضمان الذهبي.\n\nتقدر تكتب لي اسم القطعة، أو نوع سيارتك وموديلها، أو حتى العطل اللي يواجهك وبوجّهك فوراً!'
+            : 'Welcome! I am Abboud, your AI advisor at Mawjood Auto. We provide strictly 100% Brand-New Genuine OEM & certified parts.\n\nTell me the part name, your car model, or the mechanical symptom you are experiencing!',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
     }
-  }, [lang, isRtl]);
+  }, [lang, isRtl, messages.length]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
-
+  // Auto-scroll
   useEffect(() => {
     if (isOpen) {
-      const t = setTimeout(() => inputRef.current?.focus(), 350);
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isTyping, isOpen]);
+
+  // Focus on Open
+  useEffect(() => {
+    if (isOpen) {
+      const t = setTimeout(() => inputRef.current?.focus(), 300);
       return () => clearTimeout(t);
     }
   }, [isOpen]);
 
-  const processSmartAgentResponse = (userText: string) => {
-    const lowerText = userText.toLowerCase();
+  const clearChat = () => {
+    setMessages([
+      {
+        id: Date.now().toString(),
+        sender: 'assistant',
+        text: isRtl
+          ? 'تم مسح المحادثة. كيف أقدر أساعدك الآن في سيارتك؟'
+          : 'Chat cleared. How can I assist you with your car today?',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ]);
+  };
 
-    // 1. الذكاء الخارق: أسئلة خدمة العملاء (FAQs & Intents)
-    if (/(كيف اطلب|شلون اطلب|طريقة الطلب|شلون اشتري|كيف اشتري)/.test(lowerText)) {
-      return isRtl 
-        ? 'الطلب جداً سهل! ابحث عن قطعتك هنا أو في القائمة الجانبية، اضغط على "إضافة للسلة" أو "شراء مباشر"، وكمل بيانات الدفع والتوصيل وبنوصلها لك بأسرع وقت.' 
-        : 'Ordering is easy! Search for your part, add it to cart, fill in your details, and we will deliver it ASAP.';
+  const processSmartAgentResponse = (userText: string): { text: string; filterData?: Message['appliedFilter'] } => {
+    const lowerText = userText.toLowerCase().trim();
+
+    // 1. FAQs & Policy Responses (100% Brand New, Delivery, Payments)
+    if (/(سكراب|مستعمل|تشليح|مستعمله|مستعملة|سكرابات|used|scrap)/.test(lowerText)) {
+      return {
+        text: isRtl
+          ? 'في موجود أوتو قمنا بإلغاء السكراب والمستعمل نهائياً! جميع القطع المتوفرة لدينا جديدة 100% بالكرتون (وكالة وتجارية درجة أولى معتمدة) لضمان أعلى مستويات الأمان والاعتمادية لسيارتك.'
+          : 'At Mawjood Auto, we have completely eliminated scrap and used parts. We exclusively provide 100% Factory-New Genuine OEM and certified tier-1 parts with full warranty.'
+      };
     }
 
-    if (/(توصيل|شحن|متى توصل|كم ياخذ وقت|التوصيل)/.test(lowerText)) {
-      return isRtl 
-        ? 'التوصيل عندنا سريع ما يطول! ياخذ عادة من ساعتين إلى 24 ساعة كحد أقصى للطلبات داخل قطر.' 
-        : 'Delivery is fast! It usually takes 2 to 24 hours maximum within Qatar.';
+    if (/(توصيل|شحن|متى توصل|كم ياخذ|التوصيل|delivery|shipping)/.test(lowerText)) {
+      return {
+        text: isRtl
+          ? 'توصيلنا فوري وفائق السرعة داخل دولة قطر: من ساعتين إلى 24 ساعة كحد أقصى مباشرة إلى باب منزلك أو الكراج.'
+          : 'Hyper-fast fulfillment across all Qatar municipalities: within 2 to 24 hours directly to your doorstep or garage.'
+      };
     }
 
-    if (/(دفع|فلوس|ادفع|طرق الدفع|كاش|ابل باي|بطاقة)/.test(lowerText)) {
-      return isRtl 
-        ? 'نوفر لك كل طرق الدفع اللي تريحك: الدفع عند الاستلام (كاش)، بطاقات الائتمان، و Apple Pay / Google Pay.' 
-        : 'We offer multiple payment methods: Cash on Delivery (COD), Credit/Debit Cards, and Apple/Google Pay.';
+    if (/(دفع|فلوس|ادفع|طرق الدفع|كاش|ابل باي|بطاقة|payment|pay)/.test(lowerText)) {
+      return {
+        text: isRtl
+          ? 'نوفر لك خيارات دفع مرنة وآمنة: الدفع عند الاستلام (كاش)، بطاقات الائتمان والخصم المباشر، بالإضافة إلى Apple Pay و Google Pay.'
+          : 'Flexible and secure payment options: Cash on Delivery (COD), Credit/Debit Cards, and Apple/Google Pay.'
+      };
     }
 
-    if (/(غير متوفرة|مو موجودة|مش موجودة|ما لقيتها|مالقيت)/.test(lowerText)) {
-      return isRtl 
-        ? 'ولا تشيل هم! اضغط على زر "طلب قطعة غير متوفرة" الموجود في أعلى الموقع، عطنا تفاصيلها واحنا بنبحث لك عنها في كل الكراجات ونوفرها لك بأفضل سعر.' 
-        : 'No worries! Click the "Request Custom Part" button at the top, provide the details, and we will find it for you.';
+    if (/(ضمان|مضمونة|مضمونه|warranty|guarantee)/.test(lowerText)) {
+      return {
+        text: isRtl
+          ? 'نعم بكل تأكيد! نوفر الضمان الذهبي مع ميزة ضمان المطابقة والتوافق 100% مع رقم الشاصي (VIN) لسيارتك قبل استلام القطعة.'
+          : 'Yes, 100%! We provide full manufacturer warranty backed by our 100% Vehicle Fitment Guarantee via VIN matching.'
+      };
     }
 
-    if (/(شكرا|تم|خلاص|يعطيك العافية|cancel|thanks|close)/.test(lowerText)) {
+    if (/(غير متوفرة|مو موجودة|مش موجودة|ما لقيتها|مالقيت|custom part)/.test(lowerText)) {
+      return {
+        text: isRtl
+          ? 'إذا لم تجد القطعة في الكتالوج، اضغط على زر "طلب قطعة خاصة" في أعلى الهيدر، وسيقوم فريقنا بتوريدها لك من الوكلاء والمصانع مباشرة بأفضل سعر.'
+          : 'If your part is not listed, click "Custom Request" in the top header, and our engineering desk will source it directly for you.'
+      };
+    }
+
+    if (/(شكرا|تم|خلاص|يعطيك العافية|إلغاء الفلتر|cancel|thanks|clear filter)/.test(lowerText)) {
       onCloseFilters();
-      return isRtl ? 'حياك الله بأي وقت! تم إعادة ضبط الفلاتر لتتصفح براحتك.' : 'Happy to help! Search filters cleared.';
+      return {
+        text: isRtl
+          ? 'العفو، بالخدمة دائماً! تم إلغاء الفلاتر وإعادة عرض كافة قطع المتجر لتتصفح براحتك.'
+          : 'You are welcome! Filters have been reset to show the full catalog.'
+      };
     }
 
-    // 2. الذكاء الخارق: استخراج الشركة، الموديل، السنة من الجملة مباشرة
+    // 2. Extract Make, Model, Year
     let extractedMake = '';
     let extractedModel = '';
     let extractedYear = '';
@@ -126,26 +252,33 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
     const yearMatch = lowerText.match(/\b(19\d{2}|20\d{2})\b/);
     if (yearMatch) extractedYear = yearMatch[1];
 
-    for (const [makeKey, data] of Object.entries(activeCarData as Record<string, any>)) {
-      const makeAr = data?.ar || makeKey;
-      const makeEn = data?.en || '';
-      
-      if (lowerText.includes(makeKey.toLowerCase()) || lowerText.includes(makeAr.toLowerCase()) || (makeEn && lowerText.includes(makeEn.toLowerCase()))) {
-        extractedMake = makeKey;
-      }
-      
-      const modelsList = data?.models || [];
-      for (const model of modelsList) {
-        if (lowerText.includes(String(model).toLowerCase())) {
-          extractedModel = model;
+    if (activeCarData) {
+      for (const [makeKey, data] of Object.entries(activeCarData)) {
+        const makeAr = data?.ar || makeKey;
+        const makeEn = data?.en || '';
+
+        if (
+          lowerText.includes(makeKey.toLowerCase()) ||
+          lowerText.includes(makeAr.toLowerCase()) ||
+          (makeEn && lowerText.includes(makeEn.toLowerCase()))
+        ) {
           extractedMake = makeKey;
-          break;
+        }
+
+        const modelsList = data?.models || [];
+        for (const model of modelsList) {
+          if (lowerText.includes(String(model).toLowerCase())) {
+            extractedModel = String(model);
+            extractedMake = makeKey;
+            break;
+          }
         }
       }
     }
 
-    // 3. استخراج القطعة المطلوبة
-    let matchedCategory: { main: string; sub: string; query: string } | null = null;
+    // 3. Extract Category / Symptoms
+    let matchedCategory: { main: string; sub: string; query: string; tipAr?: string; tipEn?: string } | null = null;
+
     for (const [key, val] of Object.entries(SYMPTOM_AND_DIALECT_MAP)) {
       if (lowerText.includes(key.toLowerCase())) {
         matchedCategory = val;
@@ -153,7 +286,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       }
     }
 
-    if (!matchedCategory) {
+    if (!matchedCategory && categoryTree) {
       for (const [mainCat, subCats] of Object.entries(categoryTree)) {
         for (const subCat of subCats) {
           if (lowerText.includes(subCat.toLowerCase()) || lowerText.includes(subCat.split(' ')[0].toLowerCase())) {
@@ -165,7 +298,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
       }
     }
 
-    // 4. تنفيذ أوامر الفلترة في الخلفية إذا وجدنا معطيات
+    // 4. Trigger Automatic Live Screen Filtering
     if (matchedCategory || extractedMake || extractedModel || extractedYear) {
       onApplyFilters({
         query: matchedCategory?.query || '',
@@ -176,304 +309,326 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
         subCategory: matchedCategory?.sub
       });
 
-      const partsFound = [extractedMake, extractedModel, extractedYear, (matchedCategory?.sub || '')].filter(Boolean).join(' ');
-      
-      return isRtl
-        ? `أبشر! قمت بفلترة النتائج لـ (${partsFound})، تفقد الشاشة خلفي الآن.`
-        : `Done! Results for (${partsFound}) are applied to the screen behind me.`;
+      const partsFound = [extractedMake, extractedModel, extractedYear, matchedCategory?.sub || matchedCategory?.query]
+        .filter(Boolean)
+        .join(' · ');
+
+      const diagnosisTip = isRtl ? matchedCategory?.tipAr : matchedCategory?.tipEn;
+
+      return {
+        text: isRtl
+          ? `أبشر! قمت بتصفية المتجر وتجهيز القطع المتوافقة لـ (${partsFound}).\n\n${diagnosisTip ? `💡 إرشاد هندسي: ${diagnosisTip}` : 'تفقد شاشة الموقع خلفي الآن لمشاهدة القطع المتوفرة مع الأسعار.'}`
+          : `Filters applied for (${partsFound}).\n\n${diagnosisTip ? `💡 Tech Tip: ${diagnosisTip}` : 'Explore the live results on the store screen behind me.'}`,
+        filterData: {
+          summary: partsFound,
+          make: extractedMake,
+          model: extractedModel,
+          part: matchedCategory?.sub || matchedCategory?.query
+        }
+      };
     }
 
-    // الرد النهائي في حال لم يفهم شيئاً
-    return isRtl
-      ? 'ما فهمت عليك زين، تقدر تسألني عن طريقة الطلب، أو تعطيني اسم القطعة وموديل سيارتك عشان أبحث لك.'
-      : 'I didn\'t quite catch that. You can ask me how to order, or give me a part name and your car model to search.';
+    // Fallback Guidance
+    return {
+      text: isRtl
+        ? 'ما فهمت قصدك تماماً، تقدر تكتب لي اسم القطعة (مثل: سفايف، رديتر، بواجي) ونوع سيارتك وموديلها، أو تصف لي المشكلة اللي تواجهها وبساعدك فوراً!'
+        : 'I didn\'t quite catch that. You can enter the part name (e.g., Brake Pads, Radiator, Spark Plugs) with your vehicle model, or describe your mechanical issue!'
+    };
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  const handleSendMessage = (textToSend?: string) => {
+    const query = (textToSend || input).trim();
+    if (!query) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
       sender: 'user',
-      text: input,
+      text: query,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages(prev => [...prev, userMsg]);
-    const currentInput = input;
-    setInput('');
+    if (!textToSend) setInput('');
     setIsTyping(true);
 
     setTimeout(() => {
-      const responseText = processSmartAgentResponse(currentInput);
+      const response = processSmartAgentResponse(query);
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: responseText,
+        text: response.text,
+        appliedFilter: response.filterData,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, assistantMsg]);
       setIsTyping(false);
-    }, 600);
-  };
-
-  const handleQuickSuggestion = (text: string) => {
-    if (isTyping) return;
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      sender: 'user',
-      text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setMessages(prev => [...prev, userMsg]);
-    setIsTyping(true);
-    setTimeout(() => {
-      const responseText = processSmartAgentResponse(text);
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: 'assistant',
-        text: responseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, assistantMsg]);
-      setIsTyping(false);
-    }, 600);
+    }, 550);
   };
 
   return (
-    <div style={{ position: 'fixed', bottom: '24px', left: isRtl ? '24px' : 'auto', right: isRtl ? 'auto' : '24px', zIndex: 1500, fontFamily: "'Cairo', 'Segoe UI', sans-serif" }}>
-
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '24px',
+        [isRtl ? 'left' : 'right']: '24px',
+        zIndex: 1500,
+        direction: isRtl ? 'rtl' : 'ltr',
+        fontFamily: isRtl ? "'Cairo', sans-serif" : "'Cairo', system-ui, sans-serif"
+      }}
+    >
       <style>{`
-        @keyframes mwBotFadeIn {
-          from { opacity: 0; transform: translateY(14px) scale(0.94); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+        @keyframes mwBotPillFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
         }
-        @keyframes mwBotPulse {
-          0% { box-shadow: 0 0 0 0 rgba(224,135,42,0.55); }
-          70% { box-shadow: 0 0 0 12px rgba(224,135,42,0); }
-          100% { box-shadow: 0 0 0 0 rgba(224,135,42,0); }
+        @keyframes mwBotExpand {
+          0% { opacity: 0; transform: translateY(22px) scale(0.92); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
-        @keyframes mwBotBounceIn {
-          0% { opacity: 0; transform: scale(0.85) translateY(20px); }
-          60% { opacity: 1; transform: scale(1.02) translateY(-2px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
+        @keyframes mwRadarPing {
+          0% { transform: scale(0.8); opacity: 0.8; }
+          100% { transform: scale(2.2); opacity: 0; }
         }
         @keyframes mwDotBlink {
-          0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
-          40% { opacity: 1; transform: translateY(-2px); }
+          0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+          40% { opacity: 1; transform: scale(1.1); }
         }
-        @keyframes mwOnlineDot {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.55); }
-          50% { box-shadow: 0 0 0 4px rgba(74,222,128,0); }
+
+        .mw-bot-capsule {
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .mw-bot-trigger { animation: mwBotFadeIn 0.5s cubic-bezier(0.22,1,0.36,1), mwBotPulse 2.6s ease-out 1s infinite; transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease; }
-        .mw-bot-trigger:hover { transform: translateY(-3px) scale(1.03); filter: brightness(1.05); }
-        .mw-bot-trigger:active { transform: translateY(0) scale(0.98); }
+        .mw-bot-capsule:hover {
+          transform: translateY(-3px) scale(1.02);
+          box-shadow: 0 14px 34px -6px rgba(234,88,12,0.45), 0 0 20px rgba(234,88,12,0.25) !important;
+        }
 
-        .mw-bot-window { animation: mwBotBounceIn 0.4s cubic-bezier(0.22,1,0.36,1); }
-        .mw-bot-close { transition: background-color 0.2s ease, transform 0.15s ease; }
-        .mw-bot-close:hover { background-color: rgba(255,255,255,0.18); transform: rotate(90deg); }
+        .mw-bot-bubble-in {
+          animation: mwBotExpand 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
 
-        .mw-bot-bubble { animation: mwBotFadeIn 0.28s ease; }
-        .mw-bot-typing-dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #94a3b8; margin: 0 1.5px; animation: mwDotBlink 1.3s infinite ease-in-out; }
+        .mw-chip-tag {
+          transition: all 0.2s ease;
+        }
+        .mw-chip-tag:hover {
+          background: rgba(234,88,12,0.18) !important;
+          border-color: rgba(234,88,12,0.5) !important;
+          color: #fdba74 !important;
+          transform: translateY(-1.5px);
+        }
 
-        .mw-bot-pill { transition: background-color 0.18s ease, color 0.18s ease, transform 0.15s ease, border-color 0.18s ease; white-space: nowrap; }
-        .mw-bot-pill:hover { background-color: #1f3a5f; color: #ffffff; border-color: #1f3a5f; transform: translateY(-1px); }
-        .mw-bot-pill:active { transform: translateY(0) scale(0.97); }
-
-        .mw-bot-input:focus { border-color: #1f3a5f !important; box-shadow: 0 0 0 3px rgba(31,58,95,0.10); }
-
-        .mw-bot-send { transition: transform 0.15s ease, filter 0.2s ease, box-shadow 0.2s ease; }
-        .mw-bot-send:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 6px 14px -4px rgba(224,135,42,0.45); }
-        .mw-bot-send:active { transform: translateY(0) scale(0.96); }
-
-        .mw-bot-scroll::-webkit-scrollbar { width: 5px; }
-        .mw-bot-scroll::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
+        .mw-scroll-box::-webkit-scrollbar { width: 4px; }
+        .mw-scroll-box::-webkit-scrollbar-thumb { background: rgba(248,250,252,0.15); border-radius: 99px; }
 
         @media (max-width: 480px) {
-          .mw-bot-window { width: 92vw !important; height: 72vh !important; }
+          .mw-bot-panel {
+            width: calc(100vw - 32px) !important;
+            height: 75vh !important;
+          }
         }
       `}</style>
-      
+
+      {/* ============================================================
+          1. COLLAPSIBLE TRIGGER (LUXURY FLOATING PILL CAPSULE)
+      ============================================================ */}
       {!isOpen && (
         <button
-          className="mw-bot-trigger"
           onClick={() => setIsOpen(true)}
+          className="mw-bot-capsule"
           style={{
-            padding: '13px 22px 13px 16px',
-            background: 'linear-gradient(135deg, #24466f 0%, #1f3a5f 100%)',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '30px',
-            fontWeight: 'bold',
-            fontSize: '14px',
-            cursor: 'pointer',
-            boxShadow: '0 10px 26px -6px rgba(31,58,95,0.45)',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px'
+            gap: '11px',
+            padding: '11px 20px 11px 14px',
+            borderRadius: '999px',
+            background: 'linear-gradient(135deg, #090D16 0%, #0F172A 100%)',
+            color: '#F8FAFC',
+            border: '1.5px solid rgba(234, 88, 12, 0.45)',
+            boxShadow: '0 10px 28px -6px rgba(0,0,0,0.5), 0 0 16px rgba(234,88,12,0.2)',
+            cursor: 'pointer',
+            fontWeight: 800,
+            fontSize: '13.5px',
+            letterSpacing: isRtl ? '0px' : '0.3px',
+            animation: 'mwBotPillFloat 4.5s ease-in-out infinite'
           }}
         >
-          <span
-            style={{
-              width: '30px',
-              height: '30px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #e0872a, #f0a94e)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '15px',
-              flexShrink: 0
-            }}
-          >
-            🤖
-          </span>
-          <span>{isRtl ? 'عبود مساعد موجود' : 'Abboud · Assistant'}</span>
+          <div style={{ position: 'relative', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', flexShrink: 0, boxShadow: '0 0 12px rgba(234,88,12,0.6)' }}>
+            <IconRobot size={18} />
+            <span style={{ position: 'absolute', top: '-1px', [isRtl ? 'left' : 'right']: '-1px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#22c55e', border: '2px solid #090D16' }} />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: isRtl ? 'flex-start' : 'flex-start', textAlign: isRtl ? 'right' : 'left' }}>
+            <span style={{ color: '#F8FAFC', lineHeight: 1.2 }}>{isRtl ? 'عبود مساعد موجود' : 'Abboud AI Advisor'}</span>
+            <span style={{ fontSize: '10px', color: '#fdba74', fontWeight: 600 }}>{isRtl ? 'استشارة وفحص فوري' : 'Instant Fitment & Parts'}</span>
+          </div>
         </button>
       )}
 
+      {/* ============================================================
+          2. EXPANDED LUXURY CHAT DECK
+      ============================================================ */}
       {isOpen && (
-        <div className="mw-bot-window" style={{
-          width: '350px',
-          height: '480px',
-          backgroundColor: 'rgba(255,255,255,0.92)',
-          backdropFilter: 'blur(18px)',
-          WebkitBackdropFilter: 'blur(18px)',
-          borderRadius: '22px',
-          boxShadow: '0 25px 60px -12px rgba(15,23,42,0.35), 0 4px 12px rgba(15,23,42,0.08)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          border: '1px solid rgba(226,232,240,0.7)',
-          direction: isRtl ? 'rtl' : 'ltr'
-        }}>
-          
-          {/* Header */}
-          <div style={{
-            background: 'linear-gradient(135deg, #24466f 0%, #1f3a5f 100%)',
-            padding: '14px 16px',
-            color: '#ffffff',
+        <div
+          className="mw-bot-panel"
+          style={{
+            width: '380px',
+            maxWidth: 'calc(100vw - 32px)',
+            height: '540px',
+            maxHeight: '82vh',
+            background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.94) 0%, rgba(9, 13, 22, 0.96) 100%)',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            border: '1.5px solid rgba(226, 232, 240, 0.15)',
+            borderRadius: '24px',
+            boxShadow: '0 30px 80px -15px rgba(0,0,0,0.8), 0 0 25px rgba(234,88,12,0.15)',
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexShrink: 0
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <div style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e0872a, #f0a94e)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  border: '2px solid rgba(255,255,255,0.25)'
-                }}>
-                  🤖
-                </div>
-                <span style={{
-                  position: 'absolute',
-                  bottom: '-1px',
-                  [isRtl ? 'left' : 'right']: '-1px',
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  backgroundColor: '#4ade80',
-                  border: '2px solid #1f3a5f',
-                  animation: 'mwOnlineDot 2s infinite'
-                }} />
+            flexDirection: 'column',
+            overflow: 'hidden',
+            animation: 'mwBotExpand 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              padding: '14px 18px',
+              backgroundColor: 'rgba(9, 13, 22, 0.8)',
+              borderBottom: '1px solid rgba(226, 232, 240, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+              <div style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '12px', background: 'linear-gradient(135deg, #EA580C 0%, #F97316 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', boxShadow: '0 0 14px rgba(234,88,12,0.45)' }}>
+                <IconRobot size={20} />
+                <span style={{ position: 'absolute', inset: 0, borderRadius: '12px', border: '1px solid #22c55e', animation: 'mwRadarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite' }} />
               </div>
+
               <div>
-                <h4 style={{ margin: 0, fontSize: '14.5px', fontWeight: 800, letterSpacing: '-0.1px' }}>
-                  {isRtl ? 'عبود - المستشار الذكي' : 'Abboud · AI Advisor'}
-                </h4>
-                <span style={{ fontSize: '11px', color: '#cfe0f5', fontWeight: 500 }}>
-                  {isRtl ? '● متصل الآن لخدمتك' : '● Online now'}
+                <strong style={{ color: '#F8FAFC', fontSize: '14px', display: 'block', fontWeight: 800 }}>
+                  {isRtl ? 'عبود · المستشار الذكي' : 'Abboud · Smart Advisor'}
+                </strong>
+                <span style={{ fontSize: '11px', color: '#4ADE80', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 700 }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#4ADE80' }} />
+                  {isRtl ? 'قطع جديدة 100% · فحص فوري' : '100% Brand-New · Online'}
                 </span>
               </div>
             </div>
-            <button
-              className="mw-bot-close"
-              onClick={() => setIsOpen(false)}
-              style={{
-                background: 'rgba(255,255,255,0.10)',
-                border: 'none',
-                color: '#ffffff',
-                fontSize: '14px',
-                cursor: 'pointer',
-                width: '30px',
-                height: '30px',
-                borderRadius: '9px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}
-              title={isRtl ? 'تصغير' : 'Minimize'}
-            >
-              ✕
-            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={clearChat}
+                title={isRtl ? 'مسح المحادثة' : 'Clear Chat'}
+                style={{
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(248,250,252,0.65)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <IconTrash size={13} />
+              </button>
+
+              <button
+                onClick={() => setIsOpen(false)}
+                title={isRtl ? 'إخفاء وتصغير النافذة' : 'Minimize'}
+                style={{
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#F8FAFC',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <IconClose size={13} />
+              </button>
+            </div>
           </div>
 
-          {/* Messages */}
-          <div className="mw-bot-scroll" style={{ flex: 1, padding: '16px', overflowY: 'auto', backgroundColor: '#f6f8fb', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {messages.map(msg => (
+          {/* Chat Messages */}
+          <div
+            className="mw-scroll-box"
+            style={{
+              flex: 1,
+              padding: '16px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              backgroundColor: 'rgba(0,0,0,0.2)'
+            }}
+          >
+            {messages.map((msg) => (
               <div
                 key={msg.id}
-                className="mw-bot-bubble"
+                className="mw-bot-bubble-in"
                 style={{
                   display: 'flex',
-                  flexDirection: isRtl
-                    ? (msg.sender === 'user' ? 'row' : 'row-reverse')
-                    : (msg.sender === 'user' ? 'row-reverse' : 'row'),
+                  flexDirection: isRtl ? (msg.sender === 'user' ? 'row' : 'row-reverse') : (msg.sender === 'user' ? 'row-reverse' : 'row'),
                   alignItems: 'flex-end',
-                  gap: '6px',
+                  gap: '8px',
                   alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '86%'
+                  maxWidth: '88%'
                 }}
               >
                 {msg.sender === 'assistant' && (
-                  <div style={{
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #e0872a, #f0a94e)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '11px',
-                    flexShrink: 0,
-                    marginBottom: '2px'
-                  }}>
-                    🤖
+                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', flexShrink: 0, marginBottom: '2px' }}>
+                    <IconRobot size={13} />
                   </div>
                 )}
+
                 <div
                   style={{
-                    backgroundColor: msg.sender === 'user' ? '#1f3a5f' : '#ffffff',
-                    color: msg.sender === 'user' ? '#ffffff' : '#1e293b',
-                    padding: '11px 14px',
+                    backgroundColor: msg.sender === 'user' ? '#EA580C' : 'rgba(30, 41, 59, 0.75)',
+                    color: '#F8FAFC',
+                    padding: '12px 14px',
                     borderRadius: msg.sender === 'user'
-                      ? (isRtl ? '14px 14px 14px 3px' : '14px 14px 3px 14px')
-                      : (isRtl ? '14px 14px 3px 14px' : '14px 14px 14px 3px'),
-                    boxShadow: msg.sender === 'user' ? '0 4px 12px -2px rgba(31,58,95,0.35)' : '0 2px 8px rgba(15,23,42,0.06)',
-                    border: msg.sender === 'assistant' ? '1px solid #eef1f5' : 'none',
-                    fontSize: '13px',
-                    lineHeight: '1.55'
+                      ? (isRtl ? '16px 16px 4px 16px' : '16px 16px 16px 4px')
+                      : (isRtl ? '16px 16px 16px 4px' : '16px 16px 4px 16px'),
+                    border: msg.sender === 'assistant' ? '1px solid rgba(226,232,240,0.12)' : 'none',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+                    fontSize: '12.8px',
+                    lineHeight: '1.65',
+                    whiteSpace: 'pre-wrap'
                   }}
                 >
                   <div>{msg.text}</div>
-                  <span style={{
-                    fontSize: '9.5px',
-                    opacity: msg.sender === 'user' ? 0.75 : 0.5,
-                    marginTop: '4px',
-                    display: 'block',
-                    textAlign: isRtl ? 'left' : 'right'
-                  }}>
+
+                  {msg.appliedFilter && (
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        padding: '6px 10px',
+                        backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                        border: '1px solid rgba(74, 222, 128, 0.35)',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        color: '#86EFAC'
+                      }}
+                    >
+                      <IconFilterCheck size={14} />
+                      <span>{msg.appliedFilter.summary}</span>
+                    </div>
+                  )}
+
+                  <span style={{ fontSize: '9.5px', opacity: 0.6, marginTop: '5px', display: 'block', textAlign: isRtl ? 'left' : 'right' }}>
                     {msg.timestamp}
                   </span>
                 </div>
@@ -481,121 +636,115 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
             ))}
 
             {isTyping && (
-              <div style={{
-                alignSelf: 'flex-start',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                <div style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e0872a, #f0a94e)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  flexShrink: 0
-                }}>
-                  🤖
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start' }}>
+                <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>
+                  <IconRobot size={13} />
                 </div>
-                <div style={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #eef1f5',
-                  padding: '11px 14px',
-                  borderRadius: isRtl ? '14px 14px 3px 14px' : '14px 14px 14px 3px',
-                  boxShadow: '0 2px 8px rgba(15,23,42,0.06)'
-                }}>
-                  <span className="mw-bot-typing-dot" style={{ animationDelay: '0s' }} />
-                  <span className="mw-bot-typing-dot" style={{ animationDelay: '0.15s' }} />
-                  <span className="mw-bot-typing-dot" style={{ animationDelay: '0.3s' }} />
+                <div style={{ padding: '10px 14px', backgroundColor: 'rgba(30, 41, 59, 0.75)', borderRadius: '16px', border: '1px solid rgba(226,232,240,0.12)', display: 'flex', gap: '4px' }}>
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#EA580C', animation: 'mwDotBlink 1.2s infinite ease-in-out 0s' }} />
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#EA580C', animation: 'mwDotBlink 1.2s infinite ease-in-out 0.2s' }} />
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#EA580C', animation: 'mwDotBlink 1.2s infinite ease-in-out 0.4s' }} />
                 </div>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
-          {/* Quick suggestion pills */}
-          <div style={{
-            display: 'flex',
-            gap: '7px',
-            padding: '10px 12px',
-            overflowX: 'auto',
-            backgroundColor: '#ffffff',
-            borderTop: '1px solid #f1f5f9',
-            flexShrink: 0
-          }}>
-            {QUICK_SUGGESTIONS.map((s, i) => (
+          {/* Quick Suggestions */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '6px',
+              padding: '8px 12px',
+              overflowX: 'auto',
+              backgroundColor: 'rgba(9, 13, 22, 0.65)',
+              borderTop: '1px solid rgba(226, 232, 240, 0.08)',
+              flexShrink: 0
+            }}
+          >
+            {QUICK_SUGGESTIONS.map((tag, idx) => (
               <button
-                key={i}
+                key={idx}
                 type="button"
-                className="mw-bot-pill"
-                onClick={() => handleQuickSuggestion(s)}
+                className="mw-chip-tag"
+                onClick={() => handleSendMessage(tag)}
                 disabled={isTyping}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: '20px',
-                  border: '1px solid #dbe2ea',
-                  backgroundColor: '#f4f6f9',
-                  color: '#1f3a5f',
-                  fontSize: '11.5px',
+                  padding: '5px 11px',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(248, 250, 252, 0.12)',
+                  backgroundColor: 'rgba(248, 250, 252, 0.04)',
+                  color: '#CBD5E1',
+                  fontSize: '11px',
                   fontWeight: 700,
                   cursor: isTyping ? 'default' : 'pointer',
-                  opacity: isTyping ? 0.5 : 1,
+                  whiteSpace: 'nowrap',
                   flexShrink: 0
                 }}
               >
-                {s}
+                {tag}
               </button>
             ))}
           </div>
 
-          {/* Input area */}
-          <form onSubmit={handleSendMessage} style={{ padding: '12px', backgroundColor: '#ffffff', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '8px', flexShrink: 0 }}>
+          {/* Input Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            style={{
+              padding: '12px',
+              backgroundColor: 'rgba(9, 13, 22, 0.95)',
+              borderTop: '1px solid rgba(226, 232, 240, 0.1)',
+              display: 'flex',
+              gap: '8px',
+              flexShrink: 0
+            }}
+          >
             <input
               ref={inputRef}
               type="text"
-              placeholder={isRtl ? 'اسألني أو ابحث عن قطعة...' : 'Ask or search for a part...'}
+              placeholder={isRtl ? 'اسألني عن قطعة، سيارة، أو عطل ميكانيكي...' : 'Ask about a part, car, or mechanical issue...'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="mw-bot-input"
               style={{
                 flex: 1,
-                padding: '11px 14px',
+                padding: '10px 14px',
                 borderRadius: '12px',
-                border: '1.5px solid #e2e8f0',
-                fontSize: '13px',
+                border: '1.5px solid rgba(226, 232, 240, 0.15)',
+                fontSize: '12.5px',
+                fontWeight: 600,
                 outline: 'none',
-                transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-                backgroundColor: '#f8fafc'
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: '#F8FAFC',
+                fontFamily: 'inherit'
               }}
             />
             <button
               type="submit"
-              className="mw-bot-send"
               disabled={!input.trim()}
               style={{
-                padding: '11px 18px',
-                background: 'linear-gradient(135deg, #e0872a, #ea9a44)',
-                color: 'white',
+                padding: '10px 16px',
+                background: input.trim() ? 'linear-gradient(135deg, #EA580C 0%, #F97316 100%)' : 'rgba(255,255,255,0.08)',
+                color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '12px',
                 fontWeight: 800,
                 cursor: input.trim() ? 'pointer' : 'default',
-                fontSize: '13px',
-                opacity: input.trim() ? 1 : 0.6,
-                boxShadow: '0 4px 12px -3px rgba(224,135,42,0.4)',
+                opacity: input.trim() ? 1 : 0.45,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: input.trim() ? '0 4px 14px rgba(234,88,12,0.45)' : 'none',
                 flexShrink: 0
               }}
             >
-              {isRtl ? 'إرسال' : 'Send'}
+              <IconSend size={15} />
             </button>
           </form>
-
         </div>
       )}
-
     </div>
   );
 };
