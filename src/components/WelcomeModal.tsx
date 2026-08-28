@@ -810,7 +810,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           >
             {!logoError ? (
               <img
-                src="/logo-mawjood-auto.svg"
+                src="/favicon.svg"
                 alt="Mawjood Auto"
                 width={38}
                 height={38}
