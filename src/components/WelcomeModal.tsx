@@ -9,6 +9,10 @@ const Z_ENGINE = 9991;
 const Z_GLASS = 9992;
 const Z_DECK = 9993;
 
+/* Apple's signature spring-like deceleration curve, used for every "arrival" motion */
+const EASE_APPLE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+const EASE_OVERSHOOT = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+
 export interface WelcomeProps {
   lang: 'ar' | 'en';
   onStart: () => void;
@@ -60,13 +64,6 @@ const IconCompassArrow: React.FC<IconProps> = ({ size = 18 }) => (
   </svg>
 );
 
-const IconGearGlyph: React.FC<IconProps> = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.4" />
-    <path d="M12 2.5V5.2M12 18.8V21.5M21.5 12H18.8M5.2 12H2.5M18.5 5.5L16.6 7.4M7.4 16.6L5.5 18.5M18.5 18.5L16.6 16.6M7.4 7.4L5.5 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-  </svg>
-);
-
 const IconClose: React.FC<IconProps> = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path d="M5 5L19 19" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
@@ -85,113 +82,285 @@ const IconLogoFallback: React.FC<IconProps> = ({ size = 30 }) => (
 );
 
 /* ============================================================
-   AMBIENT MECHANICAL ENGINE LAYER
+   SCI-FI HUD FRAME — corner brackets + scanning grid
    ============================================================ */
 
-const AmbientEngineLayer: React.FC = () => (
-  <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-    <div className="wm-gear wm-gear-a"><IconGearGlyph size={220} /></div>
-    <div className="wm-gear wm-gear-b"><IconGearGlyph size={140} /></div>
-    <div className="wm-gear wm-gear-c"><IconGearGlyph size={90} /></div>
-
-    <svg className="wm-piston" width="260" height="46" viewBox="0 0 260 46" fill="none" aria-hidden="true">
-      <line x1="8" y1="23" x2="220" y2="23" stroke="currentColor" strokeWidth="1.2" />
-      <circle cx="220" cy="23" r="12" stroke="currentColor" strokeWidth="1.2" />
-      <circle cx="8" cy="23" r="5" stroke="currentColor" strokeWidth="1.2" />
-      <line x1="200" y1="23" x2="240" y2="23" stroke="currentColor" strokeWidth="6" strokeLinecap="round" opacity={0.4} />
+const HudFrame: React.FC = () => (
+  <div aria-hidden="true" className="wm-hud" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}>
+    <svg className="wm-hud-corner wm-hud-tl" width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <path d="M2 22V6C2 3.8 3.8 2 6 2H22" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="2" cy="2" r="2" fill="currentColor" />
     </svg>
-
-    <svg className="wm-rotor" width="140" height="140" viewBox="0 0 140 140" fill="none" aria-hidden="true">
-      <circle cx="70" cy="70" r="62" stroke="currentColor" strokeWidth="1" />
-      <circle cx="70" cy="70" r="44" stroke="currentColor" strokeWidth="1" strokeDasharray="5 7" />
-      <circle cx="70" cy="70" r="10" stroke="currentColor" strokeWidth="1" />
+    <svg className="wm-hud-corner wm-hud-tr" width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <path d="M62 22V6C62 3.8 60.2 2 58 2H42" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="62" cy="2" r="2" fill="currentColor" />
     </svg>
-
-    <span className="wm-spark wm-spark-1" />
-    <span className="wm-spark wm-spark-2" />
-    <span className="wm-spark wm-spark-3" />
-    <span className="wm-spark wm-spark-4" />
-    <span className="wm-spark wm-spark-5" />
-
-    <div className="wm-vignette" />
+    <svg className="wm-hud-corner wm-hud-bl" width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <path d="M2 42V58C2 60.2 3.8 62 6 62H22" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="2" cy="62" r="2" fill="currentColor" />
+    </svg>
+    <svg className="wm-hud-corner wm-hud-br" width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <path d="M62 42V58C62 60.2 60.2 62 58 62H42" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="62" cy="62" r="2" fill="currentColor" />
+    </svg>
+    <div className="wm-hud-grid" />
+    <div className="wm-hud-scanline" />
   </div>
 );
 
 /* ============================================================
-   EXPLODED BLUEPRINT CHASSIS SCENE
+   AMBIENT MECHANICAL RIG — gears, driveshaft, piston, coil
+   Runs continuously (2.4s+), independent of the intro timeline
    ============================================================ */
+
+const MechanicalRig: React.FC = () => (
+  <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
+    {/* Gear train — two meshing gears, opposite rotation */}
+    <svg className="wm-gear-train" width="220" height="140" viewBox="0 0 220 140" fill="none">
+      <g className="wm-gear-big" style={{ transformOrigin: '70px 70px' }}>
+        <circle cx="70" cy="70" r="38" stroke="currentColor" strokeWidth="1.3" />
+        <circle cx="70" cy="70" r="10" stroke="currentColor" strokeWidth="1.1" />
+        {Array.from({ length: 10 }).map((_, i) => {
+          const angle = (i * 360) / 10;
+          return (
+            <rect
+              key={i}
+              x={67}
+              y={26}
+              width={6}
+              height={12}
+              rx={1.5}
+              stroke="currentColor"
+              strokeWidth="1"
+              transform={`rotate(${angle} 70 70)`}
+            />
+          );
+        })}
+      </g>
+      <g className="wm-gear-small" style={{ transformOrigin: '156px 70px' }}>
+        <circle cx="156" cy="70" r="24" stroke="currentColor" strokeWidth="1.3" />
+        <circle cx="156" cy="70" r="7" stroke="currentColor" strokeWidth="1.1" />
+        {Array.from({ length: 8 }).map((_, i) => {
+          const angle = (i * 360) / 8;
+          return (
+            <rect
+              key={i}
+              x={153}
+              y={38}
+              width={5.5}
+              height={9}
+              rx={1.3}
+              stroke="currentColor"
+              strokeWidth="1"
+              transform={`rotate(${angle} 156 70)`}
+            />
+          );
+        })}
+      </g>
+    </svg>
+
+    {/* Driveshaft / transmission shaft — spins along its axis */}
+    <svg className="wm-driveshaft" width="240" height="60" viewBox="0 0 240 60" fill="none">
+      <ellipse cx="18" cy="30" rx="14" ry="20" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="18" y1="10" x2="18" y2="50" stroke="currentColor" strokeWidth="1" strokeDasharray="2 4" opacity="0.5" />
+      <rect x="18" y="24" width="204" height="12" rx="6" stroke="currentColor" strokeWidth="1.2" />
+      <ellipse cx="222" cy="30" rx="14" ry="20" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="222" y1="10" x2="222" y2="50" stroke="currentColor" strokeWidth="1" strokeDasharray="2 4" opacity="0.5" />
+    </svg>
+
+    {/* Piston — vertical stroke, up-down cycle */}
+    <svg className="wm-piston-rig" width="70" height="160" viewBox="0 0 70 160" fill="none">
+      <rect x="14" y="6" width="42" height="100" rx="4" stroke="currentColor" strokeWidth="1.2" />
+      <g className="wm-piston-head">
+        <rect x="20" y="16" width="30" height="26" rx="3" stroke="currentColor" strokeWidth="1.2" />
+        <line x1="35" y1="42" x2="35" y2="92" stroke="currentColor" strokeWidth="1.4" />
+      </g>
+      <path d="M20 106L35 130L50 106" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <circle cx="35" cy="140" r="10" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+
+    {/* Suspension coil — compress / extend cycle */}
+    <svg className="wm-coil-rig" width="60" height="150" viewBox="0 0 60 150" fill="none">
+      <line x1="30" y1="2" x2="30" y2="20" stroke="currentColor" strokeWidth="1.3" />
+      <g className="wm-coil-spring">
+        <path
+          d="M30 20 L44 32 L16 44 L44 56 L16 68 L44 80 L16 92 L30 104"
+          stroke="currentColor"
+          strokeWidth="1.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+      <line x1="30" y1="104" x2="30" y2="122" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="14" y="122" width="32" height="14" rx="3" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+
+    <div className="wm-rig-vignette" />
+  </div>
+);
+
+/* ============================================================
+   DETAILED EXPLODED BLUEPRINT CAR SCENE
+   Full coupe silhouette + measurement callouts + parts-availability chips
+   ============================================================ */
+
+interface InfoChip {
+  key: string;
+  x: number;
+  y: number;
+  ar: string;
+  en: string;
+  delay: string;
+}
 
 interface BlueprintChassisSceneProps {
   isRtl: boolean;
+  lang: 'ar' | 'en';
 }
 
-const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl }) => (
-  <div
-    aria-hidden="true"
-    className="wm-blueprint-stage"
-    style={{
-      position: 'absolute',
-      inset: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-      pointerEvents: 'none',
-      zIndex: 1,
-      transform: isRtl ? 'scaleX(-1)' : 'none',
-    }}
-  >
-    <div className="wm-chassis-zoom">
-      <svg className="wm-blueprint-strokes" width="900" height="420" viewBox="0 0 900 420" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <g className="wm-body-fadein">
-          <path
-            d="M120 300 C130 250 180 210 250 205 L320 170 C360 150 420 140 470 140 L560 140 C620 140 660 160 690 200 L740 205 C780 210 810 250 800 300"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path d="M120 300 L800 300" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          <path d="M330 175 L340 240 M470 145 L470 240 M600 165 L600 240" stroke="currentColor" strokeWidth="0.9" strokeDasharray="3 5" opacity={0.6} />
-          <path d="M250 205 L470 205 L690 205" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 6" opacity={0.5} />
-        </g>
+const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, lang }) => {
+  const chips: InfoChip[] = [
+    { key: 'engine', x: 402, y: 176, ar: 'المحرك — قطع أصلية متوفرة الآن', en: 'ENGINE — Genuine Parts In Stock', delay: '2.05s' },
+    { key: 'suspension', x: 218, y: 150, ar: 'السسبنشن — ضمان ذهبي', en: 'SUSPENSION — Gold Warranty', delay: '2.2s' },
+    { key: 'brake', x: 700, y: 358, ar: 'الفرامل — توصيل خلال ساعتين', en: 'BRAKES — 2H Delivery', delay: '2.35s' },
+  ];
 
-        <g className="wm-part wm-part-rotor-front">
-          <circle cx="250" cy="305" r="48" stroke="currentColor" strokeWidth="1.4" />
-          <circle cx="250" cy="305" r="30" stroke="currentColor" strokeWidth="1" strokeDasharray="3 5" />
-          <circle cx="250" cy="305" r="6" stroke="currentColor" strokeWidth="1" />
-          <path d="M250 275L250 285M250 325L250 335M220 305L230 305M270 305L280 305" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-        </g>
+  return (
+    <div
+      aria-hidden="true"
+      className="wm-blueprint-stage"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        zIndex: 1,
+      }}
+    >
+      <div className="wm-chassis-zoom" style={{ transform: isRtl ? 'scaleX(-1)' : 'none' }}>
+        <svg
+          className="wm-blueprint-strokes"
+          width="900"
+          height="420"
+          viewBox="0 0 900 420"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* ===== Full detailed coupe silhouette ===== */}
+          <g className="wm-body-fadein">
+            {/* Roofline + greenhouse + hood + trunk */}
+            <path
+              d="M110 300 C118 258 150 232 190 226 L232 178 C250 156 280 142 316 138 L392 132 C420 130 448 132 470 140 L520 140 C556 132 592 134 618 148 L660 172 C690 188 712 200 726 226 L780 232 C812 238 834 262 828 300"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Windshield + rear glass */}
+            <path d="M232 178 L316 138" stroke="currentColor" strokeWidth="1" opacity="0.65" />
+            <path d="M660 172 L618 148" stroke="currentColor" strokeWidth="1" opacity="0.65" />
+            {/* Side window line + door seams */}
+            <path d="M250 190 L470 172 L640 188" stroke="currentColor" strokeWidth="0.9" strokeDasharray="2 5" opacity="0.55" />
+            <path d="M380 195 L380 300 M560 195 L560 300" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 6" opacity="0.5" />
+            {/* Door handles */}
+            <rect x="360" y="205" width="20" height="4" rx="2" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
+            <rect x="540" y="205" width="20" height="4" rx="2" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
+            {/* Sill / rocker line */}
+            <path d="M110 300 L828 300" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            {/* Front bumper + headlight */}
+            <path d="M110 300 C104 288 104 270 116 258" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M126 254 L160 248 L164 262 L128 268 Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+            {/* Rear bumper + taillight + spoiler */}
+            <path d="M828 300 C834 288 834 270 822 258" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M812 254 L778 248 L774 262 L810 268 Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+            <path d="M726 226 L764 216 M764 216 L768 224 M764 216 L788 220" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.75" />
+            {/* Side mirror */}
+            <path d="M256 196 L242 188 L244 200 Z" stroke="currentColor" strokeWidth="0.9" strokeLinejoin="round" />
+            {/* Wheel arches */}
+            <path d="M195 300 A55 55 0 0 1 305 300" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+            <path d="M615 300 A55 55 0 0 1 725 300" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+          </g>
 
-        <g className="wm-part wm-part-rotor-rear">
-          <circle cx="670" cy="305" r="48" stroke="currentColor" strokeWidth="1.4" />
-          <circle cx="670" cy="305" r="30" stroke="currentColor" strokeWidth="1" strokeDasharray="3 5" />
-          <circle cx="670" cy="305" r="6" stroke="currentColor" strokeWidth="1" />
-          <path d="M670 275L670 285M670 325L670 335M640 305L650 305M690 305L700 305" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-        </g>
+          {/* ===== Measurement / dimension callouts (blueprint annotation) ===== */}
+          <g className="wm-dims" opacity="0.55">
+            <line x1="110" y1="340" x2="828" y2="340" stroke="currentColor" strokeWidth="0.8" />
+            <line x1="110" y1="332" x2="110" y2="348" stroke="currentColor" strokeWidth="0.8" />
+            <line x1="828" y1="332" x2="828" y2="348" stroke="currentColor" strokeWidth="0.8" />
+            <text x="469" y="357" textAnchor="middle" fontSize="11" letterSpacing="1.5" fill="currentColor" stroke="none" className="wm-dim-text">
+              4.86 M — CHASSIS LENGTH
+            </text>
+            <line x1="60" y1="140" x2="60" y2="300" stroke="currentColor" strokeWidth="0.8" />
+            <text x="60" y="130" textAnchor="middle" fontSize="10" letterSpacing="1.2" fill="currentColor" stroke="none" className="wm-dim-text">
+              H 1.32M
+            </text>
+          </g>
 
-        <g className="wm-part wm-part-spring-front">
-          <path d="M250 250 L262 240 L238 228 L262 216 L238 204 L262 192 L250 182" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        </g>
+          {/* Front rotor */}
+          <g className="wm-part wm-part-rotor-front">
+            <circle cx="250" cy="305" r="46" stroke="currentColor" strokeWidth="1.4" />
+            <circle cx="250" cy="305" r="30" stroke="currentColor" strokeWidth="1" strokeDasharray="3 5" />
+            <circle cx="250" cy="305" r="6" stroke="currentColor" strokeWidth="1" />
+            <path d="M250 275L250 285M250 325L250 335M220 305L230 305M270 305L280 305" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+          </g>
 
-        <g className="wm-part wm-part-spring-rear">
-          <path d="M670 250 L682 240 L658 228 L682 216 L658 204 L682 192 L670 182" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        </g>
+          {/* Rear rotor */}
+          <g className="wm-part wm-part-rotor-rear">
+            <circle cx="670" cy="305" r="46" stroke="currentColor" strokeWidth="1.4" />
+            <circle cx="670" cy="305" r="30" stroke="currentColor" strokeWidth="1" strokeDasharray="3 5" />
+            <circle cx="670" cy="305" r="6" stroke="currentColor" strokeWidth="1" />
+            <path d="M670 275L670 285M670 325L670 335M640 305L650 305M690 305L700 305" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+          </g>
 
-        <g className="wm-part wm-part-engine">
-          <rect x="390" y="235" width="70" height="46" rx="6" stroke="currentColor" strokeWidth="1.3" />
-          <circle cx="425" cy="215" r="14" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M425 229 L425 235" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M405 258 L370 258" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-          <circle cx="365" cy="258" r="5" stroke="currentColor" strokeWidth="1.1" />
-        </g>
-      </svg>
+          {/* Front suspension spring */}
+          <g className="wm-part wm-part-spring-front">
+            <path d="M250 248 L262 238 L238 226 L262 214 L238 202 L262 190 L250 180" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+
+          {/* Rear suspension spring */}
+          <g className="wm-part wm-part-spring-rear">
+            <path d="M670 248 L682 238 L658 226 L682 214 L658 202 L682 190 L670 180" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+
+          {/* Engine block */}
+          <g className="wm-part wm-part-engine">
+            <rect x="390" y="228" width="76" height="50" rx="6" stroke="currentColor" strokeWidth="1.3" />
+            <circle cx="428" cy="206" r="15" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M428 221 L428 228" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M405 252 L365 252" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+            <circle cx="360" cy="252" r="5" stroke="currentColor" strokeWidth="1.1" />
+            <path d="M450 228 L450 206 L470 206" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.7" />
+          </g>
+        </svg>
+
+        {/* ===== Floating parts-availability info chips ===== */}
+        {chips.map((c) => (
+          <div
+            key={c.key}
+            className={`wm-info-chip wm-info-chip-${c.key}`}
+            style={{
+              position: 'absolute',
+              left: c.x,
+              top: c.y,
+              animationDelay: c.delay,
+              transform: isRtl ? 'scaleX(-1)' : 'none',
+            }}
+          >
+            <span className="wm-info-chip-dot" />
+            <span style={{ display: 'inline-block', transform: isRtl ? 'scaleX(-1)' : 'none' }}>
+              {lang === 'ar' ? c.ar : c.en}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="wm-laser-line" />
+      <div className="wm-flash-bloom" />
     </div>
-
-    <div className="wm-laser-line" />
-    <div className="wm-flash-bloom" />
-  </div>
-);
+  );
+};
 
 /* ============================================================
    MAIN COMPONENT
@@ -251,6 +420,21 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           : 'Rapid fulfillment across all Qatar municipalities within 2 to 24 hours directly to your doorstep or workshop.',
     },
   ];
+
+  // Dynamic viewport height fix for iOS Safari / Android Chrome UI bars.
+  useEffect(() => {
+    const setVh = (): void => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--wm-vh', `${vh}px`);
+    };
+    setVh();
+    window.addEventListener('resize', setVh);
+    window.addEventListener('orientationchange', setVh);
+    return () => {
+      window.removeEventListener('resize', setVh);
+      window.removeEventListener('orientationchange', setVh);
+    };
+  }, []);
 
   // Focus management, Escape-to-close, and cyclic Tab focus trap.
   useEffect(() => {
@@ -313,7 +497,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         top: 0,
         left: 0,
         width: '100%',
-        height: '100%',
+        height: 'calc(var(--wm-vh, 1vh) * 100)',
         zIndex: Z_OVERLAY,
         direction: isRtl ? 'rtl' : 'ltr',
         fontFamily: isRtl ? "'Cairo', sans-serif" : "'Cairo', system-ui, sans-serif",
@@ -321,43 +505,83 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: '24px',
-        background: `radial-gradient(ellipse at 30% 20%, rgba(56,189,248,0.08) 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, rgba(234,88,12,0.10) 0%, transparent 50%), linear-gradient(160deg, ${OBSIDIAN} 0%, ${SLATE} 55%, ${OBSIDIAN} 100%)`,
+        padding: 'max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left))',
+        background: `radial-gradient(ellipse at 30% 20%, rgba(56,189,248,0.09) 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, rgba(234,88,12,0.11) 0%, transparent 50%), linear-gradient(160deg, ${OBSIDIAN} 0%, ${SLATE} 55%, ${OBSIDIAN} 100%)`,
         overflow: 'hidden',
       }}
     >
       <style>{`
-        @keyframes wm-spin-cw { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes wm-spin-ccw { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
-        @keyframes wm-drift {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          50% { transform: translateY(-10px) translateX(6px); }
-        }
-        @keyframes wm-spark-pulse {
-          0%, 100% { opacity: 0.06; transform: scale(0.75); }
-          50% { opacity: 0.4; transform: scale(1.2); }
-        }
-        @keyframes shimmerSweep {
-          0% { transform: translateX(-120%) skewX(-18deg); }
-          100% { transform: translateX(220%) skewX(-18deg); }
-        }
-        @keyframes wm-glow-pulse {
-          0%, 100% { box-shadow: 0 0 24px rgba(234,88,12,0.35), 0 12px 30px rgba(0,0,0,0.5); }
-          50% { box-shadow: 0 0 40px rgba(234,88,12,0.55), 0 12px 30px rgba(0,0,0,0.5); }
+        /* ================= PRE-REVEAL TENSION ================= */
+        @keyframes wm-cinematic-vignette {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
         }
 
+        /* ================= AMBIENT RIG (continuous mechanical life) ================= */
+        @keyframes wm-gear-cw { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes wm-gear-ccw { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+        @keyframes wm-drive-spin { from { transform: translateX(0); } to { transform: translateX(-24px); } }
+        @keyframes wm-piston-stroke {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(18px); }
+        }
+        @keyframes wm-coil-breathe {
+          0%, 100% { transform: scaleY(1); }
+          50% { transform: scaleY(0.72); }
+        }
+        @keyframes wm-drift { 0%, 100% { transform: translateY(0px) translateX(0px); } 50% { transform: translateY(-10px) translateX(6px); } }
+
+        .wm-gear-train { position: absolute; top: 10%; inset-inline-start: 6%; color: ${ALABASTER}; opacity: 0.08; will-change: transform; animation: wm-drift 16s ease-in-out infinite; }
+        .wm-gear-big { animation: wm-gear-cw 18s linear infinite; }
+        .wm-gear-small { animation: wm-gear-ccw 12.6s linear infinite; }
+        .wm-driveshaft { position: absolute; bottom: 14%; inset-inline-start: 4%; color: ${COPPER}; opacity: 0.09; overflow: visible; }
+        .wm-driveshaft rect { animation: wm-drive-spin 0.9s linear infinite; }
+        .wm-piston-rig { position: absolute; top: 8%; inset-inline-end: 10%; color: ${ALABASTER}; opacity: 0.08; }
+        .wm-piston-head { animation: wm-piston-stroke 1.3s cubic-bezier(0.45, 0, 0.55, 1) infinite; transform-origin: center; }
+        .wm-coil-rig { position: absolute; bottom: 10%; inset-inline-end: 14%; color: ${COPPER_LIGHT}; opacity: 0.09; }
+        .wm-coil-spring { animation: wm-coil-breathe 2.1s cubic-bezier(0.45, 0, 0.55, 1) infinite; transform-origin: 30px 20px; }
+        .wm-rig-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 42%, rgba(9,13,22,0.6) 100%); }
+
+        /* ================= SCI-FI HUD FRAME ================= */
+        @keyframes wm-hud-fade { from { opacity: 0; } to { opacity: 0.9; } }
+        @keyframes wm-hud-scan {
+          0% { transform: translateY(-100%); opacity: 0; }
+          10% { opacity: 0.6; }
+          90% { opacity: 0.6; }
+          100% { transform: translateY(100%); opacity: 0; }
+        }
+        .wm-hud { animation: wm-hud-fade 0.5s ease-out 0.05s both; }
+        .wm-hud-corner { position: absolute; color: ${CYAN}; opacity: 0.55; }
+        .wm-hud-tl { top: 16px; inset-inline-start: 16px; }
+        .wm-hud-tr { top: 16px; inset-inline-end: 16px; transform: scaleX(${isRtl ? '1' : '-1'}); }
+        .wm-hud-bl { bottom: 16px; inset-inline-start: 16px; }
+        .wm-hud-br { bottom: 16px; inset-inline-end: 16px; transform: scaleX(${isRtl ? '1' : '-1'}); }
+        .wm-hud-grid {
+          position: absolute; inset: 0;
+          background-image:
+            linear-gradient(rgba(56,189,248,0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(56,189,248,0.045) 1px, transparent 1px);
+          background-size: 34px 34px;
+          mask-image: radial-gradient(ellipse at center, black 0%, transparent 72%);
+          -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 72%);
+        }
+        .wm-hud-scanline {
+          position: absolute; left: 0; right: 0; height: 120px;
+          background: linear-gradient(180deg, transparent, rgba(56,189,248,0.09), transparent);
+          animation: wm-hud-scan 3.2s cubic-bezier(0.45, 0, 0.55, 1) 0.3s infinite;
+        }
+
+        /* ================= BLUEPRINT CHASSIS SCENE ================= */
         @keyframes chassisExplodeZoom {
-          0% { transform: scale(2.5); opacity: 0.35; }
+          0% { transform: scale(2.7); opacity: 0.3; }
           100% { transform: scale(1); opacity: 1; }
         }
         @keyframes blueprintStrokeCycle {
           0%, 100% { color: ${CYAN}; }
           50% { color: ${ALABASTER}; }
         }
-        @keyframes wm-body-fadein {
-          from { opacity: 0; }
-          to { opacity: 0.85; }
-        }
+        @keyframes wm-body-fadein { from { opacity: 0; } to { opacity: 0.88; } }
+        @keyframes wm-dim-fadein { from { opacity: 0; } to { opacity: 0.55; } }
 
         @keyframes wm-laser-sweep {
           0% { transform: translateX(-60%); opacity: 0; }
@@ -370,111 +594,151 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           50% { opacity: 0.85; transform: scale(1.6); }
         }
         @keyframes wm-converge-rotor-front {
-          0% { transform: translate(-70px, -60px) scale(1.2); opacity: 0.55; }
+          0% { transform: translate(-80px, -70px) scale(1.25); opacity: 0.5; }
           100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
         @keyframes wm-converge-rotor-rear {
-          0% { transform: translate(70px, -60px) scale(1.2); opacity: 0.55; }
+          0% { transform: translate(80px, -70px) scale(1.25); opacity: 0.5; }
           100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
         @keyframes wm-converge-spring-front {
-          0% { transform: translate(-30px, -50px); opacity: 0.5; }
+          0% { transform: translate(-34px, -55px); opacity: 0.45; }
           100% { transform: translate(0, 0); opacity: 1; }
         }
         @keyframes wm-converge-spring-rear {
-          0% { transform: translate(30px, -50px); opacity: 0.5; }
+          0% { transform: translate(34px, -55px); opacity: 0.45; }
           100% { transform: translate(0, 0); opacity: 1; }
         }
         @keyframes wm-converge-engine {
-          0% { transform: translate(90px, -40px) scale(1.15); opacity: 0.5; }
+          0% { transform: translate(100px, -46px) scale(1.18); opacity: 0.45; }
           100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
-        @keyframes wm-scene-recede {
-          0% { opacity: 1; }
-          100% { opacity: 0.1; }
+        @keyframes wm-scene-recede { 0% { opacity: 1; } 100% { opacity: 0.14; } }
+        @keyframes wm-chip-float {
+          0% { opacity: 0; transform: translateY(8px) scale(0.92); }
+          14% { opacity: 1; transform: translateY(0) scale(1); }
+          88% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-6px) scale(0.96); }
         }
+        @keyframes wm-chip-dot-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-        @keyframes wm-logo-descent {
-          0% { transform: translateY(-140px) scale(0.7); opacity: 0; }
-          70% { transform: translateY(6px) scale(1.03); opacity: 1; }
-          100% { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        @keyframes wm-wordmark-fade {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes wm-subhead-fade {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes wm-deck-slideup {
-          from { opacity: 0; transform: translateY(24px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes wm-deck-specular {
-          0%, 92%, 100% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
-          4% { opacity: 0.5; }
-          16% { transform: translateX(260%) skewX(-18deg); opacity: 0; }
-        }
-
-        @keyframes wm-reduced-crossfade {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .wm-gear { position: absolute; color: ${ALABASTER}; opacity: 0.05; will-change: transform; }
-        .wm-gear-a { top: -60px; inset-inline-end: -40px; animation: wm-spin-cw 60s linear infinite; }
-        .wm-gear-b { bottom: -40px; inset-inline-start: -30px; animation: wm-spin-ccw 42s linear infinite; }
-        .wm-gear-c { top: 55%; inset-inline-end: 12%; animation: wm-spin-cw 30s linear infinite; opacity: 0.045; }
-        .wm-piston { position: absolute; top: 12%; inset-inline-start: 8%; color: ${COPPER}; opacity: 0.07; animation: wm-drift 14s ease-in-out infinite; will-change: transform; }
-        .wm-rotor { position: absolute; bottom: 6%; inset-inline-end: 6%; color: ${ALABASTER}; opacity: 0.05; animation: wm-spin-cw 70s linear infinite; will-change: transform; }
-        .wm-spark { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: ${COPPER_LIGHT}; }
-        .wm-spark-1 { top: 18%; inset-inline-start: 25%; animation: wm-spark-pulse 4.5s ease-in-out infinite; }
-        .wm-spark-2 { top: 65%; inset-inline-start: 40%; animation: wm-spark-pulse 5.8s ease-in-out infinite 1.1s; }
-        .wm-spark-3 { top: 35%; inset-inline-end: 30%; animation: wm-spark-pulse 3.8s ease-in-out infinite 0.5s; }
-        .wm-spark-4 { top: 78%; inset-inline-end: 18%; animation: wm-spark-pulse 5s ease-in-out infinite 1.8s; }
-        .wm-spark-5 { top: 10%; inset-inline-end: 45%; animation: wm-spark-pulse 4.1s ease-in-out infinite 0.9s; }
-        .wm-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(9,13,22,0.65) 100%); }
-
-        .wm-blueprint-stage { animation: wm-scene-recede 1s cubic-bezier(0.22, 1, 0.36, 1) 2.6s both; }
-        .wm-chassis-zoom { transform-origin: center center; animation: chassisExplodeZoom 1.8s cubic-bezier(0.16, 1, 0.3, 1) both; will-change: transform, opacity; }
+        .wm-blueprint-stage { animation: wm-scene-recede 1s ${EASE_APPLE} 2.6s both; }
+        .wm-chassis-zoom { transform-origin: center center; animation: chassisExplodeZoom 1.9s cubic-bezier(0.16, 1, 0.3, 1) both; will-change: transform, opacity; position: relative; }
         .wm-blueprint-strokes { animation: blueprintStrokeCycle 2.4s ease-in-out infinite; }
         .wm-body-fadein { animation: wm-body-fadein 1s ease-out 0.2s both; }
+        .wm-dims { animation: wm-dim-fadein 0.8s ease-out 1.55s both; }
+        .wm-dim-text { font-family: 'Cairo', system-ui, sans-serif; }
 
         .wm-part { will-change: transform, opacity; }
-        .wm-part-rotor-front { animation: wm-converge-rotor-front 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.8s both; }
-        .wm-part-rotor-rear { animation: wm-converge-rotor-rear 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.8s both; }
-        .wm-part-spring-front { animation: wm-converge-spring-front 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.9s both; }
-        .wm-part-spring-rear { animation: wm-converge-spring-rear 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.9s both; }
-        .wm-part-engine { animation: wm-converge-engine 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.85s both; }
+        .wm-part-rotor-front { animation: wm-converge-rotor-front 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.75s both; }
+        .wm-part-rotor-rear { animation: wm-converge-rotor-rear 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.75s both; }
+        .wm-part-spring-front { animation: wm-converge-spring-front 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.85s both; }
+        .wm-part-spring-rear { animation: wm-converge-spring-rear 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.85s both; }
+        .wm-part-engine { animation: wm-converge-engine 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.8s both; }
+
+        .wm-info-chip {
+          display: inline-flex; align-items: center; gap: 6px;
+          background: rgba(15, 23, 42, 0.72);
+          border: 1px solid rgba(56, 189, 248, 0.35);
+          border-radius: 999px;
+          padding: 5px 12px;
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.3px;
+          color: ${ALABASTER};
+          white-space: nowrap;
+          backdrop-filter: blur(6px);
+          animation: wm-chip-float 5.5s ease-in-out infinite;
+          will-change: transform, opacity;
+        }
+        .wm-info-chip-dot { width: 5px; height: 5px; border-radius: 50%; background: ${CYAN}; animation: wm-chip-dot-pulse 1.6s ease-in-out infinite; flex-shrink: 0; }
 
         .wm-laser-line {
           position: absolute; top: 8%; bottom: 8%; left: 6%; width: 3px;
           background: linear-gradient(180deg, transparent, ${CYAN}, ${ALABASTER}, ${CYAN}, transparent);
           box-shadow: 0 0 18px 3px rgba(56,189,248,0.65), 0 0 40px 8px rgba(56,189,248,0.3);
-          animation: wm-laser-sweep 0.6s cubic-bezier(0.4, 0, 0.2, 1) 1.8s both;
+          animation: wm-laser-sweep 0.6s cubic-bezier(0.4, 0, 0.2, 1) 1.75s both;
           will-change: transform, opacity;
         }
         .wm-flash-bloom {
           position: absolute; inset: 0; margin: auto; width: 60%; height: 60%; border-radius: 50%;
           background: radial-gradient(circle, rgba(248,250,252,0.5) 0%, rgba(56,189,248,0.22) 45%, transparent 70%);
-          animation: wm-flash-bloom 0.7s ease-out 2.05s both;
+          animation: wm-flash-bloom 0.7s ease-out 2s both;
           will-change: transform, opacity;
         }
 
-        .wm-content-wrap { position: relative; z-index: ${Z_GLASS}; display: flex; flex-direction: column; align-items: center; }
+        /* ================= LOGO — POWERFUL ENTRANCE ================= */
+        @keyframes wm-logo-burst-ring {
+          0% { transform: scale(0.2); opacity: 0.9; }
+          100% { transform: scale(2.6); opacity: 0; }
+        }
+        @keyframes wm-logo-rays-spin { from { transform: rotate(0deg); opacity: 0.5; } 70% { opacity: 0.15; } to { transform: rotate(140deg); opacity: 0; } }
+        @keyframes wm-logo-descent {
+          0% { transform: translateY(-120px) scale(0.55); opacity: 0; }
+          58% { transform: translateY(8px) scale(1.08); opacity: 1; }
+          78% { transform: translateY(-3px) scale(0.98); }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes wm-screen-flash {
+          0%, 100% { opacity: 0; }
+          50% { opacity: 0.9; }
+        }
 
-        .wm-logo-badge { animation: wm-logo-descent 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) 2.2s both; will-change: transform, opacity; }
-        .wm-wordmark { animation: wm-wordmark-fade 0.6s cubic-bezier(0.22, 1, 0.36, 1) 2.5s both; will-change: transform, opacity; }
-        .wm-subhead { animation: wm-subhead-fade 0.6s cubic-bezier(0.22, 1, 0.36, 1) 2.65s both; will-change: transform, opacity; }
+        .wm-logo-flash {
+          position: absolute; inset: 0; background: ${ALABASTER};
+          animation: wm-screen-flash 0.3s ease-out 2.08s both;
+          pointer-events: none; z-index: 3; mix-blend-mode: overlay;
+        }
+        .wm-logo-badge-wrap { position: relative; margin-bottom: 20px; }
+        .wm-logo-burst {
+          position: absolute; inset: 0; margin: auto; width: 78px; height: 78px; border-radius: 20px;
+          border: 1.5px solid ${COPPER_LIGHT};
+          animation: wm-logo-burst-ring 0.9s ${EASE_APPLE} 2.1s both;
+          pointer-events: none;
+        }
+        .wm-logo-rays {
+          position: absolute; inset: -40px; margin: auto; pointer-events: none;
+          background: conic-gradient(from 0deg, transparent 0deg, rgba(234,88,12,0.5) 8deg, transparent 20deg, transparent 160deg, rgba(56,189,248,0.4) 172deg, transparent 184deg, transparent 360deg);
+          border-radius: 50%;
+          animation: wm-logo-rays-spin 1.1s ease-out 2.1s both;
+        }
+        .wm-logo-badge {
+          position: relative; z-index: 1;
+          animation: wm-logo-descent 0.85s ${EASE_OVERSHOOT} 2.15s both;
+          will-change: transform, opacity;
+        }
 
-        .wm-deck-panel { animation: wm-deck-slideup 0.75s cubic-bezier(0.22, 1, 0.36, 1) 2.75s both; will-change: transform, opacity; }
+        @keyframes wm-wordmark-fade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes wm-subhead-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes wm-deck-slideup { from { opacity: 0; transform: translateY(28px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes wm-deck-specular {
+          0%, 92%, 100% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+          4% { opacity: 0.5; }
+          16% { transform: translateX(260%) skewX(-18deg); opacity: 0; }
+        }
+        @keyframes wm-spark-pulse { 0%, 100% { opacity: 0.06; transform: scale(0.75); } 50% { opacity: 0.4; transform: scale(1.2); } }
+        @keyframes shimmerSweep { 0% { transform: translateX(-120%) skewX(-18deg); } 100% { transform: translateX(220%) skewX(-18deg); } }
+        @keyframes wm-glow-pulse {
+          0%, 100% { box-shadow: 0 0 24px rgba(234,88,12,0.35), 0 12px 30px rgba(0,0,0,0.5); }
+          50% { box-shadow: 0 0 40px rgba(234,88,12,0.55), 0 12px 30px rgba(0,0,0,0.5); }
+        }
+        @keyframes wm-reduced-crossfade { from { opacity: 0; } to { opacity: 1; } }
+
+        .wm-spark { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: ${COPPER_LIGHT}; }
+        .wm-spark-1 { top: 18%; inset-inline-start: 25%; animation: wm-spark-pulse 4.5s ease-in-out infinite; }
+        .wm-spark-2 { top: 65%; inset-inline-start: 40%; animation: wm-spark-pulse 5.8s ease-in-out infinite 1.1s; }
+        .wm-spark-3 { top: 35%; inset-inline-end: 30%; animation: wm-spark-pulse 3.8s ease-in-out infinite 0.5s; }
+
+        .wm-content-wrap { position: relative; z-index: ${Z_GLASS}; display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .wm-wordmark { animation: wm-wordmark-fade 0.6s ${EASE_APPLE} 2.55s both; will-change: transform, opacity; }
+        .wm-subhead { animation: wm-subhead-fade 0.6s ${EASE_APPLE} 2.68s both; will-change: transform, opacity; }
+        .wm-deck-panel { animation: wm-deck-slideup 0.75s ${EASE_APPLE} 2.8s both; will-change: transform, opacity; }
         .wm-deck-specular {
           position: absolute; top: 0; left: 0; width: 40%; height: 100%;
           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
           pointer-events: none; animation: wm-deck-specular 7s ease-in-out 3.4s infinite;
         }
-        .wm-card { transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s ease, background-color 0.25s ease; }
+        .wm-card { transition: transform 0.25s ${EASE_APPLE}, border-color 0.25s ease, background-color 0.25s ease; }
         .wm-card:hover { transform: translateY(-4px); }
 
         .wm-cta:focus-visible, .wm-dismiss:focus-visible {
@@ -483,62 +747,83 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.25);
         }
 
+        /* ================= RESPONSIVE — iPhone / Samsung breakpoints ================= */
         @media (max-width: 760px) {
           .wm-pillars { grid-template-columns: 1fr !important; }
-          .wm-blueprint-stage { transform: scale(0.75) ${isRtl ? 'scaleX(-1)' : ''}; }
+          .wm-chassis-zoom { transform: scale(0.62); }
+          .wm-hud-grid { background-size: 26px 26px; }
+        }
+        @media (max-width: 428px) {
+          .wm-deck-panel { padding: 26px 18px 24px !important; border-radius: 22px !important; }
+          .wm-chassis-zoom { transform: scale(0.5); }
+          .wm-info-chip { font-size: 9px; padding: 4px 9px; }
         }
         @media (max-width: 375px) {
-          .wm-deck-panel { padding: 24px 16px 22px !important; border-radius: 20px !important; }
-          .wm-wordmark span { font-size: 1.6rem !important; }
+          .wm-deck-panel { padding: 20px 14px 20px !important; border-radius: 18px !important; }
+          .wm-chassis-zoom { transform: scale(0.42); }
+          .wm-hud-corner { width: 44px !important; height: 44px !important; }
+        }
+        @media (max-height: 700px) and (orientation: landscape) {
+          .wm-blueprint-stage, .wm-hud, .wm-gear-train, .wm-driveshaft, .wm-piston-rig, .wm-coil-rig { display: none; }
+          .wm-content-wrap { justify-content: flex-start; }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .wm-gear, .wm-piston, .wm-rotor, .wm-spark,
-          .wm-chassis-zoom, .wm-blueprint-strokes, .wm-body-fadein,
-          .wm-part-rotor-front, .wm-part-rotor-rear, .wm-part-spring-front, .wm-part-spring-rear, .wm-part-engine,
-          .wm-laser-line, .wm-flash-bloom, .wm-blueprint-stage,
+          .wm-blueprint-stage, .wm-hud, .wm-gear-train, .wm-driveshaft, .wm-piston-rig, .wm-coil-rig,
+          .wm-logo-flash, .wm-logo-burst, .wm-logo-rays, .wm-spark {
+            display: none !important;
+          }
           .wm-logo-badge, .wm-wordmark, .wm-subhead, .wm-deck-panel, .wm-deck-specular {
             animation: none !important;
           }
-          .wm-blueprint-stage, .wm-laser-line, .wm-flash-bloom { display: none !important; }
           .wm-content-wrap { animation: wm-reduced-crossfade 0.18s ease-out both; }
         }
       `}</style>
 
-      <AmbientEngineLayer />
-      <BlueprintChassisScene isRtl={isRtl} />
+      <div className="wm-cinematic-vignette" style={{ position: 'absolute', inset: 0, zIndex: 0, animation: 'wm-cinematic-vignette 0.35s ease-out both' }} />
+
+      <MechanicalRig />
+      <HudFrame />
+      <BlueprintChassisScene isRtl={isRtl} lang={lang} />
+      <span className="wm-spark wm-spark-1" aria-hidden="true" />
+      <span className="wm-spark wm-spark-2" aria-hidden="true" />
+      <span className="wm-spark wm-spark-3" aria-hidden="true" />
 
       <div className="wm-content-wrap">
-        <div
-          className="wm-logo-badge"
-          style={{
-            width: '78px',
-            height: '78px',
-            marginBottom: '18px',
-            borderRadius: '20px',
-            background: `linear-gradient(145deg, ${OBSIDIAN} 0%, ${TITANIUM} 100%)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: `1px solid rgba(234, 88, 12, 0.5)`,
-            boxShadow: `0 0 0 1px rgba(248,250,252,0.06), 0 0 34px rgba(234, 88, 12, 0.3), 0 10px 24px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)`,
-            overflow: 'hidden',
-          }}
-        >
-          {!logoError ? (
-            <img
-              src="/logo-mawjood-auto.svg"
-              alt="Mawjood Auto"
-              width={38}
-              height={38}
-              style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(234,88,12,0.4))' }}
-              onError={() => setLogoError(true)}
-            />
-          ) : (
-            <span style={{ color: COPPER_LIGHT, display: 'inline-flex' }}>
-              <IconLogoFallback size={36} />
-            </span>
-          )}
+        <div className="wm-logo-badge-wrap">
+          <div className="wm-logo-flash" aria-hidden="true" />
+          <div className="wm-logo-rays" aria-hidden="true" />
+          <div className="wm-logo-burst" aria-hidden="true" />
+          <div
+            className="wm-logo-badge"
+            style={{
+              width: '78px',
+              height: '78px',
+              borderRadius: '20px',
+              background: `linear-gradient(145deg, ${OBSIDIAN} 0%, ${TITANIUM} 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: `1px solid rgba(234, 88, 12, 0.5)`,
+              boxShadow: `0 0 0 1px rgba(248,250,252,0.06), 0 0 34px rgba(234, 88, 12, 0.3), 0 10px 24px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)`,
+              overflow: 'hidden',
+            }}
+          >
+            {!logoError ? (
+              <img
+                src="/logo-mawjood-auto.svg"
+                alt="Mawjood Auto"
+                width={38}
+                height={38}
+                style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(234,88,12,0.4))' }}
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span style={{ color: COPPER_LIGHT, display: 'inline-flex' }}>
+                <IconLogoFallback size={36} />
+              </span>
+            )}
+          </div>
         </div>
 
         <h2
@@ -558,7 +843,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           className="wm-subhead"
           style={{
             fontSize: '1.02rem',
-            marginBottom: '30px',
+            marginBottom: '28px',
             marginTop: '10px',
             color: 'rgba(248,250,252,0.7)',
             maxWidth: '540px',
@@ -619,7 +904,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
               display: 'grid',
               gridTemplateColumns: 'repeat(3, 1fr)',
               gap: '14px',
-              marginBottom: '34px',
+              marginBottom: '32px',
               textAlign: isRtl ? 'right' : 'left',
             }}
           >
@@ -679,11 +964,12 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
               alignItems: 'center',
               gap: '10px',
               letterSpacing: isRtl ? '0px' : '0.3px',
-              transition: 'transform 0.25s cubic-bezier(0.22,1,0.36,1)',
+              transition: `transform 0.25s ${EASE_APPLE}`,
               transform: ctaHover ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
               animation: ctaHover ? 'wm-glow-pulse 1.6s ease-in-out infinite' : 'none',
               boxShadow: '0 12px 30px -6px rgba(234,88,12,0.5), 0 4px 14px rgba(0,0,0,0.4)',
               willChange: 'transform',
+              minHeight: '48px',
             }}
           >
             <span
@@ -718,11 +1004,11 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         onMouseLeave={() => setDismissHover(false)}
         style={{
           position: 'absolute',
-          top: '22px',
-          insetInlineEnd: '22px',
+          top: 'max(22px, env(safe-area-inset-top))',
+          insetInlineEnd: 'max(22px, env(safe-area-inset-right))',
           zIndex: Z_DECK,
-          width: '36px',
-          height: '36px',
+          width: '40px',
+          height: '40px',
           borderRadius: '50%',
           border: '1px solid rgba(248,250,252,0.16)',
           backgroundColor: dismissHover ? 'rgba(248,250,252,0.12)' : 'rgba(248,250,252,0.05)',
