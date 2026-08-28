@@ -269,7 +269,7 @@ export const Header: React.FC<HeaderProps> = ({
               }}
             >
               <img
-                src="/logo-mawjood-auto.svg"
+                src="/public/favicon.svg"
                 alt="Mawjood Auto"
                 width={30}
                 height={30}
