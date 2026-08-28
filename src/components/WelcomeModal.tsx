@@ -5,7 +5,6 @@ import React, { useEffect, useRef, useState } from 'react';
    Overlay: 9990 | EngineLayer: 9991 | GlassPanel: 9992 | InteractiveDeck: 9993
    ============================================================ */
 const Z_OVERLAY = 9990;
-const Z_ENGINE = 9991;
 const Z_GLASS = 9992;
 const Z_DECK = 9993;
 
