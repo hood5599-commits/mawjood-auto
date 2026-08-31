@@ -89,7 +89,7 @@ const IconLogoFallback: React.FC<IconProps> = ({ size = 30 }) => (
    SCI-FI HUD FRAME
    ============================================================ */
 
-const HudFrame: React.FC<{ isRtl: boolean }> = ({ isRtl }) => (
+const HudFrame: React.FC = () => (
   <div aria-hidden="true" className="wm-hud" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}>
     <svg className="wm-hud-corner wm-hud-tl" width="64" height="64" viewBox="0 0 64 64" fill="none">
       <path d="M2 22V6C2 3.8 3.8 2 6 2H22" stroke="currentColor" strokeWidth="1.5" />
@@ -559,7 +559,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       <BlueprintChassisScene />
 
       <MechanicalRig />
-      <HudFrame isRtl={isRtl} />
+      <HudFrame />
       
       <span className="wm-spark wm-spark-1" aria-hidden="true" />
       <span className="wm-spark wm-spark-2" aria-hidden="true" />
