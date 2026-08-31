@@ -90,7 +90,7 @@ const IconLogoFallback: React.FC<IconProps> = ({ size = 30 }) => (
    SCI-FI HUD FRAME — corner brackets + scanning grid
    ============================================================ */
 
-const HudFrame: React.FC<{ isRtl: boolean }> = ({ isRtl }) => (
+const HudFrame: React.FC = () => (
   <div aria-hidden="true" className="wm-hud" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}>
     <svg className="wm-hud-corner wm-hud-tl" width="64" height="64" viewBox="0 0 64 64" fill="none">
       <path d="M2 22V6C2 3.8 3.8 2 6 2H22" stroke="currentColor" strokeWidth="1.5" />
@@ -286,7 +286,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       if (!videoFinished) {
         handleVideoEnd();
       }
-    }, 9000); // 9 ثوانٍ كحد أقصى
+    }, 9000);
     return () => clearTimeout(fallbackTimer);
   }, [videoFinished]);
 
@@ -498,7 +498,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       {showDeck && (
         <>
           <MechanicalRig />
-          <HudFrame isRtl={isRtl} />
+          <HudFrame />
 
           <div className="wm-content-wrap wm-content-animated" style={{ position: 'relative', zIndex: Z_GLASS, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
             {/* الشعار */}
