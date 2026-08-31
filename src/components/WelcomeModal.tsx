@@ -14,7 +14,7 @@ const EASE_OVERSHOOT = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
 
 /* ============================================================
    VIDEO SOURCE — ضع ملف الفيديو داخل مجلد public في مشروعك
-   (مثال: public/videos/amgvid.mp4)
+   (مثال: public/videos/welcome-video.mp4)
    ============================================================ */
 const CHASSIS_VIDEO_SRC = '/videos/amgvid.mp4';
 
@@ -115,12 +115,10 @@ const HudFrame: React.FC = () => (
 
 /* ============================================================
    AMBIENT MECHANICAL RIG — gears, driveshaft, piston, coil
-   Runs continuously (2.4s+), independent of the intro timeline
    ============================================================ */
 
 const MechanicalRig: React.FC = () => (
   <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-    {/* Gear train — two meshing gears, opposite rotation */}
     <svg className="wm-gear-train" width="220" height="140" viewBox="0 0 220 140" fill="none">
       <g className="wm-gear-big" style={{ transformOrigin: '70px 70px' }}>
         <circle cx="70" cy="70" r="38" stroke="currentColor" strokeWidth="1.3" />
@@ -164,7 +162,6 @@ const MechanicalRig: React.FC = () => (
       </g>
     </svg>
 
-    {/* Driveshaft / transmission shaft — spins along its axis */}
     <svg className="wm-driveshaft" width="240" height="60" viewBox="0 0 240 60" fill="none">
       <ellipse cx="18" cy="30" rx="14" ry="20" stroke="currentColor" strokeWidth="1.3" />
       <line x1="18" y1="10" x2="18" y2="50" stroke="currentColor" strokeWidth="1" strokeDasharray="2 4" opacity="0.5" />
@@ -173,7 +170,6 @@ const MechanicalRig: React.FC = () => (
       <line x1="222" y1="10" x2="222" y2="50" stroke="currentColor" strokeWidth="1" strokeDasharray="2 4" opacity="0.5" />
     </svg>
 
-    {/* Piston — vertical stroke, up-down cycle */}
     <svg className="wm-piston-rig" width="70" height="160" viewBox="0 0 70 160" fill="none">
       <rect x="14" y="6" width="42" height="100" rx="4" stroke="currentColor" strokeWidth="1.2" />
       <g className="wm-piston-head">
@@ -184,7 +180,6 @@ const MechanicalRig: React.FC = () => (
       <circle cx="35" cy="140" r="10" stroke="currentColor" strokeWidth="1.2" />
     </svg>
 
-    {/* Suspension coil — compress / extend cycle */}
     <svg className="wm-coil-rig" width="60" height="150" viewBox="0 0 60 150" fill="none">
       <line x1="30" y1="2" x2="30" y2="20" stroke="currentColor" strokeWidth="1.3" />
       <g className="wm-coil-spring">
@@ -205,7 +200,7 @@ const MechanicalRig: React.FC = () => (
 );
 
 /* ============================================================
-   PHOTOREAL X-RAY CHASSIS SCENE (FULL SCREEN BACKGROUND VIDEO)
+   PHOTOREAL X-RAY CHASSIS SCENE (FULLSCREEN VIDEO INTEGRATION)
    ============================================================ */
 
 interface InfoChip {
@@ -220,16 +215,36 @@ interface InfoChip {
 interface BlueprintChassisSceneProps {
   isRtl: boolean;
   lang: 'ar' | 'en';
+  onNearEnd: () => void;
 }
 
-const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, lang }) => {
+const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, lang, onNearEnd }) => {
   const [videoError, setVideoError] = useState<boolean>(false);
+  const triggeredRef = useRef<boolean>(false);
 
   const chips: InfoChip[] = [
     { key: 'suspension', xPct: 16, yPct: 22, ar: 'هندسة التعليق — ضمان ذهبي', en: 'SUSPENSION — Gold Warranty', delay: '2.1s' },
     { key: 'engine', xPct: 50, yPct: 40, ar: 'نظام العادم — قطع أصلية متوفرة', en: 'EXHAUST — Genuine Parts In Stock', delay: '2.25s' },
     { key: 'axle', xPct: 82, yPct: 62, ar: 'المحور الخلفي — توصيل خلال ساعتين', en: 'REAR AXLE — 2H Delivery', delay: '2.4s' },
   ];
+
+  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    if (video.duration && !triggeredRef.current) {
+      // يظهر المحتوى قبل نهاية الفيديو بـ 1.2 ثانية
+      if (video.duration - video.currentTime <= 1.2) {
+        triggeredRef.current = true;
+        onNearEnd();
+      }
+    }
+  };
+
+  const handleEnded = () => {
+    if (!triggeredRef.current) {
+      triggeredRef.current = true;
+      onNearEnd();
+    }
+  };
 
   return (
     <div
@@ -245,34 +260,21 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, la
         zIndex: 0,
       }}
     >
-      <div
-        className="wm-chassis-zoom"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          transform: isRtl ? 'scaleX(-1)' : 'none',
-        }}
-      >
-        <div
-          className="wm-chassis-img-wrap"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            borderRadius: 0,
-          }}
-        >
+      <div className="wm-chassis-zoom" style={{ transform: isRtl ? 'scaleX(-1)' : 'none' }}>
+        <div className="wm-chassis-img-wrap">
           {!videoError ? (
             <video
               src={CHASSIS_VIDEO_SRC}
               autoPlay
               muted
               playsInline
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleEnded}
+              onError={() => {
+                setVideoError(true);
+                onNearEnd();
+              }}
               className="wm-blueprint-img"
-              onError={() => setVideoError(true)}
               style={{
                 position: 'absolute',
                 top: 0,
@@ -280,7 +282,6 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, la
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                borderRadius: 0,
                 filter: 'drop-shadow(0 18px 40px rgba(0,0,0,0.55))',
               }}
             />
@@ -327,6 +328,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
   const [ctaHover, setCtaHover] = useState<boolean>(false);
   const [dismissHover, setDismissHover] = useState<boolean>(false);
   const [logoError, setLogoError] = useState<boolean>(false);
+  const [showContent, setShowContent] = useState<boolean>(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
@@ -390,6 +392,14 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       window.removeEventListener('resize', setVh);
       window.removeEventListener('orientationchange', setVh);
     };
+  }, []);
+
+  // Fallback timer: يضمن ظهور المحتوى إذا تأخر الفيديو أو تعذر تشغيله
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      setShowContent(true);
+    }, 4000);
+    return () => clearTimeout(fallbackTimer);
   }, []);
 
   // Focus management, Escape-to-close, and cyclic Tab focus trap.
@@ -529,18 +539,18 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
 
         /* ================= PHOTOREAL X-RAY CHASSIS SCENE ================= */
         @keyframes chassisExplodeZoom {
-          0% { transform: scale(1.8); opacity: 0.3; filter: blur(4px); }
+          0% { transform: scale(1.15); opacity: 0.3; filter: blur(4px); }
           60% { filter: blur(0px); }
           100% { transform: scale(1); opacity: 1; filter: blur(0px); }
         }
         @keyframes wm-img-glow-pulse {
-          0%, 100% { opacity: 0.25; }
-          50% { opacity: 0.55; }
+          0%, 100% { opacity: 0.35; }
+          50% { opacity: 0.65; }
         }
         @keyframes wm-img-scan-sweep {
           0% { transform: translateY(-100%); opacity: 0; }
-          8% { opacity: 0.4; }
-          92% { opacity: 0.4; }
+          8% { opacity: 0.5; }
+          92% { opacity: 0.5; }
           100% { transform: translateY(100%); opacity: 0; }
         }
 
@@ -554,7 +564,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           0%, 100% { opacity: 0; transform: scale(0.6); }
           50% { opacity: 0.85; transform: scale(1.6); }
         }
-        @keyframes wm-scene-recede { 0% { opacity: 1; } 100% { opacity: 0.25; } }
+        @keyframes wm-scene-recede { 0% { opacity: 1; } 100% { opacity: 0.22; } }
         @keyframes wm-chip-float {
           0% { opacity: 0; transform: translateY(8px) scale(0.9); }
           14% { opacity: 1; transform: translateY(0) scale(1); }
@@ -573,19 +583,11 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           animation: chassisExplodeZoom 1.9s cubic-bezier(0.16, 1, 0.3, 1) both;
           will-change: transform, opacity, filter;
         }
-        .wm-chassis-img-wrap {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          border-radius: 0;
-        }
+        .wm-chassis-img-wrap { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
         .wm-blueprint-img {
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: cover;
           -webkit-user-drag: none;
           filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
         }
@@ -657,25 +659,25 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
 
         .wm-logo-flash {
           position: absolute; inset: 0; background: ${ALABASTER};
-          animation: wm-screen-flash 0.3s ease-out 2.08s both;
+          animation: wm-screen-flash 0.3s ease-out 0.1s both;
           pointer-events: none; z-index: 3; mix-blend-mode: overlay;
         }
         .wm-logo-badge-wrap { position: relative; margin-bottom: 20px; }
         .wm-logo-burst {
           position: absolute; inset: 0; margin: auto; width: 78px; height: 78px; border-radius: 20px;
           border: 1.5px solid ${COPPER_LIGHT};
-          animation: wm-logo-burst-ring 0.9s ${EASE_APPLE} 2.1s both;
+          animation: wm-logo-burst-ring 0.9s ${EASE_APPLE} 0.15s both;
           pointer-events: none;
         }
         .wm-logo-rays {
           position: absolute; inset: -40px; margin: auto; pointer-events: none;
           background: conic-gradient(from 0deg, transparent 0deg, rgba(234,88,12,0.5) 8deg, transparent 20deg, transparent 160deg, rgba(56,189,248,0.4) 172deg, transparent 184deg, transparent 360deg);
           border-radius: 50%;
-          animation: wm-logo-rays-spin 1.1s ease-out 2.1s both;
+          animation: wm-logo-rays-spin 1.1s ease-out 0.15s both;
         }
         .wm-logo-badge {
           position: relative; z-index: 1;
-          animation: wm-logo-descent 0.85s ${EASE_OVERSHOOT} 2.15s both;
+          animation: wm-logo-descent 0.85s ${EASE_OVERSHOOT} 0.2s both;
           will-change: transform, opacity;
         }
 
@@ -701,13 +703,13 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         .wm-spark-3 { top: 35%; inset-inline-end: 30%; animation: wm-spark-pulse 3.8s ease-in-out infinite 0.5s; }
 
         .wm-content-wrap { position: relative; z-index: ${Z_GLASS}; display: flex; flex-direction: column; align-items: center; width: 100%; }
-        .wm-wordmark { animation: wm-wordmark-fade 0.6s ${EASE_APPLE} 2.55s both; will-change: transform, opacity; }
-        .wm-subhead { animation: wm-subhead-fade 0.6s ${EASE_APPLE} 2.68s both; will-change: transform, opacity; }
-        .wm-deck-panel { animation: wm-deck-slideup 0.75s ${EASE_APPLE} 2.8s both; will-change: transform, opacity; }
+        .wm-wordmark { animation: wm-wordmark-fade 0.6s ${EASE_APPLE} 0.4s both; will-change: transform, opacity; }
+        .wm-subhead { animation: wm-subhead-fade 0.6s ${EASE_APPLE} 0.5s both; will-change: transform, opacity; }
+        .wm-deck-panel { animation: wm-deck-slideup 0.75s ${EASE_APPLE} 0.6s both; will-change: transform, opacity; }
         .wm-deck-specular {
           position: absolute; top: 0; left: 0; width: 40%; height: 100%;
           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
-          pointer-events: none; animation: wm-deck-specular 7s ease-in-out 3.4s infinite;
+          pointer-events: none; animation: wm-deck-specular 7s ease-in-out 1.2s infinite;
         }
         .wm-card { transition: transform 0.25s ${EASE_APPLE}, border-color 0.25s ease, background-color 0.25s ease; }
         .wm-card:hover { transform: translateY(-4px); }
@@ -718,7 +720,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.25);
         }
 
-        /* ================= RESPONSIVE — iPhone / Samsung breakpoints ================= */
+        /* ================= RESPONSIVE ================= */
         @media (max-width: 760px) {
           .wm-pillars { grid-template-columns: 1fr !important; }
           .wm-hud-grid { background-size: 26px 26px; }
@@ -753,12 +755,21 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
 
       <MechanicalRig />
       <HudFrame />
-      <BlueprintChassisScene isRtl={isRtl} lang={lang} />
+      <BlueprintChassisScene isRtl={isRtl} lang={lang} onNearEnd={() => setShowContent(true)} />
       <span className="wm-spark wm-spark-1" aria-hidden="true" />
       <span className="wm-spark wm-spark-2" aria-hidden="true" />
       <span className="wm-spark wm-spark-3" aria-hidden="true" />
 
-      <div className="wm-content-wrap">
+      {/* الشاشة الترحيبية تظهر بانسيابية قبل نهاية الفيديو */}
+      <div
+        className="wm-content-wrap"
+        style={{
+          opacity: showContent ? 1 : 0,
+          transform: showContent ? 'translateY(0)' : 'translateY(24px)',
+          transition: `opacity 0.8s ${EASE_APPLE}, transform 0.8s ${EASE_APPLE}`,
+          pointerEvents: showContent ? 'auto' : 'none',
+        }}
+      >
         <div className="wm-logo-badge-wrap">
           <div className="wm-logo-flash" aria-hidden="true" />
           <div className="wm-logo-rays" aria-hidden="true" />
