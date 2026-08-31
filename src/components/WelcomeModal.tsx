@@ -337,7 +337,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       title: lang === 'ar' ? 'قطع جديدة وأصلية 100%' : '100% Factory-New & Certified Guarantee',
       desc:
         lang === 'ar'
-          ? 'قطع غيار وكالة وتجارية أصلية جديدة بالكرتون مع  — نضمن لك أعلى معايير الجودة.'
+          ? 'قطع غيار وكالة وتجارية أصلية جديدة  — نضمن لك أعلى معايير الجودة.'
           : '100% factory-sealed Genuine OEM & certified aftermarket parts with full warranty. Zero scrap, zero compromises.',
     },
     {
