@@ -12,6 +12,16 @@ const Z_DECK = 9993;
 const EASE_APPLE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 const EASE_OVERSHOOT = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
 
+/* ============================================================
+   IMAGE SOURCE — put the blueprint image in your repo's /public
+   folder (e.g. public/images/amg-gtr-blueprint.png) and it will
+   be served from this root-relative path. If you want to pull it
+   straight from GitHub without redeploying, swap this for a
+   jsDelivr CDN URL, e.g.:
+   "https://cdn.jsdelivr.net/gh/USERNAME/REPO@main/public/images/amg-gtr-blueprint.png"
+   ============================================================ */
+const CHASSIS_IMAGE_SRC = '/images/amg-gtr-blueprint.png.jpg';
+
 export interface WelcomeProps {
   lang: 'ar' | 'en';
   onStart: () => void;
@@ -199,14 +209,17 @@ const MechanicalRig: React.FC = () => (
 );
 
 /* ============================================================
-   DETAILED EXPLODED BLUEPRINT CAR SCENE
-   Full coupe silhouette + measurement callouts + parts-availability chips
+   PHOTOREAL X-RAY CHASSIS SCENE
+   Uses the actual blueprint artwork (CHASSIS_IMAGE_SRC) instead
+   of a hand-drawn SVG car — same "explode-in" cinematic timeline,
+   plus floating parts-availability chips and a laser reveal sweep.
    ============================================================ */
 
 interface InfoChip {
   key: string;
-  x: number;
-  y: number;
+  /* position as % of the image's own box, so it stays correct at any size */
+  xPct: number;
+  yPct: number;
   ar: string;
   en: string;
   delay: string;
@@ -218,10 +231,14 @@ interface BlueprintChassisSceneProps {
 }
 
 const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, lang }) => {
+  const [imgError, setImgError] = useState<boolean>(false);
+
+  /* Chip anchors tuned to the reference artwork: rear suspension (top-left),
+     exhaust/engine bay (center), rear axle + diffuser (bottom-right). */
   const chips: InfoChip[] = [
-    { key: 'engine', x: 402, y: 176, ar: 'المحرك — قطع أصلية متوفرة الآن', en: 'ENGINE — Genuine Parts In Stock', delay: '2.05s' },
-    { key: 'suspension', x: 218, y: 150, ar: 'السسبنشن — ضمان ذهبي', en: 'SUSPENSION — Gold Warranty', delay: '2.2s' },
-    { key: 'brake', x: 700, y: 358, ar: 'الفرامل — توصيل خلال ساعتين', en: 'BRAKES — 2H Delivery', delay: '2.35s' },
+    { key: 'suspension', xPct: 16, yPct: 22, ar: 'هندسة التعليق — ضمان ذهبي', en: 'SUSPENSION — Gold Warranty', delay: '2.1s' },
+    { key: 'engine', xPct: 50, yPct: 40, ar: 'نظام العادم — قطع أصلية متوفرة', en: 'EXHAUST — Genuine Parts In Stock', delay: '2.25s' },
+    { key: 'axle', xPct: 82, yPct: 62, ar: 'المحور الخلفي — توصيل خلال ساعتين', en: 'REAR AXLE — 2H Delivery', delay: '2.4s' },
   ];
 
   return (
@@ -240,109 +257,32 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, la
       }}
     >
       <div className="wm-chassis-zoom" style={{ transform: isRtl ? 'scaleX(-1)' : 'none' }}>
-        <svg
-          className="wm-blueprint-strokes"
-          width="900"
-          height="420"
-          viewBox="0 0 900 420"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* ===== Full detailed coupe silhouette ===== */}
-          <g className="wm-body-fadein">
-            {/* Roofline + greenhouse + hood + trunk */}
-            <path
-              d="M110 300 C118 258 150 232 190 226 L232 178 C250 156 280 142 316 138 L392 132 C420 130 448 132 470 140 L520 140 C556 132 592 134 618 148 L660 172 C690 188 712 200 726 226 L780 232 C812 238 834 262 828 300"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        <div className="wm-chassis-img-wrap">
+          {!imgError ? (
+            <img
+              src={CHASSIS_IMAGE_SRC}
+              alt="AMG GT R x-ray chassis blueprint"
+              className="wm-blueprint-img"
+              draggable={false}
+              onError={() => setImgError(true)}
             />
-            {/* Windshield + rear glass */}
-            <path d="M232 178 L316 138" stroke="currentColor" strokeWidth="1" opacity="0.65" />
-            <path d="M660 172 L618 148" stroke="currentColor" strokeWidth="1" opacity="0.65" />
-            {/* Side window line + door seams */}
-            <path d="M250 190 L470 172 L640 188" stroke="currentColor" strokeWidth="0.9" strokeDasharray="2 5" opacity="0.55" />
-            <path d="M380 195 L380 300 M560 195 L560 300" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 6" opacity="0.5" />
-            {/* Door handles */}
-            <rect x="360" y="205" width="20" height="4" rx="2" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
-            <rect x="540" y="205" width="20" height="4" rx="2" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
-            {/* Sill / rocker line */}
-            <path d="M110 300 L828 300" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            {/* Front bumper + headlight */}
-            <path d="M110 300 C104 288 104 270 116 258" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M126 254 L160 248 L164 262 L128 268 Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-            {/* Rear bumper + taillight + spoiler */}
-            <path d="M828 300 C834 288 834 270 822 258" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M812 254 L778 248 L774 262 L810 268 Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-            <path d="M726 226 L764 216 M764 216 L768 224 M764 216 L788 220" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.75" />
-            {/* Side mirror */}
-            <path d="M256 196 L242 188 L244 200 Z" stroke="currentColor" strokeWidth="0.9" strokeLinejoin="round" />
-            {/* Wheel arches */}
-            <path d="M195 300 A55 55 0 0 1 305 300" stroke="currentColor" strokeWidth="1" opacity="0.6" />
-            <path d="M615 300 A55 55 0 0 1 725 300" stroke="currentColor" strokeWidth="1" opacity="0.6" />
-          </g>
+          ) : (
+            /* Graceful fallback so the layout never breaks if the image path is wrong */
+            <div className="wm-blueprint-img-fallback" />
+          )}
+          <div className="wm-blueprint-img-glow" />
+          <div className="wm-blueprint-img-scan" />
+        </div>
 
-          {/* ===== Measurement / dimension callouts (blueprint annotation) ===== */}
-          <g className="wm-dims" opacity="0.55">
-            <line x1="110" y1="340" x2="828" y2="340" stroke="currentColor" strokeWidth="0.8" />
-            <line x1="110" y1="332" x2="110" y2="348" stroke="currentColor" strokeWidth="0.8" />
-            <line x1="828" y1="332" x2="828" y2="348" stroke="currentColor" strokeWidth="0.8" />
-            <text x="469" y="357" textAnchor="middle" fontSize="11" letterSpacing="1.5" fill="currentColor" stroke="none" className="wm-dim-text">
-              4.86 M — CHASSIS LENGTH
-            </text>
-            <line x1="60" y1="140" x2="60" y2="300" stroke="currentColor" strokeWidth="0.8" />
-            <text x="60" y="130" textAnchor="middle" fontSize="10" letterSpacing="1.2" fill="currentColor" stroke="none" className="wm-dim-text">
-              H 1.32M
-            </text>
-          </g>
-
-          {/* Front rotor */}
-          <g className="wm-part wm-part-rotor-front">
-            <circle cx="250" cy="305" r="46" stroke="currentColor" strokeWidth="1.4" />
-            <circle cx="250" cy="305" r="30" stroke="currentColor" strokeWidth="1" strokeDasharray="3 5" />
-            <circle cx="250" cy="305" r="6" stroke="currentColor" strokeWidth="1" />
-            <path d="M250 275L250 285M250 325L250 335M220 305L230 305M270 305L280 305" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-          </g>
-
-          {/* Rear rotor */}
-          <g className="wm-part wm-part-rotor-rear">
-            <circle cx="670" cy="305" r="46" stroke="currentColor" strokeWidth="1.4" />
-            <circle cx="670" cy="305" r="30" stroke="currentColor" strokeWidth="1" strokeDasharray="3 5" />
-            <circle cx="670" cy="305" r="6" stroke="currentColor" strokeWidth="1" />
-            <path d="M670 275L670 285M670 325L670 335M640 305L650 305M690 305L700 305" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-          </g>
-
-          {/* Front suspension spring */}
-          <g className="wm-part wm-part-spring-front">
-            <path d="M250 248 L262 238 L238 226 L262 214 L238 202 L262 190 L250 180" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-          </g>
-
-          {/* Rear suspension spring */}
-          <g className="wm-part wm-part-spring-rear">
-            <path d="M670 248 L682 238 L658 226 L682 214 L658 202 L682 190 L670 180" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-          </g>
-
-          {/* Engine block */}
-          <g className="wm-part wm-part-engine">
-            <rect x="390" y="228" width="76" height="50" rx="6" stroke="currentColor" strokeWidth="1.3" />
-            <circle cx="428" cy="206" r="15" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M428 221 L428 228" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M405 252 L365 252" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-            <circle cx="360" cy="252" r="5" stroke="currentColor" strokeWidth="1.1" />
-            <path d="M450 228 L450 206 L470 206" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.7" />
-          </g>
-        </svg>
-
-        {/* ===== Floating parts-availability info chips ===== */}
+        {/* ===== Floating parts-availability info chips, anchored to the image ===== */}
         {chips.map((c) => (
           <div
             key={c.key}
             className={`wm-info-chip wm-info-chip-${c.key}`}
             style={{
               position: 'absolute',
-              left: c.x,
-              top: c.y,
+              left: `${c.xPct}%`,
+              top: `${c.yPct}%`,
               animationDelay: c.delay,
               transform: isRtl ? 'scaleX(-1)' : 'none',
             }}
@@ -397,7 +337,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       title: lang === 'ar' ? 'قطع جديدة وأصلية 100%' : '100% Factory-New & Certified Guarantee',
       desc:
         lang === 'ar'
-          ? 'قطع غيار وكالة وتجارية أصلية جديدة بالكرتون مع الضمان الذهبي — تم إلغاء السكراب والمستعمل نهائياً لنضمن لك أعلى معايير الجودة.'
+          ? 'قطع غيار وكالة وتجارية أصلية جديدة بالكرتون مع  — نضمن لك أعلى معايير الجودة.'
           : '100% factory-sealed Genuine OEM & certified aftermarket parts with full warranty. Zero scrap, zero compromises.',
     },
     {
@@ -570,17 +510,22 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           animation: wm-hud-scan 3.2s cubic-bezier(0.45, 0, 0.55, 1) 0.3s infinite;
         }
 
-        /* ================= BLUEPRINT CHASSIS SCENE ================= */
+        /* ================= PHOTOREAL X-RAY CHASSIS SCENE ================= */
         @keyframes chassisExplodeZoom {
-          0% { transform: scale(2.7); opacity: 0.3; }
-          100% { transform: scale(1); opacity: 1; }
+          0% { transform: scale(2.7); opacity: 0.3; filter: blur(4px); }
+          60% { filter: blur(0px); }
+          100% { transform: scale(1); opacity: 1; filter: blur(0px); }
         }
-        @keyframes blueprintStrokeCycle {
-          0%, 100% { color: ${CYAN}; }
-          50% { color: ${ALABASTER}; }
+        @keyframes wm-img-glow-pulse {
+          0%, 100% { opacity: 0.35; }
+          50% { opacity: 0.65; }
         }
-        @keyframes wm-body-fadein { from { opacity: 0; } to { opacity: 0.88; } }
-        @keyframes wm-dim-fadein { from { opacity: 0; } to { opacity: 0.55; } }
+        @keyframes wm-img-scan-sweep {
+          0% { transform: translateY(-100%); opacity: 0; }
+          8% { opacity: 0.5; }
+          92% { opacity: 0.5; }
+          100% { transform: translateY(100%); opacity: 0; }
+        }
 
         @keyframes wm-laser-sweep {
           0% { transform: translateX(-60%); opacity: 0; }
@@ -592,29 +537,9 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           0%, 100% { opacity: 0; transform: scale(0.6); }
           50% { opacity: 0.85; transform: scale(1.6); }
         }
-        @keyframes wm-converge-rotor-front {
-          0% { transform: translate(-80px, -70px) scale(1.25); opacity: 0.5; }
-          100% { transform: translate(0, 0) scale(1); opacity: 1; }
-        }
-        @keyframes wm-converge-rotor-rear {
-          0% { transform: translate(80px, -70px) scale(1.25); opacity: 0.5; }
-          100% { transform: translate(0, 0) scale(1); opacity: 1; }
-        }
-        @keyframes wm-converge-spring-front {
-          0% { transform: translate(-34px, -55px); opacity: 0.45; }
-          100% { transform: translate(0, 0); opacity: 1; }
-        }
-        @keyframes wm-converge-spring-rear {
-          0% { transform: translate(34px, -55px); opacity: 0.45; }
-          100% { transform: translate(0, 0); opacity: 1; }
-        }
-        @keyframes wm-converge-engine {
-          0% { transform: translate(100px, -46px) scale(1.18); opacity: 0.45; }
-          100% { transform: translate(0, 0) scale(1); opacity: 1; }
-        }
-        @keyframes wm-scene-recede { 0% { opacity: 1; } 100% { opacity: 0.14; } }
+        @keyframes wm-scene-recede { 0% { opacity: 1; } 100% { opacity: 0.16; } }
         @keyframes wm-chip-float {
-          0% { opacity: 0; transform: translateY(8px) scale(0.92); }
+          0% { opacity: 0; transform: translateY(8px) scale(0.9); }
           14% { opacity: 1; transform: translateY(0) scale(1); }
           88% { opacity: 1; transform: translateY(0) scale(1); }
           100% { opacity: 0; transform: translateY(-6px) scale(0.96); }
@@ -622,18 +547,39 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         @keyframes wm-chip-dot-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
         .wm-blueprint-stage { animation: wm-scene-recede 1s ${EASE_APPLE} 2.6s both; }
-        .wm-chassis-zoom { transform-origin: center center; animation: chassisExplodeZoom 1.9s cubic-bezier(0.16, 1, 0.3, 1) both; will-change: transform, opacity; position: relative; }
-        .wm-blueprint-strokes { animation: blueprintStrokeCycle 2.4s ease-in-out infinite; }
-        .wm-body-fadein { animation: wm-body-fadein 1s ease-out 0.2s both; }
-        .wm-dims { animation: wm-dim-fadein 0.8s ease-out 1.55s both; }
-        .wm-dim-text { font-family: 'Cairo', system-ui, sans-serif; }
-
-        .wm-part { will-change: transform, opacity; }
-        .wm-part-rotor-front { animation: wm-converge-rotor-front 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.75s both; }
-        .wm-part-rotor-rear { animation: wm-converge-rotor-rear 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.75s both; }
-        .wm-part-spring-front { animation: wm-converge-spring-front 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.85s both; }
-        .wm-part-spring-rear { animation: wm-converge-spring-rear 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.85s both; }
-        .wm-part-engine { animation: wm-converge-engine 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.8s both; }
+        .wm-chassis-zoom {
+          position: relative;
+          width: min(78vw, 900px);
+          transform-origin: center center;
+          animation: chassisExplodeZoom 1.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+          will-change: transform, opacity, filter;
+        }
+        .wm-chassis-img-wrap { position: relative; width: 100%; overflow: hidden; border-radius: 12px; }
+        .wm-blueprint-img {
+          display: block;
+          width: 100%;
+          height: auto;
+          -webkit-user-drag: none;
+          filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
+        }
+        .wm-blueprint-img-fallback {
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          background: linear-gradient(135deg, ${TITANIUM}, ${OBSIDIAN});
+          border: 1px dashed rgba(56,189,248,0.35);
+          border-radius: 12px;
+        }
+        .wm-blueprint-img-glow {
+          position: absolute; inset: 0; pointer-events: none;
+          background: radial-gradient(ellipse at center, rgba(56,189,248,0.18) 0%, transparent 65%);
+          animation: wm-img-glow-pulse 2.6s ease-in-out infinite;
+        }
+        .wm-blueprint-img-scan {
+          position: absolute; left: 0; right: 0; height: 22%;
+          background: linear-gradient(180deg, transparent, rgba(56,189,248,0.16), transparent);
+          animation: wm-img-scan-sweep 3.6s cubic-bezier(0.45, 0, 0.55, 1) 0.4s infinite;
+          pointer-events: none;
+        }
 
         .wm-info-chip {
           display: inline-flex; align-items: center; gap: 6px;
@@ -749,17 +695,17 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         /* ================= RESPONSIVE — iPhone / Samsung breakpoints ================= */
         @media (max-width: 760px) {
           .wm-pillars { grid-template-columns: 1fr !important; }
-          .wm-chassis-zoom { transform: scale(0.62); }
+          .wm-chassis-zoom { width: min(92vw, 640px); }
           .wm-hud-grid { background-size: 26px 26px; }
         }
         @media (max-width: 428px) {
           .wm-deck-panel { padding: 26px 18px 24px !important; border-radius: 22px !important; }
-          .wm-chassis-zoom { transform: scale(0.5); }
+          .wm-chassis-zoom { width: min(94vw, 480px); }
           .wm-info-chip { font-size: 9px; padding: 4px 9px; }
         }
         @media (max-width: 375px) {
           .wm-deck-panel { padding: 20px 14px 20px !important; border-radius: 18px !important; }
-          .wm-chassis-zoom { transform: scale(0.42); }
+          .wm-chassis-zoom { width: min(94vw, 400px); }
           .wm-hud-corner { width: 44px !important; height: 44px !important; }
         }
         @media (max-height: 700px) and (orientation: landscape) {
@@ -769,10 +715,11 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
 
         @media (prefers-reduced-motion: reduce) {
           .wm-blueprint-stage, .wm-hud, .wm-gear-train, .wm-driveshaft, .wm-piston-rig, .wm-coil-rig,
-          .wm-logo-flash, .wm-logo-burst, .wm-logo-rays, .wm-spark {
+          .wm-logo-flash, .wm-logo-burst, .wm-logo-rays, .wm-spark,
+          .wm-blueprint-img-glow, .wm-blueprint-img-scan {
             display: none !important;
           }
-          .wm-logo-badge, .wm-wordmark, .wm-subhead, .wm-deck-panel, .wm-deck-specular {
+          .wm-logo-badge, .wm-wordmark, .wm-subhead, .wm-deck-panel, .wm-deck-specular, .wm-chassis-zoom {
             animation: none !important;
           }
           .wm-content-wrap { animation: wm-reduced-crossfade 0.18s ease-out both; }
@@ -894,7 +841,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
             }}
           >
             <IconShieldCheck size={14} />
-            <span>{lang === 'ar' ? 'صفر سكراب — صفر مستعمل — 100% جديد' : 'Zero Scrap — Zero Used — 100% Brand New'}</span>
+            <span>{lang === 'ar' ? 'قطع جديده ومضمونة %100' : 'v100% Brand New'}</span>
           </div>
 
           <div
