@@ -13,8 +13,7 @@ const EASE_APPLE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 const EASE_OVERSHOOT = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
 
 /* ============================================================
-   VIDEO SOURCE — ضع ملف الفيديو داخل مجلد public في مشروعك
-   (مثال: public/videos/welcome-video.mp4)
+   VIDEO SOURCE
    ============================================================ */
 const CHASSIS_VIDEO_SRC = '/videos/amgvid.mp4';
 
@@ -26,7 +25,7 @@ export interface WelcomeProps {
 export type WelcomeModalProps = WelcomeProps;
 
 /* ============================================================
-   BESPOKE ICON SUITE — stroke-based, 1.75px, geometric curves
+   BESPOKE ICON SUITE
    ============================================================ */
 
 interface IconProps {
@@ -87,10 +86,10 @@ const IconLogoFallback: React.FC<IconProps> = ({ size = 30 }) => (
 );
 
 /* ============================================================
-   SCI-FI HUD FRAME — corner brackets + scanning grid
+   SCI-FI HUD FRAME
    ============================================================ */
 
-const HudFrame: React.FC = () => (
+const HudFrame: React.FC<{ isRtl: boolean }> = ({ isRtl }) => (
   <div aria-hidden="true" className="wm-hud" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}>
     <svg className="wm-hud-corner wm-hud-tl" width="64" height="64" viewBox="0 0 64 64" fill="none">
       <path d="M2 22V6C2 3.8 3.8 2 6 2H22" stroke="currentColor" strokeWidth="1.5" />
@@ -114,7 +113,7 @@ const HudFrame: React.FC = () => (
 );
 
 /* ============================================================
-   AMBIENT MECHANICAL RIG — gears, driveshaft, piston, coil
+   AMBIENT MECHANICAL RIG
    ============================================================ */
 
 const MechanicalRig: React.FC = () => (
@@ -201,12 +200,7 @@ const MechanicalRig: React.FC = () => (
    FULL-SCREEN VIDEO BACKGROUND SCENE
    ============================================================ */
 
-interface BlueprintChassisSceneProps {
-  isRtl: boolean;
-  lang: 'ar' | 'en';
-}
-
-const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, lang }) => {
+const BlueprintChassisScene: React.FC = () => {
   const [videoError, setVideoError] = useState<boolean>(false);
 
   return (
@@ -218,15 +212,18 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, la
         inset: 0,
         overflow: 'hidden',
         pointerEvents: 'none',
-        zIndex: 0, // وضعت خلفية تحت جميع العناصر
+        zIndex: 0,
       }}
     >
-      <div className="wm-video-overlay" style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'linear-gradient(180deg, rgba(9, 13, 22, 0.4) 0%, rgba(9, 13, 22, 0.85) 100%)',
-        zIndex: 1,
-      }} />
+      <div
+        className="wm-video-overlay"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(180deg, rgba(9, 13, 22, 0.4) 0%, rgba(9, 13, 22, 0.85) 100%)',
+          zIndex: 1,
+        }}
+      />
 
       {!videoError ? (
         <video
@@ -234,7 +231,6 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, la
           autoPlay
           muted
           playsInline
-          /* تم إزالة loop لجعل الفيديو يعمل مرة واحدة فقط */
           className="wm-bg-video"
           onError={() => setVideoError(true)}
           style={{
@@ -246,16 +242,18 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, la
             objectFit: 'cover',
             transform: 'translate(-50%, -50%)',
             zIndex: 0,
-            opacity: 0.6, // تعتيم خفيف ليبرز النص الأمامي
+            opacity: 0.6,
           }}
         />
       ) : (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.8) 0%, rgba(9, 13, 22, 1) 100%)',
-          zIndex: 0
-        }} />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.8) 0%, rgba(9, 13, 22, 1) 100%)',
+            zIndex: 0,
+          }}
+        />
       )}
     </div>
   );
@@ -276,7 +274,6 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
   const dismissRef = useRef<HTMLButtonElement>(null);
 
   const OBSIDIAN = '#090D16';
-  const SLATE = '#0F172A';
   const TITANIUM = '#1E293B';
   const ALABASTER = '#F8FAFC';
   const COPPER = '#EA580C';
@@ -403,7 +400,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         justifyContent: 'center',
         alignItems: 'center',
         padding: 'max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left))',
-        background: OBSIDIAN, // تم إزالة التدرج اللوني القديم للاعتماد كلياً على الفيديو
+        background: OBSIDIAN,
         overflow: 'hidden',
       }}
     >
@@ -558,11 +555,11 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         }
       `}</style>
 
-      {/* خلفية الفيديو التي تملأ الشاشة */}
-      <BlueprintChassisScene isRtl={isRtl} lang={lang} />
+      {/* خلفية الفيديو بكامل الشاشة */}
+      <BlueprintChassisScene />
 
       <MechanicalRig />
-      <HudFrame />
+      <HudFrame isRtl={isRtl} />
       
       <span className="wm-spark wm-spark-1" aria-hidden="true" />
       <span className="wm-spark wm-spark-2" aria-hidden="true" />
