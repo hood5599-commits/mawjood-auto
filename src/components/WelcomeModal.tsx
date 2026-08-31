@@ -13,14 +13,10 @@ const EASE_APPLE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 const EASE_OVERSHOOT = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
 
 /* ============================================================
-   IMAGE SOURCE — put the blueprint image in your repo's /public
-   folder (e.g. public/images/amg-gtr-blueprint.png) and it will
-   be served from this root-relative path. If you want to pull it
-   straight from GitHub without redeploying, swap this for a
-   jsDelivr CDN URL, e.g.:
-   "https://cdn.jsdelivr.net/gh/USERNAME/REPO@main/public/images/amg-gtr-blueprint.png"
+   VIDEO SOURCE — ضع ملف الفيديو داخل مجلد public في مشروعك
+   (مثال: public/videos/welcome-video.mp4)
    ============================================================ */
-const CHASSIS_IMAGE_SRC = '/images/amg-gtr-blueprint.png.jpg';
+const CHASSIS_VIDEO_SRC = '/videos/amgvid.mp4';
 
 export interface WelcomeProps {
   lang: 'ar' | 'en';
@@ -209,15 +205,11 @@ const MechanicalRig: React.FC = () => (
 );
 
 /* ============================================================
-   PHOTOREAL X-RAY CHASSIS SCENE
-   Uses the actual blueprint artwork (CHASSIS_IMAGE_SRC) instead
-   of a hand-drawn SVG car — same "explode-in" cinematic timeline,
-   plus floating parts-availability chips and a laser reveal sweep.
+   PHOTOREAL X-RAY CHASSIS SCENE (VIDEO INTEGRATION)
    ============================================================ */
 
 interface InfoChip {
   key: string;
-  /* position as % of the image's own box, so it stays correct at any size */
   xPct: number;
   yPct: number;
   ar: string;
@@ -231,10 +223,8 @@ interface BlueprintChassisSceneProps {
 }
 
 const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, lang }) => {
-  const [imgError, setImgError] = useState<boolean>(false);
+  const [videoError, setVideoError] = useState<boolean>(false);
 
-  /* Chip anchors tuned to the reference artwork: rear suspension (top-left),
-     exhaust/engine bay (center), rear axle + diffuser (bottom-right). */
   const chips: InfoChip[] = [
     { key: 'suspension', xPct: 16, yPct: 22, ar: 'هندسة التعليق — ضمان ذهبي', en: 'SUSPENSION — Gold Warranty', delay: '2.1s' },
     { key: 'engine', xPct: 50, yPct: 40, ar: 'نظام العادم — قطع أصلية متوفرة', en: 'EXHAUST — Genuine Parts In Stock', delay: '2.25s' },
@@ -258,23 +248,32 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ isRtl, la
     >
       <div className="wm-chassis-zoom" style={{ transform: isRtl ? 'scaleX(-1)' : 'none' }}>
         <div className="wm-chassis-img-wrap">
-          {!imgError ? (
-            <img
-              src={CHASSIS_IMAGE_SRC}
-              alt="AMG GT R x-ray chassis blueprint"
+          {!videoError ? (
+            <video
+              src={CHASSIS_VIDEO_SRC}
+              autoPlay
+              loop
+              muted
+              playsInline
               className="wm-blueprint-img"
-              draggable={false}
-              onError={() => setImgError(true)}
+              onError={() => setVideoError(true)}
+              style={{
+                display: 'block',
+                width: '100%',
+                height: 'auto',
+                objectFit: 'cover',
+                borderRadius: '12px',
+                filter: 'drop-shadow(0 18px 40px rgba(0,0,0,0.55))',
+              }}
             />
           ) : (
-            /* Graceful fallback so the layout never breaks if the image path is wrong */
             <div className="wm-blueprint-img-fallback" />
           )}
           <div className="wm-blueprint-img-glow" />
           <div className="wm-blueprint-img-scan" />
         </div>
 
-        {/* ===== Floating parts-availability info chips, anchored to the image ===== */}
+        {/* ===== Floating parts-availability info chips ===== */}
         {chips.map((c) => (
           <div
             key={c.key}
@@ -337,7 +336,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       title: lang === 'ar' ? 'قطع جديدة وأصلية 100%' : '100% Factory-New & Certified Guarantee',
       desc:
         lang === 'ar'
-          ? 'قطع غيار وكالة وتجارية أصلية جديدة  — نضمن لك أعلى معايير الجودة.'
+          ? 'قطع غيار وكالة وتجارية أصلية جديدة — نضمن لك أعلى معايير الجودة.'
           : '100% factory-sealed Genuine OEM & certified aftermarket parts with full warranty. Zero scrap, zero compromises.',
     },
     {
@@ -841,7 +840,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
             }}
           >
             <IconShieldCheck size={14} />
-            <span>{lang === 'ar' ? 'قطع جديده ومضمونة %100' : 'v100% Brand New'}</span>
+            <span>{lang === 'ar' ? 'قطع جديده ومضمونة %100' : '100% Brand New'}</span>
           </div>
 
           <div
