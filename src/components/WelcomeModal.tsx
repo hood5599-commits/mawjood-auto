@@ -10,7 +10,6 @@ const Z_DECK = 9993;
 
 /* Apple's signature spring-like deceleration curve, used for every "arrival" motion */
 const EASE_APPLE = 'cubic-bezier(0.32, 0.72, 0, 1)';
-const EASE_OVERSHOOT = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
 
 /* ============================================================
    VIDEO SOURCE
@@ -200,7 +199,12 @@ const MechanicalRig: React.FC = () => (
    FULL-SCREEN VIDEO BACKGROUND SCENE
    ============================================================ */
 
-const BlueprintChassisScene: React.FC = () => {
+interface VideoSceneProps {
+  onVideoEnd: () => void;
+  videoEnded: boolean;
+}
+
+const BlueprintChassisScene: React.FC<VideoSceneProps> = ({ onVideoEnd, videoEnded }) => {
   const [videoError, setVideoError] = useState<boolean>(false);
 
   return (
@@ -220,7 +224,10 @@ const BlueprintChassisScene: React.FC = () => {
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(180deg, rgba(9, 13, 22, 0.4) 0%, rgba(9, 13, 22, 0.85) 100%)',
+          background: videoEnded
+            ? 'linear-gradient(180deg, rgba(9, 13, 22, 0.55) 0%, rgba(9, 13, 22, 0.88) 100%)'
+            : 'rgba(9, 13, 22, 0.15)',
+          transition: 'background 1.2s ease',
           zIndex: 1,
         }}
       />
@@ -231,8 +238,12 @@ const BlueprintChassisScene: React.FC = () => {
           autoPlay
           muted
           playsInline
+          onEnded={onVideoEnd}
+          onError={() => {
+            setVideoError(true);
+            onVideoEnd();
+          }}
           className="wm-bg-video"
-          onError={() => setVideoError(true)}
           style={{
             position: 'absolute',
             top: '50%',
@@ -242,7 +253,9 @@ const BlueprintChassisScene: React.FC = () => {
             objectFit: 'cover',
             transform: 'translate(-50%, -50%)',
             zIndex: 0,
-            opacity: 0.6,
+            transition: 'filter 1.2s ease, opacity 1.2s ease',
+            filter: videoEnded ? 'brightness(0.65) blur(3px)' : 'none',
+            opacity: videoEnded ? 0.75 : 1,
           }}
         />
       ) : (
@@ -268,6 +281,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
   const [ctaHover, setCtaHover] = useState<boolean>(false);
   const [dismissHover, setDismissHover] = useState<boolean>(false);
   const [logoError, setLogoError] = useState<boolean>(false);
+  const [videoEnded, setVideoEnded] = useState<boolean>(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
@@ -332,11 +346,13 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
   }, []);
 
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-
-    const focusInitial = window.setTimeout(() => {
+    if (videoEnded) {
       ctaRef.current?.focus();
-    }, 50);
+    }
+  }, [videoEnded]);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
 
     const getFocusable = (): HTMLElement[] => {
       if (!modalRef.current) return [];
@@ -374,7 +390,6 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.clearTimeout(focusInitial);
       document.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus?.();
     };
@@ -458,54 +473,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           animation: wm-hud-scan 3.2s cubic-bezier(0.45, 0, 0.55, 1) 0.3s infinite;
         }
 
-        /* ================= VIDEO BACKGROUND TRANSITION ================= */
-        @keyframes wm-scene-recede { 0% { filter: blur(0px); opacity: 1; } 100% { filter: blur(3px); opacity: 0.3; } }
-        .wm-blueprint-stage { animation: wm-scene-recede 1.5s ${EASE_APPLE} 3s both; }
-
-        /* ================= LOGO — POWERFUL ENTRANCE ================= */
-        @keyframes wm-logo-burst-ring {
-          0% { transform: scale(0.2); opacity: 0.9; }
-          100% { transform: scale(2.6); opacity: 0; }
-        }
-        @keyframes wm-logo-rays-spin { from { transform: rotate(0deg); opacity: 0.5; } 70% { opacity: 0.15; } to { transform: rotate(140deg); opacity: 0; } }
-        @keyframes wm-logo-descent {
-          0% { transform: translateY(-120px) scale(0.55); opacity: 0; }
-          58% { transform: translateY(8px) scale(1.08); opacity: 1; }
-          78% { transform: translateY(-3px) scale(0.98); }
-          100% { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        @keyframes wm-screen-flash {
-          0%, 100% { opacity: 0; }
-          50% { opacity: 0.9; }
-        }
-
-        .wm-logo-flash {
-          position: absolute; inset: 0; background: ${ALABASTER};
-          animation: wm-screen-flash 0.3s ease-out 2.08s both;
-          pointer-events: none; z-index: 3; mix-blend-mode: overlay;
-        }
-        .wm-logo-badge-wrap { position: relative; margin-bottom: 20px; }
-        .wm-logo-burst {
-          position: absolute; inset: 0; margin: auto; width: 78px; height: 78px; border-radius: 20px;
-          border: 1.5px solid ${COPPER_LIGHT};
-          animation: wm-logo-burst-ring 0.9s ${EASE_APPLE} 2.1s both;
-          pointer-events: none;
-        }
-        .wm-logo-rays {
-          position: absolute; inset: -40px; margin: auto; pointer-events: none;
-          background: conic-gradient(from 0deg, transparent 0deg, rgba(234,88,12,0.5) 8deg, transparent 20deg, transparent 160deg, rgba(56,189,248,0.4) 172deg, transparent 184deg, transparent 360deg);
-          border-radius: 50%;
-          animation: wm-logo-rays-spin 1.1s ease-out 2.1s both;
-        }
-        .wm-logo-badge {
-          position: relative; z-index: 1;
-          animation: wm-logo-descent 0.85s ${EASE_OVERSHOOT} 2.15s both;
-          will-change: transform, opacity;
-        }
-
-        @keyframes wm-wordmark-fade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes wm-subhead-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes wm-deck-slideup { from { opacity: 0; transform: translateY(28px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        /* ================= REVEAL TIMINGS ON VIDEO COMPLETION ================= */
         @keyframes wm-deck-specular {
           0%, 92%, 100% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
           4% { opacity: 0.5; }
@@ -523,14 +491,10 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         .wm-spark-2 { top: 65%; inset-inline-start: 40%; animation: wm-spark-pulse 5.8s ease-in-out infinite 1.1s; }
         .wm-spark-3 { top: 35%; inset-inline-end: 30%; animation: wm-spark-pulse 3.8s ease-in-out infinite 0.5s; }
 
-        .wm-content-wrap { position: relative; z-index: ${Z_GLASS}; display: flex; flex-direction: column; align-items: center; width: 100%; }
-        .wm-wordmark { animation: wm-wordmark-fade 0.6s ${EASE_APPLE} 2.55s both; will-change: transform, opacity; }
-        .wm-subhead { animation: wm-subhead-fade 0.6s ${EASE_APPLE} 2.68s both; will-change: transform, opacity; }
-        .wm-deck-panel { animation: wm-deck-slideup 0.75s ${EASE_APPLE} 2.8s both; will-change: transform, opacity; }
         .wm-deck-specular {
           position: absolute; top: 0; left: 0; width: 40%; height: 100%;
           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
-          pointer-events: none; animation: wm-deck-specular 7s ease-in-out 3.4s infinite;
+          pointer-events: none; animation: wm-deck-specular 7s ease-in-out 1s infinite;
         }
         .wm-card { transition: transform 0.25s ${EASE_APPLE}, border-color 0.25s ease, background-color 0.25s ease; }
         .wm-card:hover { transform: translateY(-4px); }
@@ -547,29 +511,73 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           .wm-hud-grid { background-size: 26px 26px; }
         }
         @media (max-width: 428px) {
-          .wm-deck-panel { padding: 26px 18px 24px !important; border-radius: 22px !important; }
+          .wm-deck-panel { padding: 24px 16px 22px !important; border-radius: 22px !important; }
         }
         @media (max-width: 375px) {
-          .wm-deck-panel { padding: 20px 14px 20px !important; border-radius: 18px !important; }
+          .wm-deck-panel { padding: 18px 12px 18px !important; border-radius: 18px !important; }
           .wm-hud-corner { width: 44px !important; height: 44px !important; }
         }
       `}</style>
 
-      {/* خلفية الفيديو بكامل الشاشة */}
-      <BlueprintChassisScene />
+      {/* خلفية الفيديو بكامل الشاشة مع تجميد الإطار الأخير */}
+      <BlueprintChassisScene
+        onVideoEnd={() => setVideoEnded(true)}
+        videoEnded={videoEnded}
+      />
 
       <MechanicalRig />
       <HudFrame />
-      
+
       <span className="wm-spark wm-spark-1" aria-hidden="true" />
       <span className="wm-spark wm-spark-2" aria-hidden="true" />
       <span className="wm-spark wm-spark-3" aria-hidden="true" />
 
-      <div className="wm-content-wrap">
-        <div className="wm-logo-badge-wrap">
-          <div className="wm-logo-flash" aria-hidden="true" />
-          <div className="wm-logo-rays" aria-hidden="true" />
-          <div className="wm-logo-burst" aria-hidden="true" />
+      {/* زر تخطي يظهر فقط أثناء تشغيل الفيديو */}
+      {!videoEnded && (
+        <button
+          onClick={() => setVideoEnded(true)}
+          style={{
+            position: 'absolute',
+            bottom: 'max(24px, env(safe-area-inset-bottom))',
+            insetInlineEnd: 'max(24px, env(safe-area-inset-right))',
+            zIndex: Z_DECK,
+            padding: '8px 18px',
+            borderRadius: '999px',
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(248, 250, 252, 0.2)',
+            color: ALABASTER,
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+          }}
+        >
+          <span>{lang === 'ar' ? 'تخطي' : 'Skip'}</span>
+          <span style={{ transform: isRtl ? 'scaleX(-1)' : 'none' }}>⏭</span>
+        </button>
+      )}
+
+      {/* محتوى رسالة الترحيب: يظهر فقط عند انتهاء الفيديو */}
+      <div
+        className="wm-content-wrap"
+        style={{
+          position: 'relative',
+          zIndex: Z_GLASS,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          width: '100%',
+          opacity: videoEnded ? 1 : 0,
+          pointerEvents: videoEnded ? 'auto' : 'none',
+          transform: videoEnded ? 'translateY(0)' : 'translateY(28px)',
+          transition: `opacity 0.85s ${EASE_APPLE}, transform 0.85s ${EASE_APPLE}`,
+        }}
+      >
+        <div className="wm-logo-badge-wrap" style={{ position: 'relative', marginBottom: '16px' }}>
           <div
             className="wm-logo-badge"
             style={{
@@ -605,7 +613,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         <h2
           id="welcome-modal-title"
           className="wm-wordmark"
-          style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px', margin: 0 }}
+          style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px', margin: 0 }}
         >
           <span style={{ fontSize: 'clamp(1.9rem, 4.2vw, 2.8rem)', fontWeight: 900, color: ALABASTER, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
             {lang === 'ar' ? 'موجود' : 'Mawjood'}
@@ -619,8 +627,8 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           className="wm-subhead"
           style={{
             fontSize: '1.02rem',
-            marginBottom: '28px',
-            marginTop: '10px',
+            marginBottom: '24px',
+            marginTop: '8px',
             color: 'rgba(248,250,252,0.7)',
             maxWidth: '540px',
             marginInline: 'auto',
@@ -646,7 +654,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
             border: '1px solid rgba(226, 232, 240, 0.14)',
             borderRadius: '28px',
             boxShadow: '0 30px 80px -20px rgba(0,0,0,0.65), 0 8px 24px rgba(234,88,12,0.08), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(56,189,248,0.06)',
-            padding: '34px 32px 32px',
+            padding: '30px 28px 28px',
             textAlign: 'center',
             overflow: 'hidden',
           }}
@@ -666,7 +674,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
               fontWeight: 800,
               fontSize: '12px',
               letterSpacing: isRtl ? '0px' : '0.6px',
-              marginBottom: '26px',
+              marginBottom: '22px',
               textTransform: isRtl ? 'none' : 'uppercase',
             }}
           >
@@ -680,7 +688,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
               display: 'grid',
               gridTemplateColumns: 'repeat(3, 1fr)',
               gap: '14px',
-              marginBottom: '32px',
+              marginBottom: '28px',
               textAlign: isRtl ? 'right' : 'left',
             }}
           >
@@ -692,7 +700,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
                   background: 'rgba(248, 250, 252, 0.08)',
                   border: '1px solid rgba(248, 250, 252, 0.12)',
                   borderRadius: '18px',
-                  padding: '18px 16px',
+                  padding: '16px 14px',
                 }}
               >
                 <div
