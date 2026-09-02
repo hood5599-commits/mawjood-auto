@@ -10,6 +10,7 @@ const Z_DECK = 9993;
 
 /* Apple's signature spring-like deceleration curve, used for every "arrival" motion */
 const EASE_APPLE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+const EASE_OVERSHOOT = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
 
 /* ============================================================
    VIDEO SOURCE
@@ -196,16 +197,42 @@ const MechanicalRig: React.FC = () => (
 );
 
 /* ============================================================
-   FULL-SCREEN VIDEO BACKGROUND SCENE
+   FULL-SCREEN VIDEO BACKGROUND SCENE WITH 5-SECOND TRIGGER
    ============================================================ */
 
-interface VideoSceneProps {
-  onVideoEnd: () => void;
-  videoEnded: boolean;
+interface BlueprintChassisSceneProps {
+  onReveal: () => void;
+  recede: boolean;
 }
 
-const BlueprintChassisScene: React.FC<VideoSceneProps> = ({ onVideoEnd, videoEnded }) => {
+const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ onReveal, recede }) => {
   const [videoError, setVideoError] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const triggeredRef = useRef<boolean>(false);
+
+  const triggerReveal = () => {
+    if (!triggeredRef.current) {
+      triggeredRef.current = true;
+      onReveal();
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    const v = videoRef.current;
+    if (v && v.duration) {
+      // إظهار رسالة الترحيب قبل انتهاء الفيديو بـ 5 ثوانٍ
+      if (v.duration - v.currentTime <= 5) {
+        triggerReveal();
+      }
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    const v = videoRef.current;
+    if (v && v.duration && v.duration <= 5) {
+      triggerReveal();
+    }
+  };
 
   return (
     <div
@@ -224,9 +251,9 @@ const BlueprintChassisScene: React.FC<VideoSceneProps> = ({ onVideoEnd, videoEnd
         style={{
           position: 'absolute',
           inset: 0,
-          background: videoEnded
-            ? 'linear-gradient(180deg, rgba(9, 13, 22, 0.55) 0%, rgba(9, 13, 22, 0.88) 100%)'
-            : 'rgba(9, 13, 22, 0.15)',
+          background: recede
+            ? 'linear-gradient(180deg, rgba(9, 13, 22, 0.45) 0%, rgba(9, 13, 22, 0.88) 100%)'
+            : 'rgba(9, 13, 22, 0.1)',
           transition: 'background 1.2s ease',
           zIndex: 1,
         }}
@@ -234,14 +261,18 @@ const BlueprintChassisScene: React.FC<VideoSceneProps> = ({ onVideoEnd, videoEnd
 
       {!videoError ? (
         <video
+          ref={videoRef}
           src={CHASSIS_VIDEO_SRC}
           autoPlay
           muted
           playsInline
-          onEnded={onVideoEnd}
+          /* تم إلغاء loop ليستقر على آخر لقطة خلف البطاقة */
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={triggerReveal}
           onError={() => {
             setVideoError(true);
-            onVideoEnd();
+            triggerReveal();
           }}
           className="wm-bg-video"
           style={{
@@ -253,9 +284,9 @@ const BlueprintChassisScene: React.FC<VideoSceneProps> = ({ onVideoEnd, videoEnd
             objectFit: 'cover',
             transform: 'translate(-50%, -50%)',
             zIndex: 0,
+            filter: recede ? 'blur(2px)' : 'none',
+            opacity: recede ? 0.45 : 1,
             transition: 'filter 1.2s ease, opacity 1.2s ease',
-            filter: videoEnded ? 'brightness(0.65) blur(3px)' : 'none',
-            opacity: videoEnded ? 0.75 : 1,
           }}
         />
       ) : (
@@ -278,10 +309,10 @@ const BlueprintChassisScene: React.FC<VideoSceneProps> = ({ onVideoEnd, videoEnd
 
 export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
   const isRtl = lang === 'ar';
+  const [showContent, setShowContent] = useState<boolean>(false);
   const [ctaHover, setCtaHover] = useState<boolean>(false);
   const [dismissHover, setDismissHover] = useState<boolean>(false);
   const [logoError, setLogoError] = useState<boolean>(false);
-  const [videoEnded, setVideoEnded] = useState<boolean>(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLButtonElement>(null);
@@ -345,14 +376,22 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
     };
   }, []);
 
+  // مؤقت احتياطي لضمان ظهور المحتوى إذا تعذر تشغيل الفيديو
   useEffect(() => {
-    if (videoEnded) {
-      ctaRef.current?.focus();
-    }
-  }, [videoEnded]);
+    const safetyTimer = window.setTimeout(() => {
+      setShowContent(true);
+    }, 12000);
+    return () => window.clearTimeout(safetyTimer);
+  }, []);
 
   useEffect(() => {
+    if (!showContent) return;
+
     const previouslyFocused = document.activeElement as HTMLElement | null;
+
+    const focusInitial = window.setTimeout(() => {
+      ctaRef.current?.focus();
+    }, 100);
 
     const getFocusable = (): HTMLElement[] => {
       if (!modalRef.current) return [];
@@ -390,10 +429,11 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      window.clearTimeout(focusInitial);
       document.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus?.();
     };
-  }, [onStart]);
+  }, [onStart, showContent]);
 
   return (
     <div
@@ -452,7 +492,7 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           90% { opacity: 0.6; }
           100% { transform: translateY(100%); opacity: 0; }
         }
-        .wm-hud { animation: wm-hud-fade 0.5s ease-out 0.05s both; }
+        .wm-hud { animation: wm-hud-fade 0.5s ease-out both; }
         .wm-hud-corner { position: absolute; color: ${CYAN}; opacity: 0.55; }
         .wm-hud-tl { top: 16px; inset-inline-start: 16px; }
         .wm-hud-tr { top: 16px; inset-inline-end: 16px; transform: scaleX(${isRtl ? '1' : '-1'}); }
@@ -470,10 +510,19 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         .wm-hud-scanline {
           position: absolute; left: 0; right: 0; height: 120px;
           background: linear-gradient(180deg, transparent, rgba(56,189,248,0.09), transparent);
-          animation: wm-hud-scan 3.2s cubic-bezier(0.45, 0, 0.55, 1) 0.3s infinite;
+          animation: wm-hud-scan 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
         }
 
-        /* ================= REVEAL TIMINGS ON VIDEO COMPLETION ================= */
+        /* ================= LOGO & CARD ENTRANCE ================= */
+        @keyframes wm-logo-descent {
+          0% { transform: translateY(-70px) scale(0.65); opacity: 0; }
+          60% { transform: translateY(6px) scale(1.06); opacity: 1; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes wm-content-fadein {
+          from { opacity: 0; transform: translateY(22px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
         @keyframes wm-deck-specular {
           0%, 92%, 100% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
           4% { opacity: 0.5; }
@@ -486,16 +535,27 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           50% { box-shadow: 0 0 40px rgba(234,88,12,0.55), 0 12px 30px rgba(0,0,0,0.5); }
         }
 
-        .wm-spark { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: ${COPPER_LIGHT}; z-index: 2; }
-        .wm-spark-1 { top: 18%; inset-inline-start: 25%; animation: wm-spark-pulse 4.5s ease-in-out infinite; }
-        .wm-spark-2 { top: 65%; inset-inline-start: 40%; animation: wm-spark-pulse 5.8s ease-in-out infinite 1.1s; }
-        .wm-spark-3 { top: 35%; inset-inline-end: 30%; animation: wm-spark-pulse 3.8s ease-in-out infinite 0.5s; }
+        .wm-logo-badge {
+          animation: wm-logo-descent 0.7s ${EASE_OVERSHOOT} 0.1s both;
+          will-change: transform, opacity;
+        }
+
+        .wm-content-wrap {
+          position: relative;
+          z-index: ${Z_GLASS};
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 100%;
+          animation: wm-content-fadein 0.8s ${EASE_APPLE} both;
+        }
 
         .wm-deck-specular {
           position: absolute; top: 0; left: 0; width: 40%; height: 100%;
           background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
-          pointer-events: none; animation: wm-deck-specular 7s ease-in-out 1s infinite;
+          pointer-events: none; animation: wm-deck-specular 7s ease-in-out infinite;
         }
+
         .wm-card { transition: transform 0.25s ${EASE_APPLE}, border-color 0.25s ease, background-color 0.25s ease; }
         .wm-card:hover { transform: translateY(-4px); }
 
@@ -505,308 +565,266 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
           box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.25);
         }
 
-        /* ================= RESPONSIVE ================= */
+        .wm-spark { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: ${COPPER_LIGHT}; z-index: 2; }
+        .wm-spark-1 { top: 18%; inset-inline-start: 25%; animation: wm-spark-pulse 4.5s ease-in-out infinite; }
+        .wm-spark-2 { top: 65%; inset-inline-start: 40%; animation: wm-spark-pulse 5.8s ease-in-out infinite 1.1s; }
+        .wm-spark-3 { top: 35%; inset-inline-end: 30%; animation: wm-spark-pulse 3.8s ease-in-out infinite 0.5s; }
+
         @media (max-width: 760px) {
           .wm-pillars { grid-template-columns: 1fr !important; }
           .wm-hud-grid { background-size: 26px 26px; }
         }
         @media (max-width: 428px) {
-          .wm-deck-panel { padding: 24px 16px 22px !important; border-radius: 22px !important; }
+          .wm-deck-panel { padding: 26px 18px 24px !important; border-radius: 22px !important; }
         }
         @media (max-width: 375px) {
-          .wm-deck-panel { padding: 18px 12px 18px !important; border-radius: 18px !important; }
+          .wm-deck-panel { padding: 20px 14px 20px !important; border-radius: 18px !important; }
           .wm-hud-corner { width: 44px !important; height: 44px !important; }
         }
       `}</style>
 
-      {/* خلفية الفيديو بكامل الشاشة مع تجميد الإطار الأخير */}
-      <BlueprintChassisScene
-        onVideoEnd={() => setVideoEnded(true)}
-        videoEnded={videoEnded}
-      />
+      {/* خلفية الفيديو بكامل الشاشة ومستمرة حتى آخر لقطة */}
+      <BlueprintChassisScene onReveal={() => setShowContent(true)} recede={showContent} />
 
-      <MechanicalRig />
-      <HudFrame />
+      {showContent && (
+        <>
+          <MechanicalRig />
+          <HudFrame />
+          <span className="wm-spark wm-spark-1" aria-hidden="true" />
+          <span className="wm-spark wm-spark-2" aria-hidden="true" />
+          <span className="wm-spark wm-spark-3" aria-hidden="true" />
 
-      <span className="wm-spark wm-spark-1" aria-hidden="true" />
-      <span className="wm-spark wm-spark-2" aria-hidden="true" />
-      <span className="wm-spark wm-spark-3" aria-hidden="true" />
-
-      {/* زر تخطي يظهر فقط أثناء تشغيل الفيديو */}
-      {!videoEnded && (
-        <button
-          onClick={() => setVideoEnded(true)}
-          style={{
-            position: 'absolute',
-            bottom: 'max(24px, env(safe-area-inset-bottom))',
-            insetInlineEnd: 'max(24px, env(safe-area-inset-right))',
-            zIndex: Z_DECK,
-            padding: '8px 18px',
-            borderRadius: '999px',
-            background: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(248, 250, 252, 0.2)',
-            color: ALABASTER,
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-          }}
-        >
-          <span>{lang === 'ar' ? 'تخطي' : 'Skip'}</span>
-          <span style={{ transform: isRtl ? 'scaleX(-1)' : 'none' }}>⏭</span>
-        </button>
-      )}
-
-      {/* محتوى رسالة الترحيب: يظهر فقط عند انتهاء الفيديو */}
-      <div
-        className="wm-content-wrap"
-        style={{
-          position: 'relative',
-          zIndex: Z_GLASS,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          width: '100%',
-          opacity: videoEnded ? 1 : 0,
-          pointerEvents: videoEnded ? 'auto' : 'none',
-          transform: videoEnded ? 'translateY(0)' : 'translateY(28px)',
-          transition: `opacity 0.85s ${EASE_APPLE}, transform 0.85s ${EASE_APPLE}`,
-        }}
-      >
-        <div className="wm-logo-badge-wrap" style={{ position: 'relative', marginBottom: '16px' }}>
-          <div
-            className="wm-logo-badge"
-            style={{
-              width: '78px',
-              height: '78px',
-              borderRadius: '20px',
-              background: `linear-gradient(145deg, ${OBSIDIAN} 0%, ${TITANIUM} 100%)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: `1px solid rgba(234, 88, 12, 0.5)`,
-              boxShadow: `0 0 0 1px rgba(248,250,252,0.06), 0 0 34px rgba(234, 88, 12, 0.3), 0 10px 24px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)`,
-              overflow: 'hidden',
-            }}
-          >
-            {!logoError ? (
-              <img
-                src="/favicon.svg"
-                alt="Mawjood Auto"
-                width={38}
-                height={38}
-                style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(234,88,12,0.4))' }}
-                onError={() => setLogoError(true)}
-              />
-            ) : (
-              <span style={{ color: COPPER_LIGHT, display: 'inline-flex' }}>
-                <IconLogoFallback size={36} />
-              </span>
-            )}
-          </div>
-        </div>
-
-        <h2
-          id="welcome-modal-title"
-          className="wm-wordmark"
-          style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px', margin: 0 }}
-        >
-          <span style={{ fontSize: 'clamp(1.9rem, 4.2vw, 2.8rem)', fontWeight: 900, color: ALABASTER, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
-            {lang === 'ar' ? 'موجود' : 'Mawjood'}
-          </span>
-          <span style={{ fontSize: 'clamp(1.9rem, 4.2vw, 2.8rem)', fontWeight: 900, color: COPPER, letterSpacing: '-0.5px', lineHeight: 1.1, textShadow: '0 0 22px rgba(234,88,12,0.5)' }}>
-            {lang === 'ar' ? 'أوتو' : 'Auto'}
-          </span>
-        </h2>
-
-        <p
-          className="wm-subhead"
-          style={{
-            fontSize: '1.02rem',
-            marginBottom: '24px',
-            marginTop: '8px',
-            color: 'rgba(248,250,252,0.7)',
-            maxWidth: '540px',
-            marginInline: 'auto',
-            lineHeight: 1.7,
-            textAlign: 'center',
-            padding: '0 12px',
-          }}
-        >
-          {lang === 'ar'
-            ? 'منصتك الأولى لقطع غيار السيارات الجديدة والمعتمدة في قطر'
-            : "Qatar's Premier Ecosystem for 100% Brand-New & Genuine Auto Spare Parts"}
-        </p>
-
-        <div
-          className="wm-deck-panel"
-          style={{
-            position: 'relative',
-            width: '100%',
-            maxWidth: '900px',
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(24px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-            border: '1px solid rgba(226, 232, 240, 0.14)',
-            borderRadius: '28px',
-            boxShadow: '0 30px 80px -20px rgba(0,0,0,0.65), 0 8px 24px rgba(234,88,12,0.08), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(56,189,248,0.06)',
-            padding: '30px 28px 28px',
-            textAlign: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          <div aria-hidden="true" className="wm-deck-specular" />
-
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 16px',
-              borderRadius: '999px',
-              border: '1px solid rgba(234, 88, 12, 0.45)',
-              backgroundColor: 'rgba(234, 88, 12, 0.1)',
-              color: '#fdba74',
-              fontWeight: 800,
-              fontSize: '12px',
-              letterSpacing: isRtl ? '0px' : '0.6px',
-              marginBottom: '22px',
-              textTransform: isRtl ? 'none' : 'uppercase',
-            }}
-          >
-            <IconShieldCheck size={14} />
-            <span>{lang === 'ar' ? 'قطع جديده ومضمونة %100' : '100% Brand New'}</span>
-          </div>
-
-          <div
-            className="wm-pillars"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '14px',
-              marginBottom: '28px',
-              textAlign: isRtl ? 'right' : 'left',
-            }}
-          >
-            {pillars.map((p) => (
+          <div className="wm-content-wrap">
+            <div style={{ position: 'relative', marginBottom: '20px' }}>
               <div
-                key={p.key}
-                className="wm-card"
+                className="wm-logo-badge"
                 style={{
-                  background: 'rgba(248, 250, 252, 0.08)',
-                  border: '1px solid rgba(248, 250, 252, 0.12)',
-                  borderRadius: '18px',
-                  padding: '16px 14px',
+                  width: '78px',
+                  height: '78px',
+                  borderRadius: '20px',
+                  background: `linear-gradient(145deg, ${OBSIDIAN} 0%, ${TITANIUM} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid rgba(234, 88, 12, 0.5)`,
+                  boxShadow: `0 0 0 1px rgba(248,250,252,0.06), 0 0 34px rgba(234, 88, 12, 0.3), 0 10px 24px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)`,
+                  overflow: 'hidden',
                 }}
               >
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    background: `linear-gradient(145deg, ${TITANIUM} 0%, ${OBSIDIAN} 100%)`,
-                    border: '1px solid rgba(234,88,12,0.35)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: COPPER_LIGHT,
-                    marginBottom: '12px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-                  }}
-                >
-                  {p.icon}
-                </div>
-                <div style={{ fontSize: '13.5px', fontWeight: 800, color: ALABASTER, marginBottom: '6px', lineHeight: 1.35 }}>{p.title}</div>
-                <div style={{ fontSize: '12px', color: 'rgba(248,250,252,0.7)', lineHeight: 1.6, fontWeight: 500 }}>{p.desc}</div>
+                {!logoError ? (
+                  <img
+                    src="/favicon.svg"
+                    alt="Mawjood Auto"
+                    width={38}
+                    height={38}
+                    style={{ objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(234,88,12,0.4))' }}
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <span style={{ color: COPPER_LIGHT, display: 'inline-flex' }}>
+                    <IconLogoFallback size={36} />
+                  </span>
+                )}
               </div>
-            ))}
+            </div>
+
+            <h2
+              id="welcome-modal-title"
+              style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px', margin: 0 }}
+            >
+              <span style={{ fontSize: 'clamp(1.9rem, 4.2vw, 2.8rem)', fontWeight: 900, color: ALABASTER, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                {lang === 'ar' ? 'موجود' : 'Mawjood'}
+              </span>
+              <span style={{ fontSize: 'clamp(1.9rem, 4.2vw, 2.8rem)', fontWeight: 900, color: COPPER, letterSpacing: '-0.5px', lineHeight: 1.1, textShadow: '0 0 22px rgba(234,88,12,0.5)' }}>
+                {lang === 'ar' ? 'أوتو' : 'Auto'}
+              </span>
+            </h2>
+
+            <p
+              style={{
+                fontSize: '1.02rem',
+                marginBottom: '28px',
+                marginTop: '10px',
+                color: 'rgba(248,250,252,0.7)',
+                maxWidth: '540px',
+                marginInline: 'auto',
+                lineHeight: 1.7,
+                textAlign: 'center',
+                padding: '0 12px',
+              }}
+            >
+              {lang === 'ar'
+                ? 'منصتك الأولى لقطع غيار السيارات الجديدة والمعتمدة في قطر'
+                : "Qatar's Premier Ecosystem for 100% Brand-New & Genuine Auto Spare Parts"}
+            </p>
+
+            <div
+              className="wm-deck-panel"
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: '900px',
+                background: 'rgba(15, 23, 42, 0.65)',
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                border: '1px solid rgba(226, 232, 240, 0.14)',
+                borderRadius: '28px',
+                boxShadow: '0 30px 80px -20px rgba(0,0,0,0.65), 0 8px 24px rgba(234,88,12,0.08), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(56,189,248,0.06)',
+                padding: '34px 32px 32px',
+                textAlign: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <div aria-hidden="true" className="wm-deck-specular" />
+
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 16px',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(234, 88, 12, 0.45)',
+                  backgroundColor: 'rgba(234, 88, 12, 0.1)',
+                  color: '#fdba74',
+                  fontWeight: 800,
+                  fontSize: '12px',
+                  letterSpacing: isRtl ? '0px' : '0.6px',
+                  marginBottom: '26px',
+                  textTransform: isRtl ? 'none' : 'uppercase',
+                }}
+              >
+                <IconShieldCheck size={14} />
+                <span>{lang === 'ar' ? 'قطع جديده ومضمونة %100' : '100% Brand New'}</span>
+              </div>
+
+              <div
+                className="wm-pillars"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '14px',
+                  marginBottom: '32px',
+                  textAlign: isRtl ? 'right' : 'left',
+                }}
+              >
+                {pillars.map((p) => (
+                  <div
+                    key={p.key}
+                    className="wm-card"
+                    style={{
+                      background: 'rgba(248, 250, 252, 0.08)',
+                      border: '1px solid rgba(248, 250, 252, 0.12)',
+                      borderRadius: '18px',
+                      padding: '18px 16px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '12px',
+                        background: `linear-gradient(145deg, ${TITANIUM} 0%, ${OBSIDIAN} 100%)`,
+                        border: '1px solid rgba(234,88,12,0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: COPPER_LIGHT,
+                        marginBottom: '12px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+                      }}
+                    >
+                      {p.icon}
+                    </div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 800, color: ALABASTER, marginBottom: '6px', lineHeight: 1.35 }}>{p.title}</div>
+                    <div style={{ fontSize: '12px', color: 'rgba(248,250,252,0.7)', lineHeight: 1.6, fontWeight: 500 }}>{p.desc}</div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                ref={ctaRef}
+                className="wm-cta"
+                onClick={onStart}
+                onMouseEnter={() => setCtaHover(true)}
+                onMouseLeave={() => setCtaHover(false)}
+                style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  padding: '16px 46px',
+                  fontSize: '1.02rem',
+                  background: `linear-gradient(135deg, ${COPPER} 0%, ${COPPER_LIGHT} 100%)`,
+                  color: ALABASTER,
+                  border: 'none',
+                  borderRadius: '999px',
+                  cursor: 'pointer',
+                  fontWeight: 800,
+                  fontFamily: "'Cairo', system-ui, sans-serif",
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  letterSpacing: isRtl ? '0px' : '0.3px',
+                  transition: `transform 0.25s ${EASE_APPLE}`,
+                  transform: ctaHover ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
+                  animation: ctaHover ? 'wm-glow-pulse 1.6s ease-in-out infinite' : 'none',
+                  boxShadow: '0 12px 30px -6px rgba(234,88,12,0.5), 0 4px 14px rgba(0,0,0,0.4)',
+                  willChange: 'transform',
+                  minHeight: '48px',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '40%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
+                    animation: ctaHover ? 'shimmerSweep 1.1s ease-in-out infinite' : 'none',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <span style={{ position: 'relative', zIndex: 1 }}>
+                  {lang === 'ar' ? 'ابدأ استعراض القطع المتوافقة مع سيارتك' : 'Explore Compatible Parts Catalog'}
+                </span>
+                <span style={{ position: 'relative', zIndex: 1, display: 'inline-flex', transform: isRtl ? 'scaleX(-1)' : 'none' }}>
+                  <IconCompassArrow size={17} />
+                </span>
+              </button>
+            </div>
           </div>
 
           <button
-            ref={ctaRef}
-            className="wm-cta"
+            ref={dismissRef}
+            className="wm-dismiss"
+            aria-label={lang === 'ar' ? 'إغلاق' : 'Close'}
             onClick={onStart}
-            onMouseEnter={() => setCtaHover(true)}
-            onMouseLeave={() => setCtaHover(false)}
+            onMouseEnter={() => setDismissHover(true)}
+            onMouseLeave={() => setDismissHover(false)}
             style={{
-              position: 'relative',
-              overflow: 'hidden',
-              padding: '16px 46px',
-              fontSize: '1.02rem',
-              background: `linear-gradient(135deg, ${COPPER} 0%, ${COPPER_LIGHT} 100%)`,
-              color: ALABASTER,
-              border: 'none',
-              borderRadius: '999px',
-              cursor: 'pointer',
-              fontWeight: 800,
-              fontFamily: "'Cairo', system-ui, sans-serif",
-              display: 'inline-flex',
+              position: 'absolute',
+              top: 'max(22px, env(safe-area-inset-top))',
+              insetInlineEnd: 'max(22px, env(safe-area-inset-right))',
+              zIndex: Z_DECK,
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              border: '1px solid rgba(248,250,252,0.16)',
+              backgroundColor: dismissHover ? 'rgba(248,250,252,0.12)' : 'rgba(248,250,252,0.05)',
+              color: 'rgba(248,250,252,0.7)',
+              display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              letterSpacing: isRtl ? '0px' : '0.3px',
-              transition: `transform 0.25s ${EASE_APPLE}`,
-              transform: ctaHover ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
-              animation: ctaHover ? 'wm-glow-pulse 1.6s ease-in-out infinite' : 'none',
-              boxShadow: '0 12px 30px -6px rgba(234,88,12,0.5), 0 4px 14px rgba(0,0,0,0.4)',
-              willChange: 'transform',
-              minHeight: '48px',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease, transform 0.2s ease',
+              transform: dismissHover ? 'scale(1.08)' : 'scale(1)',
             }}
           >
-            <span
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '40%',
-                height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
-                animation: ctaHover ? 'shimmerSweep 1.1s ease-in-out infinite' : 'none',
-                pointerEvents: 'none',
-              }}
-            />
-            <span style={{ position: 'relative', zIndex: 1 }}>
-              {lang === 'ar' ? 'ابدأ استعراض القطع المتوافقة مع سيارتك' : 'Explore Compatible Parts Catalog'}
-            </span>
-            <span style={{ position: 'relative', zIndex: 1, display: 'inline-flex', transform: isRtl ? 'scaleX(-1)' : 'none' }}>
-              <IconCompassArrow size={17} />
-            </span>
+            <IconClose size={15} />
           </button>
-        </div>
-      </div>
-
-      <button
-        ref={dismissRef}
-        className="wm-dismiss"
-        aria-label={lang === 'ar' ? 'إغلاق' : 'Close'}
-        onClick={onStart}
-        onMouseEnter={() => setDismissHover(true)}
-        onMouseLeave={() => setDismissHover(false)}
-        style={{
-          position: 'absolute',
-          top: 'max(22px, env(safe-area-inset-top))',
-          insetInlineEnd: 'max(22px, env(safe-area-inset-right))',
-          zIndex: Z_DECK,
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          border: '1px solid rgba(248,250,252,0.16)',
-          backgroundColor: dismissHover ? 'rgba(248,250,252,0.12)' : 'rgba(248,250,252,0.05)',
-          color: 'rgba(248,250,252,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          transition: 'background-color 0.2s ease, transform 0.2s ease',
-          transform: dismissHover ? 'scale(1.08)' : 'scale(1)',
-        }}
-      >
-        <IconClose size={15} />
-      </button>
+        </>
+      )}
     </div>
   );
 };
