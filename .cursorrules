@@ -1,0 +1,26 @@
+# MAWJOOD AUTO - TOKEN-OPTIMIZED CURSOR RULES
+
+## 1. TOKEN PRESERVATION & RESPONSE CONSTRAINTS
+- BE EXTREMELY CONCISE. No pleasantries, no apologies, no conversational filler.
+- Never summarize what you did unless explicitly asked.
+- Avoid repeating entire unchanged files. Focus only on targeted changes, diffs, and exact replacements.
+- Do not output lengthy step-by-step explanations; output direct code and terminal commands.
+
+## 2. STRICT SCOPE & BOUNDARIES
+- READ-ONLY SCOPE:
+  - Any web files (`src/`, `pages/`, `api/`, `public/`, `package.json`, `vite.config.ts`, etc.) are STRICTLY READ-ONLY.
+  - Never write, modify, delete, or reformat web files. Use them strictly as context to understand database schemas, API routes, and design tokens.
+- WRITE SCOPE:
+  - You are restricted to modifying files inside the `mobile/` directory, primarily `mobile/lib/`.
+
+## 3. CONTEXT & SCANNING EXCLUSIONS
+- NEVER read or analyze generated, binary, or build folders:
+  - Exclude: `mobile/build/`, `mobile/.dart_tool/`, `mobile/windows/`, `mobile/android/`, `mobile/ios/`, `node_modules/`, `.git/`.
+- Rely directly on explicit `@` references or targeted file search rather than indexing the entire repo needlessly.
+
+## 4. DART & FLUTTER IMPLEMENTATION RULES
+- Flutter SDK & Dart strict null-safety compliance.
+- Database: Supabase (`SupabaseConfig.restUrl`, `SupabaseConfig.defaultHeaders`, or direct client).
+- Localization: Arabic (primary/RTL) and English (LTR).
+- Verify every import path before generating files to prevent recursive build analysis errors.
+- Always validate fixes with `flutter analyze --no-fatal-infos --no-fatal-warnings`.
