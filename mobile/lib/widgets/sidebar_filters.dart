@@ -9,6 +9,7 @@ import '../utils/category_helper.dart';
 import '../utils/vin_matcher.dart';
 import '../widgets/custom_toast.dart';
 import '../widgets/part_card.dart';
+import '../widgets/part_more_info.dart';
 import '../widgets/request_part_modal.dart';
 import '../widgets/smart_vin_scanner.dart';
 import '../widgets/visual_vehicle_selector.dart';
@@ -540,10 +541,35 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                 : null,
             onInquire: widget.onInquire,
             onShare: (p) => PartShareHelper.sharePart(p, lang: widget.lang),
+            onMore: _openPartDetails,
           )
         else
           _buildSearchAndTreeSection(),
       ],
+    );
+  }
+
+  void _openPartDetails(PartModel part) {
+    if (widget.onDetailedView != null) {
+      widget.onDetailedView!(part);
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.of(ctx).size.height * 0.92,
+        child: PartMoreInfo(
+          part: part,
+          lang: widget.lang,
+          onAddToCart: widget.onAddToCart,
+          onBack: () => Navigator.pop(ctx),
+        ),
+      ),
     );
   }
 
@@ -924,7 +950,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 360,
-                  mainAxisExtent: 380,
+                  mainAxisExtent: 455,
                   crossAxisSpacing: 14,
                   mainAxisSpacing: 14,
                 ),
@@ -934,6 +960,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                   lang: widget.lang,
                   onAddToCart: (p) => widget.onAddToCart?.call(p, 1),
                   onInquire: widget.onInquire,
+                  onMore: _openPartDetails,
                 ),
               ),
               if (_displayLimit < searchResults.length) ...[
@@ -1190,7 +1217,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                                                                 maxCrossAxisExtent:
                                                                     340,
                                                                 mainAxisExtent:
-                                                                    360,
+                                                                    455,
                                                                 crossAxisSpacing:
                                                                     10,
                                                                 mainAxisSpacing:
@@ -1218,6 +1245,8 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                                                                         ),
                                                                 onInquire: widget
                                                                     .onInquire,
+                                                                onMore:
+                                                                    _openPartDetails,
                                                               ),
                                                         ),
                                                       ),

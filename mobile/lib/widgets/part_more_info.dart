@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../models/part_model.dart';
+import '../services/auth_gate.dart';
 import 'ai_translated_text.dart';
 
 class PartMoreInfo extends StatefulWidget {
@@ -186,7 +187,14 @@ class _PartMoreInfoState extends State<PartMoreInfo> {
                   ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () => widget.onAddToCart?.call(widget.part, 1),
+                  onPressed: () async {
+                    final ok = await AuthGate.requireLogin(
+                      context,
+                      lang: widget.lang,
+                    );
+                    if (!ok) return;
+                    widget.onAddToCart?.call(widget.part, 1);
+                  },
                   icon: const Icon(Icons.shopping_cart_outlined, size: 15),
                   label: Text(
                     isAr ? 'أضف للسلة' : 'Add to Cart',

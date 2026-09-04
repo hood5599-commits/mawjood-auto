@@ -31,6 +31,7 @@ class VisualVehicleSelector extends StatefulWidget {
   final ValueChanged<PartModel>? onAddToCart;
   final ValueChanged<PartModel>? onInquire;
   final ValueChanged<PartModel>? onShare;
+  final ValueChanged<PartModel>? onMore;
   final Widget Function(BuildContext context, PartModel part)? partCardBuilder;
 
   const VisualVehicleSelector({
@@ -39,6 +40,7 @@ class VisualVehicleSelector extends StatefulWidget {
     this.onAddToCart,
     this.onInquire,
     this.onShare,
+    this.onMore,
     this.partCardBuilder,
   });
 
@@ -1227,7 +1229,7 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 360,
-              mainAxisExtent: 380,
+              mainAxisExtent: 455,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),
@@ -1243,6 +1245,7 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
                 onAddToCart: widget.onAddToCart,
                 onInquire: widget.onInquire,
                 onShare: widget.onShare,
+                onMore: widget.onMore,
               );
             },
           ),

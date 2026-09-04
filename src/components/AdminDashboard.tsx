@@ -19,10 +19,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const isRtl = lang === 'ar';
   
-  // 📌 التبويب النشط (تمت إضافة mobile_perms و mobile_errors)
+  // 📌 التبويب النشط
   const [tab, setTab] = useState<
     'payouts' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment' | 'logs' | 'errors' | 'mobile_perms' | 'mobile_errors'
   >('payouts');
+
+  // 👥📊 متغيرات عداد وإحصائيات الزوار
+  const [visitorStats, setVisitorStats] = useState<{ total: number; mobile: number; web: number; today: number }>({
+    total: 0,
+    mobile: 0,
+    web: 0,
+    today: 0,
+  });
+  const [loadingVisitors, setLoadingVisitors] = useState(false);
 
   // 🔍 متغيرات البحث بطلبات المباشرة
   const [userQuery, setUserQuery] = useState('');
@@ -91,8 +100,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     fetchAllOrdersForPayouts();
     fetchSystemLogs();
     fetchMobileAppLogs();
+    fetchVisitorStats();
     // eslint-disable-next-line
   }, []);
+
+  // 👥 جلب إحصائيات وعدد الزوار
+  const fetchVisitorStats = async () => {
+    setLoadingVisitors(true);
+    try {
+      const cleanUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+      const res = await fetch(`${cleanUrl}/rest/v1/site_traffic?select=id,platform,created_at`, {
+        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const now = new Date();
+          const isToday = (dStr: string) => {
+            if (!dStr) return false;
+            const d = new Date(dStr);
+            return (
+              d.getDate() === now.getDate() &&
+              d.getMonth() === now.getMonth() &&
+              d.getFullYear() === now.getFullYear()
+            );
+          };
+
+          const total = data.length;
+          const mobile = data.filter(v => {
+            const p = (v.platform || '').toLowerCase();
+            return p.includes('mobile') || p.includes('ios') || p.includes('android');
+          }).length;
+          const web = total - mobile;
+          const today = data.filter(v => isToday(v.created_at)).length;
+
+          setVisitorStats({ total, mobile, web, today });
+          return;
+        }
+      }
+
+      // قراءة احتياطية من إعدادات الموقع إذا لم يتوفر جدول site_traffic
+      if (siteSettings?.visitorCount !== undefined) {
+        const total = Number(siteSettings.visitorCount) || 0;
+        const mobile = Number(siteSettings.mobileVisitors) || 0;
+        setVisitorStats({
+          total,
+          mobile,
+          web: Math.max(0, total - mobile),
+          today: Number(siteSettings.todayVisitors) || 0
+        });
+      }
+    } catch (e) {
+      console.error("Failed to fetch visitor stats:", e);
+    } finally {
+      setLoadingVisitors(false);
+    }
+  };
 
   const fetchAllOrdersForPayouts = async () => {
     try {
@@ -130,7 +194,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setLoadingMobileLogs(true);
     try {
       const cleanUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
-      // استعلام السجلات التي مصدرها الموبايل أو تحتوي على منصة Flutter/Mobile
       const res = await fetch(
         `${cleanUrl}/rest/v1/system_logs?or=(platform.eq.mobile,platform.eq.ios,platform.eq.android,component_name.ilike.*mobile*)&order=id.desc`,
         { headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` } }
@@ -146,7 +209,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // 🛠️ تحديث حالة السجل إلى "معالج" (يدعم عام والموبايل)
+  // 🛠️ تحديث حالة السجل إلى "معالج"
   const markLogAsResolved = async (logId: number, isMobile = false) => {
     try {
       const cleanUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
@@ -321,7 +384,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // 💾 حفظ كافة الإعدادات (تشمل إعدادات التطبيق الجديدة)
+  // 💾 حفظ كافة الإعدادات
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     const updated = {
@@ -344,7 +407,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       enableCards,
       enableCOD,
       enableBNPL,
-      // حفظ إعدادات التطبيق
       enableMobileApp,
       mobileMaintenanceMode,
       mobileMaintenanceNotice,
@@ -366,8 +428,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   return (
     <div style={{ maxWidth: '1150px', margin: '30px auto', padding: '28px', backgroundColor: '#ffffff', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.07)', fontFamily: 'Cairo, sans-serif', direction: isRtl ? 'rtl' : 'ltr' }}>
       
-      {/* الهيدر الرئيسي للأدمن */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #f1f5f9', paddingBottom: '18px', marginBottom: '24px' }}>
+      {/* 🏷️ الهيدر الرئيسي للأدمن مع كرت الزوار المباشر */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #f1f5f9', paddingBottom: '18px', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#1f3a5f', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold' }}>
             ADMIN
@@ -379,6 +441,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span style={{ fontSize: '13px', color: '#64748b' }}>
               {isRtl ? 'إدارة المستحقات، الحسابات، صلاحيات الموبايل، وسجلات الأعطال' : 'Manage Payouts, Mobile Permissions, and Crash Logs'}
             </span>
+          </div>
+        </div>
+
+        {/* 👥 كرت إجمالي الزوار في الهيدر العلوي */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', backgroundColor: '#f8fafc', padding: '10px 18px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+          <div>
+            <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 'bold', display: 'block' }}>
+              {isRtl ? 'إجمالي عدد الزوار:' : 'Total Visitors:'}
+            </span>
+            <strong style={{ fontSize: '20px', color: '#1f3a5f' }}>
+              {loadingVisitors ? '...' : visitorStats.total.toLocaleString()}
+            </strong>
+          </div>
+          <div style={{ borderRight: isRtl ? '1px solid #cbd5e0' : 'none', borderLeft: !isRtl ? '1px solid #cbd5e0' : 'none', paddingRight: isRtl ? '12px' : '0', paddingLeft: !isRtl ? '12px' : '0', fontSize: '11.5px', color: '#475569', lineHeight: 1.4 }}>
+            <div>📱 {isRtl ? 'تطبيق' : 'App'}: <strong>{visitorStats.mobile.toLocaleString()}</strong></div>
+            <div>💻 {isRtl ? 'موقع' : 'Web'}: <strong>{visitorStats.web.toLocaleString()}</strong></div>
           </div>
         </div>
       </div>
@@ -419,251 +497,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 📱 1️⃣ تبويب صلاحيات وإعدادات التطبيق (Mobile Permissions) */}
-      {tab === 'mobile_perms' && (
-        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          <div>
-            <h3 style={{ margin: '0 0 6px 0', color: '#1f3a5f' }}>
-              {isRtl ? 'التحكم في صلاحيات وتشغيل تطبيق الهاتف (Mobile App Control)' : 'Mobile App Permissions & Gateways'}
-            </h3>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-              {isRtl ? 'التحكم المباشر في تشغيل التطبيق، شاشة الصيانة، الصلاحيات المسموح لها بالدخول، وإلزام التحديث.' : 'Manage client/driver access, maintenance windows, and forced app updates.'}
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
-            {/* تشغيل التطبيق بالكامل */}
-            <div style={{ backgroundColor: '#f0f9ff', padding: '18px', borderRadius: '16px', border: '1px solid #bae6fd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <strong style={{ fontSize: '14.5px', color: '#0369a1', display: 'block' }}>
-                  {isRtl ? 'تفعيل خدمة تطبيق الهاتف' : 'Enable Mobile App Access'}
-                </strong>
-                <span style={{ fontSize: '12.5px', color: '#0284c7' }}>
-                  {isRtl ? 'السماح للـ API باستقبال طلبات تطبيقي الأندرويد والآيفون' : 'Allow API to accept traffic from mobile apps'}
-                </span>
-              </div>
-              <input
-                type="checkbox"
-                checked={enableMobileApp}
-                onChange={(e) => setEnableMobileApp(e.target.checked)}
-                style={{ width: '22px', height: '22px', cursor: 'pointer' }}
-              />
-            </div>
-
-            {/* وضع الصيانة */}
-            <div style={{ backgroundColor: '#fff7ed', padding: '18px', borderRadius: '16px', border: '1px solid #fed7aa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <strong style={{ fontSize: '14.5px', color: '#c2410c', display: 'block' }}>
-                  {isRtl ? 'وضع الصيانة للتطبيق (Maintenance)' : 'Mobile Maintenance Mode'}
-                </strong>
-                <span style={{ fontSize: '12.5px', color: '#ea580c' }}>
-                  {isRtl ? 'إيقاف واجهات الموبايل وإظهار شاشة صيانة مؤقتة' : 'Block app screens with a maintenance message'}
-                </span>
-              </div>
-              <input
-                type="checkbox"
-                checked={mobileMaintenanceMode}
-                onChange={(e) => setMobileMaintenanceMode(e.target.checked)}
-                style={{ width: '22px', height: '22px', cursor: 'pointer' }}
-              />
-            </div>
-          </div>
-
-          {/* رسالة الصيانة في حال التفعيل */}
-          {mobileMaintenanceMode && (
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#c2410c' }}>
-                {isRtl ? 'نص رسالة الصيانة التي تظهر للمستخدمين داخل التطبيق:' : 'Maintenance Banner Message:'}
-              </label>
-              <textarea
-                rows={2}
-                value={mobileMaintenanceNotice}
-                onChange={(e) => setMobileMaintenanceNotice(e.target.value)}
-                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #fed7aa', fontSize: '13.5px', boxSizing: 'border-box' }}
-              />
-            </div>
-          )}
-
-          {/* بوابات وصلاحيات تسجيل الدخول */}
-          <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <h4 style={{ margin: '0 0 14px 0', color: '#1e293b', fontSize: '15px' }}>
-              {isRtl ? 'صلاحيات تسجيل الدخول المتاحة داخل التطبيق:' : 'Allowed Mobile User Roles:'}
-            </h4>
-            <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
-                <input
-                  type="checkbox"
-                  checked={allowCustomerMobileLogin}
-                  onChange={(e) => setAllowCustomerMobileLogin(e.target.checked)}
-                  style={{ width: '18px', height: '18px' }}
-                />
-                {isRtl ? 'سماح بدخول العملاء (Customers)' : 'Allow Customers'}
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
-                <input
-                  type="checkbox"
-                  checked={allowDriverMobileLogin}
-                  onChange={(e) => setAllowDriverMobileLogin(e.target.checked)}
-                  style={{ width: '18px', height: '18px' }}
-                />
-                {isRtl ? 'سماح بدخول المناديب (Drivers)' : 'Allow Drivers'}
-              </label>
-            </div>
-          </div>
-
-          {/* الحد الأدنى من إصدارات التطبيق (Force Update) */}
-          <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <h4 style={{ margin: '0 0 12px 0', color: '#1e293b', fontSize: '15px' }}>
-              {isRtl ? 'الحد الأدنى للإصدارات المدعومة (إلزام التحديث - Force Update):' : 'Minimum Version Requirements:'}
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                  {isRtl ? 'إصدار أندرويد الإجباري (Min Android Version):' : 'Min Android Version:'}
-                </label>
-                <input
-                  type="text"
-                  placeholder="1.0.0"
-                  value={minAndroidVersion}
-                  onChange={(e) => setMinAndroidVersion(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                  {isRtl ? 'إصدار آيفون الإجباري (Min iOS Version):' : 'Min iOS Version:'}
-                </label>
-                <input
-                  type="text"
-                  placeholder="1.0.0"
-                  value={minIosVersion}
-                  onChange={(e) => setMinIosVersion(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', boxSizing: 'border-box' }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            style={{ padding: '14px 28px', backgroundColor: '#0284c7', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', width: 'fit-content' }}
-          >
-            {isRtl ? 'حفظ إعدادات وصلاحيات التطبيق' : 'Save Mobile Settings'}
-          </button>
-        </form>
-      )}
-
-      {/* 🚨 2️⃣ تبويب مركز أخطاء تطبيق الموبايل المستقل (Mobile Error Logs) */}
-      {tab === 'mobile_errors' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fef2f2', padding: '18px 22px', borderRadius: '16px', border: '1px solid #fecaca', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <h3 style={{ margin: '0 0 4px 0', color: '#991b1b', fontSize: '17px' }}>
-                {isRtl ? 'مركز مراقبة أعطال وأخطاء تطبيق الموبايل (Flutter Crashlytics)' : 'Mobile App Crash & Error Hub'}
-              </h3>
-              <p style={{ margin: 0, fontSize: '12.5px', color: '#b91c1c' }}>
-                {isRtl ? 'استعراض دقيق لأخطاء التطبيق وانهيارات الشاشات الملتقطة من هواتف العملاء والمناديب' : 'Real-time telemetry and crash stack-traces specifically from mobile clients.'}
-              </p>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <select
-                value={mobileOsFilter}
-                onChange={(e) => setMobileOsFilter(e.target.value as any)}
-                style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f87171', fontSize: '12.5px', backgroundColor: '#ffffff', fontWeight: 'bold' }}
-              >
-                <option value="all">{isRtl ? 'كل الأنظمة' : 'All OS'}</option>
-                <option value="android">Android</option>
-                <option value="ios">iOS</option>
-                <option value="web_pwa">PWA Web</option>
-              </select>
-
-              <button
-                onClick={fetchMobileAppLogs}
-                disabled={loadingMobileLogs}
-                style={{ padding: '9px 18px', backgroundColor: '#991b1b', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12.5px' }}
-              >
-                {loadingMobileLogs ? 'جاري الفحص...' : (isRtl ? 'تحديث السجلات' : 'Refresh')}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13.5px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8fafc', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '12px' }}>#</th>
-                  <th style={{ padding: '12px' }}>النظام / الجهاز</th>
-                  <th style={{ padding: '12px' }}>الشاشة / Widget</th>
-                  <th style={{ padding: '12px' }}>توصيف الخطأ والاستثناء (Exception)</th>
-                  <th style={{ padding: '12px' }}>إصدار التطبيق</th>
-                  <th style={{ padding: '12px' }}>التاريخ</th>
-                  <th style={{ padding: '12px' }}>الحالة</th>
-                  <th style={{ padding: '12px', textAlign: 'center' }}>إجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredMobileLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '34px', color: '#16a34a', fontWeight: 'bold' }}>
-                      {isRtl ? '✅ لا توجد أية أخطاء أو انهيارات مسجلة من تطبيق الموبايل حالياً' : '✅ No mobile crashes detected. Running smoothly!'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredMobileLogs.map((log) => (
-                    <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: log.auto_resolved ? '#ffffff' : '#fff5f5' }}>
-                      <td style={{ padding: '12px', fontWeight: 'bold' }}>#{log.id}</td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', backgroundColor: '#e0f2fe', color: '#0369a1' }}>
-                          {log.device_os || log.platform || 'Mobile'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', fontWeight: 'bold', color: '#1e293b' }}>
-                        {log.component_name || log.screen_name || 'MainApp'}
-                      </td>
-                      <td style={{ padding: '12px', color: '#dc2626', maxWidth: '300px', wordBreak: 'break-word', fontFamily: 'monospace', fontSize: '12px' }}>
-                        {log.error_message || 'Unhandled Exception'}
-                      </td>
-                      <td style={{ padding: '12px', color: '#64748b', fontSize: '12px' }}>
-                        {log.app_version || 'v1.0.0'}
-                      </td>
-                      <td style={{ padding: '12px', color: '#64748b', fontSize: '12px' }}>
-                        {new Date(log.created_at).toLocaleString('ar-EG')}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', backgroundColor: log.auto_resolved ? '#dcfce7' : '#fee2e2', color: log.auto_resolved ? '#166534' : '#991b1b' }}>
-                          {log.auto_resolved ? 'تم الإصلاح' : 'عطل معلّق'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        {!log.auto_resolved && (
-                          <button
-                            onClick={() => markLogAsResolved(log.id, true)}
-                            style={{ padding: '6px 12px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}
-                          >
-                            تحديد كـ معالج
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* 🛡️ تبويب كاشف الأخطاء والمراقبة الحية للموقع */}
-      {tab === 'errors' && (
-        <AdminErrorMonitor supabaseUrl={supabaseUrl} apiKey={apiKey} />
-      )}
-
-      {/* 💰 تبويب حسابات ومستحقات الكراجات */}
+      {/* 💰 1️⃣ تبويب حسابات ومستحقات الكراجات وإحصائيات الزوار */}
       {tab === 'payouts' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          {/* شبكة الإحصائيات مع كرت الزوار المطور */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            
+            {/* كرت الزوار المطور */}
+            <div style={{ backgroundColor: '#faf5ff', border: '1px solid #e9d5ff', padding: '18px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#6b21a8', fontWeight: 'bold' }}>
+                  {isRtl ? 'إجمالي الزوار (تطبيق وموقع):' : 'Total Visitors:'}
+                </span>
+                <span style={{ fontSize: '11px', backgroundColor: '#f3e8ff', color: '#7e22ce', padding: '2px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                  {isRtl ? `اليوم: +${visitorStats.today}` : `Today: +${visitorStats.today}`}
+                </span>
+              </div>
+              <h3 style={{ margin: '6px 0 4px 0', color: '#7e22ce', fontSize: '24px' }}>
+                {loadingVisitors ? '...' : visitorStats.total.toLocaleString()}
+              </h3>
+              <div style={{ display: 'flex', gap: '8px', fontSize: '11.5px', color: '#6b21a8' }}>
+                <span>📱 {visitorStats.mobile.toLocaleString()}</span>
+                <span>•</span>
+                <span>💻 {visitorStats.web.toLocaleString()}</span>
+              </div>
+            </div>
+
             <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '18px', borderRadius: '16px' }}>
               <span style={{ fontSize: '13px', color: '#166534', fontWeight: 'bold' }}>إجمالي مبيعات المتجر:</span>
               <h3 style={{ margin: '6px 0 0 0', color: '#15803d', fontSize: '24px' }}>{financials.totalRevenue.toLocaleString()} QAR</h3>
@@ -775,6 +635,242 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
+      {/* 📱 2️⃣ تبويب صلاحيات وإعدادات التطبيق */}
+      {tab === 'mobile_perms' && (
+        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          <div>
+            <h3 style={{ margin: '0 0 6px 0', color: '#1f3a5f' }}>
+              {isRtl ? 'التحكم في صلاحيات وتشغيل تطبيق الهاتف (Mobile App Control)' : 'Mobile App Permissions & Gateways'}
+            </h3>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+              {isRtl ? 'التحكم المباشر في تشغيل التطبيق، شاشة الصيانة، الصلاحيات المسموح لها بالدخول، وإلزام التحديث.' : 'Manage client/driver access, maintenance windows, and forced app updates.'}
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+            <div style={{ backgroundColor: '#f0f9ff', padding: '18px', borderRadius: '16px', border: '1px solid #bae6fd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <strong style={{ fontSize: '14.5px', color: '#0369a1', display: 'block' }}>
+                  {isRtl ? 'تفعيل خدمة تطبيق الهاتف' : 'Enable Mobile App Access'}
+                </strong>
+                <span style={{ fontSize: '12.5px', color: '#0284c7' }}>
+                  {isRtl ? 'السماح للـ API باستقبال طلبات تطبيقي الأندرويد والآيفون' : 'Allow API to accept traffic from mobile apps'}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={enableMobileApp}
+                onChange={(e) => setEnableMobileApp(e.target.checked)}
+                style={{ width: '22px', height: '22px', cursor: 'pointer' }}
+              />
+            </div>
+
+            <div style={{ backgroundColor: '#fff7ed', padding: '18px', borderRadius: '16px', border: '1px solid #fed7aa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <strong style={{ fontSize: '14.5px', color: '#c2410c', display: 'block' }}>
+                  {isRtl ? 'وضع الصيانة للتطبيق (Maintenance)' : 'Mobile Maintenance Mode'}
+                </strong>
+                <span style={{ fontSize: '12.5px', color: '#ea580c' }}>
+                  {isRtl ? 'إيقاف واجهات الموبايل وإظهار شاشة صيانة مؤقتة' : 'Block app screens with a maintenance message'}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={mobileMaintenanceMode}
+                onChange={(e) => setMobileMaintenanceMode(e.target.checked)}
+                style={{ width: '22px', height: '22px', cursor: 'pointer' }}
+              />
+            </div>
+          </div>
+
+          {mobileMaintenanceMode && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold', color: '#c2410c' }}>
+                {isRtl ? 'نص رسالة الصيانة التي تظهر للمستخدمين داخل التطبيق:' : 'Maintenance Banner Message:'}
+              </label>
+              <textarea
+                rows={2}
+                value={mobileMaintenanceNotice}
+                onChange={(e) => setMobileMaintenanceNotice(e.target.value)}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #fed7aa', fontSize: '13.5px', boxSizing: 'border-box' }}
+              />
+            </div>
+          )}
+
+          <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <h4 style={{ margin: '0 0 14px 0', color: '#1e293b', fontSize: '15px' }}>
+              {isRtl ? 'صلاحيات تسجيل الدخول المتاحة داخل التطبيق:' : 'Allowed Mobile User Roles:'}
+            </h4>
+            <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
+                <input
+                  type="checkbox"
+                  checked={allowCustomerMobileLogin}
+                  onChange={(e) => setAllowCustomerMobileLogin(e.target.checked)}
+                  style={{ width: '18px', height: '18px' }}
+                />
+                {isRtl ? 'سماح بدخول العملاء (Customers)' : 'Allow Customers'}
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
+                <input
+                  type="checkbox"
+                  checked={allowDriverMobileLogin}
+                  onChange={(e) => setAllowDriverMobileLogin(e.target.checked)}
+                  style={{ width: '18px', height: '18px' }}
+                />
+                {isRtl ? 'سماح بدخول المناديب (Drivers)' : 'Allow Drivers'}
+              </label>
+            </div>
+          </div>
+
+          <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <h4 style={{ margin: '0 0 12px 0', color: '#1e293b', fontSize: '15px' }}>
+              {isRtl ? 'الحد الأدنى للإصدارات المدعومة (إلزام التحديث - Force Update):' : 'Minimum Version Requirements:'}
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                  {isRtl ? 'إصدار أندرويد الإجباري (Min Android Version):' : 'Min Android Version:'}
+                </label>
+                <input
+                  type="text"
+                  placeholder="1.0.0"
+                  value={minAndroidVersion}
+                  onChange={(e) => setMinAndroidVersion(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                  {isRtl ? 'إصدار آيفون الإجباري (Min iOS Version):' : 'Min iOS Version:'}
+                </label>
+                <input
+                  type="text"
+                  placeholder="1.0.0"
+                  value={minIosVersion}
+                  onChange={(e) => setMinIosVersion(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e0', fontSize: '13.5px', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            style={{ padding: '14px 28px', backgroundColor: '#0284c7', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', width: 'fit-content' }}
+          >
+            {isRtl ? 'حفظ إعدادات وصلاحيات التطبيق' : 'Save Mobile Settings'}
+          </button>
+        </form>
+      )}
+
+      {/* 🚨 3️⃣ تبويب مركز أخطاء تطبيق الموبايل المستقل */}
+      {tab === 'mobile_errors' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fef2f2', padding: '18px 22px', borderRadius: '16px', border: '1px solid #fecaca', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ margin: '0 0 4px 0', color: '#991b1b', fontSize: '17px' }}>
+                {isRtl ? 'مركز مراقبة أعطال وأخطاء تطبيق الموبايل (Flutter Crashlytics)' : 'Mobile App Crash & Error Hub'}
+              </h3>
+              <p style={{ margin: 0, fontSize: '12.5px', color: '#b91c1c' }}>
+                {isRtl ? 'استعراض دقيق لأخطاء التطبيق وانهيارات الشاشات الملتقطة من هواتف العملاء والمناديب' : 'Real-time telemetry and crash stack-traces specifically from mobile clients.'}
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <select
+                value={mobileOsFilter}
+                onChange={(e) => setMobileOsFilter(e.target.value as any)}
+                style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #f87171', fontSize: '12.5px', backgroundColor: '#ffffff', fontWeight: 'bold' }}
+              >
+                <option value="all">{isRtl ? 'كل الأنظمة' : 'All OS'}</option>
+                <option value="android">Android</option>
+                <option value="ios">iOS</option>
+                <option value="web_pwa">PWA Web</option>
+              </select>
+
+              <button
+                onClick={fetchMobileAppLogs}
+                disabled={loadingMobileLogs}
+                style={{ padding: '9px 18px', backgroundColor: '#991b1b', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12.5px' }}
+              >
+                {loadingMobileLogs ? 'جاري الفحص...' : (isRtl ? 'تحديث السجلات' : 'Refresh')}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13.5px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>
+                  <th style={{ padding: '12px' }}>#</th>
+                  <th style={{ padding: '12px' }}>النظام / الجهاز</th>
+                  <th style={{ padding: '12px' }}>الشاشة / Widget</th>
+                  <th style={{ padding: '12px' }}>توصيف الخطأ والاستثناء (Exception)</th>
+                  <th style={{ padding: '12px' }}>إصدار التطبيق</th>
+                  <th style={{ padding: '12px' }}>التاريخ</th>
+                  <th style={{ padding: '12px' }}>الحالة</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredMobileLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '34px', color: '#16a34a', fontWeight: 'bold' }}>
+                      {isRtl ? '✅ لا توجد أية أخطاء أو انهيارات مسجلة من تطبيق الموبايل حالياً' : '✅ No mobile crashes detected. Running smoothly!'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMobileLogs.map((log) => (
+                    <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: log.auto_resolved ? '#ffffff' : '#fff5f5' }}>
+                      <td style={{ padding: '12px', fontWeight: 'bold' }}>#{log.id}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', backgroundColor: '#e0f2fe', color: '#0369a1' }}>
+                          {log.device_os || log.platform || 'Mobile'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', fontWeight: 'bold', color: '#1e293b' }}>
+                        {log.component_name || log.screen_name || 'MainApp'}
+                      </td>
+                      <td style={{ padding: '12px', color: '#dc2626', maxWidth: '300px', wordBreak: 'break-word', fontFamily: 'monospace', fontSize: '12px' }}>
+                        {log.error_message || 'Unhandled Exception'}
+                      </td>
+                      <td style={{ padding: '12px', color: '#64748b', fontSize: '12px' }}>
+                        {log.app_version || 'v1.0.0'}
+                      </td>
+                      <td style={{ padding: '12px', color: '#64748b', fontSize: '12px' }}>
+                        {new Date(log.created_at).toLocaleString('ar-EG')}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', backgroundColor: log.auto_resolved ? '#dcfce7' : '#fee2e2', color: log.auto_resolved ? '#166534' : '#991b1b' }}>
+                          {log.auto_resolved ? 'تم الإصلاح' : 'عطل معلّق'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        {!log.auto_resolved && (
+                          <button
+                            onClick={() => markLogAsResolved(log.id, true)}
+                            style={{ padding: '6px 12px', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}
+                          >
+                            تحديد كـ معالج
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 🛡️ تبويب كاشف الأخطاء والمراقبة الحية */}
+      {tab === 'errors' && (
+        <AdminErrorMonitor supabaseUrl={supabaseUrl} apiKey={apiKey} />
+      )}
+
       {/* 🛠️ تبويب مركز مراقبة جودة النظام العام */}
       {tab === 'logs' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -837,7 +933,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 3️⃣ تبويب البحث عن الحسابات وتعديلها (يشمل صلاحية التطبيق لكل حساب) */}
+      {/* 4️⃣ تبويب البحث عن الحسابات وتعديلها */}
       {tab === 'users' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
@@ -874,7 +970,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      {/* زر تفعيل/حظر دخول التطبيق لهذا المستخدم */}
                       <button
                         onClick={() => toggleUserMobileAccess(u.id, u.can_access_mobile ?? true)}
                         style={{
@@ -918,7 +1013,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 4️⃣ تبويب البحث عن القطع بالإعلان أو رقم القطعة */}
+      {/* 5️⃣ تبويب البحث عن القطع بالإعلان أو رقم القطعة */}
       {tab === 'parts' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
@@ -975,7 +1070,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 5️⃣ تبويب البحث عن الطلبات */}
+      {/* 6️⃣ تبويب البحث عن الطلبات */}
       {tab === 'orders' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '22px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
@@ -1014,7 +1109,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* 6️⃣ 💳 تبويب إعدادات بوابة الدفع والربط البنكي والتقسيط */}
+      {/* 7️⃣ 💳 تبويب إعدادات بوابة الدفع والربط البنكي والتقسيط */}
       {tab === 'payment' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '750px' }}>
           <div>
@@ -1104,7 +1199,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <input type="checkbox" checked={enableGooglePay} onChange={(e) => setEnableGooglePay(e.target.checked)} /> Google Pay
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
-                <input type="checkbox" checked={enableCards} onChange={(e) => setEnableCards(e.target.checked)} /> بطاقة ائتمان / مدى
+                <input type="checkbox" checked={enableCards} onChange={(e) => setEnableCards(e.target.checked)} /> بطاقة ائتمان
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px', fontWeight: 'bold' }}>
                 <input type="checkbox" checked={enableCOD} onChange={(e) => setEnableCOD(e.target.checked)} /> الدفع نقداً عند الاستلام (COD)
@@ -1133,7 +1228,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </form>
       )}
 
-      {/* 7️⃣ تبويب تعديل السياسات */}
+      {/* 8️⃣ تبويب تعديل السياسات */}
       {tab === 'policies' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h3>{isRtl ? 'تعديل الشروط والأحكام والسياسات المباشرة للموقع' : 'Edit Policies & Content'}</h3>
@@ -1174,7 +1269,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </form>
       )}
 
-      {/* 8️⃣ تبويب السوشال ميديا */}
+      {/* 9️⃣ تبويب السوشال ميديا */}
       {tab === 'social' && (
         <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
           <h3>{isRtl ? 'روابط شبكات التواصل ورقم التواصل' : 'Social & Contact Details'}</h3>

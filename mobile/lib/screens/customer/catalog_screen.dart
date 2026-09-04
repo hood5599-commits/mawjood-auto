@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../config/theme.dart';
 import '../../models/part_model.dart';
+import '../../services/admin_notification_service.dart';
 import '../../services/api_client.dart';
+import '../../services/auth_gate.dart';
 import '../../services/cart_service.dart';
+import '../../services/order_notification_service.dart';
 import '../../widgets/active_order_tracker.dart';
 import '../../widgets/ai_chatbot_sheet.dart';
 import '../../widgets/custom_toast.dart';
+import '../../widgets/onboarding_walkthrough.dart';
 import '../../widgets/sidebar_filters.dart';
 import '../info_page_screen.dart';
 import 'cart_screen.dart';
 import 'checkout_screen.dart';
 import 'order_tracker_screen.dart';
-import '../../services/admin_notification_service.dart';
-import '../../services/order_notification_service.dart';
 
 class CatalogScreen extends StatefulWidget {
   final String initialLang;
@@ -40,6 +42,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
     _fetchInventory();
     OrderNotificationService.instance.startTracking(lang: _lang);
     AdminNotificationService.instance.startListening(lang: _lang);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        OnboardingWalkthrough.showIfNeeded(context, lang: _lang);
+      }
+    });
   }
 
   @override
@@ -149,12 +156,18 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       SidebarFilters(
                         lang: _lang,
                         inventory: _inventory,
-                        onAddToCart: (part, qty) {
-                          _cartService.addToCart(
+                        onAddToCart: (part, qty) async {
+                          final ok = await AuthGate.requireLogin(
+                            context,
+                            lang: _lang,
+                          );
+                          if (!ok || !mounted) return;
+                          await _cartService.addToCart(
                             partId: part.id,
                             part: part,
                             quantity: qty,
                           );
+                          if (!mounted) return;
                           CustomToast.success(
                             context,
                             isAr

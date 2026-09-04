@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../config/theme.dart';
+
 class AddToCartButton extends StatefulWidget {
   final VoidCallback onPressed;
   final String text;
@@ -54,13 +56,13 @@ class _AddToCartButtonState extends State<AddToCartButton>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           gradient: const LinearGradient(
-            colors: [Color(0xFF24466F), Color(0xFF1F3A5F)],
+            colors: [Color(0xFFEA580C), Color(0xFFF97316)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF1F3A5F).withValues(alpha: 0.35),
+              color: AppTheme.copper.withValues(alpha: 0.35),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -80,7 +82,11 @@ class _AddToCartButtonState extends State<AddToCartButton>
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('🛒', style: TextStyle(fontSize: 13)),
+                  const Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 15,
+                    color: Colors.white,
+                  ),
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(

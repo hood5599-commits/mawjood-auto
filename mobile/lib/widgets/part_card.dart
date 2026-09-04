@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../config/theme.dart';
 import '../models/part_model.dart';
 import '../utils/part_share_helper.dart';
 import 'ai_translated_text.dart';
-import 'add_to_cart_button.dart';
 
 class PartCard extends StatelessWidget {
   final PartModel item;
@@ -11,6 +11,7 @@ class PartCard extends StatelessWidget {
   final ValueChanged<PartModel>? onAddToCart;
   final ValueChanged<PartModel>? onInquire;
   final ValueChanged<PartModel>? onShare;
+  final ValueChanged<PartModel>? onMore;
 
   const PartCard({
     super.key,
@@ -19,22 +20,29 @@ class PartCard extends StatelessWidget {
     this.onAddToCart,
     this.onInquire,
     this.onShare,
+    this.onMore,
   });
 
   bool get isAr => lang == 'ar';
+
+  String get _partNo {
+    final pn = item.partNumber?.trim();
+    if (pn != null && pn.isNotEmpty) return pn;
+    return item.id;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x0D0F172A)),
+        color: const Color(0xFF121824),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0x14FFFFFF)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0x0F0F172A),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -42,63 +50,80 @@ class PartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 🖼️ صورة القطعة + شارة سنة الصنع العائمة
           SizedBox(
-            height: 170,
+            height: 148,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 Image.network(
                   item.imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Image.network(
-                    'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-                    fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: const Color(0xFF1A2232),
+                    child: const Icon(
+                      Icons.build_outlined,
+                      color: Color(0xFF94A3B8),
+                      size: 40,
+                    ),
                   ),
                 ),
-                // تدرج لوني ناعم أسفل الصورة لتعزيز الوضوح
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  height: 50,
-                  child: Container(
-                    decoration: const BoxDecoration(
+                  height: 48,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Color(0x2E000000)],
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.55),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                // شارة سنة الصنع
                 Positioned(
                   top: 10,
-                  left: isAr ? 10 : null,
-                  right: isAr ? null : 10,
+                  left: 10,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
+                      horizontal: 9,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF24466F), Color(0xFF1F3A5F)],
+                      color: const Color(0xFF10B981),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isAr ? 'الحالة: جديدة 100%' : 'Condition: 100% New',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1F3A5F).withValues(alpha: 0.4),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0x33FFFFFF)),
                     ),
                     child: Text(
                       item.year,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFFF8FAFC),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -108,129 +133,147 @@ class PartCard extends StatelessWidget {
               ],
             ),
           ),
-
-          // 📋 تفاصيل القطعة والمعلومات الميكانيكية
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // اسم القطعة مع الترجمة الذكية التلقائية
-                AiTranslatedText(
-                  text: item.name,
-                  lang: lang,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF16283F),
-                    height: 1.3,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AiTranslatedText(
+                    text: item.name,
+                    lang: lang,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFF8FAFC),
+                      height: 1.25,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 10),
-
-                // وسوم السيارة (الماركة والموديل والمحرك)
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _buildTag(
-                      label: '🚗 ${item.make}',
-                      bgColor: const Color(0xFFEAF3FC),
-                      textColor: const Color(0xFF1F3A5F),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
                     ),
-                    _buildTag(
-                      label: '🚘 ${item.model}',
-                      bgColor: const Color(0xFFEAFAF1),
-                      textColor: const Color(0xFF1F7A4D),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A2232),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0x14FFFFFF)),
                     ),
-                    if (item.engine != null && item.engine!.isNotEmpty)
-                      _buildTag(
-                        label: '🔌 ${item.engine}',
-                        bgColor: const Color(0xFFFFF4E6),
-                        textColor: const Color(0xFFB25E14),
-                        isFullWidth: true,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // خط فاصل وسعر القطعة
-                const Divider(height: 1, color: Color(0xFFF0F2F5)),
-                const SizedBox(height: 8),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isAr ? 'السعر المتوقع:' : 'Expected Price:',
+                    child: Text(
+                      '${isAr ? 'رقم القطعة' : 'PN'}: $_partNo',
                       style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8A94A3),
-                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF94A3B8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'monospace',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _chip(item.make, Icons.directions_car_outlined),
+                      _chip(item.model, Icons.car_repair_outlined),
+                    ],
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Text(
+                        isAr ? 'السعر' : 'Price',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF94A3B8),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${item.price.toStringAsFixed(0)} ',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          color: Color(0xFF10B981),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        isAr ? 'ر.ق' : 'QAR',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF10B981),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: ElevatedButton.icon(
+                      onPressed: () => onAddToCart?.call(item),
+                      icon: const Icon(Icons.shopping_cart_outlined, size: 16),
+                      label: Text(
+                        isAr ? 'أضف للسلة' : 'Add to Cart',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.copper,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '${item.price.toStringAsFixed(0)} ',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              color: Color(0xFFE0872A),
-                              fontWeight: FontWeight.w900,
-                              fontFamily: 'Cairo',
-                            ),
-                          ),
-                          TextSpan(
-                            text: isAr ? 'ر.ق' : 'QAR',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFFE0872A),
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Cairo',
-                            ),
-                          ),
-                        ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _actionBtn(
+                          icon: Icons.document_scanner_outlined,
+                          label: isAr ? 'فحص التوافق' : 'Fitment',
+                          onTap: () => onInquire?.call(item),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: AddToCartButton(
-                        text: isAr ? 'أضف للسلة' : 'Add to Cart',
-                        onPressed: () => onAddToCart?.call(item),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _actionBtn(
+                          icon: Icons.share_outlined,
+                          label: isAr ? 'مشاركة' : 'Share',
+                          onTap: () {
+                            if (onShare != null) {
+                              onShare!(item);
+                            } else {
+                              PartShareHelper.sharePart(item, lang: lang);
+                            }
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    _buildOutlineButton(
-                      label: isAr ? 'فحص' : 'Inquire',
-                      bgColor: const Color(0xFFF4F6F9),
-                      textColor: const Color(0xFF1F3A5F),
-                      onTap: () => onInquire?.call(item),
-                    ),
-                    const SizedBox(width: 6),
-                    _buildOutlineButton(
-                      label: isAr ? 'مشاركة' : 'Share',
-                      bgColor: const Color(0xFFEEF1F5),
-                      textColor: const Color(0xFF4A5568),
-                      onTap: () {
-                        if (onShare != null) {
-                          onShare!(item);
-                        } else {
-                          PartShareHelper.sharePart(item, lang: lang);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _actionBtn(
+                          icon: Icons.info_outline,
+                          label: isAr ? 'المزيد' : 'More',
+                          onTap: () => onMore?.call(item),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -238,57 +281,67 @@ class PartCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTag({
-    required String label,
-    required Color bgColor,
-    required Color textColor,
-    bool isFullWidth = false,
-  }) {
+  Widget _chip(String label, IconData icon) {
     return Container(
-      width: isFullWidth ? double.infinity : null,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: const Color(0xFF1A2232),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'Cairo',
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: const Color(0xFF94A3B8)),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 90),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFFF8FAFC),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildOutlineButton({
+  Widget _actionBtn({
+    required IconData icon,
     required String label,
-    required Color bgColor,
-    required Color textColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: const Color(0xFF1A2232),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFDBE2EA)),
+          border: Border.all(color: const Color(0x14FFFFFF)),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 11.5,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Cairo',
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: const Color(0xFFF8FAFC)),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

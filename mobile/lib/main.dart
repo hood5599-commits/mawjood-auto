@@ -8,6 +8,7 @@ import 'screens/customer/catalog_screen.dart';
 import 'screens/customer/profile_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/admin_notification_service.dart';
+import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
 import 'services/error_logger.dart';
 import 'services/order_notification_service.dart';
@@ -40,6 +41,8 @@ void main() async {
   await AuthService().loadSession();
   await OrderNotificationService.instance.init();
   await AdminNotificationService.instance.init();
+  // Fire-and-forget visitor telemetry for admin dashboards.
+  AnalyticsService.instance.trackAppLaunch();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

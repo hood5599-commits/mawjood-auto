@@ -379,10 +379,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.inventory_2_outlined, color: _muted),
-                onPressed: _openOrderTracker,
-              ),
+              if (isLoggedIn)
+                IconButton(
+                  icon: const Icon(Icons.inventory_2_outlined, color: _muted),
+                  onPressed: _openOrderTracker,
+                ),
             ],
           ),
           body: _isLoading
@@ -395,141 +396,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _identityCard(),
-                        const SizedBox(height: 14),
-                        if (!isLoggedIn)
-                          SizedBox(
-                            height: 48,
-                            child: OutlinedButton.icon(
-                              onPressed: _openAuth,
-                              icon: const Icon(Icons.login, color: _text),
-                              label: Text(
-                                isAr
-                                    ? 'تسجيل الدخول / إنشاء حساب'
-                                    : 'Sign In / Register',
-                                style: const TextStyle(color: _text),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: _border),
-                              ),
-                            ),
-                          ),
-                        if (!isLoggedIn) const SizedBox(height: 14),
-                        _card(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isAr
-                                    ? 'بيانات الاتصال والتوصيل'
-                                    : 'Contact & Delivery Details',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: _text,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              TextField(
-                                controller: _nameController,
-                                style: const TextStyle(color: _text),
-                                decoration: _fieldDecoration(
-                                  label: isAr ? 'الاسم الكامل' : 'Full Name',
-                                  icon: Icons.badge_outlined,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: _phoneController,
-                                keyboardType: TextInputType.phone,
-                                style: const TextStyle(color: _text),
-                                decoration: _fieldDecoration(
-                                  label: isAr ? 'رقم الهاتف' : 'Phone Number',
-                                  icon: Icons.phone_outlined,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: _addressController,
-                                maxLines: 2,
-                                style: const TextStyle(color: _text),
-                                decoration: _fieldDecoration(
-                                  label: isAr
-                                      ? 'عنوان التوصيل الافتراضي'
-                                      : 'Default Delivery Address',
-                                  icon: Icons.location_on_outlined,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _card(
-                          child: Column(
-                            children: [
-                              _actionTile(
-                                Icons.edit_outlined,
-                                isAr
-                                    ? 'تعديل اسم المستخدم'
-                                    : 'Edit Username',
-                                _editUsername,
-                              ),
-                              const Divider(color: _border, height: 1),
-                              _actionTile(
-                                Icons.lock_outline,
-                                isAr
-                                    ? 'تغيير كلمة المرور'
-                                    : 'Change Password',
-                                _changePassword,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _vehiclesCard(),
-                        const SizedBox(height: 12),
-                        _supportCard(),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isSaving ? null : _saveProfileData,
-                            child: _isSaving
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Text(
-                                    isAr ? 'حفظ البيانات' : 'Save Changes',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                        if (!isLoggedIn) ...[
+                          _guestWelcomeCard(),
+                          const SizedBox(height: 14),
+                          _supportCard(),
+                          const SizedBox(height: 24),
+                        ] else ...[
+                          _identityCard(),
+                          const SizedBox(height: 14),
+                          _card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isAr
+                                      ? 'بيانات الاتصال والتوصيل'
+                                      : 'Contact & Delivery Details',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: _text,
                                   ),
-                          ),
-                        ),
-                        if (isLoggedIn && widget.onLogout != null)
-                          TextButton.icon(
-                            onPressed: widget.onLogout,
-                            icon: const Icon(Icons.logout,
-                                color: AppTheme.danger, size: 18),
-                            label: Text(
-                              isAr ? 'تسجيل الخروج' : 'Log Out',
-                              style: const TextStyle(
-                                color: AppTheme.danger,
-                                fontWeight: FontWeight.bold,
-                              ),
+                                ),
+                                const SizedBox(height: 14),
+                                TextField(
+                                  controller: _nameController,
+                                  style: const TextStyle(color: _text),
+                                  decoration: _fieldDecoration(
+                                    label: isAr ? 'الاسم الكامل' : 'Full Name',
+                                    icon: Icons.badge_outlined,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.phone,
+                                  style: const TextStyle(color: _text),
+                                  decoration: _fieldDecoration(
+                                    label:
+                                        isAr ? 'رقم الهاتف' : 'Phone Number',
+                                    icon: Icons.phone_outlined,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: _addressController,
+                                  maxLines: 2,
+                                  style: const TextStyle(color: _text),
+                                  decoration: _fieldDecoration(
+                                    label: isAr
+                                        ? 'عنوان التوصيل الافتراضي'
+                                        : 'Default Delivery Address',
+                                    icon: Icons.location_on_outlined,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        if (isLoggedIn)
+                          const SizedBox(height: 12),
+                          _card(
+                            child: Column(
+                              children: [
+                                _actionTile(
+                                  Icons.edit_outlined,
+                                  isAr
+                                      ? 'تعديل اسم المستخدم'
+                                      : 'Edit Username',
+                                  _editUsername,
+                                ),
+                                const Divider(color: _border, height: 1),
+                                _actionTile(
+                                  Icons.lock_outline,
+                                  isAr
+                                      ? 'تغيير كلمة المرور'
+                                      : 'Change Password',
+                                  _changePassword,
+                                ),
+                                const Divider(color: _border, height: 1),
+                                _actionTile(
+                                  Icons.inventory_2_outlined,
+                                  isAr
+                                      ? 'طلباتي السابقة'
+                                      : 'Past Orders',
+                                  _openOrderTracker,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _vehiclesCard(),
+                          const SizedBox(height: 12),
+                          _supportCard(),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isSaving ? null : _saveProfileData,
+                              child: _isSaving
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      isAr ? 'حفظ البيانات' : 'Save Changes',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          if (widget.onLogout != null)
+                            TextButton.icon(
+                              onPressed: widget.onLogout,
+                              icon: const Icon(
+                                Icons.logout,
+                                color: AppTheme.danger,
+                                size: 18,
+                              ),
+                              label: Text(
+                                isAr ? 'تسجيل الخروج' : 'Log Out',
+                                style: const TextStyle(
+                                  color: AppTheme.danger,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           TextButton.icon(
                             onPressed:
                                 _deleting ? null : _confirmDeleteAccount,
-                            icon: const Icon(Icons.delete_forever,
-                                color: AppTheme.danger, size: 18),
+                            icon: const Icon(
+                              Icons.delete_forever,
+                              color: AppTheme.danger,
+                              size: 18,
+                            ),
                             label: Text(
                               isAr ? 'حذف الحساب' : 'Delete Account',
                               style: const TextStyle(
@@ -538,12 +541,119 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                           ),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 24),
+                        ],
                       ],
                     ),
                   ),
                 ),
         ),
+      ),
+    );
+  }
+
+  Widget _guestWelcomeCard() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF090D16), Color(0xFF1A2232)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: AppTheme.copper.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppTheme.copper.withValues(alpha: 0.5),
+              ),
+            ),
+            child: const Icon(
+              Icons.person_outline,
+              color: AppTheme.copper,
+              size: 36,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A2232),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _border),
+            ),
+            child: Text(
+              isAr ? 'زائر' : 'Guest',
+              style: const TextStyle(
+                color: Color(0xFFF8FAFC),
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            isAr
+                ? 'مرحباً بك في موجود أوتو'
+                : 'Welcome to Mawjood Auto',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _text,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isAr
+                ? 'سجّل الدخول لعرض بياناتك الشخصية، طلباتك السابقة، وعناوين التوصيل المحفوظة.'
+                : 'Sign in to view personal details, past orders, and saved delivery addresses.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 13,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 22),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _openAuth,
+              icon: const Icon(Icons.login, size: 18),
+              label: Text(
+                isAr
+                    ? 'تسجيل الدخول / إنشاء حساب'
+                    : 'Sign In / Create Account',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.copper,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

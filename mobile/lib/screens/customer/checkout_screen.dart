@@ -395,11 +395,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       };
 
       await ApiClient().post('/fitment_inquiries', data: payload);
-      await CartService().addToCart(
-        partId: widget.part.id,
-        part: widget.part,
-        quantity: 1,
-      );
+      if (AuthService().isLoggedIn) {
+        await CartService().addToCart(
+          partId: widget.part.id,
+          part: widget.part,
+          quantity: 1,
+        );
+      }
 
       setState(() {
         _createdOrderCode = inqCode;
