@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,9 +8,33 @@ import 'screens/customer/catalog_screen.dart';
 import 'screens/customer/profile_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/auth_service.dart';
+import 'services/error_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    ErrorLogger.log(
+      severity: 'CRITICAL',
+      componentName: details.library ?? 'UI Widget',
+      errorType: details.exception.runtimeType.toString(),
+      message: details.exceptionAsString(),
+      stackTrace: details.stack?.toString(),
+    );
+  };
+
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    ErrorLogger.log(
+      severity: 'HIGH',
+      componentName: 'AsyncEngine',
+      errorType: error.runtimeType.toString(),
+      message: error.toString(),
+      stackTrace: stack.toString(),
+    );
+    return true;
+  };
+
   await AuthService().loadSession();
 
   SystemChrome.setSystemUIOverlayStyle(

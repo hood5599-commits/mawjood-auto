@@ -220,7 +220,6 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ onReveal,
   const handleTimeUpdate = () => {
     const v = videoRef.current;
     if (v && v.duration) {
-      // إظهار رسالة الترحيب قبل انتهاء الفيديو بـ 5 ثوانٍ
       if (v.duration - v.currentTime <= 5) {
         triggerReveal();
       }
@@ -266,7 +265,6 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ onReveal,
           autoPlay
           muted
           playsInline
-          /* تم إلغاء loop ليستقر على آخر لقطة خلف البطاقة */
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={triggerReveal}
@@ -308,6 +306,30 @@ const BlueprintChassisScene: React.FC<BlueprintChassisSceneProps> = ({ onReveal,
    ============================================================ */
 
 export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
+  // التحقق من sessionStorage لمنع ظهور الشاشة عند عمل Refresh وظهورها فقط عند فتح تبويب/صفحة جديدة
+  const [alreadySeen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return sessionStorage.getItem('mawjood_welcome_seen') === 'true';
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (alreadySeen) {
+      onStart();
+    } else {
+      try {
+        sessionStorage.setItem('mawjood_welcome_seen', 'true');
+      } catch (e) {
+        // تجاهل في حالة تعطل التخزين المحلي
+      }
+    }
+  }, [alreadySeen, onStart]);
+
   const isRtl = lang === 'ar';
   const [showContent, setShowContent] = useState<boolean>(false);
   const [ctaHover, setCtaHover] = useState<boolean>(false);
@@ -363,6 +385,8 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
   ];
 
   useEffect(() => {
+    if (alreadySeen) return;
+
     const setVh = (): void => {
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--wm-vh', `${vh}px`);
@@ -374,18 +398,20 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       window.removeEventListener('resize', setVh);
       window.removeEventListener('orientationchange', setVh);
     };
-  }, []);
+  }, [alreadySeen]);
 
   // مؤقت احتياطي لضمان ظهور المحتوى إذا تعذر تشغيل الفيديو
   useEffect(() => {
+    if (alreadySeen) return;
+
     const safetyTimer = window.setTimeout(() => {
       setShowContent(true);
     }, 12000);
     return () => window.clearTimeout(safetyTimer);
-  }, []);
+  }, [alreadySeen]);
 
   useEffect(() => {
-    if (!showContent) return;
+    if (alreadySeen || !showContent) return;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
 
@@ -433,7 +459,12 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
       document.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus?.();
     };
-  }, [onStart, showContent]);
+  }, [onStart, showContent, alreadySeen]);
+
+  // إذا تم رؤيتها مسبقاً في هذه الجلسة، لا يتم عرض أي عنصر
+  if (alreadySeen) {
+    return null;
+  }
 
   return (
     <div
@@ -583,7 +614,6 @@ export const WelcomeModal: React.FC<WelcomeProps> = ({ lang, onStart }) => {
         }
       `}</style>
 
-      {/* خلفية الفيديو بكامل الشاشة ومستمرة حتى آخر لقطة */}
       <BlueprintChassisScene onReveal={() => setShowContent(true)} recede={showContent} />
 
       {showContent && (
