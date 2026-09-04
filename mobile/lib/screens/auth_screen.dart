@@ -102,14 +102,18 @@ class _AuthScreenState extends State<AuthScreen> {
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: AppTheme.obsidian,
         appBar: AppBar(
           backgroundColor: AppTheme.obsidian,
           title: Text(
             widget.driverMode
                 ? (isAr ? 'دخول المندوب' : 'Driver Login')
                 : (isAr ? 'تسجيل الدخول' : 'Sign In'),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFFFFFFF),
+            ),
           ),
           actions: [
             if (widget.onToggleLang != null)
@@ -117,7 +121,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 onPressed: widget.onToggleLang,
                 child: Text(
                   isAr ? 'EN' : 'عربي',
-                  style: const TextStyle(color: Colors.white70),
+                  style: const TextStyle(color: Color(0xFF94A3B8)),
                 ),
               ),
           ],
@@ -147,7 +151,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF0F172A),
+                        color: Color(0xFFF8FAFC),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -156,12 +160,34 @@ class _AuthScreenState extends State<AuthScreen> {
                     if (_tab == _AuthTab.register && !widget.driverMode) ...[
                       TextField(
                         controller: _nameCtrl,
+                        cursorColor: const Color(0xFFFFFFFF),
+                        style: const TextStyle(
+                          color: Color(0xFFF8FAFC),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                         decoration: InputDecoration(
                           labelText: isAr ? 'الاسم الكامل' : 'Full Name',
+                          labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                          hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                          prefixIconColor: const Color(0xFF94A3B8),
+                          suffixIconColor: const Color(0xFF94A3B8),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: const Color(0xFF1A2232),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFFFFFFF),
+                            ),
                           ),
                         ),
                       ),
@@ -170,15 +196,37 @@ class _AuthScreenState extends State<AuthScreen> {
                     TextField(
                       controller: _idCtrl,
                       keyboardType: TextInputType.emailAddress,
+                      cursorColor: const Color(0xFFFFFFFF),
+                      style: const TextStyle(
+                        color: Color(0xFFF8FAFC),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: InputDecoration(
                         labelText: isAr
                             ? 'البريد أو رقم الجوال'
                             : 'Email or Phone',
                         hintText: isAr ? 'مثال: 55000000' : 'e.g. 55000000',
+                        labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                        hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                        prefixIconColor: const Color(0xFF94A3B8),
+                        suffixIconColor: const Color(0xFF94A3B8),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: const Color(0xFF1A2232),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFFFFFFF),
+                          ),
                         ),
                       ),
                     ),
@@ -186,12 +234,34 @@ class _AuthScreenState extends State<AuthScreen> {
                     TextField(
                       controller: _passCtrl,
                       obscureText: _obscure,
+                      cursorColor: const Color(0xFFFFFFFF),
+                      style: const TextStyle(
+                        color: Color(0xFFF8FAFC),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: InputDecoration(
                         labelText: isAr ? 'كلمة المرور' : 'Password',
+                        labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                        hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                        prefixIconColor: const Color(0xFF94A3B8),
+                        suffixIconColor: const Color(0xFF94A3B8),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: const Color(0xFF1A2232),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFFFFFFF),
+                          ),
                         ),
                         suffixIcon: IconButton(
                           onPressed: () =>
@@ -200,6 +270,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             _obscure
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
+                            color: const Color(0xFF94A3B8),
                           ),
                         ),
                       ),
@@ -224,7 +295,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           backgroundColor: widget.driverMode
                               ? const Color(0xFF1F3A5F)
                               : AppTheme.copper,
-                          foregroundColor: Colors.white,
+                          foregroundColor: const Color(0xFFFFFFFF),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -235,7 +306,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 height: 22,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: Color(0xFFFFFFFF),
                                 ),
                               )
                             : Text(
@@ -247,6 +318,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 15,
+                                  color: Color(0xFFFFFFFF),
                                 ),
                               ),
                       ),
@@ -265,9 +337,9 @@ class _AuthScreenState extends State<AuthScreen> {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: const Color(0xFF1A2232),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFF334155)),
       ),
       child: Row(
         children: [
@@ -297,7 +369,9 @@ class _AuthScreenState extends State<AuthScreen> {
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF64748B),
+              color: selected
+                  ? const Color(0xFFFFFFFF)
+                  : const Color(0xFF94A3B8),
               fontWeight: FontWeight.bold,
               fontSize: 13,
             ),

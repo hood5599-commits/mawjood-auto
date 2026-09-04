@@ -4,6 +4,7 @@ import '../../config/theme.dart';
 import '../../models/part_model.dart';
 import '../../services/api_client.dart';
 import '../../services/cart_service.dart';
+import '../../widgets/active_order_tracker.dart';
 import '../../widgets/ai_chatbot_sheet.dart';
 import '../../widgets/custom_toast.dart';
 import '../../widgets/sidebar_filters.dart';
@@ -11,6 +12,8 @@ import '../info_page_screen.dart';
 import 'cart_screen.dart';
 import 'checkout_screen.dart';
 import 'order_tracker_screen.dart';
+import '../../services/admin_notification_service.dart';
+import '../../services/order_notification_service.dart';
 
 class CatalogScreen extends StatefulWidget {
   final String initialLang;
@@ -35,6 +38,15 @@ class _CatalogScreenState extends State<CatalogScreen> {
     super.initState();
     _lang = widget.initialLang;
     _fetchInventory();
+    OrderNotificationService.instance.startTracking(lang: _lang);
+    AdminNotificationService.instance.startListening(lang: _lang);
+  }
+
+  @override
+  void dispose() {
+    OrderNotificationService.instance.stopTracking();
+    AdminNotificationService.instance.stopListening();
+    super.dispose();
   }
 
   Future<void> _fetchInventory() async {
@@ -127,6 +139,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      ActiveOrderTracker(lang: _lang),
                       _buildOrderTrackerBanner(),
                       const SizedBox(height: 14),
                       _buildExecutiveStatsGrid(
@@ -302,7 +315,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
       alignment: isAr ? Alignment.centerLeft : Alignment.centerRight,
       child: ElevatedButton.icon(
         onPressed: _openOrderTracker,
-        icon: const Text('📦', style: TextStyle(fontSize: 14)),
+        icon: const Icon(Icons.receipt_long_outlined, size: 16),
         label: Text(
           isAr ? 'متابعة استفساراتي وطلباتي' : 'Track Inquiries & Orders',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),

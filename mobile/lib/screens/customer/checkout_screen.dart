@@ -11,10 +11,13 @@ import '../../models/part_model.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_service.dart';
 import '../../services/cart_service.dart';
+import '../../services/error_logger.dart';
 import '../../services/istemara_service.dart';
+import '../../services/order_notification_service.dart';
 import '../../widgets/ai_translated_text.dart';
 import '../../widgets/custom_toast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'order_tracker_screen.dart';
 
 enum CheckoutStep { inquire, checkout, success }
 
@@ -293,51 +296,80 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final ordCode = 'ORD-${Random().nextInt(899999) + 100000}';
     final pickupCode = (Random().nextInt(8999) + 1000).toString();
     final customerPhone = await _resolveCustomerPhone();
+    final customerId = AuthService().session?.user?['id']?.toString();
+    final deliveryAddress = _deliveryType == DeliveryType.delivery
+        ? _addressController.text.trim()
+        : (isAr ? 'استلام من المقر' : 'Store Pickup');
 
     try {
       final partId = widget.part.id.startsWith('custom-')
           ? null
           : int.tryParse(widget.part.id);
 
-      final payload = {
+      final itemsJson = [
+        {
+          'part_id': partId,
+          'part_name': widget.part.name,
+          'part_number': widget.part.partNumber,
+          'quantity': 1,
+          'price': widget.part.price,
+        },
+      ];
+
+      final payload = <String, dynamic>{
         'order_code': ordCode,
         'part_id': partId,
         'part_name': widget.part.name,
         'price': totalPrice,
+        'total_price': totalPrice,
+        'total': totalPrice,
         'garage_id': widget.part.garageId ?? 'garage',
-        'customer_id': AuthService().session?.user?['id']?.toString(),
+        if (customerId != null && customerId.isNotEmpty)
+          'customer_id': customerId,
         'customer_phone': customerPhone,
         'delivery_type':
             _deliveryType == DeliveryType.delivery ? 'delivery' : 'pickup',
-        'address_details': _deliveryType == DeliveryType.delivery
-            ? _addressController.text.trim()
-            : (isAr ? 'استلام من المقر' : 'Store Pickup'),
-        'delivery_address': _deliveryType == DeliveryType.delivery
-            ? _addressController.text.trim()
-            : null,
+        'address_details': deliveryAddress,
+        'delivery_address': deliveryAddress,
         'payment_method': _paymentMethod.name,
         'payment_status':
             _paymentMethod == PaymentMethod.cod ? 'cod' : 'pending',
         'pickup_code': pickupCode,
         'status': 'pending',
-        'items': [
-          {
-            'part_id': partId,
-            'part_name': widget.part.name,
-            'quantity': 1,
-            'price': widget.part.price,
-          },
-        ],
-        'total': totalPrice,
+        'items': itemsJson,
       };
 
       var res = await ApiClient().post('/orders', data: payload);
-      final ok = res.statusCode == 200 ||
+      var ok = res.statusCode == 200 ||
           res.statusCode == 201 ||
           res.statusCode == 204;
 
       if (!ok) {
-        // Fallback minimal payload matching web CustomerFitmentCheckout
+        // Schema-aligned core columns only
+        res = await ApiClient().post(
+          '/orders',
+          data: {
+            if (customerId != null && customerId.isNotEmpty)
+              'customer_id': customerId,
+            'customer_phone': customerPhone,
+            'items': itemsJson,
+            'delivery_address': deliveryAddress,
+            'total_price': totalPrice,
+            'price': totalPrice,
+            'payment_method': _paymentMethod.name,
+            'status': 'pending',
+            'part_name': widget.part.name,
+            'garage_id': widget.part.garageId ?? 'garage',
+            'order_code': ordCode,
+          },
+        );
+        ok = res.statusCode == 200 ||
+            res.statusCode == 201 ||
+            res.statusCode == 204;
+      }
+
+      if (!ok) {
+        // Minimal web-compatible fallback
         res = await ApiClient().post(
           '/orders',
           data: {
@@ -346,26 +378,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             'garage_id': widget.part.garageId ?? 'garage',
             'customer_phone': customerPhone,
             'status': 'pending',
+            'payment_method': _paymentMethod.name,
+            'delivery_address': deliveryAddress,
+            'total_price': totalPrice,
           },
         );
+        ok = res.statusCode == 200 ||
+            res.statusCode == 201 ||
+            res.statusCode == 204;
       }
 
-      final success = res.statusCode == 200 ||
-          res.statusCode == 201 ||
-          res.statusCode == 204;
-
-      if (!success) {
-        throw Exception('order_create_failed');
+      if (!ok) {
+        throw Exception(
+          'order_create_failed status=${res.statusCode} body=${res.data}',
+        );
       }
 
       await CartService().removeFromCart(widget.part.id);
 
-      setState(() {
-        _createdOrderCode = ordCode;
-        _step = CheckoutStep.success;
-      });
+      if (mounted) {
+        CustomToast.success(
+          context,
+          isAr
+              ? 'تم تأكيد الطلب بنجاح ($ordCode)'
+              : 'Order confirmed ($ordCode)',
+        );
+        setState(() {
+          _createdOrderCode = ordCode;
+          _step = CheckoutStep.success;
+        });
+      }
+
+      OrderNotificationService.instance.startTracking(lang: widget.lang);
       widget.onSuccess?.call();
-    } catch (_) {
+    } catch (e, st) {
+      await ErrorLogger.log(
+        severity: 'HIGH',
+        componentName: 'CheckoutScreen',
+        errorType: 'OrderSubmitError',
+        message: e.toString(),
+        stackTrace: st.toString(),
+      );
       if (mounted) {
         CustomToast.error(
           context,
@@ -377,6 +430,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _goToOrderTracker() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => OrderTrackerScreen(lang: widget.lang),
+      ),
+    );
   }
 
   @override
@@ -916,7 +977,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Column(
       children: [
         const SizedBox(height: 10),
-        const Text('🎉', style: TextStyle(fontSize: 52)),
+        const Icon(Icons.check_circle, size: 64, color: Color(0xFF16A34A)),
         const SizedBox(height: 10),
         Text(
           isAr ? 'تم استلام طلبك بنجاح!' : 'Order Placed Successfully!',
@@ -938,19 +999,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(),
+        ElevatedButton.icon(
+          onPressed: _goToOrderTracker,
+          icon: const Icon(Icons.local_shipping_outlined, size: 18),
+          label: Text(
+            isAr ? 'متابعة الطلب' : 'Track Order',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1F3A5F),
+            backgroundColor: AppTheme.copper,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
           ),
+        ),
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
           child: Text(
             isAr ? 'العودة للمتجر 🛒' : 'Back to Shop 🛒',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F3A5F),
+            ),
           ),
         ),
       ],
