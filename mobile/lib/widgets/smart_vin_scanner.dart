@@ -153,35 +153,41 @@ class _SmartVinScannerState extends State<SmartVinScanner> {
                 ),
               ),
               const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(
-                  Icons.camera_alt,
-                  color: AppTheme.copperLight,
+              Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.camera_alt,
+                    color: AppTheme.copperLight,
+                  ),
+                  title: Text(
+                    isAr
+                        ? 'التقاط صورة عبر الكاميرا'
+                        : 'Take a photo with Camera',
+                    style: const TextStyle(color: AppTheme.textWhite),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _pickAndScanIstemara(ImageSource.camera);
+                  },
                 ),
-                title: Text(
-                  isAr
-                      ? 'التقاط صورة عبر الكاميرا'
-                      : 'Take a photo with Camera',
-                  style: const TextStyle(color: AppTheme.textWhite),
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickAndScanIstemara(ImageSource.camera);
-                },
               ),
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_library,
-                  color: AppTheme.copperLight,
+              Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.photo_library,
+                    color: AppTheme.copperLight,
+                  ),
+                  title: Text(
+                    isAr ? 'اختيار من ألبوم الصور' : 'Choose from Gallery',
+                    style: const TextStyle(color: AppTheme.textWhite),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _pickAndScanIstemara(ImageSource.gallery);
+                  },
                 ),
-                title: Text(
-                  isAr ? 'اختيار من ألبوم الصور' : 'Choose from Gallery',
-                  style: const TextStyle(color: AppTheme.textWhite),
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickAndScanIstemara(ImageSource.gallery);
-                },
               ),
             ],
           ),

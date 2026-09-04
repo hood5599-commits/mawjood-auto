@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'api_client.dart';
 import 'auth_service.dart';
 import 'error_logger_platform_stub.dart'
     if (dart.library.io) 'error_logger_platform_io.dart' as platform_info;
@@ -23,13 +23,12 @@ class AnalyticsService {
         await prefs.setString(_sessionKey, today);
       }
 
-      final platformName = kIsWeb
-          ? 'web_pwa'
-          : platform_info.detectPlatformName();
+      final platformName =
+          kIsWeb ? 'web_pwa' : platform_info.detectPlatformName();
       final deviceOs = kIsWeb ? 'Web Browser' : platform_info.detectDeviceOs();
       final session = AuthService().session;
 
-      final payload = {
+      final payload = <String, dynamic>{
         'event_type': isNewSession ? 'unique_visit' : 'app_open',
         'platform': platformName,
         'device_os': deviceOs,
@@ -41,29 +40,45 @@ class AnalyticsService {
         'created_at': DateTime.now().toIso8601String(),
       };
 
-      // Prefer RPC increment when available; fall back to table insert.
-      try {
-        await ApiClient().post(
-          '/rpc/increment_app_visits',
-          data: {
-            'p_platform': platformName,
-            'p_device_os': deviceOs,
-            'p_unique': isNewSession,
-          },
-        );
-      } catch (_) {
-        try {
-          await ApiClient().post('/app_analytics', data: payload);
-        } catch (_) {
-          await ApiClient().post('/site_traffic', data: {
-            ...payload,
-            'path': '/mobile',
-            'referrer': 'flutter_app',
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('[Analytics] visit log skipped: $e');
+      // Best-effort only — never throw / never spam console.
+      if (await _tryRpc(platformName, deviceOs, isNewSession)) return;
+      if (await _tryInsert('app_analytics', payload)) return;
+      await _tryInsert('site_traffic', {
+        ...payload,
+        'path': '/mobile',
+        'referrer': 'flutter_app',
+      });
+    } catch (_) {
+      // Telemetry must never affect UX or console noise.
+    }
+  }
+
+  Future<bool> _tryRpc(
+    String platformName,
+    String deviceOs,
+    bool isUnique,
+  ) async {
+    try {
+      await Supabase.instance.client.rpc(
+        'increment_app_visits',
+        params: {
+          'p_platform': platformName,
+          'p_device_os': deviceOs,
+          'p_unique': isUnique,
+        },
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _tryInsert(String table, Map<String, dynamic> payload) async {
+    try {
+      await Supabase.instance.client.from(table).insert(payload);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 }

@@ -9,6 +9,7 @@ class ApiClient {
   late final Dio dio;
   String? _authToken;
 
+  // Configure Dio to avoid unhandled console noise on expected 4xx telemetry misses.
   ApiClient._internal() {
     dio = Dio(
       BaseOptions(
@@ -16,6 +17,7 @@ class ApiClient {
         headers: SupabaseConfig.defaultHeaders,
         connectTimeout: const Duration(seconds: 20),
         receiveTimeout: const Duration(seconds: 20),
+        validateStatus: (status) => status != null && status < 500,
       ),
     );
   }

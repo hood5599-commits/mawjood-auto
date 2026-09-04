@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'api_client.dart';
 import 'auth_service.dart';
 
 /// Polls Supabase `notifications` for admin broadcasts and surfaces them locally.
@@ -17,21 +17,24 @@ class AdminNotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _ready = false;
+  bool _tableMissing = false;
   Timer? _timer;
   final Set<String> _seenIds = {};
 
   Future<void> init() async {
-    if (_ready || kIsWeb) return;
+    if (_ready) return;
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings();
-    await _plugin.initialize(
-      settings: const InitializationSettings(android: android, iOS: ios),
-    );
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    if (!kIsWeb) {
+      const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const ios = DarwinInitializationSettings();
+      await _plugin.initialize(
+        settings: const InitializationSettings(android: android, iOS: ios),
+      );
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList('mawjood_seen_admin_notifs') ?? [];
@@ -54,16 +57,20 @@ class AdminNotificationService {
 
   Future<void> poll({String lang = 'ar'}) async {
     await init();
+    if (_tableMissing) return;
+
     final phone = AuthService().session?.displayPhone.trim() ?? '';
     final userCode = AuthService().session?.user?['id']?.toString() ?? '';
 
     try {
-      final res = await ApiClient().get(
-        '/notifications?order=created_at.desc&limit=30',
-      );
-      if (res.statusCode != 200 || res.data is! List) return;
+      final rows = await Supabase.instance.client
+          .from('notifications')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(20);
 
-      for (final raw in res.data as List) {
+      final list = List<dynamic>.from(rows as List);
+      for (final raw in list) {
         if (raw is! Map) continue;
         final map = Map<String, dynamic>.from(raw);
         final id = map['id']?.toString() ?? '';
@@ -82,23 +89,33 @@ class AdminNotificationService {
         await _persistSeen();
         await _show(
           id: id,
-          title: (map['title'] ?? (lang == 'ar' ? 'تنبيه النظام' : 'System Alert'))
+          title: (map['title'] ??
+                  (lang == 'ar' ? 'تنبيه النظام' : 'System Alert'))
               .toString(),
           body: (map['message'] ?? map['body'] ?? '').toString(),
         );
       }
-    } catch (e) {
-      debugPrint('[AdminNotification] poll failed: $e');
+    } on PostgrestException catch (e) {
+      // Table missing / RLS — stop polling noise.
+      if (e.code == '42P01' ||
+          e.message.contains('does not exist') ||
+          e.code == 'PGRST205') {
+        _tableMissing = true;
+      }
+    } catch (_) {
+      // Swallow network / client errors silently.
     }
   }
 
   Future<void> _persistSeen() async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = _seenIds.toList();
-    if (list.length > 200) {
-      list.removeRange(0, list.length - 200);
-    }
-    await prefs.setStringList('mawjood_seen_admin_notifs', list);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _seenIds.toList();
+      if (list.length > 200) {
+        list.removeRange(0, list.length - 200);
+      }
+      await prefs.setStringList('mawjood_seen_admin_notifs', list);
+    } catch (_) {}
   }
 
   Future<void> _show({
@@ -106,22 +123,25 @@ class AdminNotificationService {
     required String title,
     required String body,
   }) async {
-    final notifId = _baseNotifId + (id.hashCode.abs() % 1000);
-    const android = AndroidNotificationDetails(
-      'mawjood_admin_alerts',
-      'System Alerts',
-      channelDescription: 'Admin broadcast notifications',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    await _plugin.show(
-      id: notifId,
-      title: title,
-      body: body,
-      notificationDetails: const NotificationDetails(
-        android: android,
-        iOS: DarwinNotificationDetails(),
-      ),
-    );
+    if (kIsWeb) return;
+    try {
+      final notifId = _baseNotifId + (id.hashCode.abs() % 1000);
+      const android = AndroidNotificationDetails(
+        'mawjood_admin_alerts',
+        'System Alerts',
+        channelDescription: 'Admin broadcast notifications',
+        importance: Importance.high,
+        priority: Priority.high,
+      );
+      await _plugin.show(
+        id: notifId,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: android,
+          iOS: DarwinNotificationDetails(),
+        ),
+      );
+    } catch (_) {}
   }
 }

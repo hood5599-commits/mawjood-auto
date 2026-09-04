@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order_model.dart';
-import 'api_client.dart';
 import 'auth_service.dart';
 
 /// Persistent / ongoing lock-screen notification for active order tracking.
@@ -23,22 +23,26 @@ class OrderNotificationService {
   Future<void> init() async {
     if (_ready || kIsWeb) return;
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    await _plugin.initialize(
-      settings: const InitializationSettings(android: android, iOS: ios),
-    );
+    try {
+      const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const ios = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      await _plugin.initialize(
+        settings: const InitializationSettings(android: android, iOS: ios),
+      );
 
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
 
-    _ready = true;
+      _ready = true;
+    } catch (_) {
+      _ready = false;
+    }
   }
 
   void startTracking({String lang = 'ar'}) {
@@ -70,22 +74,48 @@ class OrderNotificationService {
     if (phone.isEmpty || phone == 'CUST-GUEST') return null;
 
     try {
-      final encoded = Uri.encodeComponent(phone);
-      final res = await ApiClient().get(
-        '/orders?or=(customer_phone.ilike.*$encoded*,customer_phone.eq.$encoded)&order=id.desc&limit=20',
-      );
-      if (res.statusCode != 200 || res.data is! List) return null;
-
-      final orders = (res.data as List)
-          .map((e) => OrderModel.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList();
-
-      for (final o in orders) {
-        if (_isActiveStatus(o.status)) return o;
+      // Prefer phone equality; fall back to recent orders list if needed.
+      List<dynamic> rows;
+      try {
+        rows = await Supabase.instance.client
+            .from('orders')
+            .select()
+            .eq('customer_phone', phone)
+            .order('created_at', ascending: false)
+            .limit(10);
+      } on PostgrestException {
+        // created_at may be missing — order by id instead.
+        rows = await Supabase.instance.client
+            .from('orders')
+            .select()
+            .eq('customer_phone', phone)
+            .order('id', ascending: false)
+            .limit(10);
       }
-    } catch (e) {
-      debugPrint('[OrderNotification] fetch failed: $e');
-    }
+
+      if (rows.isEmpty) {
+        // Soft match via ilike without malformed PostgREST or() strings.
+        try {
+          rows = await Supabase.instance.client
+              .from('orders')
+              .select()
+              .ilike('customer_phone', '%$phone%')
+              .order('id', ascending: false)
+              .limit(10);
+        } on PostgrestException {
+          return null;
+        }
+      }
+
+      for (final raw in rows) {
+        if (raw is! Map) continue;
+        final order =
+            OrderModel.fromJson(Map<String, dynamic>.from(raw));
+        if (_isActiveStatus(order.status)) return order;
+      }
+    } on PostgrestException {
+      // Invalid filter / missing column — fail quietly.
+    } catch (_) {}
     return null;
   }
 
@@ -137,7 +167,10 @@ class OrderNotificationService {
     OrderModel order, {
     String lang = 'ar',
   }) async {
+    if (kIsWeb) return;
     await init();
+    if (!_ready) return;
+
     final isAr = lang == 'ar';
     final stage = stageLabel(order.status, isAr: isAr);
     final code = order.orderCode ?? '#${order.id}';
@@ -146,42 +179,44 @@ class OrderNotificationService {
     _lastStatusKey = key;
 
     final title = isAr ? 'تتبع الطلب الحالي' : 'Active Order Tracking';
-    final body = isAr
-        ? '$code · $stage · ${order.partName}'
-        : '$code · $stage · ${order.partName}';
+    final body = '$code · $stage · ${order.partName}';
 
-    const androidDetails = AndroidNotificationDetails(
-      'mawjood_order_tracking',
-      'Order Tracking',
-      channelDescription: 'Ongoing active order status',
-      importance: Importance.low,
-      priority: Priority.low,
-      ongoing: true,
-      autoCancel: false,
-      onlyAlertOnce: true,
-      category: AndroidNotificationCategory.progress,
-      visibility: NotificationVisibility.public,
-    );
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: false,
-    );
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'mawjood_order_tracking',
+        'Order Tracking',
+        channelDescription: 'Ongoing active order status',
+        importance: Importance.low,
+        priority: Priority.low,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
+        category: AndroidNotificationCategory.progress,
+        visibility: NotificationVisibility.public,
+      );
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: false,
+      );
 
-    await _plugin.show(
-      id: _notifId,
-      title: title,
-      body: body,
-      notificationDetails: const NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      ),
-    );
+      await _plugin.show(
+        id: _notifId,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: androidDetails,
+          iOS: iosDetails,
+        ),
+      );
+    } catch (_) {}
   }
 
   Future<void> clearOngoing() async {
     _lastStatusKey = null;
-    if (!_ready) return;
-    await _plugin.cancel(id: _notifId);
+    if (!_ready || kIsWeb) return;
+    try {
+      await _plugin.cancel(id: _notifId);
+    } catch (_) {}
   }
 }

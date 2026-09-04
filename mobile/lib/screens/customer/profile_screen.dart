@@ -848,16 +848,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _actionTile(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: AppTheme.copper),
-      title: Text(
-        title,
-        style: const TextStyle(color: _text, fontWeight: FontWeight.w600),
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon, color: AppTheme.copper),
+        title: Text(
+          title,
+          style: const TextStyle(color: _text, fontWeight: FontWeight.w600),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: _muted),
+        minVerticalPadding: 14,
+        onTap: onTap,
       ),
-      trailing: const Icon(Icons.chevron_right, color: _muted),
-      minVerticalPadding: 14,
-      onTap: onTap,
     );
   }
 }

@@ -31,13 +31,10 @@ class _PartMoreInfoState extends State<PartMoreInfo> {
   bool get isAr => widget.lang == 'ar';
 
   List<String> get _images {
-    // استخدام رابط الصورة الأساسي كقيمة افتراضية
     if (widget.part.imageUrl.isNotEmpty) {
       return [widget.part.imageUrl];
     }
-    return [
-      'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-    ];
+    return const [];
   }
 
   @override
@@ -239,17 +236,26 @@ class _PartMoreInfoState extends State<PartMoreInfo> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                images[_activeImgIdx],
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Center(
+              if (images.isEmpty)
+                const Center(
                   child: Icon(
                     Icons.build_circle_outlined,
                     size: 64,
                     color: AppTheme.textMuted,
                   ),
+                )
+              else
+                Image.network(
+                  images[_activeImgIdx.clamp(0, images.length - 1)],
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Center(
+                    child: Icon(
+                      Icons.build_circle_outlined,
+                      size: 64,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
                 ),
-              ),
               if (images.length > 1) ...[
                 Positioned(
                   left: 10,

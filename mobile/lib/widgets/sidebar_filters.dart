@@ -1014,7 +1014,9 @@ class _SidebarFiltersState extends State<SidebarFilters> {
           ),
           child: Column(
             children: [
-              ListTile(
+              Material(
+                type: MaterialType.transparency,
+                child: ListTile(
                 dense: true,
                 leading: const Icon(
                   Icons.directions_car,
@@ -1047,6 +1049,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                 onTap: () =>
                     _toggleNode(makeKey, () => _fetchYearsForMake(make)),
               ),
+              ),
               if (isMakeOpen)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -1067,7 +1070,9 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                         margin: const EdgeInsets.only(bottom: 6),
                         child: Column(
                           children: [
-                            ListTile(
+                            Material(
+                              type: MaterialType.transparency,
+                              child: ListTile(
                               dense: true,
                               leading: const Icon(
                                 Icons.calendar_today,
@@ -1101,6 +1106,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                                 () => _fetchModelsForYear(make, year),
                               ),
                             ),
+                            ),
                             if (isYearOpen)
                               Padding(
                                 padding: const EdgeInsets.only(right: 18),
@@ -1120,10 +1126,12 @@ class _SidebarFiltersState extends State<SidebarFilters> {
 
                                     return Column(
                                       children: [
-                                        ListTile(
+                                        Material(
+                                          type: MaterialType.transparency,
+                                          child: ListTile(
                                           dense: true,
                                           title: Text(
-                                            '🚘 $model',
+                                            model,
                                             style: const TextStyle(
                                               fontSize: 12,
                                               color: AppTheme.textWhite,
@@ -1154,6 +1162,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                                             ),
                                           ),
                                         ),
+                                        ),
                                         if (isModelOpen)
                                           Padding(
                                             padding: const EdgeInsets.only(
@@ -1178,10 +1187,13 @@ class _SidebarFiltersState extends State<SidebarFilters> {
 
                                                 return Column(
                                                   children: [
-                                                    ListTile(
+                                                    Material(
+                                                      type: MaterialType
+                                                          .transparency,
+                                                      child: ListTile(
                                                       dense: true,
                                                       title: Text(
-                                                        '🗂️ $mainCat',
+                                                        mainCat,
                                                         style: const TextStyle(
                                                           fontSize: 11.5,
                                                           color: AppTheme
@@ -1200,6 +1212,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                                                               mainCat,
                                                             ),
                                                       ),
+                                                    ),
                                                     ),
                                                     if (isCatOpen &&
                                                         partsList.isNotEmpty)

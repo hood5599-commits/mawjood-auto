@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/theme.dart';
 import '../../models/order_model.dart';
@@ -68,36 +69,72 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
     }
 
     setState(() => _isLoading = true);
-    final encodedId = Uri.encodeComponent(_resolvedIdentifier);
+    final phone = _resolvedIdentifier;
 
     try {
-      final results = await Future.wait([
-        ApiClient().get(
-          '/orders?or=(customer_phone.ilike.$encodedId,customer_phone.eq.$encodedId)&order=id.desc',
-        ),
-        ApiClient().get(
-          '/fitment_inquiries?or=(customer_phone.ilike.$encodedId,customer_phone.eq.$encodedId)&order=id.desc',
-        ),
-        ApiClient().get(
-          '/custom_part_requests?or=(customer_phone.ilike.$encodedId,customer_phone.eq.$encodedId)&order=id.desc',
-        ),
-      ]);
+      List<dynamic> orderRows = const [];
+      List<dynamic> inquiryRows = const [];
+      List<dynamic> customRows = const [];
+
+      try {
+        orderRows = await Supabase.instance.client
+            .from('orders')
+            .select()
+            .ilike('customer_phone', '%$phone%')
+            .order('id', ascending: false)
+            .limit(50);
+      } on PostgrestException {
+        try {
+          orderRows = await Supabase.instance.client
+              .from('orders')
+              .select()
+              .eq('customer_phone', phone)
+              .order('id', ascending: false)
+              .limit(50);
+        } on PostgrestException {
+          orderRows = const [];
+        }
+      }
+
+      try {
+        inquiryRows = await Supabase.instance.client
+            .from('fitment_inquiries')
+            .select()
+            .ilike('customer_phone', '%$phone%')
+            .order('id', ascending: false)
+            .limit(50);
+      } on PostgrestException {
+        inquiryRows = const [];
+      }
+
+      try {
+        customRows = await Supabase.instance.client
+            .from('custom_part_requests')
+            .select()
+            .ilike('customer_phone', '%$phone%')
+            .order('id', ascending: false)
+            .limit(50);
+      } on PostgrestException {
+        customRows = const [];
+      }
 
       if (mounted) {
         setState(() {
-          if (results[0].statusCode == 200 && results[0].data is List) {
-            _orders = (results[0].data as List)
-                .map((j) => OrderModel.fromJson(j))
-                .toList();
-          }
-          if (results[1].statusCode == 200 && results[1].data is List) {
-            _inquiries = (results[1].data as List)
-                .map((j) => FitmentInquiryModel.fromJson(j))
-                .toList();
-          }
-          if (results[2].statusCode == 200 && results[2].data is List) {
-            _customRequests = List<Map<String, dynamic>>.from(results[2].data);
-          }
+          _orders = orderRows
+              .whereType<Map>()
+              .map((j) => OrderModel.fromJson(Map<String, dynamic>.from(j)))
+              .toList();
+          _inquiries = inquiryRows
+              .whereType<Map>()
+              .map(
+                (j) =>
+                    FitmentInquiryModel.fromJson(Map<String, dynamic>.from(j)),
+              )
+              .toList();
+          _customRequests = customRows
+              .whereType<Map>()
+              .map((j) => Map<String, dynamic>.from(j))
+              .toList();
           _isLoading = false;
         });
       }

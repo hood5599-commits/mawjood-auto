@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'config/supabase_config.dart';
 import 'config/theme.dart';
 import 'screens/customer/cart_screen.dart';
 import 'screens/customer/catalog_screen.dart';
@@ -38,10 +40,14 @@ void main() async {
     return true;
   };
 
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.apiKey,
+  );
+
   await AuthService().loadSession();
   await OrderNotificationService.instance.init();
   await AdminNotificationService.instance.init();
-  // Fire-and-forget visitor telemetry for admin dashboards.
   AnalyticsService.instance.trackAppLaunch();
 
   SystemChrome.setSystemUIOverlayStyle(
