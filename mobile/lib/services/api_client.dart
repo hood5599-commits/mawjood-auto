@@ -52,7 +52,16 @@ class ApiClient {
   }
 
   Future<Response> post(String path, {dynamic data}) {
-    return dio.post(path, data: data, options: Options(headers: _headers));
+    return dio.post(
+      path,
+      data: data,
+      options: Options(
+        headers: {
+          ..._headers,
+          'Prefer': 'return=minimal',
+        },
+      ),
+    );
   }
 
   Future<Response> patch(String path, {dynamic data}) {

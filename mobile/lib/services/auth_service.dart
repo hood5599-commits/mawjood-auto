@@ -268,6 +268,20 @@ class AuthService {
     );
   }
 
+  Future<void> changePassword(String newPassword) async {
+    final token = _session?.token;
+    if (token == null) throw Exception('not_authenticated');
+    if (newPassword.length < 6) throw Exception('password_too_short');
+
+    final response = await _authDio(token: token).put(
+      '/user',
+      data: {'password': newPassword},
+    );
+    if (response.statusCode != 200) {
+      throw Exception('password_update_failed');
+    }
+  }
+
   Future<void> deleteAccount() async {
     final token = _session?.token;
     if (token == null) throw Exception('not_authenticated');

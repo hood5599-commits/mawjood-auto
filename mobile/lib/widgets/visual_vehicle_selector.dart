@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../data/car_data.dart';
+import '../data/category_images.dart';
 import '../models/part_model.dart';
 import '../services/api_client.dart';
 import '../utils/vin_matcher.dart';
@@ -12,16 +13,16 @@ enum SelectorStep { idle, engine, mainCat, subCat, parts }
 class CategoryMeta {
   final String ar;
   final String en;
-  final String icon;
+  final IconData iconData;
   final Color bg;
-  final String? imageUrl;
+  final String? imageAsset;
 
   const CategoryMeta({
     required this.ar,
     required this.en,
-    required this.icon,
+    required this.iconData,
     required this.bg,
-    this.imageUrl,
+    this.imageAsset,
   });
 }
 
@@ -69,136 +70,153 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
 
   // 🗂️ القاموس الشامل للأقسام الـ 22 الرئيسية
   static const Map<String, CategoryMeta> categoryMeta = {
-    "Brake & Wheel Hub": CategoryMeta(
-      ar: "الفرامل والسفايف والدرامات",
-      en: "Brake & Wheel Hub",
-      icon: "🛑",
+    'Brake & Wheel Hub': CategoryMeta(
+      ar: 'الفرامل والسفايف والدرامات',
+      en: 'Brake & Wheel Hub',
+      iconData: Icons.car_crash_outlined,
       bg: Color(0xFFFEF2F2),
+      imageAsset: 'assets/images/brakes.png.jpg',
     ),
-    "Suspension": CategoryMeta(
-      ar: "المساعدات والجامبينات والشيالات",
-      en: "Suspension",
-      icon: "🔩",
+    'Suspension': CategoryMeta(
+      ar: 'المساعدات والجامبينات والشيالات',
+      en: 'Suspension',
+      iconData: Icons.linear_scale,
       bg: Color(0xFFFAF5FF),
+      imageAsset: 'assets/images/Suspension.jpg',
     ),
-    "Engine": CategoryMeta(
-      ar: "المحرك ومكونات المكينة",
-      en: "Engine & Components",
-      icon: "⚙️",
+    'Engine': CategoryMeta(
+      ar: 'المحرك ومكونات المكينة',
+      en: 'Engine & Components',
+      iconData: Icons.settings,
       bg: Color(0xFFEFF6FF),
+      imageAsset: 'assets/images/Engine.jpg',
     ),
-    "Cooling System": CategoryMeta(
-      ar: "نظام التبريد والرديتر",
-      en: "Cooling System",
-      icon: "❄️",
+    'Cooling System': CategoryMeta(
+      ar: 'نظام التبريد والرديتر',
+      en: 'Cooling System',
+      iconData: Icons.ac_unit,
       bg: Color(0xFFF0FDF4),
+      imageAsset: 'assets/images/Cooling System.jpg',
     ),
-    "Heat & Air Conditioning": CategoryMeta(
-      ar: "التكييف والكمبريسر والتدفئة",
-      en: "Heat & Air Conditioning",
-      icon: "💨",
+    'Heat & Air Conditioning': CategoryMeta(
+      ar: 'التكييف والكمبريسر والتدفئة',
+      en: 'Heat & Air Conditioning',
+      iconData: Icons.air,
       bg: Color(0xFFFFFBEB),
+      imageAsset: 'assets/images/Heat & Air Conditioning.jpg',
     ),
-    "Ignition": CategoryMeta(
-      ar: "نظام الاشتعال (البلاكات والكويلات)",
-      en: "Ignition System",
-      icon: "🔥",
+    'Ignition': CategoryMeta(
+      ar: 'نظام الاشتعال (البلاكات والكويلات)',
+      en: 'Ignition System',
+      iconData: Icons.local_fire_department_outlined,
       bg: Color(0xFFFFF7ED),
+      imageAsset: 'assets/images/Ignition.jpg',
     ),
-    "Fuel & Air": CategoryMeta(
-      ar: "الوقود وبترول وهواء المكينة",
-      en: "Fuel & Air",
-      icon: "⛽",
+    'Fuel & Air': CategoryMeta(
+      ar: 'الوقود وبترول وهواء المكينة',
+      en: 'Fuel & Air',
+      iconData: Icons.local_gas_station_outlined,
       bg: Color(0xFFF0FDFA),
+      imageAsset: 'assets/images/Fuel & Air.jpg',
     ),
-    "Electrical": CategoryMeta(
-      ar: "الكهرباء والدينمة والسلف",
-      en: "Electrical System",
-      icon: "⚡",
+    'Electrical': CategoryMeta(
+      ar: 'الكهرباء والدينمة والسلف',
+      en: 'Electrical System',
+      iconData: Icons.bolt,
       bg: Color(0xFFFEFCE8),
+      imageAsset: 'assets/images/Electrical.jpg',
     ),
-    "Body & Lamp Assembly": CategoryMeta(
-      ar: "الهيكل والإضاءة (بدي وليتات)",
-      en: "Body & Lighting",
-      icon: "💡",
+    'Body & Lamp Assembly': CategoryMeta(
+      ar: 'الهيكل والإضاءة (بدي وليتات)',
+      en: 'Body & Lighting',
+      iconData: Icons.lightbulb_outline,
       bg: Color(0xFFF8FAFC),
+      imageAsset: 'assets/images/Body & Lamp Assembly.jpg',
     ),
-    "Steering": CategoryMeta(
-      ar: "نظام التوجيه والاستيرنج راك",
-      en: "Steering System",
-      icon: "🎯",
+    'Steering': CategoryMeta(
+      ar: 'نظام التوجيه والاستيرنج راك',
+      en: 'Steering System',
+      iconData: Icons.drive_eta_outlined,
       bg: Color(0xFFF5F3FF),
+      imageAsset: 'assets/images/Steering.jpg',
     ),
-    "Drivetrain": CategoryMeta(
-      ar: "الدفع والمحاور (الأكسلات والشفت)",
-      en: "Drivetrain & Axles",
-      icon: "🔄",
+    'Drivetrain': CategoryMeta(
+      ar: 'الدفع والمحاور (الأكسلات والشفت)',
+      en: 'Drivetrain & Axles',
+      iconData: Icons.sync,
       bg: Color(0xFFFDF2F8),
+      imageAsset: 'assets/images/Drivetrain.jpg',
     ),
-    "Transmission-Automatic": CategoryMeta(
-      ar: "القير الأوتوماتيك (الجير)",
-      en: "Automatic Transmission",
-      icon: "🕹️",
+    'Transmission-Automatic': CategoryMeta(
+      ar: 'القير الأوتوماتيك (الجير)',
+      en: 'Automatic Transmission',
+      iconData: Icons.settings_input_component,
       bg: Color(0xFFF1F5F9),
+      imageAsset: 'assets/images/Transmission-Automatic.jpg',
     ),
-    "Transmission-Manual": CategoryMeta(
-      ar: "القير العادي (الكلتش)",
-      en: "Manual Transmission",
-      icon: "⚙️",
+    'Transmission-Manual': CategoryMeta(
+      ar: 'القير العادي (الكلتش)',
+      en: 'Manual Transmission',
+      iconData: Icons.settings_suggest,
       bg: Color(0xFFF1F5F9),
+      imageAsset: 'assets/images/Transmission-Automatic.jpg',
     ),
-    "Wheel": CategoryMeta(
-      ar: "الإطارات والرنجات والتواير",
-      en: "Wheels & Tires",
-      icon: "🛞",
+    'Wheel': CategoryMeta(
+      ar: 'الإطارات والرنجات والتواير',
+      en: 'Wheels & Tires',
+      iconData: Icons.tire_repair,
       bg: Color(0xFFF8FAFC),
+      imageAsset: 'assets/images/wheels.jpg',
     ),
-    "Wiper & Washer": CategoryMeta(
-      ar: "المساحات وبخاخات ماي الجام",
-      en: "Wipers & Washers",
-      icon: "🌧️",
+    'Wiper & Washer': CategoryMeta(
+      ar: 'المساحات وبخاخات ماي الجام',
+      en: 'Wipers & Washers',
+      iconData: Icons.water_drop_outlined,
       bg: Color(0xFFEFF6FF),
+      imageAsset: 'assets/images/Wiper & Washer.jpg',
     ),
-    "Belt Drive": CategoryMeta(
-      ar: "نظام السيور والقوايش",
-      en: "Belt Drive",
-      icon: "🔗",
+    'Belt Drive': CategoryMeta(
+      ar: 'نظام السيور والقوايش',
+      en: 'Belt Drive',
+      iconData: Icons.link,
       bg: Color(0xFFFFF7ED),
+      imageAsset: 'assets/images/Belt Drive.jpg',
     ),
-    "Exhaust & Emission": CategoryMeta(
-      ar: "العادم والقزوز ودبة البيئة",
-      en: "Exhaust & Emission",
-      icon: "💨",
+    'Exhaust & Emission': CategoryMeta(
+      ar: 'العادم والقزوز ودبة البيئة',
+      en: 'Exhaust & Emission',
+      iconData: Icons.cloud_outlined,
       bg: Color(0xFFF1F5F9),
+      imageAsset: 'assets/images/Exhaust & Emission.jpg',
     ),
-    "Electrical-Bulb & Socket": CategoryMeta(
-      ar: "اللمبات والفيش",
-      en: "Electrical-Bulb & Socket",
-      icon: "💡",
+    'Electrical-Bulb & Socket': CategoryMeta(
+      ar: 'اللمبات والفيش',
+      en: 'Electrical-Bulb & Socket',
+      iconData: Icons.lightbulb_outline,
       bg: Color(0xFFFEFCE8),
     ),
-    "Electrical-Connector": CategoryMeta(
-      ar: "الفيش والتوصيلات",
-      en: "Electrical-Connector",
-      icon: "🔌",
+    'Electrical-Connector': CategoryMeta(
+      ar: 'الفيش والتوصيلات',
+      en: 'Electrical-Connector',
+      iconData: Icons.cable,
       bg: Color(0xFFF8FAFC),
     ),
-    "Electrical-Switch & Relay": CategoryMeta(
-      ar: "المفاتيح والكتاوت",
-      en: "Electrical-Switch & Relay",
-      icon: "🎛️",
+    'Electrical-Switch & Relay': CategoryMeta(
+      ar: 'المفاتيح والكتاوت',
+      en: 'Electrical-Switch & Relay',
+      iconData: Icons.toggle_on_outlined,
       bg: Color(0xFFF1F5F9),
     ),
-    "Interior": CategoryMeta(
-      ar: "المقصورة والديكور الداخلي",
-      en: "Interior",
-      icon: "🪑",
+    'Interior': CategoryMeta(
+      ar: 'المقصورة والديكور الداخلي',
+      en: 'Interior',
+      iconData: Icons.airline_seat_recline_normal,
       bg: Color(0xFFF8FAFC),
     ),
-    "Literature": CategoryMeta(
-      ar: "الكتالوجات والكتيبات",
-      en: "Literature",
-      icon: "📚",
+    'Literature': CategoryMeta(
+      ar: 'الكتالوجات والكتيبات',
+      en: 'Literature',
+      iconData: Icons.menu_book_outlined,
       bg: Color(0xFFFAF5FF),
     ),
   };
@@ -984,19 +1002,31 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
                   CategoryMeta(
                     ar: cat,
                     en: cat,
-                    icon: '📦',
+                    iconData: Icons.category_outlined,
                     bg: const Color(0xFFF8FAFC),
+                    imageAsset: CategoryImages.assetFor(cat),
                   );
+              final asset = meta.imageAsset ?? CategoryImages.assetFor(cat);
 
               return InkWell(
                 onTap: () => _handleSelectMainCat(cat),
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: AppTheme.surfaceSlate,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppTheme.borderSlate),
+                    image: asset != null
+                        ? DecorationImage(
+                            image: AssetImage(asset),
+                            fit: BoxFit.cover,
+                            colorFilter: ColorFilter.mode(
+                              Colors.black.withValues(alpha: 0.55),
+                              BlendMode.darken,
+                            ),
+                          )
+                        : null,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1005,15 +1035,14 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
                         width: 52,
                         height: 52,
                         decoration: BoxDecoration(
-                          color: AppTheme.cardBg,
+                          color: AppTheme.cardBg.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: AppTheme.borderSlate),
                         ),
-                        child: Center(
-                          child: Text(
-                            meta.icon,
-                            style: const TextStyle(fontSize: 26),
-                          ),
+                        child: Icon(
+                          meta.iconData,
+                          color: AppTheme.copperLight,
+                          size: 26,
                         ),
                       ),
                       const SizedBox(height: 10),

@@ -6,7 +6,6 @@ import '../../services/api_client.dart';
 import '../../services/cart_service.dart';
 import '../../widgets/ai_chatbot_sheet.dart';
 import '../../widgets/custom_toast.dart';
-import '../../widgets/request_part_modal.dart';
 import '../../widgets/sidebar_filters.dart';
 import '../info_page_screen.dart';
 import 'cart_screen.dart';
@@ -80,16 +79,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => OrderTrackerScreen(lang: _lang)));
-  }
-
-  void _openCustomPartRequest() {
-    RequestPartModal.show(
-      context,
-      onSuccess: () => CustomToast.success(
-        context,
-        isAr ? 'تم استلام طلبك بنجاح' : 'Request received successfully',
-      ),
-    );
   }
 
   void _openAbboudAssistant() {
@@ -246,14 +235,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
               child: Text(isAr ? 'الأسئلة الشائعة' : 'FAQ'),
             ),
           ],
-        ),
-        IconButton(
-          tooltip: isAr ? 'طلب قطعة خاصة' : 'Custom Request',
-          icon: const Icon(
-            Icons.add_circle_outline,
-            color: AppTheme.copperLight,
-          ),
-          onPressed: _openCustomPartRequest,
         ),
         TextButton(
           onPressed: () => setState(() => _lang = isAr ? 'en' : 'ar'),

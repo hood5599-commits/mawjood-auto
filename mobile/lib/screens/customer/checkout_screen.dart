@@ -9,10 +9,12 @@ import '../../config/supabase_config.dart';
 import '../../config/theme.dart';
 import '../../models/part_model.dart';
 import '../../services/api_client.dart';
+import '../../services/auth_service.dart';
 import '../../services/cart_service.dart';
 import '../../services/istemara_service.dart';
 import '../../widgets/ai_translated_text.dart';
 import '../../widgets/custom_toast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum CheckoutStep { inquire, checkout, success }
 
@@ -267,6 +269,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  Future<String> _resolveCustomerPhone() async {
+    if (widget.customerPhone.trim().isNotEmpty) {
+      return widget.customerPhone.trim();
+    }
+    final sessionPhone = AuthService().session?.displayPhone ?? '';
+    if (sessionPhone.isNotEmpty) return sessionPhone;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('customer_phone') ?? 'CUST-GUEST';
+  }
+
   Future<void> _handleFinalCheckout() async {
     if (_deliveryType == DeliveryType.delivery &&
         _addressController.text.trim().isEmpty) {
@@ -280,31 +292,72 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _isLoading = true);
     final ordCode = 'ORD-${Random().nextInt(899999) + 100000}';
     final pickupCode = (Random().nextInt(8999) + 1000).toString();
+    final customerPhone = await _resolveCustomerPhone();
 
     try {
+      final partId = widget.part.id.startsWith('custom-')
+          ? null
+          : int.tryParse(widget.part.id);
+
       final payload = {
         'order_code': ordCode,
-        'part_id': widget.part.id.startsWith('custom-')
-            ? null
-            : int.tryParse(widget.part.id),
+        'part_id': partId,
         'part_name': widget.part.name,
         'price': totalPrice,
         'garage_id': widget.part.garageId ?? 'garage',
-        'customer_phone': widget.customerPhone.isNotEmpty
-            ? widget.customerPhone
-            : 'CUST-GUEST',
-        'delivery_type': _deliveryType == DeliveryType.delivery
-            ? 'delivery'
-            : 'pickup',
+        'customer_id': AuthService().session?.user?['id']?.toString(),
+        'customer_phone': customerPhone,
+        'delivery_type':
+            _deliveryType == DeliveryType.delivery ? 'delivery' : 'pickup',
         'address_details': _deliveryType == DeliveryType.delivery
             ? _addressController.text.trim()
             : (isAr ? 'استلام من المقر' : 'Store Pickup'),
+        'delivery_address': _deliveryType == DeliveryType.delivery
+            ? _addressController.text.trim()
+            : null,
         'payment_method': _paymentMethod.name,
+        'payment_status':
+            _paymentMethod == PaymentMethod.cod ? 'cod' : 'pending',
         'pickup_code': pickupCode,
         'status': 'pending',
+        'items': [
+          {
+            'part_id': partId,
+            'part_name': widget.part.name,
+            'quantity': 1,
+            'price': widget.part.price,
+          },
+        ],
+        'total': totalPrice,
       };
 
-      await ApiClient().post('/orders', data: payload);
+      var res = await ApiClient().post('/orders', data: payload);
+      final ok = res.statusCode == 200 ||
+          res.statusCode == 201 ||
+          res.statusCode == 204;
+
+      if (!ok) {
+        // Fallback minimal payload matching web CustomerFitmentCheckout
+        res = await ApiClient().post(
+          '/orders',
+          data: {
+            'part_name': widget.part.name,
+            'price': totalPrice,
+            'garage_id': widget.part.garageId ?? 'garage',
+            'customer_phone': customerPhone,
+            'status': 'pending',
+          },
+        );
+      }
+
+      final success = res.statusCode == 200 ||
+          res.statusCode == 201 ||
+          res.statusCode == 204;
+
+      if (!success) {
+        throw Exception('order_create_failed');
+      }
+
       await CartService().removeFromCart(widget.part.id);
 
       setState(() {
@@ -337,10 +390,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           elevation: 0,
           title: Text(
             _step == CheckoutStep.inquire
-                ? (isAr ? '🔍 فحص مطابقة الشاصي' : '🔍 Fitment Verification')
+                ? (isAr ? 'فحص مطابقة الشاصي' : 'Fitment Verification')
                 : _step == CheckoutStep.checkout
-                ? (isAr ? '💳 إتمام الشراء والدفع' : '💳 Checkout & Payment')
-                : (isAr ? '🎉 تم استلام الطلب' : '🎉 Order Confirmed'),
+                ? (isAr ? 'إتمام الشراء والدفع' : 'Checkout & Payment')
+                : (isAr ? 'تم استلام الطلب' : 'Order Confirmed'),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,

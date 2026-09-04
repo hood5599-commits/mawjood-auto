@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/theme.dart';
 import '../../models/vehicle_model.dart';
@@ -26,6 +27,12 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const _surface = Color(0xFF121824);
+  static const _surfaceAlt = Color(0xFF1A2232);
+  static const _text = Color(0xFFF9FAFB);
+  static const _muted = Color(0xFF9CA3AF);
+  static const _border = Color(0xFF2A3448);
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
@@ -53,13 +60,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  InputDecoration _fieldDecoration({
+    required String label,
+    IconData? icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: _muted),
+      hintStyle: const TextStyle(color: _muted),
+      prefixIcon: icon != null ? Icon(icon, size: 20, color: _muted) : null,
+      filled: true,
+      fillColor: _surfaceAlt,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppTheme.copper),
+      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
     final session = AuthService().session;
     setState(() {
-      _nameController.text = session?.fullName ??
-          prefs.getString('customer_name') ??
-          '';
+      _nameController.text =
+          session?.fullName ?? prefs.getString('customer_name') ?? '';
       _phoneController.text = session?.displayPhone.isNotEmpty == true
           ? session!.displayPhone
           : (prefs.getString('customer_phone') ?? '');
@@ -110,6 +139,140 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _editUsername() async {
+    final ctrl = TextEditingController(text: _nameController.text);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+        child: AlertDialog(
+          backgroundColor: _surfaceAlt,
+          title: Text(
+            isAr ? 'تعديل اسم المستخدم' : 'Edit Username',
+            style: const TextStyle(color: _text),
+          ),
+          content: TextField(
+            controller: ctrl,
+            style: const TextStyle(color: _text),
+            decoration: _fieldDecoration(
+              label: isAr ? 'الاسم الكامل' : 'Full Name',
+              icon: Icons.badge_outlined,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(isAr ? 'إلغاء' : 'Cancel',
+                  style: const TextStyle(color: _muted)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(isAr ? 'حفظ' : 'Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    _nameController.text = ctrl.text.trim();
+    await _saveProfileData();
+  }
+
+  Future<void> _changePassword() async {
+    if (!isLoggedIn) {
+      CustomToast.info(
+        context,
+        isAr ? 'سجّل الدخول أولاً' : 'Please sign in first',
+      );
+      return;
+    }
+    final passCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+        child: AlertDialog(
+          backgroundColor: _surfaceAlt,
+          title: Text(
+            isAr ? 'تغيير كلمة المرور' : 'Change Password',
+            style: const TextStyle(color: _text),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: passCtrl,
+                obscureText: true,
+                style: const TextStyle(color: _text),
+                decoration: _fieldDecoration(
+                  label: isAr ? 'كلمة المرور الجديدة' : 'New Password',
+                  icon: Icons.lock_outline,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmCtrl,
+                obscureText: true,
+                style: const TextStyle(color: _text),
+                decoration: _fieldDecoration(
+                  label: isAr ? 'تأكيد كلمة المرور' : 'Confirm Password',
+                  icon: Icons.lock_outline,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(isAr ? 'إلغاء' : 'Cancel',
+                  style: const TextStyle(color: _muted)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(isAr ? 'تحديث' : 'Update'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    if (passCtrl.text.length < 6) {
+      CustomToast.error(
+        context,
+        isAr
+            ? 'كلمة المرور يجب ألا تقل عن 6 أحرف'
+            : 'Password must be at least 6 characters',
+      );
+      return;
+    }
+    if (passCtrl.text != confirmCtrl.text) {
+      CustomToast.error(
+        context,
+        isAr ? 'كلمة المرور غير متطابقة' : 'Passwords do not match',
+      );
+      return;
+    }
+    try {
+      await AuthService().changePassword(passCtrl.text);
+      if (!mounted) return;
+      CustomToast.success(
+        context,
+        isAr ? 'تم تغيير كلمة المرور' : 'Password updated',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      CustomToast.error(
+        context,
+        isAr ? 'تعذر تغيير كلمة المرور' : 'Could not update password',
+      );
+    }
+  }
+
+  Future<void> _launch(Uri uri) async {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   void _openOrderTracker() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -130,10 +293,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onSuccess: (_) {
             Navigator.pop(context);
             _loadProfileData();
-            CustomToast.success(
-              context,
-              isAr ? 'تم تسجيل الدخول' : 'Signed in',
-            );
           },
         ),
       ),
@@ -141,24 +300,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmDeleteAccount() async {
-    if (!isLoggedIn) {
-      CustomToast.info(
-        context,
-        isAr ? 'سجّل الدخول أولاً' : 'Please sign in first',
-      );
-      return;
-    }
-
+    if (!isLoggedIn) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
         child: AlertDialog(
-          title: Text(isAr ? 'حذف الحساب' : 'Delete Account'),
+          backgroundColor: _surfaceAlt,
+          title: Text(
+            isAr ? 'حذف الحساب' : 'Delete Account',
+            style: const TextStyle(color: _text),
+          ),
           content: Text(
             isAr
-                ? 'سيتم حذف حسابك وبياناتك المرتبطة. هذا الإجراء لا يمكن التراجع عنه بسهولة. هل أنت متأكد؟'
-                : 'Your account and related data will be deleted. This cannot be easily undone. Continue?',
+                ? 'سيتم حذف حسابك وبياناتك المرتبطة. هل أنت متأكد؟'
+                : 'Your account and related data will be deleted. Continue?',
+            style: const TextStyle(color: _muted),
           ),
           actions: [
             TextButton(
@@ -174,244 +331,255 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
-
     if (ok != true) return;
     setState(() => _deleting = true);
     try {
       await AuthService().deleteAccount();
       if (!mounted) return;
-      CustomToast.success(
-        context,
-        isAr ? 'تم حذف الحساب' : 'Account deleted',
-      );
       widget.onLogout?.call();
     } catch (_) {
-      if (!mounted) return;
-      CustomToast.error(
-        context,
-        isAr ? 'تعذر حذف الحساب' : 'Could not delete account',
-      );
+      if (mounted) {
+        CustomToast.error(
+          context,
+          isAr ? 'تعذر حذف الحساب' : 'Could not delete account',
+        );
+      }
     } finally {
       if (mounted) setState(() => _deleting = false);
     }
-  }
-
-  void _openInfo(InfoPageType type) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => InfoPageScreen(lang: widget.lang, type: type),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF090D16),
-          elevation: 0,
-          title: Text(
-            isAr ? 'الملف الشخصي' : 'Customer Profile',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: AppTheme.obsidian,
+          textTheme: Theme.of(context).textTheme.apply(
+                bodyColor: _text,
+                displayColor: _text,
+              ),
+          inputDecorationTheme: const InputDecorationTheme(
+            labelStyle: TextStyle(color: _muted),
+            hintStyle: TextStyle(color: _muted),
           ),
-          actions: [
-            IconButton(
-              tooltip: isAr ? 'تتبع الطلبات' : 'Order Tracker',
-              icon: const Icon(Icons.inventory_2_outlined, color: Colors.white70),
-              onPressed: _openOrderTracker,
-            ),
-          ],
         ),
-        body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppTheme.copper),
-              )
-            : SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildIdentityCard(),
-                      const SizedBox(height: 14),
-                      if (!isLoggedIn)
+        child: Scaffold(
+          backgroundColor: AppTheme.obsidian,
+          appBar: AppBar(
+            backgroundColor: AppTheme.obsidian,
+            title: Text(
+              isAr ? 'الملف الشخصي' : 'Customer Profile',
+              style: const TextStyle(
+                color: _text,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.inventory_2_outlined, color: _muted),
+                onPressed: _openOrderTracker,
+              ),
+            ],
+          ),
+          body: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppTheme.copper),
+                )
+              : SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _identityCard(),
+                        const SizedBox(height: 14),
+                        if (!isLoggedIn)
+                          SizedBox(
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              onPressed: _openAuth,
+                              icon: const Icon(Icons.login, color: _text),
+                              label: Text(
+                                isAr
+                                    ? 'تسجيل الدخول / إنشاء حساب'
+                                    : 'Sign In / Register',
+                                style: const TextStyle(color: _text),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: _border),
+                              ),
+                            ),
+                          ),
+                        if (!isLoggedIn) const SizedBox(height: 14),
+                        _card(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isAr
+                                    ? 'بيانات الاتصال والتوصيل'
+                                    : 'Contact & Delivery Details',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: _text,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: _nameController,
+                                style: const TextStyle(color: _text),
+                                decoration: _fieldDecoration(
+                                  label: isAr ? 'الاسم الكامل' : 'Full Name',
+                                  icon: Icons.badge_outlined,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _phoneController,
+                                keyboardType: TextInputType.phone,
+                                style: const TextStyle(color: _text),
+                                decoration: _fieldDecoration(
+                                  label: isAr ? 'رقم الهاتف' : 'Phone Number',
+                                  icon: Icons.phone_outlined,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _addressController,
+                                maxLines: 2,
+                                style: const TextStyle(color: _text),
+                                decoration: _fieldDecoration(
+                                  label: isAr
+                                      ? 'عنوان التوصيل الافتراضي'
+                                      : 'Default Delivery Address',
+                                  icon: Icons.location_on_outlined,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _card(
+                          child: Column(
+                            children: [
+                              _actionTile(
+                                Icons.edit_outlined,
+                                isAr
+                                    ? 'تعديل اسم المستخدم'
+                                    : 'Edit Username',
+                                _editUsername,
+                              ),
+                              const Divider(color: _border, height: 1),
+                              _actionTile(
+                                Icons.lock_outline,
+                                isAr
+                                    ? 'تغيير كلمة المرور'
+                                    : 'Change Password',
+                                _changePassword,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _vehiclesCard(),
+                        const SizedBox(height: 12),
+                        _supportCard(),
+                        const SizedBox(height: 20),
                         SizedBox(
-                          height: 48,
-                          child: OutlinedButton.icon(
-                            onPressed: _openAuth,
-                            icon: const Icon(Icons.login),
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _isSaving ? null : _saveProfileData,
+                            child: _isSaving
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    isAr ? 'حفظ البيانات' : 'Save Changes',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        if (isLoggedIn && widget.onLogout != null)
+                          TextButton.icon(
+                            onPressed: widget.onLogout,
+                            icon: const Icon(Icons.logout,
+                                color: AppTheme.danger, size: 18),
                             label: Text(
-                              isAr ? 'تسجيل الدخول / إنشاء حساب' : 'Sign In / Register',
+                              isAr ? 'تسجيل الخروج' : 'Log Out',
+                              style: const TextStyle(
+                                color: AppTheme.danger,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                      if (!isLoggedIn) const SizedBox(height: 14),
-                      _buildPersonalDetailsCard(),
-                      const SizedBox(height: 18),
-                      _buildSavedVehiclesSection(),
-                      const SizedBox(height: 18),
-                      _buildSupportSection(),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isSaving ? null : _saveProfileData,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.copper,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        if (isLoggedIn)
+                          TextButton.icon(
+                            onPressed:
+                                _deleting ? null : _confirmDeleteAccount,
+                            icon: const Icon(Icons.delete_forever,
+                                color: AppTheme.danger, size: 18),
+                            label: Text(
+                              isAr ? 'حذف الحساب' : 'Delete Account',
+                              style: const TextStyle(
+                                color: AppTheme.danger,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          child: _isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  isAr ? 'حفظ البيانات' : 'Save Changes',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      if (widget.onLogout != null && isLoggedIn)
-                        TextButton.icon(
-                          onPressed: widget.onLogout,
-                          icon: const Icon(
-                            Icons.logout,
-                            color: AppTheme.danger,
-                            size: 18,
-                          ),
-                          label: Text(
-                            isAr ? 'تسجيل الخروج' : 'Log Out',
-                            style: const TextStyle(
-                              color: AppTheme.danger,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      if (isLoggedIn)
-                        TextButton.icon(
-                          onPressed: _deleting ? null : _confirmDeleteAccount,
-                          icon: _deleting
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.delete_forever,
-                                  color: AppTheme.danger,
-                                  size: 18,
-                                ),
-                          label: Text(
-                            isAr ? 'حذف الحساب' : 'Delete Account',
-                            style: const TextStyle(
-                              color: AppTheme.danger,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 20),
-                    ],
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }
 
-  Widget _buildSupportSection() {
+  Widget _card({required Widget child}) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
-      child: Column(
-        children: [
-          _linkTile(
-            Icons.info_outline,
-            isAr ? 'عن موجود أوتو' : 'About Mawjood Auto',
-            () => _openInfo(InfoPageType.about),
-          ),
-          const Divider(height: 1),
-          _linkTile(
-            Icons.support_agent,
-            isAr ? 'خدمة العملاء' : 'Customer Care',
-            () => _openInfo(InfoPageType.care),
-          ),
-          const Divider(height: 1),
-          _linkTile(
-            Icons.contact_phone_outlined,
-            isAr ? 'تواصل معنا' : 'Contact Us',
-            () => _openInfo(InfoPageType.contact),
-          ),
-          const Divider(height: 1),
-          _linkTile(
-            Icons.help_outline,
-            isAr ? 'الأسئلة الشائعة' : 'FAQ',
-            () => _openInfo(InfoPageType.faq),
-          ),
-        ],
-      ),
+      child: child,
     );
   }
 
-  Widget _linkTile(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: AppTheme.copper),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      trailing: const Icon(Icons.chevron_right),
-      minVerticalPadding: 16,
-      onTap: onTap,
-    );
-  }
-
-  Widget _buildIdentityCard() {
+  Widget _identityCard() {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF090D16), Color(0xFF1F3A5F)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _border),
       ),
       child: Row(
         children: [
           Container(
             width: 56,
             height: 56,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppTheme.copper,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white24, width: 2),
             ),
-            child: const Center(
-              child: Icon(Icons.person, color: Colors.white, size: 30),
-            ),
+            child: const Icon(Icons.person, color: Colors.white, size: 30),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -423,7 +591,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ? _nameController.text.trim()
                       : (isAr ? 'عميل موجود أوتو' : 'Mawjood Customer'),
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: _text,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
@@ -433,9 +601,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   isLoggedIn
                       ? (isAr ? 'مسجّل الدخول' : 'Signed in')
                       : (isAr ? 'زائر' : 'Guest'),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: const TextStyle(color: _muted, fontSize: 12),
                 ),
-                const SizedBox(height: 4),
                 Text(
                   'ID: $_customerCode',
                   style: const TextStyle(
@@ -453,59 +620,115 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildPersonalDetailsCard() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+  Widget _vehiclesCard() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  isAr ? 'سياراتي المحفوظة' : 'My Saved Vehicles',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: _text,
+                  ),
+                ),
+              ),
+              const Icon(Icons.directions_car_outlined, color: AppTheme.copper),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_savedVehicles.isEmpty)
+            Text(
+              isAr
+                  ? 'لم تقم بتسجيل سيارة بعد.'
+                  : 'No vehicles saved yet.',
+              style: const TextStyle(fontSize: 12, color: _muted),
+            )
+          else
+            ..._savedVehicles.map(
+              (v) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _surfaceAlt,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _border),
+                ),
+                child: Text(
+                  '${v.make} ${v.model} (${v.year})',
+                  style: const TextStyle(
+                    color: _text,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
+    );
+  }
+
+  Widget _supportCard() {
+    return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isAr ? 'بيانات الاتصال والتوصيل' : 'Contact & Delivery Details',
+            isAr ? 'التواصل والدعم' : 'Contact & Support',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+              color: _text,
             ),
           ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: isAr ? 'الاسم الكامل' : 'Full Name',
-              prefixIcon: const Icon(Icons.badge_outlined, size: 20),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 8),
+          _actionTile(
+            Icons.chat,
+            'WhatsApp',
+            () => _launch(Uri.parse('https://wa.me/97455000000')),
+          ),
+          const Divider(color: _border, height: 1),
+          _actionTile(
+            Icons.phone,
+            isAr ? 'اتصال هاتفي' : 'Call Us',
+            () => _launch(Uri.parse('tel:+97455000000')),
+          ),
+          const Divider(color: _border, height: 1),
+          _actionTile(
+            Icons.email_outlined,
+            'support@mawjood.com',
+            () => _launch(Uri.parse('mailto:support@mawjood.com')),
+          ),
+          const Divider(color: _border, height: 1),
+          _actionTile(
+            Icons.info_outline,
+            isAr ? 'عن موجود أوتو' : 'About',
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => InfoPageScreen(
+                  lang: widget.lang,
+                  type: InfoPageType.about,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              labelText: isAr ? 'رقم الهاتف' : 'Phone Number',
-              prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _addressController,
-            maxLines: 2,
-            decoration: InputDecoration(
-              labelText: isAr
-                  ? 'عنوان التوصيل الافتراضي'
-                  : 'Default Delivery Address',
-              prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+          const Divider(color: _border, height: 1),
+          _actionTile(
+            Icons.support_agent,
+            isAr ? 'خدمة العملاء' : 'Customer Care',
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => InfoPageScreen(
+                  lang: widget.lang,
+                  type: InfoPageType.care,
+                ),
               ),
             ),
           ),
@@ -514,71 +737,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSavedVehiclesSection() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+  Widget _actionTile(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: AppTheme.copper),
+      title: Text(
+        title,
+        style: const TextStyle(color: _text, fontWeight: FontWeight.w600),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                isAr ? 'كراج سياراتي المحفوظة' : 'My Saved Vehicles',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const Icon(Icons.directions_car_outlined, color: AppTheme.copper),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_savedVehicles.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                isAr
-                    ? 'لم تقم بتسجيل سيارة بعد. ستُحفظ سيارتك تلقائياً عند مسح الاستمارة.'
-                    : 'No vehicles saved yet. Vehicle is saved when scanning Istemara.',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
-              ),
-            )
-          else
-            ..._savedVehicles.map(
-              (v) => Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.verified, color: AppTheme.success, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${v.make} ${v.model} (${v.year})',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
+      trailing: const Icon(Icons.chevron_right, color: _muted),
+      minVerticalPadding: 14,
+      onTap: onTap,
     );
   }
 }

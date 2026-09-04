@@ -8,9 +8,10 @@ import 'package:image_picker/image_picker.dart';
 import '../config/supabase_config.dart';
 import '../config/theme.dart';
 import '../data/car_data.dart';
+import '../models/vehicle_model.dart';
 import '../services/api_client.dart';
-import '../services/istemara_service.dart';
 import 'custom_toast.dart';
+import 'smart_vin_scanner.dart';
 
 class RequestPartModal extends StatefulWidget {
   final String customerPhone;
@@ -60,10 +61,7 @@ class _RequestPartModalState extends State<RequestPartModal> {
   late final TextEditingController _notesController;
 
   String? _oldPartImgUrl;
-  String? _vinImgUrl;
   bool _uploadingOldPart = false;
-  bool _uploadingVinImg = false;
-  bool _scanningVin = false;
   bool _isSubmitting = false;
   bool _isSuccess = false;
 
@@ -113,53 +111,6 @@ class _RequestPartModalState extends State<RequestPartModal> {
       debugPrint('🚨 [Storage Upload Error]: $err');
     }
     return null;
-  }
-
-  /// فحص الاستمارة بالذكاء الاصطناعي واستخراج رقم الشاصي
-  Future<void> _handleVinImagePick() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-
-    final file = File(picked.path);
-    setState(() {
-      _uploadingVinImg = true;
-      _scanningVin = true;
-    });
-
-    try {
-      final uploadedUrl = await _uploadImageToStorage(file);
-      if (uploadedUrl != null) {
-        setState(() => _vinImgUrl = uploadedUrl);
-      }
-
-      final scanRes = await IstemaraService.scanIstemara(imageFile: file);
-      if (scanRes.success && scanRes.vin != null && scanRes.vin!.isNotEmpty) {
-        _vinController.text = scanRes.vin!;
-        if (_make.isEmpty && scanRes.make != null) _make = scanRes.make!;
-        if (_model.isEmpty && scanRes.model != null) _model = scanRes.model!;
-        if (_year.isEmpty && scanRes.year != null) _year = scanRes.year!;
-        if (mounted) {
-          CustomToast.success(
-            context,
-            'تم استخراج رقم الشاصي ومواصفات السيارة بنجاح!',
-          );
-        }
-      }
-    } catch (_) {
-      if (mounted) {
-        CustomToast.error(
-          context,
-          'تعذر قراءة رقم الشاصي تلقائياً، يمكنك إدخاله يدوياً',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _uploadingVinImg = false;
-          _scanningVin = false;
-        });
-      }
-    }
   }
 
   /// اختيار صورة القطعة القديمة
@@ -220,7 +171,7 @@ class _RequestPartModalState extends State<RequestPartModal> {
             : _partNumberController.text.trim(),
         'notes': _notesController.text.trim(),
         'part_image_url': _oldPartImgUrl,
-        'vin_image_url': _vinImgUrl,
+        'vin_image_url': null,
         'status': 'pending',
       };
 
@@ -308,7 +259,7 @@ class _RequestPartModalState extends State<RequestPartModal> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'طلب تسعير قطعة غير متوفرة 🛠️',
+                'طلب تسعير قطعة غير متوفرة',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.bold,
@@ -397,36 +348,33 @@ class _RequestPartModalState extends State<RequestPartModal> {
                   ),
                   const SizedBox(height: 14),
 
-                  _buildUploadBox(
-                    title: 'صورة الاستمارة (لقراءة رقم الشاصي تلقائياً)',
-                    isLoading: _uploadingVinImg || _scanningVin,
-                    isUploaded: _vinImgUrl != null,
-                    loadingText: 'جاري قراءة رقم الشاصي بالذكاء الاصطناعي...',
-                    onTap: _handleVinImagePick,
+                  SmartVinScanner(
+                    lang: 'ar',
+                    onVehicleIdentified: (VehicleProfile vehicle) {
+                      setState(() {
+                        if (vehicle.vin != null && vehicle.vin!.isNotEmpty) {
+                          _vinController.text = vehicle.vin!;
+                        }
+                        if (vehicle.make.isNotEmpty) _make = vehicle.make;
+                        if (vehicle.model.isNotEmpty) _model = vehicle.model;
+                        if (vehicle.year.isNotEmpty) _year = vehicle.year;
+                        if (vehicle.engine != null &&
+                            vehicle.engine!.isNotEmpty) {
+                          _engineSizeController.text = vehicle.engine!;
+                        }
+                      });
+                    },
+                    onReset: () {
+                      _vinController.clear();
+                    },
                   ),
                   const SizedBox(height: 12),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _vinController,
-                          label: 'رقم الشاصي (VIN)',
-                          hint: '17 حرفاً ورقمياً',
-                          maxLength: 17,
-                          isMonospace: true,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _partNumberController,
-                          label: 'رقم القطعة (Part Number)',
-                          hint: 'اختياري',
-                          isMonospace: true,
-                        ),
-                      ),
-                    ],
+                  _buildTextField(
+                    controller: _partNumberController,
+                    label: 'رقم القطعة (Part Number)',
+                    hint: 'اختياري',
+                    isMonospace: true,
                   ),
                   const SizedBox(height: 14),
 

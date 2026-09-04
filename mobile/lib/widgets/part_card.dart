@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/part_model.dart';
+import '../utils/part_share_helper.dart';
 import 'ai_translated_text.dart';
 import 'add_to_cart_button.dart';
 
@@ -198,10 +199,8 @@ class PartCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
 
-                // 🛠️ أزرار التفاعل (أضف للسلة - فحص - مشاركة)
                 Row(
                   children: [
-                    // زر الإضافة للسلة
                     Expanded(
                       flex: 3,
                       child: AddToCartButton(
@@ -210,22 +209,24 @@ class PartCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-
-                    // زر الفحص / التوافق
                     _buildOutlineButton(
-                      label: isAr ? '🔍 فحص' : '🔍 Inquire',
+                      label: isAr ? 'فحص' : 'Inquire',
                       bgColor: const Color(0xFFF4F6F9),
                       textColor: const Color(0xFF1F3A5F),
                       onTap: () => onInquire?.call(item),
                     ),
                     const SizedBox(width: 6),
-
-                    // زر المشاركة
                     _buildOutlineButton(
-                      label: isAr ? '🔗 مشاركة' : '🔗 Share',
+                      label: isAr ? 'مشاركة' : 'Share',
                       bgColor: const Color(0xFFEEF1F5),
                       textColor: const Color(0xFF4A5568),
-                      onTap: () => onShare?.call(item),
+                      onTap: () {
+                        if (onShare != null) {
+                          onShare!(item);
+                        } else {
+                          PartShareHelper.sharePart(item, lang: lang);
+                        }
+                      },
                     ),
                   ],
                 ),

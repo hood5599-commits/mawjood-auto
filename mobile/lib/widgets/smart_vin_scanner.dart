@@ -145,7 +145,7 @@ class _SmartVinScannerState extends State<SmartVinScanner> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isAr ? 'مسح استمارة السيارة 📄' : 'Scan Vehicle Registration',
+                isAr ? 'مسح استمارة السيارة' : 'Scan Vehicle Registration',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

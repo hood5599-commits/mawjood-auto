@@ -9,8 +9,10 @@ import '../utils/category_helper.dart';
 import '../utils/vin_matcher.dart';
 import '../widgets/custom_toast.dart';
 import '../widgets/part_card.dart';
+import '../widgets/request_part_modal.dart';
 import '../widgets/smart_vin_scanner.dart';
 import '../widgets/visual_vehicle_selector.dart';
+import '../utils/part_share_helper.dart';
 
 enum SearchMode { visual, tree }
 
@@ -459,24 +461,49 @@ class _SidebarFiltersState extends State<SidebarFilters> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1️⃣ شريط الفحص الذكي بالاستمارة والشاصي
-        SmartVinScanner(
-          lang: widget.lang,
-          activeVehicle: _decodedVehicle,
-          onVehicleIdentified: (vehicle) {
-            setState(() => _decodedVehicle = vehicle);
-          },
-          onReset: () {
-            setState(() {
-              _decodedVehicle = null;
-              _activeSearchQuery = '';
-              _searchController.clear();
-            });
-          },
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _buildFeatureCard(
+                title: isAr ? 'الفحص الذكي برقم الشاصي' : 'Smart VIN Scan',
+                subtitle: isAr
+                    ? 'امسح الاستمارة أو أدخل VIN'
+                    : 'Scan Istemara or enter VIN',
+                icon: Icons.document_scanner_outlined,
+                accent: AppTheme.copper,
+                onTap: _openVinScannerSheet,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildFeatureCard(
+                title: isAr
+                    ? 'طلب تسعيرة قطعة غير متوفرة'
+                    : 'Unavailable Part Quote',
+                subtitle: isAr
+                    ? 'أرسل طلب تسعير مخصص'
+                    : 'Request a custom quote',
+                icon: Icons.request_quote_outlined,
+                accent: AppTheme.success,
+                onTap: () => RequestPartModal.show(
+                  context,
+                  onSuccess: () => CustomToast.success(
+                    context,
+                    isAr
+                        ? 'تم استلام طلبك بنجاح'
+                        : 'Request received successfully',
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
+        if (_decodedVehicle != null) ...[
+          const SizedBox(height: 10),
+          _buildActiveVehicleChip(),
+        ],
         const SizedBox(height: 16),
-
-        // 2️⃣ أزرار التبديل بين وضعي التصفح (بصري / شجرة الكتالوج)
         Row(
           children: [
             Expanded(
@@ -505,8 +532,6 @@ class _SidebarFiltersState extends State<SidebarFilters> {
           ],
         ),
         const SizedBox(height: 18),
-
-        // 3️⃣ المحتوى بحسب الوضع المختار
         if (_searchMode == SearchMode.visual && _activeSearchQuery.isEmpty)
           VisualVehicleSelector(
             lang: widget.lang,
@@ -514,6 +539,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                 ? (p) => widget.onAddToCart!(p, 1)
                 : null,
             onInquire: widget.onInquire,
+            onShare: (p) => PartShareHelper.sharePart(p, lang: widget.lang),
           )
         else
           _buildSearchAndTreeSection(),
@@ -521,13 +547,136 @@ class _SidebarFiltersState extends State<SidebarFilters> {
     );
   }
 
-  // بطاقة تبديل وضع البحث
+  void _openVinScannerSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: SmartVinScanner(
+              lang: widget.lang,
+              activeVehicle: _decodedVehicle,
+              onVehicleIdentified: (vehicle) {
+                setState(() => _decodedVehicle = vehicle);
+                Navigator.pop(ctx);
+              },
+              onReset: () {
+                setState(() {
+                  _decodedVehicle = null;
+                  _activeSearchQuery = '';
+                  _searchController.clear();
+                });
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveVehicleChip() {
+    final v = _decodedVehicle!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.success.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.success.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified, color: AppTheme.success, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${v.make} ${v.model} ${v.year}'.trim(),
+              style: const TextStyle(
+                color: AppTheme.textWhite,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _decodedVehicle = null),
+            icon: const Icon(Icons.close, color: AppTheme.textMuted, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+    required VoidCallback onTap,
+    String? backgroundAsset,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 120),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.borderSlate),
+          image: backgroundAsset != null
+              ? DecorationImage(
+                  image: AssetImage(backgroundAsset),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withValues(alpha: 0.55),
+                    BlendMode.darken,
+                  ),
+                )
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: accent, size: 26),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppTheme.textWhite,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildModeCard({
     required SearchMode mode,
     required String title,
     required String subtitle,
     required IconData icon,
     required Color activeColor,
+    String? backgroundAsset,
   }) {
     final isSelected = _searchMode == mode;
     return InkWell(
@@ -544,6 +693,16 @@ class _SidebarFiltersState extends State<SidebarFilters> {
             color: isSelected ? activeColor : AppTheme.borderSlate,
             width: isSelected ? 1.8 : 1,
           ),
+          image: backgroundAsset != null
+              ? DecorationImage(
+                  image: AssetImage(backgroundAsset),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withValues(alpha: 0.5),
+                    BlendMode.darken,
+                  ),
+                )
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
