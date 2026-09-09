@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/supabase_config.dart';
 import '../../config/theme.dart';
@@ -461,104 +462,58 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? null
           : int.tryParse(primary.id);
 
-      final itemsJson = items
-          .map(
-            (p) => {
-              'part_id':
-                  p.id.startsWith('custom-') ? null : int.tryParse(p.id),
-              'part_name': p.name,
-              'part_number': p.partNumber,
-              'quantity': p.quantity,
-              'price': p.price,
-              'make': p.make,
-              'model': p.model,
-              'year': p.year,
-            },
-          )
-          .toList();
-
-      final payload = <String, dynamic>{
+      // Schema aligned with web CustomerFitmentCheckout (known-good columns).
+      final orderPayload = <String, dynamic>{
         'order_code': ordCode,
         'part_id': partId,
-        'part_name': items.length == 1
-            ? primary.name
-            : (isAr
-                ? '${primary.name} (+${items.length - 1})'
-                : '${primary.name} (+${items.length - 1})'),
+        'part_name': primary.name,
         'price': totalPrice,
-        'total_price': totalPrice,
-        'total': totalPrice,
         'garage_id': primary.garageId ?? 'garage',
-        if (customerId != null && customerId.isNotEmpty)
-          'customer_id': customerId,
         'customer_phone': customerPhone,
         'delivery_type':
             _deliveryType == DeliveryType.delivery ? 'delivery' : 'pickup',
         'address_details': deliveryAddress,
-        'delivery_address': deliveryAddress,
         'payment_method': _paymentMethod.name,
-        'payment_status':
-            _paymentMethod == PaymentMethod.cod ? 'cod' : 'pending',
         'pickup_code': pickupCode,
         'status': 'pending',
-        'items': itemsJson,
-        if (_appliedPromo != null) 'promo_code': _appliedPromo,
-        if (_discountAmount > 0) 'discount': _discountAmount,
-        'recipient_name': _recipientName,
-        'draft_ref': _draftRef,
       };
 
-      var res = await ApiClient().post('/orders', data: payload);
-      var ok = res.statusCode == 200 ||
-          res.statusCode == 201 ||
-          res.statusCode == 204;
+      var inserted = await _insertOrder(orderPayload);
 
-      if (!ok) {
-        res = await ApiClient().post(
-          '/orders',
-          data: {
-            if (customerId != null && customerId.isNotEmpty)
-              'customer_id': customerId,
-            'customer_phone': customerPhone,
-            'items': itemsJson,
-            'delivery_address': deliveryAddress,
-            'total_price': totalPrice,
-            'price': totalPrice,
-            'payment_method': _paymentMethod.name,
-            'status': 'pending',
-            'part_name': primary.name,
-            'garage_id': primary.garageId ?? 'garage',
-            'order_code': ordCode,
-          },
-        );
-        ok = res.statusCode == 200 ||
-            res.statusCode == 201 ||
-            res.statusCode == 204;
+      if (!inserted) {
+        inserted = await _insertOrder({
+          ...orderPayload,
+          if (customerId != null && customerId.isNotEmpty)
+            'customer_id': customerId,
+          'delivery_address': deliveryAddress,
+          'total_price': totalPrice,
+          'items': items
+              .map(
+                (p) => {
+                  'part_id':
+                      p.id.startsWith('custom-') ? null : int.tryParse(p.id),
+                  'part_name': p.name,
+                  'part_number': p.partNumber,
+                  'quantity': p.quantity,
+                  'price': p.price,
+                },
+              )
+              .toList(),
+        });
       }
 
-      if (!ok) {
-        res = await ApiClient().post(
-          '/orders',
-          data: {
-            'part_name': primary.name,
-            'price': totalPrice,
-            'garage_id': primary.garageId ?? 'garage',
-            'customer_phone': customerPhone,
-            'status': 'pending',
-            'payment_method': _paymentMethod.name,
-            'delivery_address': deliveryAddress,
-            'total_price': totalPrice,
-          },
-        );
-        ok = res.statusCode == 200 ||
-            res.statusCode == 201 ||
-            res.statusCode == 204;
+      if (!inserted) {
+        inserted = await _insertOrder({
+          'part_name': primary.name,
+          'price': totalPrice,
+          'garage_id': primary.garageId ?? 'garage',
+          'customer_phone': customerPhone,
+          'status': 'pending',
+        });
       }
 
-      if (!ok) {
-        throw Exception(
-          'order_create_failed status=${res.statusCode} body=${res.data}',
-        );
+      if (!inserted) {
+        throw Exception('order_create_failed');
       }
 
       for (final item in items) {
@@ -580,6 +535,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       OrderNotificationService.instance.startTracking(lang: widget.lang);
       widget.onSuccess?.call();
+    } on PostgrestException catch (e, st) {
+      debugPrint(
+        '[Checkout] PostgrestException message=${e.message} details=${e.details} hint=${e.hint} code=${e.code}',
+      );
+      await ErrorLogger.log(
+        severity: 'HIGH',
+        componentName: 'CheckoutScreen',
+        errorType: 'PostgrestException',
+        message:
+            '${e.message} | details=${e.details} | hint=${e.hint} | code=${e.code}',
+        stackTrace: st.toString(),
+      );
+      if (mounted) {
+        CustomToast.error(
+          context,
+          isAr ? 'فشل معالجة الدفع' : 'Payment failed',
+        );
+      }
     } catch (e, st) {
       await ErrorLogger.log(
         severity: 'HIGH',
@@ -596,6 +569,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Returns true when insert succeeds. Logs Postgrest column mismatches.
+  Future<bool> _insertOrder(Map<String, dynamic> payload) async {
+    try {
+      await Supabase.instance.client.from('orders').insert(payload);
+      return true;
+    } on PostgrestException catch (e) {
+      debugPrint(
+        '[Checkout.insert] message=${e.message} details=${e.details} hint=${e.hint} code=${e.code} payloadKeys=${payload.keys.toList()}',
+      );
+      return false;
+    } catch (e) {
+      debugPrint('[Checkout.insert] unexpected=$e');
+      return false;
     }
   }
 
@@ -1479,7 +1468,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
           const SizedBox(height: 8),
           _receiptRow(
-            isAr ? 'الخصم' : 'Discount',
+            _appliedPromo != null
+                ? (isAr ? 'الخصم ($_appliedPromo)' : 'Discount ($_appliedPromo)')
+                : (isAr ? 'الخصم' : 'Discount'),
             _discountAmount > 0
                 ? '-${_discountAmount.toStringAsFixed(0)} ${isAr ? 'ر.ق' : 'QAR'}'
                 : (isAr ? 'لا يوجد' : 'None'),

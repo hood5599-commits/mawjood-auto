@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Environment secrets (never commit)
+.env
+.env.local
+.env.*.local
+*.env

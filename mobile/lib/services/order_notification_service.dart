@@ -74,47 +74,26 @@ class OrderNotificationService {
     if (phone.isEmpty || phone == 'CUST-GUEST') return null;
 
     try {
-      // Prefer phone equality; fall back to recent orders list if needed.
-      List<dynamic> rows;
-      try {
-        rows = await Supabase.instance.client
-            .from('orders')
-            .select()
-            .eq('customer_phone', phone)
-            .order('created_at', ascending: false)
-            .limit(10);
-      } on PostgrestException {
-        // created_at may be missing — order by id instead.
-        rows = await Supabase.instance.client
-            .from('orders')
-            .select()
-            .eq('customer_phone', phone)
-            .order('id', ascending: false)
-            .limit(10);
-      }
-
-      if (rows.isEmpty) {
-        // Soft match via ilike without malformed PostgREST or() strings.
-        try {
-          rows = await Supabase.instance.client
-              .from('orders')
-              .select()
-              .ilike('customer_phone', '%$phone%')
-              .order('id', ascending: false)
-              .limit(10);
-        } on PostgrestException {
-          return null;
-        }
-      }
+      // Keep query simple — avoid fragile or()/created_at filters that 400.
+      final rows = await Supabase.instance.client
+          .from('orders')
+          .select()
+          .order('id', ascending: false)
+          .limit(20);
 
       for (final raw in rows) {
-        if (raw is! Map) continue;
-        final order =
-            OrderModel.fromJson(Map<String, dynamic>.from(raw));
+        final map = Map<String, dynamic>.from(raw as Map);
+        final rowPhone = (map['customer_phone'] ?? '').toString();
+        if (rowPhone.isEmpty) continue;
+        if (rowPhone != phone && !rowPhone.contains(phone)) continue;
+
+        final order = OrderModel.fromJson(map);
         if (_isActiveStatus(order.status)) return order;
       }
-    } on PostgrestException {
-      // Invalid filter / missing column — fail quietly.
+    } on PostgrestException catch (e) {
+      debugPrint(
+        '[OrderNotification] message=${e.message} details=${e.details} hint=${e.hint}',
+      );
     } catch (_) {}
     return null;
   }

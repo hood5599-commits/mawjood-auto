@@ -77,43 +77,50 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
       List<dynamic> customRows = const [];
 
       try {
-        orderRows = await Supabase.instance.client
+        // Simple select — filter by phone client-side to avoid GET 400s.
+        final rawOrders = await Supabase.instance.client
             .from('orders')
             .select()
-            .ilike('customer_phone', '%$phone%')
             .order('id', ascending: false)
             .limit(50);
-      } on PostgrestException {
-        try {
-          orderRows = await Supabase.instance.client
-              .from('orders')
-              .select()
-              .eq('customer_phone', phone)
-              .order('id', ascending: false)
-              .limit(50);
-        } on PostgrestException {
-          orderRows = const [];
-        }
+        orderRows = List<dynamic>.from(rawOrders).where((row) {
+          if (row is! Map) return false;
+          final rowPhone = (row['customer_phone'] ?? '').toString();
+          return rowPhone == phone || rowPhone.contains(phone);
+        }).toList();
+      } on PostgrestException catch (e) {
+        debugPrint(
+          '[OrderTracker.orders] message=${e.message} details=${e.details} hint=${e.hint}',
+        );
+        orderRows = const [];
       }
 
       try {
-        inquiryRows = await Supabase.instance.client
+        final rawInq = await Supabase.instance.client
             .from('fitment_inquiries')
             .select()
-            .ilike('customer_phone', '%$phone%')
             .order('id', ascending: false)
             .limit(50);
+        inquiryRows = List<dynamic>.from(rawInq).where((row) {
+          if (row is! Map) return false;
+          final rowPhone = (row['customer_phone'] ?? '').toString();
+          return rowPhone == phone || rowPhone.contains(phone);
+        }).toList();
       } on PostgrestException {
         inquiryRows = const [];
       }
 
       try {
-        customRows = await Supabase.instance.client
+        final rawCustom = await Supabase.instance.client
             .from('custom_part_requests')
             .select()
-            .ilike('customer_phone', '%$phone%')
             .order('id', ascending: false)
             .limit(50);
+        customRows = List<dynamic>.from(rawCustom).where((row) {
+          if (row is! Map) return false;
+          final rowPhone = (row['customer_phone'] ?? '').toString();
+          return rowPhone == phone || rowPhone.contains(phone);
+        }).toList();
       } on PostgrestException {
         customRows = const [];
       }
