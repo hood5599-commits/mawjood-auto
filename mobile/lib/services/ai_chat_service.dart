@@ -13,6 +13,8 @@ class ChatMessage {
   final String text;
   final String timestamp;
   final ChatFilterData? appliedFilter;
+  /// user | bot | agent | system
+  final String senderType;
 
   ChatMessage({
     required this.id,
@@ -20,7 +22,8 @@ class ChatMessage {
     required this.text,
     required this.timestamp,
     this.appliedFilter,
-  });
+    String? senderType,
+  }) : senderType = senderType ?? (isUser ? 'user' : 'bot');
 }
 
 class AiChatService {

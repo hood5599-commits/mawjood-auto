@@ -6,6 +6,9 @@ import '../../services/admin_notification_service.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_gate.dart';
 import '../../services/cart_service.dart';
+import '../../services/favorites_service.dart';
+import '../../services/garage_reputation_service.dart';
+import '../../services/notification_center_service.dart';
 import '../../services/order_notification_service.dart';
 import '../../widgets/active_order_tracker.dart';
 import '../../widgets/ai_chatbot_sheet.dart';
@@ -15,6 +18,8 @@ import '../../widgets/sidebar_filters.dart';
 import '../info_page_screen.dart';
 import 'cart_screen.dart';
 import 'checkout_screen.dart';
+import 'favorites_screen.dart';
+import 'notifications_screen.dart';
 import 'order_tracker_screen.dart';
 
 class CatalogScreen extends StatefulWidget {
@@ -40,8 +45,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
     super.initState();
     _lang = widget.initialLang;
     _fetchInventory();
+    FavoritesService.instance.loadFavorites();
     OrderNotificationService.instance.startTracking(lang: _lang);
     AdminNotificationService.instance.startListening(lang: _lang);
+    NotificationCenterService.instance.start(lang: _lang);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         OnboardingWalkthrough.showIfNeeded(context, lang: _lang);
@@ -53,6 +60,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   void dispose() {
     OrderNotificationService.instance.stopTracking();
     AdminNotificationService.instance.stopListening();
+    NotificationCenterService.instance.stop();
     super.dispose();
   }
 
@@ -67,8 +75,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
       if (response.statusCode == 200 && response.data is List) {
         final List raw = response.data;
-        final parts = raw.map((json) => PartModel.fromJson(json)).toList();
+        var parts = raw
+            .map((json) => PartModel.fromJson(
+                  Map<String, dynamic>.from(json as Map),
+                ))
+            .toList();
         parts.sort((a, b) => b.id.compareTo(a.id));
+        parts = await GarageReputationService.instance.enrichParts(parts);
 
         if (mounted) {
           setState(() {
@@ -87,6 +100,25 @@ class _CatalogScreenState extends State<CatalogScreen> {
         });
       }
     }
+  }
+
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(lang: _lang),
+      ),
+    );
+  }
+
+  void _openFavorites() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FavoritesScreen(
+          lang: _lang,
+          onBrowseParts: () => Navigator.pop(context),
+        ),
+      ),
+    );
   }
 
   void _openCart() {
@@ -126,7 +158,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: _buildAppBar(),
         body: RefreshIndicator(
           onRefresh: _fetchInventory,
@@ -272,6 +304,96 @@ class _CatalogScreenState extends State<CatalogScreen> {
               fontSize: 12.5,
             ),
           ),
+        ),
+        AnimatedBuilder(
+          animation: NotificationCenterService.instance,
+          builder: (context, _) {
+            final count = NotificationCenterService.instance.unreadCount;
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  tooltip: isAr ? 'الإشعارات' : 'Notifications',
+                  icon: const Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                  ),
+                  onPressed: _openNotifications,
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: 8,
+                    right: isAr ? null : 6,
+                    left: isAr ? 6 : null,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        AnimatedBuilder(
+          animation: FavoritesService.instance,
+          builder: (context, _) {
+            final count = FavoritesService.instance.count;
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  tooltip: isAr ? 'المفضلة' : 'Favorites',
+                  icon: const Icon(
+                    Icons.favorite_border_rounded,
+                    color: Colors.white,
+                  ),
+                  onPressed: _openFavorites,
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: 8,
+                    right: isAr ? null : 6,
+                    left: isAr ? 6 : null,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         AnimatedBuilder(
           animation: _cartService,

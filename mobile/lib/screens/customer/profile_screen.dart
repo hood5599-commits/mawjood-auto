@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme.dart';
 import '../../models/vehicle_model.dart';
 import '../../services/auth_service.dart';
+import '../../services/platform_settings_service.dart';
+import '../../services/theme_notifier.dart';
 import '../../widgets/custom_toast.dart';
 import '../auth_screen.dart';
 import '../info_page_screen.dart';
@@ -399,6 +401,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (!isLoggedIn) ...[
                           _guestWelcomeCard(),
                           const SizedBox(height: 14),
+                          _themeCard(),
+                          const SizedBox(height: 14),
                           _supportCard(),
                           const SizedBox(height: 24),
                         ] else ...[
@@ -485,6 +489,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 12),
                           _vehiclesCard(),
+                          const SizedBox(height: 12),
+                          _themeCard(),
                           const SizedBox(height: 12),
                           _supportCard(),
                           const SizedBox(height: 20),
@@ -783,67 +789,171 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _supportCard() {
-    return _card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isAr ? 'التواصل والدعم' : 'Contact & Support',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: _text,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _actionTile(
-            Icons.chat,
-            'WhatsApp',
-            () => _launch(Uri.parse('https://wa.me/97455000000')),
-          ),
-          const Divider(color: _border, height: 1),
-          _actionTile(
-            Icons.phone,
-            isAr ? 'اتصال هاتفي' : 'Call Us',
-            () => _launch(Uri.parse('tel:+97455000000')),
-          ),
-          const Divider(color: _border, height: 1),
-          _actionTile(
-            Icons.email_outlined,
-            'support@mawjood.com',
-            () => _launch(Uri.parse('mailto:support@mawjood.com')),
-          ),
-          const Divider(color: _border, height: 1),
-          _actionTile(
-            Icons.info_outline,
-            isAr ? 'عن موجود أوتو' : 'About',
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => InfoPageScreen(
-                  lang: widget.lang,
-                  type: InfoPageType.about,
+  Widget _themeCard() {
+    return AnimatedBuilder(
+      animation: ThemeNotifier.instance,
+      builder: (context, _) {
+        final current = ThemeNotifier.instance.preference;
+        return _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isAr ? 'مظهر التطبيق' : 'App Appearance',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: _text,
                 ),
               ),
-            ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _themeChip(
+                    label: isAr ? 'تلقائي' : 'System',
+                    icon: Icons.brightness_auto,
+                    selected: current == AppThemePreference.system,
+                    onTap: () => ThemeNotifier.instance
+                        .setPreference(AppThemePreference.system),
+                  ),
+                  _themeChip(
+                    label: isAr ? 'فاتح' : 'Light',
+                    icon: Icons.light_mode_outlined,
+                    selected: current == AppThemePreference.light,
+                    onTap: () => ThemeNotifier.instance
+                        .setPreference(AppThemePreference.light),
+                  ),
+                  _themeChip(
+                    label: isAr ? 'داكن' : 'Dark',
+                    icon: Icons.dark_mode_outlined,
+                    selected: current == AppThemePreference.dark,
+                    onTap: () => ThemeNotifier.instance
+                        .setPreference(AppThemePreference.dark),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const Divider(color: _border, height: 1),
-          _actionTile(
-            Icons.support_agent,
-            isAr ? 'خدمة العملاء' : 'Customer Care',
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => InfoPageScreen(
-                  lang: widget.lang,
-                  type: InfoPageType.care,
-                ),
+        );
+      },
+    );
+  }
+
+  Widget _themeChip({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.copper.withValues(alpha: 0.18)
+              : _surfaceAlt,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? AppTheme.copper : _border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: selected ? AppTheme.copper : _muted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppTheme.copperLight : _text,
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _supportCard() {
+    return AnimatedBuilder(
+      animation: PlatformSettingsService.instance,
+      builder: (context, _) {
+        final s = PlatformSettingsService.instance.settings;
+        return _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isAr ? 'التواصل والدعم' : 'Contact & Support',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: _text,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _actionTile(
+                Icons.chat,
+                'WhatsApp',
+                () => _launch(
+                  Uri.parse('https://wa.me/${s.whatsappDigits}'),
+                ),
+              ),
+              const Divider(color: _border, height: 1),
+              _actionTile(
+                Icons.phone,
+                isAr ? 'اتصال هاتفي' : 'Call Us',
+                () => _launch(Uri.parse('tel:${s.phoneTel}')),
+              ),
+              const Divider(color: _border, height: 1),
+              _actionTile(
+                Icons.email_outlined,
+                s.supportEmail,
+                () => _launch(Uri.parse('mailto:${s.supportEmail}')),
+              ),
+              const Divider(color: _border, height: 1),
+              _actionTile(
+                Icons.info_outline,
+                isAr ? 'عن موجود أوتو' : 'About',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InfoPageScreen(
+                      lang: widget.lang,
+                      type: InfoPageType.about,
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(color: _border, height: 1),
+              _actionTile(
+                Icons.support_agent,
+                isAr ? 'خدمة العملاء' : 'Customer Care',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InfoPageScreen(
+                      lang: widget.lang,
+                      type: InfoPageType.care,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

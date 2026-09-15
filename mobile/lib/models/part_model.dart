@@ -15,6 +15,8 @@ class PartModel {
   final String? garageId;
   final String? garageName;
   final double garageRating;
+  final double? positivePct;
+  final int reviewCount;
   final String? partType;
   final String? partCondition;
   int quantity;
@@ -35,11 +37,61 @@ class PartModel {
     this.description,
     this.garageId,
     this.garageName,
-    this.garageRating = 4.9,
+    this.garageRating = 0,
+    this.positivePct,
+    this.reviewCount = 0,
     this.partType,
     this.partCondition,
     this.quantity = 1,
   });
+
+  PartModel copyWith({
+    String? id,
+    String? name,
+    String? make,
+    String? model,
+    String? year,
+    double? price,
+    String? imageUrl,
+    String? partNumber,
+    String? category,
+    String? engine,
+    int? stock,
+    String? warranty,
+    String? description,
+    String? garageId,
+    String? garageName,
+    double? garageRating,
+    double? positivePct,
+    int? reviewCount,
+    String? partType,
+    String? partCondition,
+    int? quantity,
+  }) {
+    return PartModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      make: make ?? this.make,
+      model: model ?? this.model,
+      year: year ?? this.year,
+      price: price ?? this.price,
+      imageUrl: imageUrl ?? this.imageUrl,
+      partNumber: partNumber ?? this.partNumber,
+      category: category ?? this.category,
+      engine: engine ?? this.engine,
+      stock: stock ?? this.stock,
+      warranty: warranty ?? this.warranty,
+      description: description ?? this.description,
+      garageId: garageId ?? this.garageId,
+      garageName: garageName ?? this.garageName,
+      garageRating: garageRating ?? this.garageRating,
+      positivePct: positivePct ?? this.positivePct,
+      reviewCount: reviewCount ?? this.reviewCount,
+      partType: partType ?? this.partType,
+      partCondition: partCondition ?? this.partCondition,
+      quantity: quantity ?? this.quantity,
+    );
+  }
 
   static double _toDouble(dynamic v, [double fallback = 0]) {
     if (v == null) return fallback;
@@ -68,7 +120,11 @@ class PartModel {
       description: json['description']?.toString(),
       garageId: json['garage_id']?.toString() ?? json['user_id']?.toString(),
       garageName: json['garage_name']?.toString(),
-      garageRating: _toDouble(json['garage_rating'], 4.9),
+      garageRating: _toDouble(json['garage_rating'], 0),
+      positivePct: json['positive_pct'] == null
+          ? null
+          : _toDouble(json['positive_pct']),
+      reviewCount: int.tryParse(json['review_count']?.toString() ?? '0') ?? 0,
       partType: json['part_type']?.toString(),
       partCondition: json['part_condition']?.toString(),
       quantity: json['quantity'] != null
@@ -96,6 +152,8 @@ class PartModel {
     'garage_id': garageId,
     'garage_name': garageName,
     'garage_rating': garageRating,
+    'positive_pct': positivePct,
+    'review_count': reviewCount,
     'part_type': partType,
     'part_condition': partCondition,
     'quantity': quantity,

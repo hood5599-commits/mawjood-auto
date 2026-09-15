@@ -2,12 +2,15 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
 import 'api_client.dart';
+import 'favorites_service.dart';
 
 class AuthSession {
   final String? token;
+  final String? refreshToken;
   final String? email;
   final String? phone;
   final String role;
@@ -16,6 +19,7 @@ class AuthSession {
 
   const AuthSession({
     this.token,
+    this.refreshToken,
     this.email,
     this.phone,
     this.role = 'customer',
@@ -27,6 +31,8 @@ class AuthSession {
   bool get isDriver =>
       role == 'driver' || (email?.endsWith('@driver.mawjood.com') ?? false);
 
+  String? get userId => user?['id']?.toString();
+
   String get displayPhone =>
       phone ??
       user?['user_metadata']?['phone']?.toString() ??
@@ -35,6 +41,7 @@ class AuthSession {
 
   Map<String, dynamic> toJson() => {
         'token': token,
+        'refreshToken': refreshToken,
         'email': email,
         'phone': phone,
         'role': role,
@@ -54,6 +61,8 @@ class AuthSession {
     }
     return AuthSession(
       token: json['token']?.toString(),
+      refreshToken: json['refreshToken']?.toString() ??
+          json['refresh_token']?.toString(),
       email: json['email']?.toString(),
       phone: json['phone']?.toString(),
       role: (json['role'] ?? 'customer').toString(),
@@ -85,6 +94,7 @@ class AuthService {
       final map = jsonDecode(raw) as Map<String, dynamic>;
       _session = AuthSession.fromJson(map);
       ApiClient().setAuthToken(_session?.token);
+      await _syncSupabaseAuth(_session);
     } catch (_) {
       _session = null;
     }
@@ -93,6 +103,7 @@ class AuthService {
   Future<void> saveSession(AuthSession session) async {
     _session = session;
     ApiClient().setAuthToken(session.token);
+    await _syncSupabaseAuth(session);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sessionKey, jsonEncode(session.toJson()));
     if (session.phone != null && session.phone!.isNotEmpty) {
@@ -106,8 +117,26 @@ class AuthService {
   Future<void> clearSession() async {
     _session = null;
     ApiClient().setAuthToken(null);
+    FavoritesService.instance.clearLocal();
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sessionKey);
+  }
+
+  Future<void> _syncSupabaseAuth(AuthSession? session) async {
+    final access = session?.token;
+    final refresh = session?.refreshToken;
+    if (access == null || access.isEmpty || refresh == null || refresh.isEmpty) {
+      return;
+    }
+    try {
+      await Supabase.instance.client.auth.setSession(
+        refresh,
+        accessToken: access,
+      );
+    } catch (_) {}
   }
 
   String _formatInput(String input, {String domain = 'customer.mawjood.com'}) {
@@ -178,6 +207,7 @@ class AuthService {
 
     final session = AuthSession(
       token: data['access_token']?.toString(),
+      refreshToken: data['refresh_token']?.toString(),
       user: user,
       email: email,
       phone: inputVal,
@@ -221,12 +251,15 @@ class AuthService {
     final data = Map<String, dynamic>.from(response.data as Map);
     final token = data['access_token']?.toString() ??
         data['session']?['access_token']?.toString();
+    final refresh = data['refresh_token']?.toString() ??
+        data['session']?['refresh_token']?.toString();
     final user = data['user'] is Map
         ? Map<String, dynamic>.from(data['user'] as Map)
         : null;
 
     final session = AuthSession(
       token: token,
+      refreshToken: refresh,
       user: user,
       email: formattedEmail,
       phone: identifier.trim(),
@@ -259,6 +292,7 @@ class AuthService {
     await saveSession(
       AuthSession(
         token: _session!.token,
+        refreshToken: _session!.refreshToken,
         email: _session!.email,
         phone: metadata['phone']?.toString() ?? _session!.phone,
         role: _session!.role,

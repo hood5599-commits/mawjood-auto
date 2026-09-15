@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 
+/// Displays live garage reputation: e.g. `4.8 ★ | 95%`.
 class GarageRatingBadge extends StatelessWidget {
   final double rating;
+  final double? positivePct;
+  final int? reviewCount;
   final String? garageName;
   final bool isVerified;
   final bool isCompact;
@@ -11,7 +14,9 @@ class GarageRatingBadge extends StatelessWidget {
 
   const GarageRatingBadge({
     super.key,
-    this.rating = 4.9,
+    this.rating = 0,
+    this.positivePct,
+    this.reviewCount,
     this.garageName,
     this.isVerified = true,
     this.isCompact = false,
@@ -19,6 +24,7 @@ class GarageRatingBadge extends StatelessWidget {
   });
 
   bool get isAr => lang == 'ar';
+  bool get hasReviews => (reviewCount ?? 0) > 0 || rating > 0;
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +32,13 @@ class GarageRatingBadge extends StatelessWidget {
         ? garageName!
         : (isAr ? 'كراج معتمد' : 'Verified Garage');
 
+    final pctLabel = positivePct != null
+        ? '${positivePct!.toStringAsFixed(0)}%'
+        : null;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // وسام التقييم بالنجوم
         Container(
           padding: EdgeInsets.symmetric(
             horizontal: isCompact ? 5 : 7,
@@ -53,7 +62,7 @@ class GarageRatingBadge extends StatelessWidget {
               ),
               const SizedBox(width: 3),
               Text(
-                rating.toStringAsFixed(1),
+                hasReviews ? rating.toStringAsFixed(1) : '—',
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
@@ -61,12 +70,22 @@ class GarageRatingBadge extends StatelessWidget {
                   fontFamily: 'Cairo',
                 ),
               ),
+              if (pctLabel != null) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '| $pctLabel',
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF9A3412),
+                    fontFamily: 'Cairo',
+                  ),
+                ),
+              ],
             ],
           ),
         ),
         const SizedBox(width: 6),
-
-        // اسم الكراج وشارة الاعتماد
         Flexible(
           child: Row(
             mainAxisSize: MainAxisSize.min,

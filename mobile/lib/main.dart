@@ -14,9 +14,12 @@ import 'services/admin_notification_service.dart';
 import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
 import 'services/error_logger.dart';
+import 'services/notification_center_service.dart';
 import 'services/order_notification_service.dart';
+import 'services/platform_settings_service.dart';
+import 'services/theme_notifier.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -52,10 +55,19 @@ void main() async {
     publishableKey: SupabaseConfig.apiKey,
   );
 
+  // Theme preference first to avoid first-frame flicker.
+  await ThemeNotifier.instance.load();
+  await PlatformSettingsService.instance.load(forceNetwork: false);
+
   await AuthService().loadSession();
   await OrderNotificationService.instance.init();
   await AdminNotificationService.instance.init();
+  await NotificationCenterService.instance.init();
   AnalyticsService.instance.trackAppLaunch();
+
+  // Refresh remote settings in background after first paint.
+  // ignore: unawaited_futures
+  PlatformSettingsService.instance.load(forceNetwork: true);
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -83,17 +95,23 @@ class _MawjoodAutoAppState extends State<MawjoodAutoApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Mawjood Auto',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      home: WelcomeScreen(lang: _lang, onToggleLang: _toggleLanguage),
+    return AnimatedBuilder(
+      animation: ThemeNotifier.instance,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Mawjood Auto',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeNotifier.instance.themeMode,
+          home: WelcomeScreen(lang: _lang, onToggleLang: _toggleLanguage),
+        );
+      },
     );
   }
 }
 
 /// Customer-only bottom navigation (Shop / Cart / Profile).
-/// Driver portal is reachable only via authenticated backstage login.
 class MainNavigationWrapper extends StatefulWidget {
   final String lang;
   final VoidCallback onToggleLang;
@@ -129,6 +147,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screens = [
       CatalogScreen(initialLang: widget.lang),
       CartScreen(lang: widget.lang),
@@ -147,9 +166,11 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
             onTap: (index) => setState(() => _currentIndex = index),
-            backgroundColor: const Color(0xFF090D16),
+            backgroundColor:
+                isDark ? AppTheme.obsidian : Colors.white,
             selectedItemColor: AppTheme.copper,
-            unselectedItemColor: Colors.white54,
+            unselectedItemColor:
+                isDark ? Colors.white54 : const Color(0xFF94A3B8),
             type: BottomNavigationBarType.fixed,
             selectedLabelStyle: const TextStyle(
               fontWeight: FontWeight.bold,

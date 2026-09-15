@@ -17,6 +17,7 @@ import '../../services/cart_service.dart';
 import '../../services/error_logger.dart';
 import '../../services/istemara_service.dart';
 import '../../services/order_notification_service.dart';
+import '../../services/platform_settings_service.dart';
 import '../../widgets/ai_translated_text.dart';
 import '../../widgets/custom_toast.dart';
 import 'order_tracker_screen.dart';
@@ -1289,40 +1290,61 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildPaymentSelector() {
+    final pm = PlatformSettingsService.instance.settings.paymentMethods;
     final tiles = <_PayTile>[
-      if (_isApplePlatform)
+      if (_isApplePlatform && pm.applePayEnabled)
         _PayTile(
           method: PaymentMethod.applePay,
           label: 'Apple Pay',
           icon: Icons.apple,
         ),
-      if ((!kIsWeb && Platform.isAndroid) || kIsWeb)
+      if (((!kIsWeb && Platform.isAndroid) || kIsWeb) && pm.googlePayEnabled)
         _PayTile(
           method: PaymentMethod.googlePay,
           label: 'Google Pay',
           icon: Icons.account_balance_wallet_outlined,
         ),
-      _PayTile(
-        method: PaymentMethod.card,
-        label: isAr ? 'بطاقة بنكية / فيزا وماستركارد' : 'Credit & Debit Card',
-        icon: Icons.credit_card,
-      ),
-      _PayTile(
-        method: PaymentMethod.cod,
-        label: isAr ? 'الدفع عند الاستلام' : 'Cash on Delivery',
-        icon: Icons.payments_outlined,
-      ),
-      _PayTile(
-        method: PaymentMethod.installments,
-        label: isAr
-            ? 'قسّمها على 4 دفعات'
-            : 'Pay in 4 installments',
-        icon: Icons.calendar_view_month_outlined,
-        subtitle: isAr
-            ? '${(totalPrice / 4).toStringAsFixed(2)} ر.ق / دفعة'
-            : '${(totalPrice / 4).toStringAsFixed(2)} QAR / payment',
-      ),
+      if (pm.cardEnabled)
+        _PayTile(
+          method: PaymentMethod.card,
+          label: isAr ? 'بطاقة بنكية / فيزا وماستركارد' : 'Credit & Debit Card',
+          icon: Icons.credit_card,
+        ),
+      if (pm.codEnabled)
+        _PayTile(
+          method: PaymentMethod.cod,
+          label: isAr ? 'الدفع عند الاستلام' : 'Cash on Delivery',
+          icon: Icons.payments_outlined,
+        ),
+      if (pm.payLaterEnabled)
+        _PayTile(
+          method: PaymentMethod.installments,
+          label: isAr
+              ? 'قسّمها على 4 دفعات'
+              : 'Pay in 4 installments',
+          icon: Icons.calendar_view_month_outlined,
+          subtitle: isAr
+              ? '${(totalPrice / 4).toStringAsFixed(2)} ر.ق / دفعة'
+              : '${(totalPrice / 4).toStringAsFixed(2)} QAR / payment',
+        ),
     ];
+
+    if (tiles.isEmpty) {
+      return _cardShell(
+        child: Text(
+          isAr
+              ? 'لا توجد طرق دفع مفعّلة حالياً. تواصل مع الدعم.'
+              : 'No payment methods are currently enabled. Contact support.',
+          style: const TextStyle(color: _muted, fontSize: 13),
+        ),
+      );
+    }
+
+    if (!tiles.any((t) => t.method == _paymentMethod)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _paymentMethod = tiles.first.method);
+      });
+    }
 
     return _cardShell(
       child: Column(

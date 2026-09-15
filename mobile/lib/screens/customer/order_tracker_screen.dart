@@ -7,7 +7,7 @@ import '../../models/order_model.dart';
 import '../../models/part_model.dart';
 import '../../services/api_client.dart';
 import '../../widgets/ai_translated_text.dart';
-import '../../widgets/custom_toast.dart';
+import '../../widgets/order_review_sheet.dart';
 import 'checkout_screen.dart';
 
 enum TrackerTab { orders, previousOrders, customRequests, inquiries }
@@ -37,6 +37,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
   List<Map<String, dynamic>> _customRequests = [];
 
   String _resolvedIdentifier = '';
+  final Set<String> _autoPromptedReviewIds = {};
   bool get isAr => widget.lang == 'ar';
 
   @override
@@ -144,11 +145,42 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
               .toList();
           _isLoading = false;
         });
+        _maybeAutoPromptReview();
       }
     } catch (_) {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  void _maybeAutoPromptReview() {
+    final pending = _orders.where(
+      (o) =>
+          o.isDelivered &&
+          !o.isReviewed &&
+          !_autoPromptedReviewIds.contains(o.id),
+    );
+    if (pending.isEmpty) return;
+
+    final order = pending.first;
+    _autoPromptedReviewIds.add(order.id);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openReviewSheet(order);
+    });
+  }
+
+  Future<void> _openReviewSheet(OrderModel order) async {
+    final saved = await OrderReviewSheet.show(
+      context,
+      order: order,
+      customerPhone: _resolvedIdentifier,
+      lang: widget.lang,
+    );
+    if (saved == true && mounted) {
+      await _fetchData();
     }
   }
 
@@ -308,126 +340,6 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
         ),
       );
     } catch (_) {}
-  }
-
-  void _openReviewDialog(OrderModel order) {
-    int rating = 5;
-    final commentController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => AlertDialog(
-          backgroundColor: AppTheme.cardBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          title: Text(
-            isAr ? '⭐ تقييم التجربة' : '⭐ Rate Experience',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textWhite,
-              fontSize: 16,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isAr ? 'تقييم الخدمة والكراج:' : 'Garage Service Rating:',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: AppTheme.textMuted,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final starIndex = index + 1;
-                  return IconButton(
-                    icon: Icon(
-                      starIndex <= rating ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 32,
-                    ),
-                    onPressed: () => setModalState(() => rating = starIndex),
-                  );
-                }),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: commentController,
-                maxLines: 2,
-                style: const TextStyle(color: AppTheme.textWhite, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: isAr
-                      ? 'أضف تعليقك حول الجودة وسرعة التوصيل...'
-                      : 'Add feedback...',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                isAr ? 'إلغاء' : 'Cancel',
-                style: const TextStyle(color: AppTheme.textMuted),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                try {
-                  await ApiClient().post(
-                    '/garage_reviews',
-                    data: {
-                      'order_id': order.id,
-                      'customer_phone': _resolvedIdentifier,
-                      'garage_rating': rating,
-                      'comment': commentController.text.trim().isEmpty
-                          ? null
-                          : commentController.text.trim(),
-                    },
-                  );
-
-                  await ApiClient().patch(
-                    '/orders?id=eq.${order.id}',
-                    data: {'is_reviewed': true},
-                  );
-
-                  if (mounted) {
-                    CustomToast.success(
-                      // ignore: use_build_context_synchronously
-                      context,
-                      isAr ? 'شكراً لتقييمك!' : 'Review submitted!',
-                    );
-                    _fetchData();
-                  }
-                } catch (_) {
-                  if (mounted) {
-                    CustomToast.error(
-                      // ignore: use_build_context_synchronously
-                      context,
-                      isAr
-                          ? 'حدث خطأ أثناء حفظ التقييم'
-                          : 'Error saving review',
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.success,
-              ),
-              child: Text(isAr ? 'حفظ التقييم 🚀' : 'Submit Review'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -756,7 +668,7 @@ class _OrderTrackerScreenState extends State<OrderTrackerScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _openReviewDialog(order),
+                onPressed: () => _openReviewSheet(order),
                 icon: const Icon(Icons.star, size: 16),
                 label: Text(
                   isActive

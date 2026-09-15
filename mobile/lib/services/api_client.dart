@@ -66,6 +66,19 @@ class ApiClient {
     );
   }
 
+  Future<Response> postReturning(String path, {dynamic data}) {
+    return dio.post(
+      path,
+      data: data,
+      options: Options(
+        headers: {
+          ..._headers,
+          'Prefer': 'return=representation',
+        },
+      ),
+    );
+  }
+
   Future<Response> patch(String path, {dynamic data}) {
     return dio.patch(
       path,
@@ -79,7 +92,26 @@ class ApiClient {
     );
   }
 
+  Future<Response> patchReturning(String path, {dynamic data}) {
+    return dio.patch(
+      path,
+      data: data,
+      options: Options(
+        headers: {
+          ..._headers,
+          'Prefer': 'return=representation',
+        },
+      ),
+    );
+  }
+
   Future<Response> delete(String path) {
-    return dio.delete(path, options: Options(headers: _headers));
+    final opts = Options(headers: _headers);
+    final normalized = path.startsWith('/') ? path : '/$path';
+    if (normalized.contains('?')) {
+      final full = '${SupabaseConfig.restUrl}$normalized';
+      return dio.deleteUri(Uri.parse(full), options: opts);
+    }
+    return dio.delete(normalized, options: opts);
   }
 }

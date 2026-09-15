@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AdminErrorMonitor } from './AdminErrorMonitor';
+import { AdminReviewsMonitor } from './AdminReviewsMonitor';
+import { AdminNotificationsConsole } from './AdminNotificationsConsole';
+import { AdminLiveChatConsole } from './AdminLiveChatConsole';
+import { AdminPlatformSettingsConsole } from './AdminPlatformSettingsConsole';
 
 interface AdminDashboardProps {
   lang: 'ar' | 'en';
@@ -21,7 +25,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   
   // 📌 التبويب النشط
   const [tab, setTab] = useState<
-    'payouts' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment' | 'logs' | 'errors' | 'mobile_perms' | 'mobile_errors'
+    'payouts' | 'users' | 'orders' | 'parts' | 'policies' | 'social' | 'payment' | 'logs' | 'errors' | 'mobile_perms' | 'mobile_errors' | 'reviews' | 'notifications' | 'live_chat' | 'platform_settings'
   >('payouts');
 
   // 👥📊 متغيرات عداد وإحصائيات الزوار
@@ -465,6 +469,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
         {[
           { id: 'payouts', label: isRtl ? 'حسابات ومستحقات الكراجات' : 'Vendor Payouts' },
+          { id: 'platform_settings', label: isRtl ? '⚙️ إعدادات المنصة العامة' : '⚙️ Platform Settings', highlight: '#0f766e' },
+          { id: 'live_chat', label: isRtl ? '💬 الدعم المباشر' : '💬 Live Support', highlight: '#0284c7' },
+          { id: 'notifications', label: isRtl ? '🔔 مركز الإشعارات' : '🔔 Notifications', highlight: '#7c3aed' },
+          { id: 'reviews', label: isRtl ? '⭐ تقييمات وشكاوى العملاء' : '⭐ Customer Reviews', highlight: '#b45309' },
           { id: 'mobile_perms', label: isRtl ? '📱 صلاحيات التطبيق' : '📱 Mobile Permissions', highlight: '#0284c7' },
           { id: 'mobile_errors', label: isRtl ? `🚨 أخطاء الموبايل (${mobileLogs.filter(l => !l.auto_resolved).length})` : `🚨 Mobile Crashes (${mobileLogs.filter(l => !l.auto_resolved).length})`, highlight: '#b91c1c' },
           { id: 'errors', label: isRtl ? '🛡️ كاشف الأخطاء الحية' : 'Live Error Detector' },
@@ -867,6 +875,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* 🛡️ تبويب كاشف الأخطاء والمراقبة الحية */}
+      {tab === 'platform_settings' && (
+        <AdminPlatformSettingsConsole supabaseUrl={supabaseUrl} apiKey={apiKey} lang={lang} />
+      )}
+
+      {tab === 'live_chat' && (
+        <AdminLiveChatConsole supabaseUrl={supabaseUrl} apiKey={apiKey} lang={lang} />
+      )}
+
+      {tab === 'notifications' && (
+        <AdminNotificationsConsole supabaseUrl={supabaseUrl} apiKey={apiKey} lang={lang} />
+      )}
+
+      {tab === 'reviews' && (
+        <AdminReviewsMonitor supabaseUrl={supabaseUrl} apiKey={apiKey} lang={lang} />
+      )}
+
       {tab === 'errors' && (
         <AdminErrorMonitor supabaseUrl={supabaseUrl} apiKey={apiKey} />
       )}

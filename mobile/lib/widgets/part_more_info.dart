@@ -4,6 +4,8 @@ import '../config/theme.dart';
 import '../models/part_model.dart';
 import '../services/auth_gate.dart';
 import 'ai_translated_text.dart';
+import 'favorite_button.dart';
+import 'garage_rating_badge.dart';
 
 class PartMoreInfo extends StatefulWidget {
   final PartModel part;
@@ -394,6 +396,38 @@ class _PartMoreInfoState extends State<PartMoreInfo> {
             fontSize: 13.5,
             fontWeight: FontWeight.bold,
             color: AppTheme.textMuted,
+          ),
+        ),
+        const SizedBox(height: 10),
+        GarageRatingBadge(
+          rating: widget.part.garageRating,
+          positivePct: widget.part.positivePct,
+          reviewCount: widget.part.reviewCount,
+          garageName: widget.part.garageName,
+          lang: widget.lang,
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: isAr ? Alignment.centerRight : Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FavoriteButton(
+                partId: widget.part.id,
+                lang: widget.lang,
+                size: 22,
+                backgroundColor: AppTheme.surfaceSlate,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isAr ? 'حفظ في المفضلة' : 'Save to Favorites',
+                style: const TextStyle(
+                  color: AppTheme.textMuted,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 14),

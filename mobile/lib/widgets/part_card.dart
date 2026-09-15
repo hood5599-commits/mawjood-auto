@@ -4,6 +4,8 @@ import '../config/theme.dart';
 import '../models/part_model.dart';
 import '../utils/part_share_helper.dart';
 import 'ai_translated_text.dart';
+import 'favorite_button.dart';
+import 'garage_rating_badge.dart';
 
 class PartCard extends StatelessWidget {
   final PartModel item;
@@ -130,6 +132,15 @@ class PartCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                Positioned(
+                  bottom: 10,
+                  right: 10,
+                  child: FavoriteButton(
+                    partId: item.id,
+                    lang: lang,
+                    size: 20,
+                  ),
+                ),
               ],
             ),
           ),
@@ -150,6 +161,15 @@ class PartCard extends StatelessWidget {
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  GarageRatingBadge(
+                    rating: item.garageRating,
+                    positivePct: item.positivePct,
+                    reviewCount: item.reviewCount,
+                    garageName: item.garageName,
+                    isCompact: true,
+                    lang: lang,
                   ),
                   const SizedBox(height: 8),
                   Container(
