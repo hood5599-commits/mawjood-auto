@@ -18,6 +18,7 @@ import 'services/notification_center_service.dart';
 import 'services/order_notification_service.dart';
 import 'services/platform_settings_service.dart';
 import 'services/theme_notifier.dart';
+import 'widgets/glass_chrome.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -104,10 +105,20 @@ class _MawjoodAutoAppState extends State<MawjoodAutoApp> {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeNotifier.instance.themeMode,
+          scrollBehavior: const _MawjoodScrollBehavior(),
           home: WelcomeScreen(lang: _lang, onToggleLang: _toggleLanguage),
         );
       },
     );
+  }
+}
+
+class _MawjoodScrollBehavior extends MaterialScrollBehavior {
+  const _MawjoodScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
   }
 }
 
@@ -147,7 +158,6 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screens = [
       CatalogScreen(initialLang: widget.lang),
       CartScreen(lang: widget.lang),
@@ -161,44 +171,29 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
+        backgroundColor: AppTheme.scaffoldOf(context),
+        extendBody: true,
         body: IndexedStack(index: _currentIndex, children: screens),
-        bottomNavigationBar: SafeArea(
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) => setState(() => _currentIndex = index),
-            backgroundColor:
-                isDark ? AppTheme.obsidian : Colors.white,
-            selectedItemColor: AppTheme.copper,
-            unselectedItemColor:
-                isDark ? Colors.white54 : const Color(0xFF94A3B8),
-            type: BottomNavigationBarType.fixed,
-            selectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 11,
-              fontFamily: 'Cairo',
+        bottomNavigationBar: FloatingGlassNavBar(
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          items: [
+            FloatingGlassNavItem(
+              icon: Icons.storefront_outlined,
+              activeIcon: Icons.storefront,
+              label: isAr ? 'المتجر' : 'Shop',
             ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 11,
-              fontFamily: 'Cairo',
+            FloatingGlassNavItem(
+              icon: Icons.shopping_cart_outlined,
+              activeIcon: Icons.shopping_cart,
+              label: isAr ? 'السلة' : 'Cart',
             ),
-            items: [
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.storefront_outlined),
-                activeIcon: const Icon(Icons.storefront),
-                label: isAr ? 'المتجر' : 'Shop',
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.shopping_cart_outlined),
-                activeIcon: const Icon(Icons.shopping_cart),
-                label: isAr ? 'السلة' : 'Cart',
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.person_outline),
-                activeIcon: const Icon(Icons.person),
-                label: isAr ? 'حسابي' : 'Profile',
-              ),
-            ],
-          ),
+            FloatingGlassNavItem(
+              icon: Icons.person_outline,
+              activeIcon: Icons.person,
+              label: isAr ? 'حسابي' : 'Profile',
+            ),
+          ],
         ),
       ),
     );

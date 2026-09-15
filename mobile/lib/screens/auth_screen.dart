@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../services/auth_service.dart';
+import '../widgets/glass_chrome.dart';
 import '../widgets/mawjood_logo.dart';
 
 enum _AuthTab { login, register }
@@ -97,7 +98,12 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Scaffold(
         backgroundColor: AppTheme.obsidian,
         appBar: AppBar(
-          backgroundColor: AppTheme.obsidian,
+          backgroundColor: AppTheme.navy,
+          elevation: 0,
+          leading: const Padding(
+            padding: EdgeInsetsDirectional.only(start: 8),
+            child: Center(child: GlassBackButton(iconColor: Colors.white)),
+          ),
           title: Text(
             widget.driverMode
                 ? (isAr ? 'دخول المندوب' : 'Driver Login')
@@ -121,18 +127,36 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         body: SafeArea(
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.all(20),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
-                child: Column(
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardBg,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    boxShadow: AppTheme.deepShadow,
+                  ),
+                  child: Column(
                   children: [
-                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: AppTheme.obsidian,
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.copper.withValues(alpha: 0.35),
+                            AppTheme.navy,
+                          ],
+                        ),
+                        border: Border.all(
+                          color: AppTheme.copper.withValues(alpha: 0.5),
+                        ),
                       ),
                       child: const MawjoodLogo(size: 56),
                     ),
@@ -145,6 +169,18 @@ class _AuthScreenState extends State<AuthScreen> {
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                         color: Color(0xFFF8FAFC),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isAr
+                          ? 'دخول موحّد · التوجيه حسب الدور تلقائياً'
+                          : 'Unified login · role routing is automatic',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -317,6 +353,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                   ],
+                  ),
                 ),
               ),
             ),

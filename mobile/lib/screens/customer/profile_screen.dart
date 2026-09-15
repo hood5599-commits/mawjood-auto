@@ -9,6 +9,7 @@ import '../../services/platform_settings_service.dart';
 import '../../services/role_router.dart';
 import '../../services/theme_notifier.dart';
 import '../../widgets/custom_toast.dart';
+import '../../widgets/glass_chrome.dart';
 import '../auth_screen.dart';
 import '../info_page_screen.dart';
 import 'order_tracker_screen.dart';
@@ -857,20 +858,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required bool selected,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return TactileScale(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: selected
               ? AppTheme.copper.withValues(alpha: 0.18)
               : _surfaceAlt,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? AppTheme.copper : _border,
             width: selected ? 1.5 : 1,
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.copper.withValues(alpha: 0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

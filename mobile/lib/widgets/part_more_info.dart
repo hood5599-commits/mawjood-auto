@@ -54,24 +54,14 @@ class _PartMoreInfoState extends State<PartMoreInfo> {
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 900),
             child: Container(
               padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: AppTheme.cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.borderSlate),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.cardDecoration(context, radius: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -144,16 +134,17 @@ class _PartMoreInfoState extends State<PartMoreInfo> {
         children: [
           ElevatedButton.icon(
             onPressed: widget.onBack,
-            icon: const Icon(Icons.arrow_back, size: 16),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
             label: Text(
               isAr ? 'العودة لنتائج البحث' : 'Back to Search',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.surfaceSlate,
+              backgroundColor: AppTheme.navy,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
           ),

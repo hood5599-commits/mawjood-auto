@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -572,13 +573,39 @@ class _AiChatbotSheetState extends State<AiChatbotSheet> {
       ),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.45)),
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.navySoft,
+            AppTheme.navy.withValues(alpha: 0.95),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFFBBF24).withValues(alpha: 0.55),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFBBF24).withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          const Icon(Icons.hourglass_top_rounded, color: Color(0xFFFBBF24), size: 28),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFBBF24).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.hourglass_top_rounded,
+              color: Color(0xFFFBBF24),
+              size: 26,
+            ),
+          ),
           const SizedBox(height: 10),
           Text(
             isAr
@@ -600,7 +627,7 @@ class _AiChatbotSheetState extends State<AiChatbotSheet> {
             style: const TextStyle(
               color: Color(0xFFFBBF24),
               fontWeight: FontWeight.w800,
-              fontSize: 14,
+              fontSize: 16,
             ),
           ),
           const SizedBox(height: 6),
@@ -681,23 +708,36 @@ class _AiChatbotSheetState extends State<AiChatbotSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: isUser
-                    ? const Color(0xFFEA580C)
+                    ? AppTheme.copper
                     : isAgent
                         ? const Color(0xFF0C4A6E)
-                        : const Color(0xFF1E293B).withValues(alpha: 0.85),
+                        : AppTheme.navySoft.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
                   bottomLeft: Radius.circular(
-                    isUser ? (isAr ? 4 : 16) : (isAr ? 16 : 4),
+                    isUser ? (isAr ? 4 : 18) : (isAr ? 18 : 4),
                   ),
                   bottomRight: Radius.circular(
-                    isUser ? (isAr ? 16 : 4) : (isAr ? 4 : 16),
+                    isUser ? (isAr ? 18 : 4) : (isAr ? 4 : 18),
                   ),
                 ),
                 border: isUser
                     ? null
-                    : Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    : Border.all(
+                        color: isAgent
+                            ? const Color(0xFF38BDF8).withValues(alpha: 0.35)
+                            : Colors.white.withValues(alpha: 0.10),
+                      ),
+                boxShadow: isUser
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.copper.withValues(alpha: 0.28),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -829,67 +869,91 @@ class _AiChatbotSheetState extends State<AiChatbotSheet> {
   }
 
   Widget _buildInputBar() {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 14,
-        right: 14,
-        top: 10,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 12,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFF090D16),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _inputController,
-              focusNode: _focusNode,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _handleSendMessage(),
-              style: const TextStyle(fontSize: 13, color: Colors.white),
-              decoration: InputDecoration(
-                hintText: _isAgent
-                    ? (isAr ? 'اكتب رسالتك للموظف...' : 'Message the agent...')
-                    : (isAr
-                        ? 'اسألني عن قطعة، سيارة، أو عطل ميكانيكي...'
-                        : 'Ask about a part, car, or mechanical issue...'),
-                hintStyle: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.4),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.06),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.15),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: EdgeInsets.only(
+            left: 14,
+            right: 14,
+            top: 10,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xCC050C16),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _inputController,
+                  focusNode: _focusNode,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _handleSendMessage(),
+                  style: const TextStyle(fontSize: 13, color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: _isAgent
+                        ? (isAr
+                            ? 'اكتب رسالتك للموظف...'
+                            : 'Message the agent...')
+                        : (isAr
+                            ? 'اسألني عن قطعة، سيارة، أو عطل ميكانيكي...'
+                            : 'Ask about a part, car, or mechanical issue...'),
+                    hintStyle: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.07),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: AppTheme.copper),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFEA580C), Color(0xFFF97316)],
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.copperDeep, AppTheme.copperLight],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.copper.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.send, color: Colors.white, size: 18),
+                  onPressed: () => _handleSendMessage(),
+                ),
               ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white, size: 18),
-              onPressed: () => _handleSendMessage(),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

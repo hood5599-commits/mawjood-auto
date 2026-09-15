@@ -170,7 +170,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
               : _errorMessage != null
               ? _buildErrorView()
               : SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
@@ -178,6 +180,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      _buildHeroSpeedline(),
+                      const SizedBox(height: 14),
                       ActiveOrderTracker(lang: _lang),
                       _buildOrderTrackerBanner(),
                       const SizedBox(height: 14),
@@ -219,19 +223,113 @@ class _CatalogScreenState extends State<CatalogScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: 80),
+                      const SizedBox(height: 110),
                     ],
                   ),
                 ),
         ),
-        floatingActionButton: _buildAbboudFloatingTab(),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 72),
+          child: _buildAbboudFloatingTab(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroSpeedline() {
+    final tokens = Theme.of(context).extension<MawjoodTokens>();
+    return Container(
+      height: 132,
+      decoration: BoxDecoration(
+        gradient: tokens?.speedline ??
+            const LinearGradient(
+              colors: [AppTheme.navy, AppTheme.obsidianSoft, AppTheme.copper],
+            ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: AppTheme.cardShadow(Theme.of(context).brightness),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            top: -30,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.copper.withValues(alpha: 0.18),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -40,
+            bottom: -50,
+            child: Transform.rotate(
+              angle: -0.4,
+              child: Container(
+                width: 180,
+                height: 40,
+                color: Colors.white.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.copper,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    isAr ? 'أداء F1 للقطع' : 'F1-Grade Parts',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  isAr
+                      ? 'قطع أصلية بسرعة التوصيل القصوى'
+                      : 'Genuine parts. Maximum delivery velocity.',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isAr
+                      ? 'من الكراجات المعتمدة إلى بابك'
+                      : 'From verified garages to your door',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color(0xFF090D16),
+      backgroundColor: AppTheme.navy,
       elevation: 0,
       titleSpacing: 16,
       title: Row(
@@ -456,13 +554,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0F172A),
+          backgroundColor: AppTheme.navy,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          elevation: 3,
+          elevation: 0,
         ),
       ),
     );
@@ -483,25 +581,25 @@ class _CatalogScreenState extends State<CatalogScreen> {
             _buildStatCard(
               cardWidth,
               isAr ? 'ساعتان - 24 ساعة' : '2 - 24 Hours',
-              isAr ? '⚡ متوسط سرعة التوصيل' : '⚡ Avg. Delivery Speed',
-              const Color(0xFF0F172A),
+              isAr ? 'متوسط سرعة التوصيل' : 'Avg. Delivery Speed',
+              AppTheme.navy,
             ),
             _buildStatCard(
               cardWidth,
               _inventory.length.toString(),
-              isAr ? '📦 القطع المتوفرة بالمستودعات' : '📦 Parts in Stock',
+              isAr ? 'القطع المتوفرة' : 'Parts in Stock',
               AppTheme.copper,
             ),
             _buildStatCard(
               cardWidth,
               '+$uniqueGarages',
-              isAr ? '🏪 كراج ومعرض معتمد' : '🏪 Verified Garages',
-              const Color(0xFF0F172A),
+              isAr ? 'كراج معتمد' : 'Verified Garages',
+              AppTheme.navy,
             ),
             _buildStatCard(
               cardWidth,
               '+15',
-              isAr ? '⭐ عملاء راضون وموثوقون' : '⭐ Happy Customers',
+              isAr ? 'عملاء راضون' : 'Happy Customers',
               AppTheme.success,
             ),
           ],
@@ -516,14 +614,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
     String label,
     Color valueColor,
   ) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      decoration: AppTheme.cardDecoration(context, radius: 16),
       child: Column(
         children: [
           Text(
@@ -531,7 +626,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
-              color: valueColor,
+              color: dark && valueColor == AppTheme.navy
+                  ? AppTheme.textWhite
+                  : valueColor,
               fontFamily: 'Cairo',
             ),
             textAlign: TextAlign.center,
@@ -539,10 +636,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF64748B),
+              color: AppTheme.mutedOf(context),
             ),
             textAlign: TextAlign.center,
           ),
@@ -552,51 +649,61 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 
   Widget _buildAbboudFloatingTab() {
-    return InkWell(
-      onTap: _openAbboudAssistant,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF090D16), Color(0xFF0F172A)],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppTheme.copper.withValues(alpha: 0.6),
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(
-                color: AppTheme.copper,
-                shape: BoxShape.circle,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openAbboudAssistant,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppTheme.navy, AppTheme.obsidianSoft],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: AppTheme.copper.withValues(alpha: 0.65),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.copper.withValues(alpha: 0.28),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
-              child: const Center(
-                child: Icon(
-                  Icons.smart_toy_outlined,
-                  color: Colors.white,
-                  size: 16,
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  color: AppTheme.copper,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.smart_toy_outlined,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              isAr ? 'عبود مساعد موجود' : 'Abboud AI',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12.5,
+              const SizedBox(width: 8),
+              Text(
+                isAr ? 'عبود مساعد موجود' : 'Abboud AI',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.5,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_left, color: AppTheme.copper, size: 18),
-          ],
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_left, color: AppTheme.copper, size: 18),
+            ],
+          ),
         ),
       ),
     );

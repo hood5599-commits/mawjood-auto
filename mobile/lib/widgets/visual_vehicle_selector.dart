@@ -1229,7 +1229,7 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 360,
-              mainAxisExtent: 455,
+              mainAxisExtent: 520,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),

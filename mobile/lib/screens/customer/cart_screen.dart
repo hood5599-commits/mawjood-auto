@@ -163,15 +163,40 @@ class _CartScreenState extends State<CartScreen> {
                     children: [
                       Expanded(
                         child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                           itemCount: items.length,
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: 12),
                           itemBuilder: (context, index) {
-                            return _buildCartItemCard(items[index]);
+                            final part = items[index];
+                            return Dismissible(
+                              key: ValueKey('cart_${part.id}'),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 20),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.danger.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: const Icon(
+                                  Icons.delete_outline,
+                                  color: AppTheme.danger,
+                                ),
+                              ),
+                              onDismissed: (_) {
+                                _cartService.removeFromCart(part.id);
+                                CustomToast.info(
+                                  context,
+                                  isAr
+                                      ? 'تم حذف القطعة من السلة'
+                                      : 'Removed from cart',
+                                );
+                              },
+                              child: _buildCartItemCard(part),
+                            );
                           },
                         ),
                       ),

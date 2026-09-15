@@ -1369,16 +1369,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     vertical: 13,
                   ),
                   decoration: BoxDecoration(
-                    color: selected ? _surfaceElevated : _bg,
-                    borderRadius: BorderRadius.circular(14),
+                    color: selected
+                        ? AppTheme.copper.withValues(alpha: 0.12)
+                        : _bg,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: selected ? _copper : _border,
+                      color: selected ? AppTheme.copper : _border,
                       width: selected ? 1.8 : 1,
                     ),
                     boxShadow: selected
                         ? [
                             BoxShadow(
-                              color: _copper.withValues(alpha: 0.22),
+                              color: AppTheme.copper.withValues(alpha: 0.22),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),

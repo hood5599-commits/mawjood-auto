@@ -791,11 +791,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.cardBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.borderSlate),
-      ),
+      decoration: AppTheme.cardDecoration(context, radius: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -808,18 +804,40 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: (val) =>
                       setState(() => _activeSearchQuery = val.trim()),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 13,
-                    color: AppTheme.textWhite,
+                    color: AppTheme.textOf(context),
                   ),
                   decoration: InputDecoration(
                     hintText: isAr
                         ? 'ابحث برقم القطعة أو الكود (مثال: 04465-33470)...'
                         : 'Search by Part No / Code...',
-                    prefixIcon: const Icon(
+                    hintStyle: TextStyle(color: AppTheme.mutedOf(context)),
+                    prefixIcon: Icon(
                       Icons.search,
-                      color: AppTheme.textMuted,
+                      color: AppTheme.mutedOf(context),
+                    ),
+                    filled: true,
+                    fillColor: AppTheme.surfaceOf(context).withValues(alpha: 0.85),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: AppTheme.borderOf(context)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: AppTheme.borderOf(context)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: AppTheme.copper,
+                        width: 1.4,
+                      ),
                     ),
                     suffixIcon: _activeSearchQuery.isNotEmpty
                         ? IconButton(
@@ -839,16 +857,16 @@ class _SidebarFiltersState extends State<SidebarFilters> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceSlate,
+                  color: AppTheme.surfaceOf(context),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.borderSlate),
+                  border: Border.all(color: AppTheme.borderOf(context)),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<SortOption>(
                     value: _sortBy,
-                    dropdownColor: AppTheme.cardBg,
-                    style: const TextStyle(
-                      color: AppTheme.textWhite,
+                    dropdownColor: AppTheme.cardOf(context),
+                    style: TextStyle(
+                      color: AppTheme.textOf(context),
                       fontSize: 12,
                       fontFamily: 'Cairo',
                     ),
@@ -906,27 +924,39 @@ class _SidebarFiltersState extends State<SidebarFilters> {
               Container(
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceSlate,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.borderSlate),
+                  color: AppTheme.surfaceOf(context),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppTheme.borderOf(context)),
                 ),
                 child: Column(
                   children: [
-                    const Icon(
-                      Icons.search_off,
-                      size: 42,
-                      color: AppTheme.textMuted,
+                    Icon(
+                      Icons.speed_outlined,
+                      size: 46,
+                      color: AppTheme.copper.withValues(alpha: 0.85),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Text(
                       isAr
-                          ? 'عفواً، لا توجد قطعة مطابقة لهذا الرقم تماماً.'
-                          : 'No matching part number found.',
-                      style: const TextStyle(
-                        color: AppTheme.textMuted,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          ? 'لا نتائج بسرعة F1 — جرّب رقم قطعة آخر'
+                          : 'No F1-speed hits — try another OEM code',
                       textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: AppTheme.textOf(context),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isAr
+                          ? 'أو اطلب القطعة عبر عبود / نموذج الطلب الخاص'
+                          : 'Or request it via Abboud / special request form',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.mutedOf(context),
+                      ),
                     ),
                     const SizedBox(height: 14),
                     ElevatedButton.icon(
@@ -950,7 +980,7 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 360,
-                  mainAxisExtent: 455,
+                  mainAxisExtent: 520,
                   crossAxisSpacing: 14,
                   mainAxisSpacing: 14,
                 ),

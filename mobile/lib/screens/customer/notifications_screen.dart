@@ -4,6 +4,7 @@ import '../../config/theme.dart';
 import '../../models/notification_model.dart';
 import '../../services/notification_center_service.dart';
 import '../../widgets/custom_toast.dart';
+import '../../widgets/glass_chrome.dart';
 import 'order_tracker_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -130,10 +131,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Directionality(
       textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: AppTheme.scaffoldOf(context),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF090D16),
+          backgroundColor: AppTheme.navy,
           elevation: 0,
+          leading: const GlassBackButton(iconColor: Colors.white),
           title: Text(
             isAr ? 'مركز الإشعارات' : 'Notification Center',
             style: const TextStyle(
@@ -170,6 +172,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               color: AppTheme.copper,
               onRefresh: _svc.refresh,
               child: ListView.separated(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
                 padding: const EdgeInsets.all(16),
                 itemCount: _svc.items.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -186,6 +191,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _empty() {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -196,23 +202,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               width: 88,
               height: 88,
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: dark
+                    ? AppTheme.surfaceSlate
+                    : const Color(0xFFFFF4EC),
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFBFDBFE)),
+                border: Border.all(
+                  color: AppTheme.copper.withValues(alpha: 0.35),
+                ),
               ),
               child: const Icon(
                 Icons.notifications_none_rounded,
                 size: 42,
-                color: Color(0xFF0284C7),
+                color: AppTheme.copper,
               ),
             ),
             const SizedBox(height: 18),
             Text(
               isAr ? 'لا توجد إشعارات حالياً' : 'No notifications yet',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF0F172A),
+                color: AppTheme.textOf(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -221,9 +231,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ? 'ستظهر هنا تنبيهات الطلبات والعروض والتنبيهات النظامية'
                   : 'Order updates, promos, and system alerts will appear here',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13.5,
-                color: Color(0xFF64748B),
+                color: AppTheme.mutedOf(context),
                 height: 1.45,
               ),
             ),
@@ -236,6 +246,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _tile(AppNotification n) {
     final unread = _svc.isUnread(n);
     final color = _colorFor(n.type);
+    final dark = Theme.of(context).brightness == Brightness.dark;
 
     return Dismissible(
       key: ValueKey('notif_${n.id}'),
@@ -244,27 +255,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: const Color(0xFFFEE2E2),
-          borderRadius: BorderRadius.circular(14),
+          color: AppTheme.danger.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
+        child: const Icon(Icons.delete_outline, color: AppTheme.danger),
       ),
       onDismissed: (_) => _svc.deleteNotification(n),
       child: Material(
-        color: unread ? const Color(0xFFFFF7ED) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: unread
+            ? (dark
+                ? AppTheme.copper.withValues(alpha: 0.12)
+                : const Color(0xFFFFF7ED))
+            : AppTheme.cardOf(context),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           onTap: () => _onTap(n),
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: unread
-                    ? const Color(0xFFFDBA74)
-                    : const Color(0xFFE2E8F0),
+                    ? AppTheme.copper.withValues(alpha: 0.45)
+                    : AppTheme.borderOf(context),
               ),
+              boxShadow: AppTheme.cardShadow(Theme.of(context).brightness),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,7 +309,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 fontWeight: unread
                                     ? FontWeight.w900
                                     : FontWeight.w700,
-                                color: const Color(0xFF0F172A),
+                                color: AppTheme.textOf(context),
                               ),
                             ),
                           ),
@@ -302,7 +318,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               width: 8,
                               height: 8,
                               decoration: const BoxDecoration(
-                                color: Color(0xFFEA580C),
+                                color: AppTheme.copper,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -313,9 +329,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         n.body,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12.5,
-                          color: Color(0xFF64748B),
+                          color: AppTheme.mutedOf(context),
                           height: 1.4,
                         ),
                       ),
@@ -324,9 +340,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         n.createdAt != null
                             ? _formatTime(n.createdAt!)
                             : n.type,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF94A3B8),
+                          color: AppTheme.mutedOf(context),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
