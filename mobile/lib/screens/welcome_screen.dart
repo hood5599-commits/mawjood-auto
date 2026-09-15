@@ -3,9 +3,10 @@ import 'package:video_player/video_player.dart';
 
 import '../config/theme.dart';
 import '../main.dart';
+import '../services/auth_service.dart';
+import '../services/role_router.dart';
 import '../widgets/mawjood_logo.dart';
 import 'auth_screen.dart';
-import 'delivery/orders_to_deliver.dart';
 
 class WelcomeScreen extends StatefulWidget {
   final String lang;
@@ -28,6 +29,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   void initState() {
     super.initState();
     _initVideo();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreStaffSession());
+  }
+
+  void _restoreStaffSession() {
+    if (!mounted) return;
+    final dest = RoleRouter.homeForSession(
+      session: AuthService().session,
+      lang: widget.lang,
+      onToggleLang: widget.onToggleLang,
+    );
+    if (dest == null) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => dest),
+    );
   }
 
   Future<void> _initVideo() async {
@@ -72,20 +87,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           driverMode: driverMode,
           onToggleLang: widget.onToggleLang,
           onSuccess: (session) {
-            Navigator.pop(context);
-            if (session.isDriver) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => OrdersToDeliverScreen(
-                    lang: widget.lang,
-                    session: session,
-                  ),
-                ),
-              );
-            } else {
-              _enterShop();
-            }
+            RoleRouter.goHome(
+              context,
+              session: session,
+              lang: widget.lang,
+              onToggleLang: widget.onToggleLang,
+            );
           },
         ),
       ),
@@ -93,10 +100,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   void _onLogoTap() {
+    // Secret backstage shortcut retained (7 taps) — still unified login UI.
     _logoTaps++;
     if (_logoTaps >= 7) {
       _logoTaps = 0;
-      _openAuth(driverMode: true);
+      _openAuth();
     }
   }
 

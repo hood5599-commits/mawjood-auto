@@ -29,7 +29,11 @@ class AuthSession {
 
   bool get isLoggedIn => token != null && token!.isNotEmpty;
   bool get isDriver =>
-      role == 'driver' || (email?.endsWith('@driver.mawjood.com') ?? false);
+      role == 'driver' ||
+      role == 'delivery' ||
+      (email?.endsWith('@driver.mawjood.com') ?? false);
+  bool get isGarage =>
+      role == 'garage' || (email?.endsWith('@garage.mawjood.com') ?? false);
 
   String? get userId => user?['id']?.toString();
 
@@ -168,30 +172,37 @@ class AuthService {
     required String password,
   }) async {
     final inputVal = identifier.trim();
-    var formattedEmail = _formatInput(inputVal);
     final dio = _authDio();
 
-    var response = await dio.post(
-      '/token?grant_type=password',
-      data: {'email': formattedEmail, 'password': password},
-    );
+    // Build candidate emails: raw email first, then phone@role domains.
+    final candidates = <String>[];
+    if (inputVal.contains('@')) {
+      candidates.add(inputVal);
+    } else if (RegExp(r'^\d+$').hasMatch(inputVal)) {
+      candidates.addAll([
+        '$inputVal@customer.mawjood.com',
+        '$inputVal@driver.mawjood.com',
+        '$inputVal@garage.mawjood.com',
+      ]);
+    } else {
+      candidates.add(_formatInput(inputVal));
+    }
 
-    if (response.statusCode != 200 && RegExp(r'^\d+$').hasMatch(inputVal)) {
-      for (final dom in ['driver.mawjood.com', 'garage.mawjood.com']) {
-        final altEmail = '$inputVal@$dom';
-        final altRes = await dio.post(
-          '/token?grant_type=password',
-          data: {'email': altEmail, 'password': password},
-        );
-        if (altRes.statusCode == 200) {
-          response = altRes;
-          formattedEmail = altEmail;
-          break;
-        }
+    Response? response;
+    var formattedEmail = candidates.first;
+    for (final email in candidates) {
+      final res = await dio.post(
+        '/token?grant_type=password',
+        data: {'email': email, 'password': password},
+      );
+      if (res.statusCode == 200) {
+        response = res;
+        formattedEmail = email;
+        break;
       }
     }
 
-    if (response.statusCode != 200) {
+    if (response == null || response.statusCode != 200) {
       throw Exception('invalid_credentials');
     }
 
@@ -204,13 +215,21 @@ class AuthService {
     if (email.endsWith('@driver.mawjood.com')) role = 'driver';
     if (email.endsWith('@garage.mawjood.com')) role = 'garage';
     if (email.endsWith('@admin.mawjood.com')) role = 'admin';
+    // Normalize delivery alias
+    if (role == 'delivery') role = 'driver';
+
+    final access = data['access_token']?.toString();
+    final refresh = data['refresh_token']?.toString();
+    if (access == null || access.isEmpty) {
+      throw Exception('invalid_credentials');
+    }
 
     final session = AuthSession(
-      token: data['access_token']?.toString(),
-      refreshToken: data['refresh_token']?.toString(),
+      token: access,
+      refreshToken: refresh,
       user: user,
       email: email,
-      phone: inputVal,
+      phone: inputVal.contains('@') ? email.split('@').first : inputVal,
       role: role,
       fullName: user?['user_metadata']?['full_name']?.toString(),
     );

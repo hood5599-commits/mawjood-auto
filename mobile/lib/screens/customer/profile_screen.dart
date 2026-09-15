@@ -6,6 +6,7 @@ import '../../config/theme.dart';
 import '../../models/vehicle_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/platform_settings_service.dart';
+import '../../services/role_router.dart';
 import '../../services/theme_notifier.dart';
 import '../../widgets/custom_toast.dart';
 import '../auth_screen.dart';
@@ -292,7 +293,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (_) => AuthScreen(
           lang: widget.lang,
           onToggleLang: widget.onToggleLang,
-          onSuccess: (_) {
+          onSuccess: (session) {
+            if (session.isDriver || session.isGarage) {
+              RoleRouter.goHome(
+                context,
+                session: session,
+                lang: widget.lang,
+                onToggleLang: widget.onToggleLang,
+              );
+              return;
+            }
             Navigator.pop(context);
             _loadProfileData();
           },

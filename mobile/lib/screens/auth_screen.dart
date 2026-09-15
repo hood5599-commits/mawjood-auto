@@ -63,14 +63,11 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
 
+      // Unified login: never block by role here. RoleRouter handles destination.
+      // Optional: when opened via secret driverMode, reject non-drivers only.
       if (widget.driverMode && !session.isDriver) {
         await AuthService().clearSession();
         throw Exception('not_driver');
-      }
-      if (!widget.driverMode && session.isDriver) {
-        // Allow driver credentials only via driver backstage entry
-        await AuthService().clearSession();
-        throw Exception('use_driver_portal');
       }
 
       if (!mounted) return;
@@ -82,10 +79,6 @@ class _AuthScreenState extends State<AuthScreen> {
           _error = isAr
               ? 'هذه البيانات ليست لحساب مندوب'
               : 'Not a driver account';
-        } else if (msg.contains('use_driver_portal')) {
-          _error = isAr
-              ? 'استخدم بوابة المندوب للدخول بهذا الحساب'
-              : 'Use the driver portal for this account';
         } else if (msg.contains('invalid_credentials')) {
           _error = isAr ? 'بيانات الدخول غير صحيحة' : 'Invalid login credentials';
         } else {

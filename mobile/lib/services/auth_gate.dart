@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../screens/auth_screen.dart';
 import 'auth_service.dart';
+import 'role_router.dart';
 
 /// Central auth gate for cart / checkout gated actions.
 class AuthGate {
@@ -12,7 +13,16 @@ class AuthGate {
     VoidCallback? onToggleLang,
     String? message,
   }) async {
-    if (AuthService().isLoggedIn) return true;
+    if (AuthService().isLoggedIn) {
+      if (RoleRouter.redirectIfStaff(
+        context,
+        lang: lang,
+        onToggleLang: onToggleLang,
+      )) {
+        return false;
+      }
+      return true;
+    }
 
     final isAr = lang == 'ar';
     final proceed = await showModalBottomSheet<bool>(
@@ -126,11 +136,26 @@ class AuthGate {
         builder: (_) => AuthScreen(
           lang: lang,
           onToggleLang: onToggleLang,
-          onSuccess: (_) => Navigator.of(context).pop(),
+          onSuccess: (session) {
+            if (session.isDriver || session.isGarage) {
+              RoleRouter.goHome(
+                context,
+                session: session,
+                lang: lang,
+                onToggleLang: onToggleLang,
+              );
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
         ),
       ),
     );
 
-    return AuthService().isLoggedIn;
+    if (!context.mounted) return false;
+    final session = AuthService().session;
+    if (session == null || !session.isLoggedIn) return false;
+    if (session.isDriver || session.isGarage) return false;
+    return true;
   }
 }
