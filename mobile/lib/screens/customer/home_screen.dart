@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? 'استخراج VIN فوري لمطابقة قطع 100% مع سيارتك'
                     : 'Instant VIN extraction for 100% fitment accuracy',
                 icon: Icons.document_scanner_outlined,
-                assetImage: 'assets/images/amg-gtr-blueprint.png.jpg',
+                assetImage: 'assets/images/cards/estimara_bg.jpg',
                 height: 156,
                 badge: Container(
                   padding:
@@ -228,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? 'اختر سيارتك بالبطاقات خطوة بخطوة'
                           : 'Pick your car step by step',
                       icon: Icons.dashboard_customize_outlined,
-                      assetImage: 'assets/images/Engine.jpg',
+                      assetImage: 'assets/images/cards/visual_search_bg.jpg',
                       height: 168,
                       onTap: () {
                         Navigator.of(context).push(
@@ -247,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? 'تصفح حسب المجموعات والمصنعين'
                           : 'Browse by groups & makers',
                       icon: Icons.account_tree_outlined,
-                      assetImage: 'assets/images/Transmission-Automatic.jpg',
+                      assetImage: 'assets/images/cards/tree_catalog_bg.jpg',
                       height: 168,
                       onTap: () {
                         Navigator.of(context).push(
@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? 'أرسل بيانات القطعة أو صورتها وسنوفرها لك من الكراجات المعتمدة'
                     : 'Send part details or a photo — sourced from verified garages',
                 icon: Icons.request_quote_outlined,
-                assetImage: 'assets/images/brakes.png.jpg',
+                assetImage: 'assets/images/cards/quote_request_bg.jpg',
                 height: 148,
                 onTap: () {
                   Navigator.of(context).push(

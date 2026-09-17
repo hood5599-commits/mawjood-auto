@@ -73,6 +73,7 @@ flutter:
     - .env
     - assets/videos/
     - assets/images/
+    - assets/images/cards/
     - assets/logo.svg
 
   # To add assets to your application, add an assets section, like this:
