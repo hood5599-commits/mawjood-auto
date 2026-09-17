@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Formula-1 High-Octane × Apple Glass design tokens.
+/// Premium automotive × Apple Glass design tokens.
 class AppTheme {
-  // ── Dynamic accent (McLaren Papaya / F1 Orange) ──────────────────────────
+  // ── Dynamic accent (Automotive Papaya Orange) ────────────────────────────
   static const Color copper = Color(0xFFFF6B00);
   static const Color copperLight = Color(0xFFFF8533);
   static const Color copperDeep = Color(0xFFE55A00);
@@ -43,9 +43,9 @@ class AppTheme {
   /// Soft ambient card shadow (light).
   static List<BoxShadow> get softShadow => const [
         BoxShadow(
-          color: Color(0x0A000000),
-          blurRadius: 18,
-          offset: Offset(0, 6),
+          color: Color(0x08000000),
+          blurRadius: 16,
+          offset: Offset(0, 4),
         ),
       ];
 

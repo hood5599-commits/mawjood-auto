@@ -6,8 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
 import 'config/theme.dart';
-import 'screens/customer/cart_screen.dart';
-import 'screens/customer/catalog_screen.dart';
+import 'screens/customer/favorites_screen.dart';
+import 'screens/customer/home_screen.dart';
+import 'screens/customer/order_tracker_screen.dart';
 import 'screens/customer/profile_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/admin_notification_service.dart';
@@ -122,7 +123,7 @@ class _MawjoodScrollBehavior extends MaterialScrollBehavior {
   }
 }
 
-/// Customer-only bottom navigation (Shop / Cart / Profile).
+/// Customer bottom navigation: Home / Orders / Favorites / Profile.
 class MainNavigationWrapper extends StatefulWidget {
   final String lang;
   final VoidCallback onToggleLang;
@@ -159,8 +160,12 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      CatalogScreen(initialLang: widget.lang),
-      CartScreen(lang: widget.lang),
+      HomeScreen(
+        lang: widget.lang,
+        onToggleLang: widget.onToggleLang,
+      ),
+      OrderTrackerScreen(lang: widget.lang),
+      FavoritesScreen(lang: widget.lang),
       ProfileScreen(
         lang: widget.lang,
         onLogout: _logout,
@@ -179,14 +184,19 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
           onTap: (index) => setState(() => _currentIndex = index),
           items: [
             FloatingGlassNavItem(
-              icon: Icons.storefront_outlined,
-              activeIcon: Icons.storefront,
-              label: isAr ? 'المتجر' : 'Shop',
+              icon: Icons.home_outlined,
+              activeIcon: Icons.home_rounded,
+              label: isAr ? 'الرئيسية' : 'Home',
             ),
             FloatingGlassNavItem(
-              icon: Icons.shopping_cart_outlined,
-              activeIcon: Icons.shopping_cart,
-              label: isAr ? 'السلة' : 'Cart',
+              icon: Icons.receipt_long_outlined,
+              activeIcon: Icons.receipt_long,
+              label: isAr ? 'طلباتي' : 'Orders',
+            ),
+            FloatingGlassNavItem(
+              icon: Icons.favorite_border_rounded,
+              activeIcon: Icons.favorite_rounded,
+              label: isAr ? 'المفضلة' : 'Favorites',
             ),
             FloatingGlassNavItem(
               icon: Icons.person_outline,

@@ -17,12 +17,14 @@ class RequestPartModal extends StatefulWidget {
   final String customerPhone;
   final String initialPartName;
   final VoidCallback? onSuccess;
+  final bool asPage;
 
   const RequestPartModal({
     super.key,
     this.customerPhone = '',
     this.initialPartName = '',
     this.onSuccess,
+    this.asPage = false,
   });
 
   /// فتح النافذة المنبثقة مباشرة من أي مكان بالتطبيق
@@ -202,6 +204,29 @@ class _RequestPartModalState extends State<RequestPartModal> {
 
   @override
   Widget build(BuildContext context) {
+    final body = Padding(
+      padding: const EdgeInsets.all(22),
+      child: _isSuccess ? _buildSuccessView() : _buildFormView(),
+    );
+
+    if (widget.asPage) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              child: Material(
+                color: AppTheme.cardOf(context),
+                child: body,
+              ),
+            );
+          },
+        ),
+      );
+    }
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Dialog(
@@ -210,10 +235,7 @@ class _RequestPartModalState extends State<RequestPartModal> {
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 500, maxHeight: 720),
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: _isSuccess ? _buildSuccessView() : _buildFormView(),
-          ),
+          child: body,
         ),
       ),
     );
@@ -266,10 +288,11 @@ class _RequestPartModalState extends State<RequestPartModal> {
                   color: AppTheme.textWhite,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, color: AppTheme.textMuted),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+              if (!widget.asPage)
+                IconButton(
+                  icon: const Icon(Icons.close, color: AppTheme.textMuted),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
             ],
           ),
           const Divider(color: AppTheme.borderSlate),

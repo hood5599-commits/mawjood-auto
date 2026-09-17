@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,6 +9,7 @@ import '../../services/auth_service.dart';
 import '../../services/platform_settings_service.dart';
 import '../../services/role_router.dart';
 import '../../services/theme_notifier.dart';
+import '../../widgets/ai_chatbot_sheet.dart';
 import '../../widgets/custom_toast.dart';
 import '../../widgets/glass_chrome.dart';
 import '../auth_screen.dart';
@@ -141,45 +143,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context,
       isAr ? 'تم حفظ التعديلات بنجاح' : 'Profile updated successfully',
     );
-  }
-
-  Future<void> _editUsername() async {
-    final ctrl = TextEditingController(text: _nameController.text);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
-        child: AlertDialog(
-          backgroundColor: _surfaceAlt,
-          title: Text(
-            isAr ? 'تعديل اسم المستخدم' : 'Edit Username',
-            style: const TextStyle(color: _text),
-          ),
-          content: TextField(
-            controller: ctrl,
-            style: const TextStyle(color: _text),
-            decoration: _fieldDecoration(
-              label: isAr ? 'الاسم الكامل' : 'Full Name',
-              icon: Icons.badge_outlined,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(isAr ? 'إلغاء' : 'Cancel',
-                  style: const TextStyle(color: _muted)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(isAr ? 'حفظ' : 'Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (ok != true) return;
-    _nameController.text = ctrl.text.trim();
-    await _saveProfileData();
   }
 
   Future<void> _changePassword() async {
@@ -412,9 +375,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (!isLoggedIn) ...[
                           _guestWelcomeCard(),
                           const SizedBox(height: 14),
-                          _themeCard(),
+                          _helpSupportSection(),
                           const SizedBox(height: 14),
-                          _supportCard(),
+                          _systemAppSection(),
                           const SizedBox(height: 24),
                         ] else ...[
                           _identityCard(),
@@ -448,118 +411,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   keyboardType: TextInputType.phone,
                                   style: const TextStyle(color: _text),
                                   decoration: _fieldDecoration(
-                                    label:
-                                        isAr ? 'رقم الهاتف' : 'Phone Number',
+                                    label: isAr ? 'رقم الجوال' : 'Phone',
                                     icon: Icons.phone_outlined,
                                   ),
                                 ),
                                 const SizedBox(height: 12),
                                 TextField(
                                   controller: _addressController,
-                                  maxLines: 2,
                                   style: const TextStyle(color: _text),
                                   decoration: _fieldDecoration(
                                     label: isAr
-                                        ? 'عنوان التوصيل الافتراضي'
-                                        : 'Default Delivery Address',
+                                        ? 'عنوان التوصيل'
+                                        : 'Delivery address',
                                     icon: Icons.location_on_outlined,
+                                  ),
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 14),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed:
+                                        _isSaving ? null : _saveProfileData,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.copper,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: _isSaving
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Text(
+                                            isAr
+                                                ? 'حفظ البيانات'
+                                                : 'Save profile',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          _card(
-                            child: Column(
-                              children: [
-                                _actionTile(
-                                  Icons.edit_outlined,
-                                  isAr
-                                      ? 'تعديل اسم المستخدم'
-                                      : 'Edit Username',
-                                  _editUsername,
-                                ),
-                                const Divider(color: _border, height: 1),
-                                _actionTile(
-                                  Icons.lock_outline,
-                                  isAr
-                                      ? 'تغيير كلمة المرور'
-                                      : 'Change Password',
-                                  _changePassword,
-                                ),
-                                const Divider(color: _border, height: 1),
-                                _actionTile(
-                                  Icons.inventory_2_outlined,
-                                  isAr
-                                      ? 'طلباتي السابقة'
-                                      : 'Past Orders',
-                                  _openOrderTracker,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
+                          _helpSupportSection(),
+                          const SizedBox(height: 14),
+                          _systemAppSection(),
+                          const SizedBox(height: 14),
                           _vehiclesCard(),
-                          const SizedBox(height: 12),
-                          _themeCard(),
-                          const SizedBox(height: 12),
-                          _supportCard(),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: _isSaving ? null : _saveProfileData,
-                              child: _isSaving
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(
-                                      isAr ? 'حفظ البيانات' : 'Save Changes',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          if (widget.onLogout != null)
-                            TextButton.icon(
-                              onPressed: widget.onLogout,
-                              icon: const Icon(
-                                Icons.logout,
-                                color: AppTheme.danger,
-                                size: 18,
-                              ),
-                              label: Text(
-                                isAr ? 'تسجيل الخروج' : 'Log Out',
-                                style: const TextStyle(
-                                  color: AppTheme.danger,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          TextButton.icon(
-                            onPressed:
-                                _deleting ? null : _confirmDeleteAccount,
-                            icon: const Icon(
-                              Icons.delete_forever,
-                              color: AppTheme.danger,
-                              size: 18,
-                            ),
-                            label: Text(
-                              isAr ? 'حذف الحساب' : 'Delete Account',
-                              style: const TextStyle(
-                                color: AppTheme.danger,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
                           const SizedBox(height: 24),
                         ],
+                        const SizedBox(height: 80),
                       ],
                     ),
                   ),
@@ -800,58 +714,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _themeCard() {
-    return AnimatedBuilder(
-      animation: ThemeNotifier.instance,
-      builder: (context, _) {
-        final current = ThemeNotifier.instance.preference;
-        return _card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isAr ? 'مظهر التطبيق' : 'App Appearance',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: _text,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _themeChip(
-                    label: isAr ? 'تلقائي' : 'System',
-                    icon: Icons.brightness_auto,
-                    selected: current == AppThemePreference.system,
-                    onTap: () => ThemeNotifier.instance
-                        .setPreference(AppThemePreference.system),
-                  ),
-                  _themeChip(
-                    label: isAr ? 'فاتح' : 'Light',
-                    icon: Icons.light_mode_outlined,
-                    selected: current == AppThemePreference.light,
-                    onTap: () => ThemeNotifier.instance
-                        .setPreference(AppThemePreference.light),
-                  ),
-                  _themeChip(
-                    label: isAr ? 'داكن' : 'Dark',
-                    icon: Icons.dark_mode_outlined,
-                    selected: current == AppThemePreference.dark,
-                    onTap: () => ThemeNotifier.instance
-                        .setPreference(AppThemePreference.dark),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _themeChip({
     required String label,
     required IconData icon,
@@ -904,7 +766,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _supportCard() {
+  Widget _helpSupportSection() {
     return AnimatedBuilder(
       animation: PlatformSettingsService.instance,
       builder: (context, _) {
@@ -914,7 +776,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isAr ? 'التواصل والدعم' : 'Contact & Support',
+                isAr ? 'المساعدة والدعم' : 'Help & Support',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -924,56 +786,243 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 8),
               _actionTile(
                 Icons.chat,
-                'WhatsApp',
-                () => _launch(
-                  Uri.parse('https://wa.me/${s.whatsappDigits}'),
-                ),
+                isAr ? 'واتساب خدمة العملاء' : 'WhatsApp Support',
+                () => _launch(Uri.parse('https://wa.me/${s.whatsappDigits}')),
               ),
               const Divider(color: _border, height: 1),
               _actionTile(
                 Icons.phone,
-                isAr ? 'اتصال هاتفي' : 'Call Us',
-                () => _launch(Uri.parse('tel:${s.phoneTel}')),
-              ),
-              const Divider(color: _border, height: 1),
-              _actionTile(
-                Icons.email_outlined,
-                s.supportEmail,
-                () => _launch(Uri.parse('mailto:${s.supportEmail}')),
-              ),
-              const Divider(color: _border, height: 1),
-              _actionTile(
-                Icons.info_outline,
-                isAr ? 'عن موجود أوتو' : 'About',
+                isAr ? 'تواصل معنا' : 'Contact Us',
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => InfoPageScreen(
                       lang: widget.lang,
-                      type: InfoPageType.about,
+                      type: InfoPageType.contact,
                     ),
                   ),
                 ),
               ),
               const Divider(color: _border, height: 1),
               _actionTile(
-                Icons.support_agent,
-                isAr ? 'خدمة العملاء' : 'Customer Care',
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => InfoPageScreen(
-                      lang: widget.lang,
-                      type: InfoPageType.care,
-                    ),
-                  ),
-                ),
+                Icons.smart_toy_outlined,
+                isAr ? 'عبود المساعد الذكي والمحادثة المباشرة' : 'Abboud AI & Live Chat',
+                () => AiChatbotSheet.showModal(context, lang: widget.lang),
               ),
             ],
           ),
         );
       },
     );
+  }
+
+  Widget _systemAppSection() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isAr ? 'النظام والتطبيق' : 'System & App',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: _text,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _actionTile(
+            Icons.share_outlined,
+            isAr ? 'مشاركة التطبيق' : 'Share App',
+            () {
+              SharePlus.instance.share(
+                ShareParams(
+                  text: isAr
+                      ? 'جرّب موجود أوتو لقطع الغيار المعتمدة في قطر: https://mawjood.auto'
+                      : 'Try Mawjood Auto for certified spare parts in Qatar: https://mawjood.auto',
+                  subject: isAr ? 'موجود أوتو' : 'Mawjood Auto',
+                ),
+              );
+            },
+          ),
+          const Divider(color: _border, height: 1),
+          _actionTile(
+            Icons.feedback_outlined,
+            isAr ? 'الشكاوى والاقتراحات' : 'Complaints & Suggestions',
+            _showComplaintsSheet,
+          ),
+          const Divider(color: _border, height: 1),
+          _actionTile(
+            Icons.menu_book_outlined,
+            isAr ? 'تعليمات الاستخدام والشروط' : 'Usage Terms & Guidelines',
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => InfoPageScreen(
+                  lang: widget.lang,
+                  type: InfoPageType.terms,
+                ),
+              ),
+            ),
+          ),
+          const Divider(color: _border, height: 1),
+          _actionTile(
+            Icons.privacy_tip_outlined,
+            isAr ? 'سياسة الخصوصية' : 'Privacy Policy',
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => InfoPageScreen(
+                  lang: widget.lang,
+                  type: InfoPageType.privacy,
+                ),
+              ),
+            ),
+          ),
+          const Divider(color: _border, height: 1),
+          const SizedBox(height: 8),
+          _themeCardInline(),
+          if (isLoggedIn) ...[
+            const Divider(color: _border, height: 1),
+            _actionTile(
+              Icons.lock_outline,
+              isAr ? 'تغيير كلمة المرور' : 'Change Password',
+              _changePassword,
+            ),
+            const Divider(color: _border, height: 1),
+            if (widget.onLogout != null)
+              _actionTile(
+                Icons.logout,
+                isAr ? 'تسجيل الخروج' : 'Log Out',
+                widget.onLogout!,
+              ),
+            const Divider(color: _border, height: 1),
+            _actionTile(
+              Icons.delete_forever,
+              isAr ? 'حذف الحساب' : 'Delete Account',
+              _deleting ? () {} : _confirmDeleteAccount,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _themeCardInline() {
+    return AnimatedBuilder(
+      animation: ThemeNotifier.instance,
+      builder: (context, _) {
+        final current = ThemeNotifier.instance.preference;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isAr ? 'مظهر التطبيق' : 'App Appearance',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: _text,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _themeChip(
+                    label: isAr ? 'تلقائي' : 'System',
+                    icon: Icons.brightness_auto,
+                    selected: current == AppThemePreference.system,
+                    onTap: () => ThemeNotifier.instance
+                        .setPreference(AppThemePreference.system),
+                  ),
+                  _themeChip(
+                    label: isAr ? 'فاتح' : 'Light',
+                    icon: Icons.light_mode_outlined,
+                    selected: current == AppThemePreference.light,
+                    onTap: () => ThemeNotifier.instance
+                        .setPreference(AppThemePreference.light),
+                  ),
+                  _themeChip(
+                    label: isAr ? 'داكن' : 'Dark',
+                    icon: Icons.dark_mode_outlined,
+                    selected: current == AppThemePreference.dark,
+                    onTap: () => ThemeNotifier.instance
+                        .setPreference(AppThemePreference.dark),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showComplaintsSheet() async {
+    final ctrl = TextEditingController();
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _surfaceAlt,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Directionality(
+          textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              18,
+              18,
+              18,
+              MediaQuery.of(ctx).viewInsets.bottom + 18,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  isAr ? 'الشكاوى والاقتراحات' : 'Complaints & Suggestions',
+                  style: const TextStyle(
+                    color: _text,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ctrl,
+                  maxLines: 4,
+                  style: const TextStyle(color: _text),
+                  decoration: _fieldDecoration(
+                    label: isAr ? 'اكتب رسالتك' : 'Write your message',
+                    icon: Icons.feedback_outlined,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.copper,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(isAr ? 'إرسال' : 'Submit'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (ok == true && ctrl.text.trim().isNotEmpty) {
+      final s = PlatformSettingsService.instance.settings;
+      final msg = Uri.encodeComponent(ctrl.text.trim());
+      await _launch(
+        Uri.parse('https://wa.me/${s.whatsappDigits}?text=$msg'),
+      );
+    }
   }
 
   Widget _actionTile(IconData icon, String title, VoidCallback onTap) {

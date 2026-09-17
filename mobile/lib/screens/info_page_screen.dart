@@ -5,7 +5,7 @@ import '../config/theme.dart';
 import '../services/platform_settings_service.dart';
 import '../widgets/mawjood_logo.dart';
 
-enum InfoPageType { about, contact, faq, care }
+enum InfoPageType { about, contact, faq, care, privacy, terms }
 
 class InfoPageScreen extends StatelessWidget {
   final String lang;
@@ -30,6 +30,9 @@ class InfoPageScreen extends StatelessWidget {
       InfoPageType.contact => isAr ? 'تواصل معنا' : 'Contact Us',
       InfoPageType.faq => isAr ? 'الأسئلة الشائعة' : 'FAQ',
       InfoPageType.care => isAr ? 'خدمة العملاء' : 'Customer Care',
+      InfoPageType.privacy => isAr ? 'سياسة الخصوصية' : 'Privacy Policy',
+      InfoPageType.terms =>
+        isAr ? 'تعليمات الاستخدام والشروط' : 'Usage Terms & Guidelines',
     };
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -56,6 +59,8 @@ class InfoPageScreen extends StatelessWidget {
                   InfoPageType.contact => _contact(isDark),
                   InfoPageType.faq => _faq(isDark),
                   InfoPageType.care => _care(isDark),
+                  InfoPageType.privacy => _privacy(isDark),
+                  InfoPageType.terms => _terms(isDark),
                 },
               );
             },
@@ -340,6 +345,61 @@ class InfoPageScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _privacy(bool isDark) {
+    final bodyColor = isDark ? AppTheme.textMuted : const Color(0xFF475569);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isAr ? 'سياسة الخصوصية' : 'Privacy Policy',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: isDark ? AppTheme.textWhite : AppTheme.navy,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          isAr
+              ? 'نحترم خصوصيتك. نجمع بيانات الحساب والطلبات والتوصيل فقط لتشغيل المنصة وتحسين الخدمة. لا نبيع بياناتك لأطراف خارجية.'
+              : 'We respect your privacy. Account, order, and delivery data are collected only to operate the platform and improve service. We do not sell your data.',
+          style: TextStyle(color: bodyColor, height: 1.55, fontSize: 14),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          isAr
+              ? 'يمكنك طلب حذف حسابك من شاشة الملف الشخصي في أي وقت.'
+              : 'You may request account deletion from the profile screen at any time.',
+          style: TextStyle(color: bodyColor, height: 1.55, fontSize: 14),
+        ),
+      ],
+    );
+  }
+
+  Widget _terms(bool isDark) {
+    final bodyColor = isDark ? AppTheme.textMuted : const Color(0xFF475569);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isAr ? 'تعليمات الاستخدام والشروط' : 'Usage Terms & Guidelines',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: isDark ? AppTheme.textWhite : AppTheme.navy,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          isAr
+              ? '• استخدم المنصة لطلب قطع غيار أصلية ومعتمدة.\n• تحقق من توافق القطعة مع مركبتك قبل الشراء.\n• الأسعار والتوفر يخضعان لتأكيد الكراج.\n• التوصيل يتم عبر مندوبي موجود أوتو المعتمدين.'
+              : '• Use the platform to order genuine certified parts.\n• Verify vehicle fitment before purchase.\n• Prices and availability are subject to garage confirmation.\n• Delivery is handled by Mawjood Auto agents.',
+          style: TextStyle(color: bodyColor, height: 1.6, fontSize: 14),
+        ),
+      ],
     );
   }
 }

@@ -26,6 +26,11 @@ class SidebarFilters extends StatefulWidget {
   final ValueChanged<PartModel>? onInquire;
   final ValueChanged<PartModel>? onDetailedView;
 
+  /// When set, locks UI to one mode and hides the home landing chrome.
+  final SearchMode? forceMode;
+  final bool hideLandingCards;
+  final String? initialSearchQuery;
+
   const SidebarFilters({
     super.key,
     this.lang = 'ar',
@@ -33,6 +38,9 @@ class SidebarFilters extends StatefulWidget {
     this.onAddToCart,
     this.onInquire,
     this.onDetailedView,
+    this.forceMode,
+    this.hideLandingCards = false,
+    this.initialSearchQuery,
   });
 
   @override
@@ -42,7 +50,7 @@ class SidebarFilters extends StatefulWidget {
 class _SidebarFiltersState extends State<SidebarFilters> {
   bool get isAr => widget.lang == 'ar';
 
-  SearchMode _searchMode = SearchMode.visual;
+  late SearchMode _searchMode;
   SortOption _sortBy = SortOption.def;
 
   // فحص الشاصي والسيارة
@@ -62,6 +70,17 @@ class _SidebarFiltersState extends State<SidebarFilters> {
   final TextEditingController _reqPhoneController = TextEditingController();
   final TextEditingController _reqNotesController = TextEditingController();
   bool _isSubmittingReq = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchMode = widget.forceMode ?? SearchMode.visual;
+    final q = widget.initialSearchQuery?.trim() ?? '';
+    if (q.isNotEmpty) {
+      _activeSearchQuery = q;
+      _searchController.text = q;
+    }
+  }
 
   @override
   void dispose() {
@@ -459,80 +478,86 @@ class _SidebarFiltersState extends State<SidebarFilters> {
 
   @override
   Widget build(BuildContext context) {
+    final hideChrome = widget.hideLandingCards || widget.forceMode != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _buildFeatureCard(
-                title: isAr ? 'الفحص الذكي برقم الشاصي' : 'Smart VIN Scan',
-                subtitle: isAr
-                    ? 'امسح الاستمارة أو أدخل VIN'
-                    : 'Scan Istemara or enter VIN',
-                icon: Icons.document_scanner_outlined,
-                accent: AppTheme.copper,
-                onTap: _openVinScannerSheet,
+        if (!hideChrome) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildFeatureCard(
+                  title: isAr ? 'الفحص الذكي برقم الشاصي' : 'Smart VIN Scan',
+                  subtitle: isAr
+                      ? 'امسح الاستمارة أو أدخل VIN'
+                      : 'Scan Istemara or enter VIN',
+                  icon: Icons.document_scanner_outlined,
+                  accent: AppTheme.copper,
+                  onTap: _openVinScannerSheet,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildFeatureCard(
-                title: isAr
-                    ? 'طلب تسعيرة قطعة غير متوفرة'
-                    : 'Unavailable Part Quote',
-                subtitle: isAr
-                    ? 'أرسل طلب تسعير مخصص'
-                    : 'Request a custom quote',
-                icon: Icons.request_quote_outlined,
-                accent: AppTheme.success,
-                onTap: () => RequestPartModal.show(
-                  context,
-                  onSuccess: () => CustomToast.success(
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildFeatureCard(
+                  title: isAr
+                      ? 'طلب تسعيرة قطعة غير متوفرة'
+                      : 'Unavailable Part Quote',
+                  subtitle: isAr
+                      ? 'أرسل طلب تسعير مخصص'
+                      : 'Request a custom quote',
+                  icon: Icons.request_quote_outlined,
+                  accent: AppTheme.success,
+                  onTap: () => RequestPartModal.show(
                     context,
-                    isAr
-                        ? 'تم استلام طلبك بنجاح'
-                        : 'Request received successfully',
+                    onSuccess: () => CustomToast.success(
+                      context,
+                      isAr
+                          ? 'تم استلام طلبك بنجاح'
+                          : 'Request received successfully',
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
+          ),
+          if (_decodedVehicle != null) ...[
+            const SizedBox(height: 10),
+            _buildActiveVehicleChip(),
           ],
-        ),
-        if (_decodedVehicle != null) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildModeCard(
+                  mode: SearchMode.visual,
+                  title: isAr ? 'البحث البصري' : 'Visual Selector',
+                  subtitle: isAr
+                      ? 'اختر سيارتك بالبطاقات خطوة بخطوة'
+                      : 'Browse parts visually',
+                  icon: Icons.dashboard_customize_outlined,
+                  activeColor: AppTheme.success,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildModeCard(
+                  mode: SearchMode.tree,
+                  title: isAr ? 'كتالوج شجرة التصفية' : 'Full Catalog Tree',
+                  subtitle: isAr
+                      ? 'تصفح الماركات والموديلات هرمياً'
+                      : 'Hierarchical drilldown',
+                  icon: Icons.account_tree_outlined,
+                  activeColor: AppTheme.copper,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+        ] else if (_decodedVehicle != null) ...[
           _buildActiveVehicleChip(),
+          const SizedBox(height: 12),
         ],
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildModeCard(
-                mode: SearchMode.visual,
-                title: isAr ? 'البحث البصري' : 'Visual Selector',
-                subtitle: isAr
-                    ? 'اختر سيارتك بالبطاقات خطوة بخطوة'
-                    : 'Browse parts visually',
-                icon: Icons.dashboard_customize_outlined,
-                activeColor: AppTheme.success,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildModeCard(
-                mode: SearchMode.tree,
-                title: isAr ? 'كتالوج شجرة التصفية' : 'Full Catalog Tree',
-                subtitle: isAr
-                    ? 'تصفح الماركات والموديلات هرمياً'
-                    : 'Hierarchical drilldown',
-                icon: Icons.account_tree_outlined,
-                activeColor: AppTheme.copper,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
         if (_searchMode == SearchMode.visual && _activeSearchQuery.isEmpty)
           VisualVehicleSelector(
             lang: widget.lang,
@@ -938,8 +963,8 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                     const SizedBox(height: 12),
                     Text(
                       isAr
-                          ? 'لا نتائج بسرعة F1 — جرّب رقم قطعة آخر'
-                          : 'No F1-speed hits — try another OEM code',
+                          ? 'لا نتائج مطابقة — جرّب رقم قطعة آخر'
+                          : 'No matching results — try another OEM code',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.w800,

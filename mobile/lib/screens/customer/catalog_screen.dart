@@ -288,7 +288,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    isAr ? 'أداء F1 للقطع' : 'F1-Grade Parts',
+                    isAr ? 'أداء احترافي للقطع' : 'Premium certified parts',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10.5,
