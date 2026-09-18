@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { TRANSLATE_MAKE, TRANSLATE_MODEL } from '../data/carData';
+import { TRANSLATE_MAKE, TRANSLATE_MODEL, type CarBrand } from '../data/carData';
 
 interface MechanicSheetModalProps {
   isOpen: boolean;
   onClose: () => void;
   lang: 'ar' | 'en';
-  carData: Record<string, string[]>;
-  years: number[];
+  carData: Record<string, CarBrand>;
+  years: string[];
   activeVehicle: { make: string; model: string; year: string };
   onSetActiveVehicle: (vehicle: { make: string; model: string; year: string }) => void;
   onAddMultipleToCart: (parts: any[]) => void;
@@ -309,7 +309,7 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
                     style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #CBD5E1', marginTop: '4px', fontWeight: 'bold' }}
                   >
                     <option value="">{isRtl ? '-- اختر الموديل --' : '-- Select Model --'}</option>
-                    {(carData[tempMake] || []).map((mod) => (
+                    {(carData[tempMake]?.models || []).map((mod) => (
                       <option key={mod} value={mod}>{TRANSLATE_MODEL[mod] || mod}</option>
                     ))}
                   </select>
@@ -431,6 +431,20 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
           {/* ---------------- 3. المسح الذكي لخط اليد ---------------- */}
           {step === 'scanning' && (
             <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+              {sheetImage && (
+                <img
+                  src={sheetImage}
+                  alt="Mechanic sheet"
+                  style={{
+                    width: '100%',
+                    maxHeight: '160px',
+                    objectFit: 'cover',
+                    borderRadius: '14px',
+                    marginBottom: '16px',
+                    border: '1px solid #E2E8F0',
+                  }}
+                />
+              )}
               <div
                 style={{
                   width: '70px',
