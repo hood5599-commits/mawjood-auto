@@ -213,14 +213,14 @@ class _TactileScaleState extends State<TactileScale> {
   }
 }
 
-/// Theme-aware surface card with F1 geometry.
-class F1SurfaceCard extends StatelessWidget {
+/// Theme-aware surface card with premium automotive geometry.
+class PremiumSurfaceCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final double radius;
   final VoidCallback? onTap;
 
-  const F1SurfaceCard({
+  const PremiumSurfaceCard({
     super.key,
     required this.child,
     this.padding,

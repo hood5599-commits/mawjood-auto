@@ -51,7 +51,7 @@ class ImageActionCard extends StatelessWidget {
       child: Container(
         height: height,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           color: AppTheme.navy,
           image: _bg,
           boxShadow: AppTheme.cardShadow(Theme.of(context).brightness),
@@ -60,7 +60,7 @@ class ImageActionCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Contrast safety overlay (WCAG AA) — navy gradient over image.
+            // Contrast safety overlay — deep sovereign navy for white text.
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -68,7 +68,7 @@ class ImageActionCard extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Color(0x990B192C),
-                    Color(0xE60B192C),
+                    Color(0xCC0B192C),
                     Color(0xF20B192C),
                   ],
                 ),

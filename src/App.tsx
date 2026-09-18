@@ -14,6 +14,7 @@ import { StaticPages, type StaticPageView } from './components/StaticPages';
 import { AITranslatedText } from './components/AITranslatedText';
 import { AIChatbot } from './components/AIChatbot';
 import { RequestPartModal } from './components/RequestPartModal';
+import { MechanicSheetModal } from './components/MechanicSheetModal';
 import { AIErrorBoundary } from './components/AIErrorBoundary';
 
 // 🛡️ استدعاء كاشف الأخطاء التلقائي والمراقبة الذكية
@@ -77,6 +78,9 @@ export default function App() {
   const [selectedPartForCheckout, setSelectedPartForCheckout] = useState<{ part: any; initialStep?: 'inquire' | 'checkout' } | null>(null);
   const [showOrderTracker, setShowOrderTracker] = useState(false);
   const [isCustomPartModalOpen, setIsCustomPartModalOpen] = useState(false);
+
+  // 📋 حالة نافذة ورقة الميكانيكي
+  const [isMechanicModalOpen, setIsMechanicModalOpen] = useState(false);
 
   const [inventory, setInventory] = useState<any[]>([]);
   const [session, setSession] = useState<any | null>(null);
@@ -210,6 +214,24 @@ export default function App() {
     setIsCartOpen(true);
   };
 
+  // 🛒 دالة إضافة مجموعة قطع من ورقة الميكانيكي إلى السلة دفعة واحدة
+  const handleAddMultipleToCart = (newParts: any[]) => {
+    setCartItems(prevCart => {
+      let updated = [...prevCart];
+      newParts.forEach(newPart => {
+        const existingIndex = updated.findIndex((item) => item.id === newPart.id);
+        if (existingIndex > -1) {
+          updated[existingIndex].quantity = (updated[existingIndex].quantity || 1) + (newPart.quantity || 1);
+        } else {
+          updated.push(newPart);
+        }
+      });
+      return updated;
+    });
+
+    setIsCartOpen(true);
+  };
+
   const handleInquireClick = (item: any) => {
     setSelectedPartForCheckout({ part: item, initialStep: 'inquire' });
   };
@@ -243,6 +265,18 @@ export default function App() {
             box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
             border-color: #cbd5e0;
           }
+          .mw-action-banner {
+            border-radius: 18px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s ease;
+          }
+          .mw-action-banner:hover {
+            transform: translateY(-2px);
+          }
           .mw-cart-overlay { animation: mwFadeIn 0.25s ease; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
           .mw-cart-drawer { animation: mwDrawerIn 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
           @keyframes mwFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -264,6 +298,7 @@ export default function App() {
             .mw-main-container { padding: 0 12px !important; margin-top: 14px !important; }
             .mw-stats-grid { gap: 10px !important; margin-bottom: 16px !important; }
             .mw-stat-card { padding: 14px 10px !important; }
+            .mw-action-banners-grid { grid-template-columns: 1fr !important; }
           }
         `}</style>
 
@@ -543,7 +578,7 @@ export default function App() {
               <div style={{ marginTop: '10px', width: '100%' }}>
 
                 {/* 📊 البطاقات الإحصائية الفاخرة */}
-                <div className="mw-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '22px' }}>
+                <div className="mw-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '18px' }}>
                   
                   <div className="mw-stat-card">
                     <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>
@@ -579,6 +614,61 @@ export default function App() {
                     <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 'bold' }}>
                       ⭐ {isRtl ? 'عملاء راضون وموثوقون' : 'Happy Customers'}
                     </p>
+                  </div>
+
+                </div>
+
+                {/* 🚀 قسم الإجراءات السريعة: ورقة الميكانيكي + طلب تسعيرة */}
+                <div className="mw-action-banners-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '22px' }}>
+                  
+                  {/* كارت ورقة الميكانيكي الذكي */}
+                  <div
+                    className="mw-action-banner"
+                    onClick={() => setIsMechanicModalOpen(true)}
+                    style={{
+                      background: 'linear-gradient(135deg, #0B192C 0%, #152A4A 100%)',
+                      color: '#FFFFFF',
+                      boxShadow: '0 8px 24px rgba(11, 25, 44, 0.25)',
+                      border: '1px solid rgba(255, 107, 0, 0.3)'
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontSize: '10px', fontWeight: '900', backgroundColor: '#FF6B00', color: '#FFF', padding: '2px 8px', borderRadius: '6px', display: 'inline-block', marginBottom: '6px' }}>
+                        {isRtl ? 'جديد بالذكاء الاصطناعي' : 'New AI Feature'}
+                      </span>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '900' }}>
+                        📋 {isRtl ? 'ورقة الميكانيكي' : 'Mechanic Sheet'}
+                      </h3>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94A3B8' }}>
+                        {isRtl ? 'صوّر ورقة الورشة بخط اليد وسنجهز لك الكوتيشن والسلة فوراً' : 'Scan handwritten workshop notes & generate instant cart'}
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '24px', color: '#FF6B00' }}>←</span>
+                  </div>
+
+                  {/* كارت طلب تسعيرة قطعة غير متوفرة */}
+                  <div
+                    className="mw-action-banner"
+                    onClick={() => setIsCustomPartModalOpen(true)}
+                    style={{
+                      background: 'linear-gradient(135deg, #FFF9F5 0%, #FFFFFF 100%)',
+                      color: '#0F172A',
+                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.04)',
+                      border: '1.5px dashed #FF6B00'
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontSize: '10px', fontWeight: '900', backgroundColor: '#0F172A', color: '#FFF', padding: '2px 8px', borderRadius: '6px', display: 'inline-block', marginBottom: '6px' }}>
+                        {isRtl ? 'توفير خاص' : 'Special Sourcing'}
+                      </span>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#0B192C' }}>
+                        📝 {isRtl ? 'طلب تسعيرة قطعة غير متوفرة' : 'Custom Part Request'}
+                      </h3>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748B' }}>
+                        {isRtl ? 'أرسل رقم القطعة أو اسمها وسنوفرها من الكراجات المعتمدة' : 'Send part number or description & we will source it'}
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '24px', color: '#FF6B00' }}>←</span>
                   </div>
 
                 </div>
@@ -698,6 +788,27 @@ export default function App() {
             supabaseUrl={SUPABASE_URL}
             supabaseKey={API_KEY}
             customerPhone={currentCustomerPhone}
+          />
+
+          {/* 📋 نافذة ومودال ورقة الميكانيكي */}
+          <MechanicSheetModal
+            isOpen={isMechanicModalOpen}
+            onClose={() => setIsMechanicModalOpen(false)}
+            lang={lang}
+            carData={CAR_DATA}
+            years={YEARS}
+            activeVehicle={{
+              make: filterMake,
+              model: filterModel,
+              year: filterYear || '2023',
+            }}
+            onSetActiveVehicle={(veh) => {
+              setFilterMake(veh.make);
+              setFilterModel(veh.model);
+              setFilterYear(veh.year);
+            }}
+            onAddMultipleToCart={handleAddMultipleToCart}
+            siteSettings={siteSettings}
           />
 
         </div>

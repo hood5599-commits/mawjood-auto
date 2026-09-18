@@ -16,6 +16,7 @@ import 'cart_screen.dart';
 import 'catalog_destinations.dart';
 import 'notifications_screen.dart';
 import 'quote_request_screen.dart';
+import '../../features/mechanic_sheet/mechanic_sheet_flow.dart';
 
 class HomeScreen extends StatefulWidget {
   final String lang;
@@ -219,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 14),
               _buildOemSearchBar(),
               const SizedBox(height: 14),
+              // Balanced 2x2 quick-action grid
               Row(
                 children: [
                   Expanded(
@@ -229,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           : 'Pick your car step by step',
                       icon: Icons.dashboard_customize_outlined,
                       assetImage: 'assets/images/cards/visual_search_bg.jpg',
-                      height: 168,
+                      height: 158,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -248,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           : 'Browse by groups & makers',
                       icon: Icons.account_tree_outlined,
                       assetImage: 'assets/images/cards/tree_catalog_bg.jpg',
-                      height: 168,
+                      height: 158,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -260,24 +262,46 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              ImageActionCard(
-                title: isAr
-                    ? 'طلب تسعيرة قطعة غير متوفرة'
-                    : 'Request unavailable part quote',
-                subtitle: isAr
-                    ? 'أرسل بيانات القطعة أو صورتها وسنوفرها لك من الكراجات المعتمدة'
-                    : 'Send part details or a photo — sourced from verified garages',
-                icon: Icons.request_quote_outlined,
-                assetImage: 'assets/images/cards/quote_request_bg.jpg',
-                height: 148,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => QuoteRequestScreen(lang: _lang),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ImageActionCard(
+                      title: isAr
+                          ? 'طلب تسعيرة قطعة غير متوفرة'
+                          : 'Unavailable part quote',
+                      subtitle: isAr
+                          ? 'أرسل بيانات القطعة أو صورتها'
+                          : 'Send part details or a photo',
+                      icon: Icons.request_quote_outlined,
+                      assetImage: 'assets/images/cards/quote_request_bg.jpg',
+                      height: 158,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => QuoteRequestScreen(lang: _lang),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ImageActionCard(
+                      title: isAr ? 'ورقة الميكانيكي' : 'Mechanic Sheet',
+                      subtitle: isAr
+                          ? 'امسح ورقة الورشة واحصل على عرض سعر تفاعلي'
+                          : 'Scan workshop sheet for interactive quote',
+                      icon: Icons.handyman_outlined,
+                      assetImage: 'assets/images/cards/mechanic_sheet_bg.jpg',
+                      height: 158,
+                      onTap: () => MechanicSheetFlow.start(
+                        context,
+                        lang: _lang,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -11,6 +11,7 @@ import 'screens/customer/home_screen.dart';
 import 'screens/customer/order_tracker_screen.dart';
 import 'screens/customer/profile_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'services/active_vehicle_service.dart';
 import 'services/admin_notification_service.dart';
 import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
@@ -62,6 +63,7 @@ Future<void> main() async {
   await PlatformSettingsService.instance.load(forceNetwork: false);
 
   await AuthService().loadSession();
+  await ActiveVehicleService.instance.load();
   await OrderNotificationService.instance.init();
   await AdminNotificationService.instance.init();
   await NotificationCenterService.instance.init();

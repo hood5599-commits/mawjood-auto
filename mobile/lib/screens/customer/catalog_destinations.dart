@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../models/part_model.dart';
 import '../../models/vehicle_model.dart';
+import '../../services/active_vehicle_service.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_gate.dart';
 import '../../services/cart_service.dart';
@@ -27,6 +28,12 @@ class _EstimaraScanScreenState extends State<EstimaraScanScreen> {
   VehicleProfile? _vehicle;
 
   bool get isAr => widget.lang == 'ar';
+
+  @override
+  void initState() {
+    super.initState();
+    _vehicle = ActiveVehicleService.instance.vehicle;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,8 +61,10 @@ class _EstimaraScanScreenState extends State<EstimaraScanScreen> {
             child: SmartVinScanner(
               lang: widget.lang,
               activeVehicle: _vehicle,
-              onVehicleIdentified: (v) {
+              onVehicleIdentified: (v) async {
                 setState(() => _vehicle = v);
+                await ActiveVehicleService.instance.setVehicle(v);
+                if (!mounted) return;
                 CustomToast.success(
                   context,
                   isAr
@@ -63,7 +72,10 @@ class _EstimaraScanScreenState extends State<EstimaraScanScreen> {
                       : 'Vehicle identified successfully',
                 );
               },
-              onReset: () => setState(() => _vehicle = null),
+              onReset: () async {
+                setState(() => _vehicle = null);
+                await ActiveVehicleService.instance.clear();
+              },
             ),
           ),
         ),
