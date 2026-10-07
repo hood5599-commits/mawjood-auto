@@ -138,6 +138,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
   const [isTyping, setIsTyping] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatBoxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const QUICK_SUGGESTIONS = isRtl
@@ -160,12 +161,15 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
     }
   }, [lang, isRtl, messages.length]);
 
-  // Auto-scroll
+  const lastChatMsgId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
+
+  // Auto-scroll inside the chat panel only (never scroll the whole page)
   useEffect(() => {
-    if (isOpen) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isTyping, isOpen]);
+    if (!isOpen) return;
+    const box = chatBoxRef.current;
+    if (!box) return;
+    box.scrollTop = box.scrollHeight;
+  }, [isOpen, lastChatMsgId, isTyping]);
 
   // Focus on Open
   useEffect(() => {
@@ -564,6 +568,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({
 
           {/* Chat Messages */}
           <div
+            ref={chatBoxRef}
             className="mw-scroll-box"
             style={{
               flex: 1,

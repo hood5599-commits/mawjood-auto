@@ -73,8 +73,14 @@ export const MyPartsTab: React.FC<MyPartsTabProps> = ({
 
   // حسابات تقسيم الصفحات واستخراج عناصر الصفحة الحالية فقط
   const totalPages = Math.ceil(filteredParts.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * itemsPerPage;
   const paginatedParts = filteredParts.slice(startIndex, startIndex + itemsPerPage);
+
+  // Clamp page when list shrinks (prevents empty flash while count > 0)
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {

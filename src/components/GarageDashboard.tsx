@@ -238,10 +238,24 @@ export const GarageDashboard: React.FC<GarageProps> = ({
       });
       if (response.ok) {
         const data = await response.json();
-        setMyParts(data);
-        const map: Record<number, boolean> = {};
-        data.forEach((p: any) => { map[p.id] = true; });
-        setSelectedPartIdsForPrice(map);
+        const list = Array.isArray(data) ? data : [];
+        // Avoid flicker: keep previous rows unless payload actually changed
+        setMyParts((prev) => {
+          const prevSig = prev
+            .map((p) => `${p.id}:${p.price}:${p.stock}:${p.name}`)
+            .join('|');
+          const nextSig = list
+            .map((p: any) => `${p.id}:${p.price}:${p.stock}:${p.name}`)
+            .join('|');
+          return prevSig === nextSig ? prev : list;
+        });
+        setSelectedPartIdsForPrice((prev) => {
+          const map: Record<number, boolean> = {};
+          list.forEach((p: any) => {
+            map[p.id] = prev[p.id] !== undefined ? prev[p.id] : true;
+          });
+          return map;
+        });
       }
     } catch (error) {}
   };

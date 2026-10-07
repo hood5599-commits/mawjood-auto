@@ -45,6 +45,9 @@ export const AdminLiveChatConsole: React.FC<AdminLiveChatConsoleProps> = ({
   const knownWaitingIds = useRef<Set<string>>(new Set());
   const audioCtxRef = useRef<AudioContext | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesBoxRef = useRef<HTMLDivElement | null>(null);
+  const lastMessageSigRef = useRef<string>('');
+  const lastQueueSigRef = useRef<string>('');
 
   const headers = useMemo(
     () => ({
@@ -109,8 +112,15 @@ export const AdminLiveChatConsole: React.FC<AdminLiveChatConsoleProps> = ({
       }
       knownWaitingIds.current = nextIds;
 
-      setWaiting(waitingList);
-      setActive(activeList);
+      const queueSig = JSON.stringify({
+        w: waitingList.map((c) => `${c.id}:${c.status}:${c.updated_at || ''}`),
+        a: activeList.map((c) => `${c.id}:${c.status}:${c.updated_at || ''}`),
+      });
+      if (queueSig !== lastQueueSigRef.current) {
+        lastQueueSigRef.current = queueSig;
+        setWaiting(waitingList);
+        setActive(activeList);
+      }
     } catch (_) {
       // keep prior
     } finally {
@@ -127,7 +137,13 @@ export const AdminLiveChatConsole: React.FC<AdminLiveChatConsoleProps> = ({
         );
         if (!res.ok) return;
         const data = await res.json();
-        setMessages(Array.isArray(data) ? data : []);
+        const list: ChatMsg[] = Array.isArray(data) ? data : [];
+        const sig = list
+          .map((m) => `${m.id}:${m.message?.length || 0}`)
+          .join('|');
+        if (sig === lastMessageSigRef.current) return;
+        lastMessageSigRef.current = sig;
+        setMessages(list);
       } catch (_) {}
     },
     [headers, restUrl]
@@ -142,16 +158,23 @@ export const AdminLiveChatConsole: React.FC<AdminLiveChatConsoleProps> = ({
   useEffect(() => {
     if (!selectedId) {
       setMessages([]);
+      lastMessageSigRef.current = '';
       return;
     }
+    lastMessageSigRef.current = '';
     fetchMessages(selectedId);
     const t = setInterval(() => fetchMessages(selectedId), 2500);
     return () => clearInterval(t);
   }, [selectedId, fetchMessages]);
 
+  const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
+
+  // Scroll only the chat panel when the last message actually changes — never the page.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const box = messagesBoxRef.current;
+    if (!box || !lastMessageId) return;
+    box.scrollTop = box.scrollHeight;
+  }, [lastMessageId]);
 
   const selected =
     waiting.find((c) => c.id === selectedId) ||
@@ -462,7 +485,10 @@ export const AdminLiveChatConsole: React.FC<AdminLiveChatConsoleProps> = ({
                 </div>
               </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', padding: 14, background: '#f8fafc' }}>
+              <div
+                ref={messagesBoxRef}
+                style={{ flex: 1, overflowY: 'auto', padding: 14, background: '#f8fafc' }}
+              >
                 {messages.map((m) => {
                   const mine = m.sender_type === 'agent';
                   const isBot = m.sender_type === 'bot';

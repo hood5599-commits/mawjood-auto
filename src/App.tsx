@@ -552,7 +552,7 @@ export default function App() {
                 supabaseUrl={SUPABASE_URL} 
                 apiKey={API_KEY} 
                 session={session} 
-                onSuccess={() => { fetchParts(); setView('shop'); }} 
+                onSuccess={() => { fetchParts(); }} 
               />
             )}
 

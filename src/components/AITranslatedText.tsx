@@ -1,40 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { translateWithAI } from '../services/aiTranslator';
+import { translateWithAI, peekTranslationCache } from '../services/aiTranslator';
 
 interface AITranslatedTextProps {
   text: string;
   lang: 'ar' | 'en';
 }
 
+function initialDisplay(text: string, lang: 'ar' | 'en'): string {
+  if (lang === 'en' && /[\u0600-\u06FF]/.test(text)) {
+    return peekTranslationCache(text, 'en') || text;
+  }
+  return text;
+}
+
 export const AITranslatedText: React.FC<AITranslatedTextProps> = ({ text, lang }) => {
-  const [displayText, setDisplayText] = useState<string>(text);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [displayText, setDisplayText] = useState<string>(() => initialDisplay(text, lang));
 
   useEffect(() => {
     let isMounted = true;
 
     const performTranslation = async () => {
-      // إذا كانت لغة العرض الإنجليزية والنص أصله عربي، نترجمه فوراً
       if (lang === 'en' && /[\u0600-\u06FF]/.test(text)) {
-        setLoading(true);
-        const translated = await translateWithAI(text, 'en');
-        if (isMounted) {
-          setDisplayText(translated);
-          setLoading(false);
+        const cached = peekTranslationCache(text, 'en');
+        if (cached) {
+          if (isMounted) setDisplayText(cached);
+          return;
         }
-      } else {
+        // Keep previous/original text visible — never flash "Translating..."
+        const translated = await translateWithAI(text, 'en');
+        if (isMounted) setDisplayText(translated);
+      } else if (isMounted) {
         setDisplayText(text);
       }
     };
 
     performTranslation();
-
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [text, lang]);
-
-  if (loading) {
-    return <span style={{ opacity: 0.6, fontStyle: 'italic' }}>Translating...</span>;
-  }
 
   return <span>{displayText}</span>;
 };

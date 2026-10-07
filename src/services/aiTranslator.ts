@@ -6,6 +6,14 @@ const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "";
 // ذاكرة تخزين مؤقتة (Cache) لكي لا نكرر طلب ترجمة الكلمة نفسها أكثر من مرة
 const translationCache: Record<string, string> = {};
 
+export const peekTranslationCache = (
+  text: string,
+  targetLang: 'ar' | 'en' = 'en'
+): string | null => {
+  if (!text) return null;
+  return translationCache[`${text}_${targetLang}`] || null;
+};
+
 export const translateWithAI = async (
   text: string, 
   targetLang: 'ar' | 'en' = 'en'
@@ -24,7 +32,7 @@ export const translateWithAI = async (
     }. Keep technical terminology accurate (e.g., DINAMO -> Alternator, COMPRESSOR -> A/C Compressor). Return ONLY the translated string without quotes or markdown.\n\nText: "${text}"`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
