@@ -46,7 +46,47 @@ Rules:
 - Do not invent parts that are not on the sheet.
 - Exclude items listed in handwritten "without" notes from items (put them in exclusions only).`;
 
+function setCors(res: any) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, apikey, x-client-info');
+  res.setHeader('Access-Control-Max-Age', '86400');
+}
+
+function normalizePayload(parsed: any) {
+  const items = Array.isArray(parsed?.items) ? parsed.items : [];
+  return {
+    items: items.map((it: any, idx: number) => ({
+      id: `ocr_${idx}`,
+      nameEn: String(it.nameEn || it.name || it.rawLine || 'Unknown part'),
+      nameAr: String(it.nameAr || it.nameEn || it.rawLine || 'قطعة غير معروفة'),
+      rawLine: String(it.rawLine || it.nameEn || ''),
+      qty: Number(it.qty) > 0 ? Number(it.qty) : 1,
+      unitPrice:
+        it.unitPrice != null && !Number.isNaN(Number(it.unitPrice))
+          ? Number(it.unitPrice)
+          : null,
+      searchTerms: Array.isArray(it.searchTerms)
+        ? it.searchTerms.map((t: any) => String(t)).filter(Boolean)
+        : [],
+    })),
+    exclusions: Array.isArray(parsed?.exclusions)
+      ? parsed.exclusions.map((e: any) => String(e))
+      : [],
+    unrecognized: Array.isArray(parsed?.unrecognized)
+      ? parsed.unrecognized.map((u: any) => String(u))
+      : [],
+    notes: parsed?.notes ? String(parsed.notes) : '',
+  };
+}
+
 export default async function handler(req: any, res: any) {
+  setCors(res);
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -137,30 +177,7 @@ export default async function handler(req: any, res: any) {
           }
         }
 
-        const items = Array.isArray(parsed.items) ? parsed.items : [];
-        return res.status(200).json({
-          items: items.map((it: any, idx: number) => ({
-            id: `ocr_${idx}`,
-            nameEn: String(it.nameEn || it.name || it.rawLine || 'Unknown part'),
-            nameAr: String(it.nameAr || it.nameEn || it.rawLine || 'قطعة غير معروفة'),
-            rawLine: String(it.rawLine || it.nameEn || ''),
-            qty: Number(it.qty) > 0 ? Number(it.qty) : 1,
-            unitPrice:
-              it.unitPrice != null && !Number.isNaN(Number(it.unitPrice))
-                ? Number(it.unitPrice)
-                : null,
-            searchTerms: Array.isArray(it.searchTerms)
-              ? it.searchTerms.map((t: any) => String(t)).filter(Boolean)
-              : [],
-          })),
-          exclusions: Array.isArray(parsed.exclusions)
-            ? parsed.exclusions.map((e: any) => String(e))
-            : [],
-          unrecognized: Array.isArray(parsed.unrecognized)
-            ? parsed.unrecognized.map((u: any) => String(u))
-            : [],
-          notes: parsed.notes ? String(parsed.notes) : '',
-        });
+        return res.status(200).json(normalizePayload(parsed));
       } catch (err: any) {
         lastError = err?.message || lastError;
       }

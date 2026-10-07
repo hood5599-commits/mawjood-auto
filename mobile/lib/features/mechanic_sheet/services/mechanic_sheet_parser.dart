@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../../../config/supabase_config.dart';
 import '../../../data/car_data.dart';
@@ -20,9 +21,45 @@ class MechanicSheetParser {
     ),
   );
 
-  static const _scanEndpoints = [
-    'https://mawjood-auto.vercel.app/api/scan-mechanic-sheet',
+  static List<String> get _scanEndpoints {
+    final urls = <String>[
+      // Supabase Edge Function (CORS-friendly) — preferred for Flutter web.
+      '${SupabaseConfig.url}/functions/v1/scan-mechanic-sheet',
+      'https://mawjood-auto.vercel.app/api/scan-mechanic-sheet',
+    ];
+    return urls;
+  }
+
+  static String get _geminiApiKey {
+    const fromDefine = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
+    if (fromDefine.isNotEmpty) return fromDefine;
+    try {
+      final fromEnv = dotenv.env['GEMINI_API_KEY']?.trim() ??
+          dotenv.env['VITE_GEMINI_API_KEY']?.trim() ??
+          dotenv.env['REACT_APP_GEMINI_API_KEY']?.trim() ??
+          '';
+      return fromEnv;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static const _geminiModels = [
+    'gemini-2.0-flash',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
   ];
+
+  static const _ocrPrompt = '''
+You are an automotive spare-parts OCR engine for Qatar (Arabic + English).
+Analyze this mechanic workshop sheet, handwritten parts list, OR agency quotation.
+Extract EVERY spare-part line. Expand abbreviations.
+Detect handwritten exclusions like "without → Piston STD".
+Respond ONLY with valid JSON:
+{"items":[{"nameEn":"...","nameAr":"...","rawLine":"...","qty":1,"unitPrice":null,"searchTerms":["..."]}],"exclusions":[],"unrecognized":[],"notes":""}
+Do not invent parts that are not on the sheet.
+''';
 
   static const _stop = {
     'the', 'and', 'for', 'with', 'kit', 'set', 'part', 'parts', 'auto', 'car',
@@ -139,11 +176,18 @@ class MechanicSheetParser {
 
     for (final endpoint in _scanEndpoints) {
       try {
+        final isSupabaseFn = endpoint.contains('/functions/v1/');
         final response = await _dio.post(
           endpoint,
           data: {'imageBase64': b64, 'mimeType': mimeType},
           options: Options(
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (isSupabaseFn) ...{
+                'apikey': SupabaseConfig.apiKey,
+                'Authorization': 'Bearer ${SupabaseConfig.apiKey}',
+              },
+            },
             validateStatus: (s) => s != null && s < 500,
           ),
         );
@@ -156,7 +200,61 @@ class MechanicSheetParser {
       }
     }
 
-    throw Exception('ocr_failed: $lastError');
+    // Direct Gemini fallback (avoids CORS / undeployed API during local web).
+    final apiKey = _geminiApiKey;
+    if (apiKey.isNotEmpty) {
+      for (final model in _geminiModels) {
+        try {
+          final geminiUrl =
+              'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey';
+          final geminiRes = await _dio.post(
+            geminiUrl,
+            data: {
+              'contents': [
+                {
+                  'parts': [
+                    {'text': _ocrPrompt},
+                    {
+                      'inlineData': {
+                        'mimeType': mimeType,
+                        'data': b64,
+                      },
+                    },
+                  ],
+                },
+              ],
+              'generationConfig': {
+                'responseMimeType': 'application/json',
+                'temperature': 0.1,
+              },
+            },
+            options: Options(validateStatus: (s) => s != null && s < 500),
+          );
+
+          if (geminiRes.statusCode == 200 && geminiRes.data != null) {
+            final text = geminiRes.data['candidates']?[0]?['content']?['parts']
+                    ?[0]?['text']
+                ?.toString();
+            if (text != null && text.isNotEmpty) {
+              final cleaned =
+                  text.replaceAll(RegExp(r'```json|```'), '').trim();
+              final decoded = jsonDecode(cleaned);
+              if (decoded is Map) {
+                return Map<String, dynamic>.from(decoded);
+              }
+            }
+          }
+          lastError = geminiRes.data;
+        } catch (e) {
+          lastError = e;
+        }
+      }
+    }
+
+    throw Exception(
+      'ocr_failed: $lastError '
+      '(deploy /api/scan-mechanic-sheet with CORS, or pass --dart-define=GEMINI_API_KEY=...)',
+    );
   }
 
   Future<List<Map<String, dynamic>>> _fetchCatalog(

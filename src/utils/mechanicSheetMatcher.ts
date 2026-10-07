@@ -264,20 +264,47 @@ export async function scanMechanicSheet(params: {
 }): Promise<MechanicSheetScanResult> {
   try {
     const base64Data = await fileToBase64(params.file);
-    const response = await fetch('/api/scan-mechanic-sheet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imageBase64: base64Data,
-        mimeType: params.file.type || 'image/jpeg',
-      }),
-    });
+    const mimeType = params.file.type || 'image/jpeg';
+    const payload = JSON.stringify({ imageBase64: base64Data, mimeType });
 
-    const parsed = await response.json();
-    if (!response.ok) {
+    const supabaseFn =
+      'https://shszpcjmhkemqwborfwy.supabase.co/functions/v1/scan-mechanic-sheet';
+
+    let parsed: any = null;
+    let responseOk = false;
+
+    // 1) Prefer Supabase Edge Function (CORS-ready for localhost / Flutter web)
+    try {
+      const edgeRes = await fetch(supabaseFn, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: API_KEY,
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body: payload,
+      });
+      parsed = await edgeRes.json();
+      responseOk = edgeRes.ok;
+    } catch (_) {}
+
+    // 2) Fallback: same-origin Vercel API
+    if (!responseOk) {
+      try {
+        const response = await fetch('/api/scan-mechanic-sheet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+        parsed = await response.json();
+        responseOk = response.ok;
+      } catch (_) {}
+    }
+
+    if (!responseOk || !parsed) {
       return {
         success: false,
-        error: parsed.error || 'AI scan error',
+        error: parsed?.error || 'AI scan error',
         parts: [],
         unrecognized: [],
         exclusions: [],
