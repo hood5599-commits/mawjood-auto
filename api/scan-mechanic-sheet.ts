@@ -120,11 +120,11 @@ export default async function handler(req: any, res: any) {
     }
     imageBase64 = String(imageBase64).trim().replace(/\s/g, '');
 
+    // Live ListModels for this project key (gemini-1.5-* / 2.5-flash blocked).
     const models = [
-      'gemini-2.0-flash',
-      'gemini-2.5-flash',
-      'gemini-1.5-flash',
-      'gemini-1.5-flash-latest',
+      'gemini-3.1-flash-lite',
+      'gemini-3.7-flash',
+      'gemini-3.8-flash',
     ];
 
     let lastError = 'AI scan failed';

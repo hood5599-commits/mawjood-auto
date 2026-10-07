@@ -68,7 +68,7 @@ Respond ONLY with a valid JSON object:
       'x-goog-api-key': apiKey
     };
 
-    const targetModel = 'gemini-3.6-flash';
+    const targetModel = 'gemini-3.1-flash-lite';
     const activeModelUrl = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
 
     const response = await fetch(activeModelUrl, {
