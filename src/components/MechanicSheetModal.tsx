@@ -1,5 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { TRANSLATE_MAKE, TRANSLATE_MODEL, type CarBrand } from '../data/carData';
+import {
+  scanMechanicSheet,
+  type MatchedSheetPart,
+} from '../utils/mechanicSheetMatcher';
 
 interface MechanicSheetModalProps {
   isOpen: boolean;
@@ -13,15 +17,7 @@ interface MechanicSheetModalProps {
   siteSettings?: any;
 }
 
-interface RecognizedPart {
-  id: string;
-  nameAr: string;
-  nameEn: string;
-  category: string;
-  originalPrice: number;
-  aftermarketPrice: number;
-  selectedType: 'original' | 'aftermarket' | null;
-}
+type RecognizedPart = MatchedSheetPart;
 
 export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
   isOpen,
@@ -48,13 +44,12 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
   // خطوة المعالج الحالية
   const [currentPartIndex, setCurrentPartIndex] = useState(0);
 
-  // الكلمات التي لم يتم التعرف عليها من خط اليد
   const [unrecognizedLines, setUnrecognizedLines] = useState<string[]>([]);
-
-  // القطع المستخرجة
+  const [exclusions, setExclusions] = useState<string[]>([]);
   const [parts, setParts] = useState<RecognizedPart[]>([]);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const pendingFileRef = useRef<File | null>(null);
 
-  // إعادة التعيين عند الفتح
   React.useEffect(() => {
     if (isOpen) {
       if (!activeVehicle.make || !activeVehicle.model) {
@@ -64,12 +59,16 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
       }
       setSheetImage(null);
       setCurrentPartIndex(0);
+      setParts([]);
+      setUnrecognizedLines([]);
+      setExclusions([]);
+      setScanError(null);
+      pendingFileRef.current = null;
     }
   }, [isOpen, activeVehicle]);
 
   if (!isOpen) return null;
 
-  // 1. تأكيد السيارة
   const handleConfirmVehicle = () => {
     if (!tempMake || !tempModel) {
       alert(isRtl ? 'يرجى اختيار الماركة والموديل أولاً' : 'Please select Make and Model first');
@@ -79,91 +78,90 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
     setStep('upload');
   };
 
-  // 2. معالجة رفع ورقة الورشة
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      pendingFileRef.current = file;
       const url = URL.createObjectURL(file);
       setSheetImage(url);
-      startAIScanning();
+      startAIScanning(file);
     }
   };
 
-  // 3. محاكاة المسح الذكي لخط اليد (OCR & AI Parsing)
-  const startAIScanning = () => {
+  const startAIScanning = async (file?: File) => {
+    const target = file || pendingFileRef.current;
+    if (!target) {
+      setScanError(isRtl ? 'لم يتم اختيار صورة' : 'No image selected');
+      setStep('upload');
+      return;
+    }
     setStep('scanning');
-    setTimeout(() => {
-      // نتائج نموذجية مستخرجة من ورقة الميكانيكي
-      setParts([
-        {
-          id: 'part_1',
-          nameAr: 'طقم سفايف فرامل أمامية',
-          nameEn: 'Front Brake Pads Set',
-          category: 'Brake & Wheel Hub',
-          originalPrice: 380,
-          aftermarketPrice: 195,
-          selectedType: 'original',
-        },
-        {
-          id: 'part_2',
-          nameAr: 'فلتر زيت مكينة أصلي',
-          nameEn: 'Engine Oil Filter',
-          category: 'Engine',
-          originalPrice: 55,
-          aftermarketPrice: 30,
-          selectedType: 'original',
-        },
-        {
-          id: 'part_3',
-          nameAr: 'سير محرك خارجي (سير مجموعة)',
-          nameEn: 'Serpentine Drive Belt',
-          category: 'Belt Drive',
-          originalPrice: 140,
-          aftermarketPrice: 85,
-          selectedType: 'aftermarket',
-        },
-      ]);
+    setScanError(null);
 
-      // سطر لم يتم التعرف عليه ليرجع به العميل للميكانيكي
-      setUnrecognizedLines([
-        'كرسي ... يمين (كتابة غير واضحة)',
-        'بوشات ميزانية سفلية (رقم القطعة ممحي جزئياً)',
-      ]);
+    const makeEn = carData[activeVehicle.make]?.en || activeVehicle.make;
+    const result = await scanMechanicSheet({
+      file: target,
+      make: activeVehicle.make,
+      model: activeVehicle.model,
+      year: activeVehicle.year,
+      makeEn,
+    });
 
-      setStep('wizard');
-    }, 2400);
+    if (!result.success || result.parts.length === 0) {
+      setScanError(result.error || (isRtl ? 'تعذر تحليل الورقة' : 'Could not analyze sheet'));
+      setStep('upload');
+      return;
+    }
+
+    setParts(result.parts);
+    setUnrecognizedLines(result.unrecognized);
+    setExclusions(result.exclusions);
+    setCurrentPartIndex(0);
+    setStep('wizard');
   };
 
-  // تغيير نوع الجودة لقطعة معينة
   const handleSelectQuality = (index: number, type: 'original' | 'aftermarket') => {
     setParts((prev) => {
       const updated = [...prev];
-      updated[index].selectedType = type;
+      const part = updated[index];
+      const option = type === 'original' ? part.original : part.aftermarket;
+      if (!option.available) return prev;
+      updated[index] = { ...part, selectedType: type };
       return updated;
     });
   };
 
-  // إجمالي الكوتيشن
-  const totalQuotationPrice = parts.reduce((sum, p) => {
-    const price = p.selectedType === 'aftermarket' ? p.aftermarketPrice : p.originalPrice;
-    return sum + price;
+  const selectableParts = parts.filter((p) => p.selectedType && p.available);
+
+  const totalQuotationPrice = selectableParts.reduce((sum, p) => {
+    const opt = p.selectedType === 'aftermarket' ? p.aftermarket : p.original;
+    return sum + (opt.price || 0);
   }, 0);
 
-  // إرسال الكوتيشن للميكانيكي عبر واتساب
+  const formatPrice = (price: number, available: boolean) => {
+    if (!available) return isRtl ? 'غير متوفرة' : 'Unavailable';
+    if (!price || price <= 0) return isRtl ? 'حسب الطلب' : 'On request';
+    return `${price} ${isRtl ? 'ر.ق' : 'QAR'}`;
+  };
+
   const handleSendToWhatsApp = () => {
     const carText = `${activeVehicle.year} ${activeVehicle.make} ${activeVehicle.model}`;
     let message = `*كوتيشن قطع غيار - موجود أوتو*%0A`;
     message += `🚗 *السيارة:* ${carText}%0A`;
     message += `--------------------------------%0A`;
-    parts.forEach((p, idx) => {
-      const quality = p.selectedType === 'aftermarket' ? 'تجاري معتمد' : 'أصلي وكالة';
-      const price = p.selectedType === 'aftermarket' ? p.aftermarketPrice : p.originalPrice;
-      message += `${idx + 1}. *${p.nameAr}* (${quality}) - ${price} ر.ق%0A`;
+    selectableParts.forEach((p, idx) => {
+      const isAfter = p.selectedType === 'aftermarket';
+      const opt = isAfter ? p.aftermarket : p.original;
+      const quality = isAfter ? 'تجاري معتمد' : 'أصلي وكالة';
+      message += `${idx + 1}. *${p.nameAr}* (${quality}) - ${formatPrice(opt.price, true)}%0A`;
+    });
+    parts.filter((p) => !p.available).forEach((p) => {
+      message += `• ${p.nameAr} — غير متوفرة%0A`;
     });
     message += `--------------------------------%0A`;
     message += `💰 *المجموع:* ${totalQuotationPrice} ر.ق%0A`;
     if (unrecognizedLines.length > 0) {
-      message += `%0A⚠️ *بنود غير واضحة بالورقة تحتاج تأكيدك:*%0A`;
+      message += `%0A⚠️ *ملاحظات:*%0A`;
       unrecognizedLines.forEach((u) => {
         message += `- ${u}%0A`;
       });
@@ -172,21 +170,21 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
     window.open(`https://wa.me/?text=${message}`, '_blank');
   };
 
-  // طباعة / حفظ الكوتيشن
   const handlePrintQuotation = () => {
     window.print();
   };
 
-  // إضافة جميع القطع المعتمدة إلى السلة
   const handleAddAllToCart = () => {
-    const cartPayload = parts.map((p) => {
+    const cartPayload = selectableParts.map((p) => {
       const isAftermarket = p.selectedType === 'aftermarket';
+      const opt = isAftermarket ? p.aftermarket : p.original;
       return {
-        id: `${p.id}_${p.selectedType}`,
-        name: `${p.nameAr} (${isAftermarket ? 'تجاري معتمد' : 'أصلي وكالة'})`,
-        price: isAftermarket ? p.aftermarketPrice : p.originalPrice,
-        image_url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80',
-        quantity: 1,
+        id: opt.catalogId || `${p.id}_${p.selectedType}`,
+        name: `${opt.catalogName || p.nameAr} (${isAftermarket ? 'تجاري معتمد' : 'أصلي وكالة'})`,
+        price: opt.price || 0,
+        image_url: '',
+        quantity: p.qty || 1,
+        part_number: opt.partNumber,
       };
     });
 
@@ -352,6 +350,22 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
           {/* ---------------- 2. رفع أو تصوير ورقة الورشة ---------------- */}
           {step === 'upload' && (
             <div>
+              {scanError && (
+                <div
+                  style={{
+                    backgroundColor: '#FEF2F2',
+                    border: '1px solid #FECACA',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    marginBottom: '12px',
+                    color: '#B91C1C',
+                    fontWeight: 800,
+                    fontSize: '13px',
+                  }}
+                >
+                  {scanError}
+                </div>
+              )}
               <div
                 onClick={() => fileInputRef.current?.click()}
                 style={{
@@ -482,22 +496,34 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
               {/* القطعة الحالية النشطة */}
               {(() => {
                 const currentPart = parts[currentPartIndex];
+                const oemOk = currentPart.original.available;
+                const afterOk = currentPart.aftermarket.available;
                 return (
                   <div style={{ backgroundColor: '#F8FAFC', padding: '16px', borderRadius: '16px', border: '1px solid #E2E8F0', marginBottom: '16px' }}>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '900', color: '#0B192C' }}>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: '900', color: '#0B192C' }}>
                       {currentPart.nameAr}
                     </h4>
+                    <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#64748B' }}>
+                      {currentPart.nameEn}
+                      {!currentPart.available && (
+                        <span style={{ color: '#DC2626', fontWeight: 900 }}> — {isRtl ? 'غير متوفرة' : 'Unavailable'}</span>
+                      )}
+                    </p>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      {/* خيار: أصلي وكالة */}
                       <div
-                        onClick={() => handleSelectQuality(currentPartIndex, 'original')}
+                        onClick={() => oemOk && handleSelectQuality(currentPartIndex, 'original')}
                         style={{
                           border: currentPart.selectedType === 'original' ? '2px solid #0B192C' : '1px solid #E2E8F0',
-                          backgroundColor: currentPart.selectedType === 'original' ? '#F0F7FF' : '#FFFFFF',
+                          backgroundColor: !oemOk
+                            ? '#F8FAFC'
+                            : currentPart.selectedType === 'original'
+                              ? '#F0F7FF'
+                              : '#FFFFFF',
                           padding: '12px',
                           borderRadius: '12px',
-                          cursor: 'pointer',
+                          cursor: oemOk ? 'pointer' : 'not-allowed',
+                          opacity: oemOk ? 1 : 0.65,
                           transition: 'all 0.15s ease',
                           textAlign: 'center',
                         }}
@@ -505,21 +531,32 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
                         <span style={{ fontSize: '10px', fontWeight: '900', backgroundColor: '#0B192C', color: '#FFF', padding: '2px 8px', borderRadius: '6px' }}>
                           {isRtl ? 'أصلي وكالة' : 'Genuine OEM'}
                         </span>
-                        <div style={{ fontSize: '18px', fontWeight: '900', color: '#0B192C', margin: '8px 0 2px' }}>
-                          {currentPart.originalPrice} {isRtl ? 'ر.ق' : 'QAR'}
+                        <div style={{ fontSize: '16px', fontWeight: '900', color: oemOk ? '#0B192C' : '#DC2626', margin: '8px 0 2px' }}>
+                          {formatPrice(currentPart.original.price, oemOk)}
                         </div>
-                        <span style={{ fontSize: '10px', color: '#16A34A', fontWeight: 'bold' }}>✓ {isRtl ? 'ضمان شامل' : 'Full Warranty'}</span>
+                        <span style={{ fontSize: '10px', color: oemOk ? '#16A34A' : '#DC2626', fontWeight: 'bold' }}>
+                          {oemOk
+                            ? `✓ ${isRtl ? 'متوفرة' : 'In stock'} (${currentPart.original.stock})`
+                            : isRtl ? 'غير متوفرة' : 'Unavailable'}
+                        </span>
+                        {currentPart.original.catalogName && (
+                          <div style={{ fontSize: '10px', color: '#64748B', marginTop: 6 }}>{currentPart.original.catalogName}</div>
+                        )}
                       </div>
 
-                      {/* خيار: تجاري معتمد / بديل أصلي */}
                       <div
-                        onClick={() => handleSelectQuality(currentPartIndex, 'aftermarket')}
+                        onClick={() => afterOk && handleSelectQuality(currentPartIndex, 'aftermarket')}
                         style={{
                           border: currentPart.selectedType === 'aftermarket' ? '2px solid #FF6B00' : '1px solid #E2E8F0',
-                          backgroundColor: currentPart.selectedType === 'aftermarket' ? '#FFF9F5' : '#FFFFFF',
+                          backgroundColor: !afterOk
+                            ? '#F8FAFC'
+                            : currentPart.selectedType === 'aftermarket'
+                              ? '#FFF9F5'
+                              : '#FFFFFF',
                           padding: '12px',
                           borderRadius: '12px',
-                          cursor: 'pointer',
+                          cursor: afterOk ? 'pointer' : 'not-allowed',
+                          opacity: afterOk ? 1 : 0.65,
                           transition: 'all 0.15s ease',
                           textAlign: 'center',
                         }}
@@ -527,23 +564,38 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
                         <span style={{ fontSize: '10px', fontWeight: '900', backgroundColor: '#FF6B00', color: '#FFF', padding: '2px 8px', borderRadius: '6px' }}>
                           {isRtl ? 'تجاري معتمد' : 'Aftermarket'}
                         </span>
-                        <div style={{ fontSize: '18px', fontWeight: '900', color: '#FF6B00', margin: '8px 0 2px' }}>
-                          {currentPart.aftermarketPrice} {isRtl ? 'ر.ق' : 'QAR'}
+                        <div style={{ fontSize: '16px', fontWeight: '900', color: afterOk ? '#FF6B00' : '#DC2626', margin: '8px 0 2px' }}>
+                          {formatPrice(currentPart.aftermarket.price, afterOk)}
                         </div>
-                        <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 'bold' }}>
-                          {isRtl ? `وفر ${currentPart.originalPrice - currentPart.aftermarketPrice} ر.ق` : `Save ${currentPart.originalPrice - currentPart.aftermarketPrice} QAR`}
+                        <span style={{ fontSize: '10px', color: afterOk ? '#64748B' : '#DC2626', fontWeight: 'bold' }}>
+                          {afterOk
+                            ? `✓ ${isRtl ? 'متوفرة' : 'In stock'} (${currentPart.aftermarket.stock})`
+                            : isRtl ? 'غير متوفرة' : 'Unavailable'}
                         </span>
+                        {currentPart.aftermarket.catalogName && (
+                          <div style={{ fontSize: '10px', color: '#64748B', marginTop: 6 }}>{currentPart.aftermarket.catalogName}</div>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
               })()}
 
-              {/* تنبيه الكلمات غير المقروءة */}
+              {exclusions.length > 0 && (
+                <div style={{ backgroundColor: '#F1F5F9', borderRadius: '12px', padding: '12px', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 900, marginBottom: 4 }}>
+                    {isRtl ? 'مستثناة من الورقة:' : 'Excluded:'}
+                  </div>
+                  {exclusions.map((e, idx) => (
+                    <div key={idx} style={{ fontSize: 11, color: '#475569' }}>• {e}</div>
+                  ))}
+                </div>
+              )}
+
               {unrecognizedLines.length > 0 && (
                 <div style={{ backgroundColor: '#FEF2F2', border: '1px dashed #EF4444', borderRadius: '12px', padding: '12px', marginBottom: '16px' }}>
                   <div style={{ fontSize: '12px', fontWeight: '900', color: '#DC2626', marginBottom: '4px' }}>
-                    ⚠️ {isRtl ? 'كلمات لم نتمكن من قراءتها بدقة (راجع الميكانيكي):' : 'Unrecognized handwriting (check with mechanic):'}
+                    ⚠️ {isRtl ? 'ملاحظات / غير متوفر أو غير واضح:' : 'Notes / unavailable or unclear:'}
                   </div>
                   {unrecognizedLines.map((line, idx) => (
                     <div key={idx} style={{ fontSize: '11px', color: '#7F1D1D', marginRight: '6px' }}>
@@ -553,7 +605,6 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
                 </div>
               )}
 
-              {/* أزرار التنقل في المعالج */}
               <div style={{ display: 'flex', gap: '10px' }}>
                 {currentPartIndex > 0 && (
                   <button
@@ -573,7 +624,14 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
 
                 {currentPartIndex < parts.length - 1 ? (
                   <button
-                    onClick={() => setCurrentPartIndex((prev) => prev + 1)}
+                    onClick={() => {
+                      const cur = parts[currentPartIndex];
+                      if (cur.available && !cur.selectedType) {
+                        alert(isRtl ? 'اختر نوع القطعة المتوفرة أولاً' : 'Select an available option first');
+                        return;
+                      }
+                      setCurrentPartIndex((prev) => prev + 1);
+                    }}
                     style={{
                       flex: 1,
                       padding: '12px',
@@ -585,7 +643,9 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    {isRtl ? 'تأكيد والانتقال للقطعة التالية ←' : 'Confirm & Next Piece ←'}
+                    {!parts[currentPartIndex].available
+                      ? (isRtl ? 'تخطي (غير متوفرة) ←' : 'Skip (unavailable) ←')
+                      : (isRtl ? 'تأكيد والانتقال للقطعة التالية ←' : 'Confirm & Next Piece ←')}
                   </button>
                 ) : (
                   <button
@@ -645,15 +705,32 @@ export const MechanicSheetModal: React.FC<MechanicSheetModalProps> = ({
                   </thead>
                   <tbody>
                     {parts.map((p, idx) => {
+                      if (!p.available || !p.selectedType) {
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                            <td style={{ padding: '8px', fontWeight: 'bold', color: '#0F172A' }}>{p.nameAr}</td>
+                            <td style={{ padding: '8px', color: '#DC2626', fontWeight: 'bold' }}>
+                              {isRtl ? 'غير متوفرة' : 'Unavailable'}
+                            </td>
+                            <td style={{ padding: '8px', textAlign: 'left', fontWeight: '900', color: '#DC2626' }}>
+                              {isRtl ? 'غير متوفرة' : 'N/A'}
+                            </td>
+                          </tr>
+                        );
+                      }
                       const isAftermarket = p.selectedType === 'aftermarket';
-                      const price = isAftermarket ? p.aftermarketPrice : p.originalPrice;
+                      const opt = isAftermarket ? p.aftermarket : p.original;
                       return (
                         <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                          <td style={{ padding: '8px', fontWeight: 'bold', color: '#0F172A' }}>{p.nameAr}</td>
+                          <td style={{ padding: '8px', fontWeight: 'bold', color: '#0F172A' }}>
+                            {opt.catalogName || p.nameAr}
+                          </td>
                           <td style={{ padding: '8px', color: isAftermarket ? '#FF6B00' : '#0B192C', fontWeight: 'bold' }}>
                             {isAftermarket ? 'تجاري معتمد' : 'أصلي وكالة'}
                           </td>
-                          <td style={{ padding: '8px', textAlign: 'left', fontWeight: '900' }}>{price} ر.ق</td>
+                          <td style={{ padding: '8px', textAlign: 'left', fontWeight: '900' }}>
+                            {formatPrice(opt.price, true)}
+                          </td>
                         </tr>
                       );
                     })}

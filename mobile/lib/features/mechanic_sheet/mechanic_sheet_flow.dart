@@ -32,11 +32,23 @@ class MechanicSheetFlow {
     if (file == null || !context.mounted) return;
 
     final vehicle = ActiveVehicleService.instance.vehicle!;
+    final bytes = await file.readAsBytes();
+    if (!context.mounted) return;
+    if (bytes.isEmpty) return;
+
+    final lower = file.path.toLowerCase();
+    final mime = lower.endsWith('.png')
+        ? 'image/png'
+        : lower.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MechanicAnalysisScreen(
           lang: lang,
-          imagePath: file.path,
+          imageBytes: bytes,
+          mimeType: mime,
           vehicle: vehicle,
         ),
       ),

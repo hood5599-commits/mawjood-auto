@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -11,14 +11,16 @@ import 'mechanic_wizard_screen.dart';
 
 class MechanicAnalysisScreen extends StatefulWidget {
   final String lang;
-  final String imagePath;
+  final Uint8List imageBytes;
+  final String mimeType;
   final VehicleProfile vehicle;
 
   const MechanicAnalysisScreen({
     super.key,
     required this.lang,
-    required this.imagePath,
+    required this.imageBytes,
     required this.vehicle,
+    this.mimeType = 'image/jpeg',
   });
 
   @override
@@ -45,7 +47,8 @@ class _MechanicAnalysisScreenState extends State<MechanicAnalysisScreen> {
     });
     try {
       final result = await MechanicSheetParser.instance.parseSheet(
-        imageFile: File(widget.imagePath),
+        imageBytes: widget.imageBytes,
+        mimeType: widget.mimeType,
         vehicleMake: widget.vehicle.make,
         vehicleModel: widget.vehicle.model,
         vehicleYear: widget.vehicle.year,
@@ -144,8 +147,8 @@ class _MechanicAnalysisScreenState extends State<MechanicAnalysisScreen> {
             const SizedBox(height: 22),
             Text(
               isAr
-                  ? 'جاري قراءة خط يد الميكانيكي وفحص القطع المتوافقة...'
-                  : 'Reading mechanic handwriting & matching compatible parts...',
+                  ? 'جاري قراءة الورقة ومطابقة القطع المتوفرة في المخزون...'
+                  : 'Reading sheet & matching live inventory...',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontWeight: FontWeight.w800,
@@ -176,6 +179,18 @@ class _MechanicAnalysisScreenState extends State<MechanicAnalysisScreen> {
           const Icon(Icons.error_outline, color: AppTheme.danger, size: 42),
           const SizedBox(height: 12),
           Text(isAr ? 'تعذر تحليل الورقة' : 'Could not analyze sheet'),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Text(
+              _error ?? '',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.mutedOf(context),
+                fontSize: 11,
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: _run,
@@ -189,6 +204,8 @@ class _MechanicAnalysisScreenState extends State<MechanicAnalysisScreen> {
 
   Widget _results() {
     final result = _result!;
+    final availableCount =
+        result.recognized.where((r) => r.hasAnyAvailable).length;
     return ListView(
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
@@ -197,8 +214,8 @@ class _MechanicAnalysisScreenState extends State<MechanicAnalysisScreen> {
       children: [
         Text(
           isAr
-              ? 'تم التعرف على ${result.recognized.length} قطع متوافقة'
-              : '${result.recognized.length} compatible parts recognized',
+              ? 'تم استخراج ${result.recognized.length} بند — متوفر: $availableCount'
+              : '${result.recognized.length} lines extracted — available: $availableCount',
           style: TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: 16,
@@ -206,28 +223,76 @@ class _MechanicAnalysisScreenState extends State<MechanicAnalysisScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        ...result.recognized.map(
-          (item) => Container(
+        ...result.recognized.map((item) {
+          final ok = item.hasAnyAvailable;
+          return Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
             decoration: AppTheme.cardDecoration(context, radius: 14),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: AppTheme.success),
+                Icon(
+                  ok ? Icons.check_circle : Icons.cancel,
+                  color: ok ? AppTheme.success : AppTheme.danger,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    item.name(isAr),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textOf(context),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name(isAr),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textOf(context),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        ok
+                            ? (isAr ? 'متوفرة في المخزون' : 'In stock')
+                            : (isAr ? 'غير متوفرة' : 'Unavailable'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                          color: ok ? AppTheme.success : AppTheme.danger,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
+          );
+        }),
+        if (result.exclusions.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppTheme.navy.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.navy.withValues(alpha: 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isAr ? 'مستثناة من الورقة (بدون):' : 'Excluded from sheet:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textOf(context),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ...result.exclusions.map(
+                  (e) => Text('• $e',
+                      style: TextStyle(color: AppTheme.mutedOf(context))),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
         if (result.unrecognizedLines.isNotEmpty) ...[
           const SizedBox(height: 8),
           Container(
@@ -244,8 +309,8 @@ class _MechanicAnalysisScreenState extends State<MechanicAnalysisScreen> {
               children: [
                 Text(
                   isAr
-                      ? '⚠️ لم نتمكن من قراءة هذه الكلمات بدقة، يرجى مراجعة الميكانيكي لتأكيدها:'
-                      : '⚠️ We could not read these lines accurately — please confirm with your mechanic:',
+                      ? '⚠️ ملاحظات / بنود تحتاج مراجعة:'
+                      : '⚠️ Notes / items needing review:',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     color: AppTheme.warning,
@@ -276,9 +341,7 @@ class _MechanicAnalysisScreenState extends State<MechanicAnalysisScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 15),
             decoration: BoxDecoration(
-              color: result.recognized.isEmpty
-                  ? Colors.grey
-                  : AppTheme.copper,
+              color: result.recognized.isEmpty ? Colors.grey : AppTheme.copper,
               borderRadius: BorderRadius.circular(14),
             ),
             alignment: Alignment.center,
