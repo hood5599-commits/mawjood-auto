@@ -10,144 +10,197 @@ interface ExcelPartUploaderProps {
   onSuccess: () => void;
 }
 
-// 🧠 محرك ذكي مدمج باللهجة القطرية والخليجية والعربية والإنجليزية
+// 🧠 محرك التصنيف الذكي - الأولوية الأولى للإنجليزية القياسية (TecDoc / OEM / Aftermarket)
 const resolveFullCategoryTree = (partName: string, rawCategory: string = ''): string => {
   const name = (partName || '').toLowerCase();
   const rawCat = (rawCategory || '').toLowerCase();
 
-  // 1. الفرامل - Brake & Wheel Hub (سفايف / درامات / هاند بريك)
-  if (/سفايف|سفيفة|فحمات|قماشات|تيل فرامل|brake pad|brake pads|brake shoe/.test(name)) return 'Brake & Wheel Hub > Brake Pad';
-  if (/درام ويل|درامات|درام|هوب|هوبات|دسك فرامل|rotor|brake rotor|brake disc/.test(name)) return 'Brake & Wheel Hub > Rotor';
-  if (/كليبر|caliper/.test(name)) return 'Brake & Wheel Hub > Caliper';
-  if (/abs|مانع انزلاق|wheel speed/.test(name)) return 'Brake & Wheel Hub > ABS Control Module';
-  if (/زيت فرامل|زيت بريك|brake fluid/.test(name)) return 'Brake & Wheel Hub > Brake Fluid';
-  if (/رمان|بيرنج|bearing|فلنجة|wheel bearing|hub/.test(name)) return 'Brake & Wheel Hub > Wheel Bearing & Hub';
-  if (/هاند بريك|بريك يد|جلنط/.test(name)) return 'Brake & Wheel Hub > Parking Brake Shoe';
+  // 1. Brake & Wheel Hub (الفرامل والدرامات والسفايف)
+  if (/\b(brake pad|brake pads|brake shoe|disc pad|pad set)\b/.test(name) || /سفايف|سفيفة|فحمات|قماشات|تيل فرامل/.test(name)) 
+    return 'Brake & Wheel Hub > Brake Pad';
+  if (/\b(brake rotor|rotor|brake disc|disc rotor)\b/.test(name) || /درام ويل|درامات|درام|هوب|هوبات|دسك فرامل/.test(name)) 
+    return 'Brake & Wheel Hub > Rotor';
+  if (/\b(brake caliper|caliper assembly|caliper)\b/.test(name) || /كليبر|كاليبر/.test(name)) 
+    return 'Brake & Wheel Hub > Caliper';
+  if (/\b(abs module|abs sensor|wheel speed sensor|abs control)\b/.test(name) || /abs|مانع انزلاق|حساس سرعة عجل/.test(name)) 
+    return 'Brake & Wheel Hub > ABS Control Module';
+  if (/\b(brake fluid|dot 3|dot 4|dot 5.1)\b/.test(name) || /زيت فرامل|زيت بريك/.test(name)) 
+    return 'Brake & Wheel Hub > Brake Fluid';
+  if (/\b(wheel bearing|wheel hub|hub bearing|bearing & hub)\b/.test(name) || /رمان|بيرنج|bearing|فلنجة/.test(name)) 
+    return 'Brake & Wheel Hub > Wheel Bearing & Hub';
+  if (/\b(parking brake|handbrake shoe|emergency brake)\b/.test(name) || /هاند بريك|بريك يد|جلنط/.test(name)) 
+    return 'Brake & Wheel Hub > Parking Brake Shoe';
 
-  // 2. المساعدات والتعليق - Suspension (جامبينات / سبرنغات / شيالات / بوشات)
-  if (/جامبين|جامبينات|جمبينات|كمبين|مساعد|مساعدات|strut|shock|shock absorber|شكلس/.test(name)) return 'Suspension > Shock / Strut';
-  if (/شيال|شيالات|مقص|مقصات|control arm|ذراع تحكم/.test(name)) return 'Suspension > Control Arm';
-  if (/سبرنغ|سبرنغات|ياي|يايات|spring|coil spring|سوستة/.test(name)) return 'Suspension > Coil Spring';
-  if (/رود توازن|رودات توازن|لينك توازن|لينكات|مسمار توازن|مسامير توازن|sway bar link|sway bar/.test(name)) return 'Suspension > Sway Bar Link';
-  if (/بوش|بوشات|بوشينج|جلبة|جلب|كرسي مساعد|bushings|bushing/.test(name)) return 'Suspension > Control Arm Bushing';
+  // 2. Suspension (المساعدات والمقصات والشيالات)
+  if (/\b(shock absorber|strut|strut assembly|shocks|struts|damper)\b/.test(name) || /جامبين|جامبينات|جمبينات|كمبين|مساعد|مساعدات|شكلس/.test(name)) 
+    return 'Suspension > Shock / Strut';
+  if (/\b(control arm|wishbone|trailing arm|track control)\b/.test(name) || /شيال|شيالات|مقص|مقصات|ذراع تحكم/.test(name)) 
+    return 'Suspension > Control Arm';
+  if (/\b(coil spring|suspension spring|leaf spring)\b/.test(name) || /سبرنغ|سبرنغات|ياي|يايات|سوستة/.test(name)) 
+    return 'Suspension > Coil Spring';
+  if (/\b(sway bar link|stabilizer link|sway bar|anti roll bar link)\b/.test(name) || /رود توازن|رودات توازن|لينك توازن|لينكات|مسمار توازن/.test(name)) 
+    return 'Suspension > Sway Bar Link';
+  if (/\b(control arm bushing|bushing|bushings|suspension bushing)\b/.test(name) || /بوش|بوشات|بوشينج|جلبة|جلب/.test(name)) 
+    return 'Suspension > Control Arm Bushing';
 
-  // 3. التوجيه والدركسون - Steering (سكان / استيرنج راك / رودات)
-  if (/استيرنج راك|مجمع ستيرنج|دودة سكان|دودة دركسون|دودة|rack and pinion|power steering|steering rack/.test(name)) return 'Steering > Rack and Pinion';
-  if (/رود سكان|رودات سكان|رود دركسون|رودات دركسون|تاي رود|tie rod|tie rod end|ذراع دركسون/.test(name)) return 'Steering > Tie Rod End';
+  // 3. Steering (الدركسون والدودة والستيرنج)
+  if (/\b(rack and pinion|steering rack|steering gear|power steering rack)\b/.test(name) || /استيرنج راك|مجمع ستيرنج|دودة سكان|دودة دركسون|دودة/.test(name)) 
+    return 'Steering > Rack and Pinion';
+  if (/\b(tie rod end|tie rod|track rod end|outer tie rod|inner tie rod)\b/.test(name) || /رود سكان|رودات سكان|رود دركسون|تاي رود/.test(name)) 
+    return 'Steering > Tie Rod End';
 
-  // 4. التبريد والرديتر - Cooling System (رديتر ماي / واتر بمب / ماي رديتر)
-  if (/سائل تبريد|ماي رديتر|ماء رديتر|coolant|antifreeze/.test(name)) return 'Cooling System > Coolant / Antifreeze';
-  if (/واتر بمب|ووتر بمب|طرمبة ماي|طرمبة ماء|water pump|مضخة ماء/.test(name)) return 'Cooling System > Water Pump';
-  if (/رديتر مكينة|رديتر ماي|رديتر ماء|engine radiator/.test(name) || (name.includes('radiator') && !name.includes('a/c') && !name.includes('مكيف'))) return 'Cooling System > Radiator';
-  if (/ثرموستات|thermostat|كوع حرارة|بلف حرارة|بلف ماي/.test(name)) return 'Cooling System > Thermostat';
-  if (/مروحة رديتر|مروحة|fan assembly|radiator fan/.test(name)) return 'Cooling System > Radiator Fan Assembly';
-  if (/قربة ماي|قربة ماء|coolant reservoir|خرطوش|expansion tank|غطا رديتر/.test(name)) return 'Cooling System > Coolant Reservoir';
+  // 4. Cooling System (التبريد والرديتر والمضخات)
+  if (/\b(coolant|antifreeze|radiator fluid)\b/.test(name) || /سائل تبريد|ماي رديتر|ماء رديتر/.test(name)) 
+    return 'Cooling System > Coolant / Antifreeze';
+  if (/\b(water pump|engine water pump|coolant pump)\b/.test(name) || /واتر بمب|ووتر بمب|طرمبة ماي|طرمبة ماء|مضخة ماء/.test(name)) 
+    return 'Cooling System > Water Pump';
+  if ((/\b(radiator|engine radiator)\b/.test(name) && !name.includes('a/c') && !name.includes('ac')) || /رديتر مكينة|رديتر ماي|رديتر ماء/.test(name)) 
+    return 'Cooling System > Radiator';
+  if (/\b(thermostat|thermostat housing|water outlet)\b/.test(name) || /ثرموستات|كوع حرارة|بلف حرارة|بلف ماي/.test(name)) 
+    return 'Cooling System > Thermostat';
+  if (/\b(radiator fan|cooling fan|fan assembly)\b/.test(name) || /مروحة رديتر|مروحة/.test(name)) 
+    return 'Cooling System > Radiator Fan Assembly';
+  if (/\b(coolant reservoir|expansion tank|overflow tank)\b/.test(name) || /قربة ماي|قربة ماء|خرطوش/.test(name)) 
+    return 'Cooling System > Coolant Reservoir';
 
-  // 5. التكييف والتدفئة - Heat & Air Conditioning (كمبريسر / رديتر مكيف)
-  if (/رديتر مكيف|مكثف|condenser|a\/c condenser/.test(name)) return 'Heat & Air Conditioning > A/C Condenser';
-  if (/كمبريسر|كمبروسر|compressor|ضاغط|a\/c compressor/.test(name)) return 'Heat & Air Conditioning > A/C Compressor';
-  if (/ثلاجة مكيف|ثلاجة|evaporator|a\/c evaporator/.test(name)) return 'Heat & Air Conditioning > A/C Evaporator Core';
-  if (/فلتر مكيف|cabin filter|cabin air filter|cabin air/.test(name)) return 'Heat & Air Conditioning > Cabin Air Filter';
-  if (/بلف مكيف|expansion valve/.test(name)) return 'Heat & Air Conditioning > A/C Expansion Valve';
+  // 5. Heat & Air Conditioning (المكيف والكمبروسر والفلتر)
+  if (/\b(a\/c condenser|ac condenser|air conditioning condenser)\b/.test(name) || /رديتر مكيف|مكثف/.test(name)) 
+    return 'Heat & Air Conditioning > A/C Condenser';
+  if (/\b(a\/c compressor|ac compressor|air conditioning compressor)\b/.test(name) || /كمبريسر|كمبروسر|ضاغط/.test(name)) 
+    return 'Heat & Air Conditioning > A/C Compressor';
+  if (/\b(a\/c evaporator|evaporator core)\b/.test(name) || /ثلاجة مكيف|ثلاجة/.test(name)) 
+    return 'Heat & Air Conditioning > A/C Evaporator Core';
+  if (/\b(cabin air filter|cabin filter|pollen filter|a\/c filter)\b/.test(name) || /فلتر مكيف/.test(name)) 
+    return 'Heat & Air Conditioning > Cabin Air Filter';
+  if (/\b(expansion valve|a\/c expansion valve)\b/.test(name) || /بلف مكيف/.test(name)) 
+    return 'Heat & Air Conditioning > A/C Expansion Valve';
 
-  // 6. نظام الاشتعال - Ignition (بلاكات / كويلات)
-  if (/بلاك|بلاكات|بلكات|بواجي|شمعات احتراق|spark plug|spark plugs|glow plug/.test(name)) return 'Ignition > Spark Plug';
-  if (/كويل|كويلات|ignition coil|ملف اشعال|ignition coils/.test(name)) return 'Ignition > Ignition Coil';
+  // 6. Ignition (البواجي والبلاكات والكويلات)
+  if (/\b(spark plug|spark plugs|glow plug|glow plugs)\b/.test(name) || /بلاك|بلاكات|بلكات|بواجي|شمعات احتراق/.test(name)) 
+    return 'Ignition > Spark Plug';
+  if (/\b(ignition coil|ignition coils|coil pack)\b/.test(name) || /كويل|كويلات|ملف اشعال/.test(name)) 
+    return 'Ignition > Ignition Coil';
 
-  // 7. الوقود والهواء - Fuel & Air (فيول بمب / فلتر مكينة / بترول)
-  if (/فلتر هواء|فلتر مكينة|air filter|engine air filter/.test(name)) return 'Fuel & Air > Air Filter';
-  if (/فيول بمب|بمب بترول|طرمبة بترول|طرمبة بنزين|fuel pump|مضخة وقود/.test(name)) return 'Fuel & Air > Fuel Pump & Housing Assembly';
-  if (/بخاخ|بخاخات|injector|fuel injector|نوزل/.test(name)) return 'Fuel & Air > Fuel Injector';
-  if (/فلتر بترول|فلتر بنزين|fuel filter|هوز بترول|fuel line/.test(name)) return 'Fuel & Air > Fuel Line / Hose';
-  if (/ثروتل|throttle|بوابة هواء|throttle body/.test(name)) return 'Fuel & Air > Throttle Body';
+  // 7. Fuel & Air (فلاتر الهواء والبترول والفيول بمب)
+  if (/\b(air filter|engine air filter|air cleaner element)\b/.test(name) || /فلتر هواء|فلتر مكينة/.test(name)) 
+    return 'Fuel & Air > Air Filter';
+  if (/\b(fuel pump|fuel pump module|fuel pump assembly)\b/.test(name) || /فيول بمب|بمب بترول|طرمبة بترول|طرمبة بنزين|مضخة وقود/.test(name)) 
+    return 'Fuel & Air > Fuel Pump & Housing Assembly';
+  if (/\b(fuel injector|fuel injectors|injector nozzle)\b/.test(name) || /بخاخ|بخاخات|نوزل/.test(name)) 
+    return 'Fuel & Air > Fuel Injector';
+  if (/\b(fuel filter|fuel line|fuel hose)\b/.test(name) || /فلتر بترول|فلتر بنزين|هوز بترول/.test(name)) 
+    return 'Fuel & Air > Fuel Line / Hose';
+  if (/\b(throttle body|throttle actuator)\b/.test(name) || /ثروتل|بوابة هواء/.test(name)) 
+    return 'Fuel & Air > Throttle Body';
 
-  // 8. القير والمحاور - Transmission & Drivetrain (شفتات / اكسلات / كلتش)
-  if (/فلتر جير|فلتر قير|transmission filter/.test(name)) return 'Transmission-Automatic > Filter';
-  if (/آيل جير|زيت جير|زيت قير|transmission fluid|atf/.test(name)) return 'Transmission-Automatic > Transmission Fluid';
-  if (/كلتش|صحن كلتش|clutch kit/.test(name)) return 'Transmission-Manual > Clutch Kit';
-  if (/اكسل|أكسلات|اكسلات|عكس|عكوس|cv axle|axle shaft/.test(name)) return 'Drivetrain > CV Axle';
-  if (/درايف شفت|شفت|عمود كردان|drive shaft/.test(name)) return 'Drivetrain > Drive Shaft';
+  // 8. Transmission & Drivetrain (القير والاكسلات والشفتات)
+  if (/\b(transmission filter|trans filter|atf filter)\b/.test(name) || /فلتر جير|فلتر قير/.test(name)) 
+    return 'Transmission-Automatic > Filter';
+  if (/\b(transmission fluid|atf|gear oil|cvt fluid)\b/.test(name) || /آيل جير|زيت جير|زيت قير/.test(name)) 
+    return 'Transmission-Automatic > Transmission Fluid';
+  if (/\b(clutch kit|clutch disc|pressure plate)\b/.test(name) || /كلتش|صحن كلتش/.test(name)) 
+    return 'Transmission-Manual > Clutch Kit';
+  if (/\b(cv axle|axle shaft|drive axle|half shaft)\b/.test(name) || /اكسل|أكسلات|اكسلات|عكس|عكوس/.test(name)) 
+    return 'Drivetrain > CV Axle';
+  if (/\b(drive shaft|driveshaft|propeller shaft)\b/.test(name) || /درايف شفت|شفت|عمود كردان/.test(name)) 
+    return 'Drivetrain > Drive Shaft';
 
-  // 9. الكهرباء - Electrical (دينمة / سلف / بتري)
-  if (/دينمة|دينمو|دينمو شحن|alternator|generator/.test(name)) return 'Electrical > Alternator / Generator';
-  if (/سلف|ستارتر|starter motor|starter|مارش/.test(name)) return 'Electrical > Starter Motor';
-  if (/بتري|بطارية|battery/.test(name)) return 'Electrical > Battery';
-  if (/كمبيوتر|ecm|ecu|control module/.test(name)) return 'Electrical > Engine Control Module (ECM Computer)';
-  if (/حساس سرعة|speed sensor/.test(name)) return 'Electrical > Speed Sensor';
+  // 9. Electrical (الدينامو والسلف والبطارية)
+  if (/\b(alternator|generator)\b/.test(name) || /دينمة|دينمو|دينمو شحن/.test(name)) 
+    return 'Electrical > Alternator / Generator';
+  if (/\b(starter motor|starter)\b/.test(name) || /سلف|ستارتر|مارش/.test(name)) 
+    return 'Electrical > Starter Motor';
+  if (/\b(car battery|12v battery|battery)\b/.test(name) || /بتري|بطارية/.test(name)) 
+    return 'Electrical > Battery';
+  if (/\b(ecm|ecu|pcm|engine control module)\b/.test(name) || /كمبيوتر مكينة|كمبيوتر/.test(name)) 
+    return 'Electrical > Engine Control Module (ECM Computer)';
 
-  // 10. العادم - Exhaust (قزوز / صالنصة / دبة بيئة / كربونة)
-  if (/حساس قزوز|حساس شكمان|حساس اكسجين|oxygen sensor|o2 sensor/.test(name)) return 'Exhaust & Emission > Oxygen (O2) Sensor';
-  if (/حساس هواء|maf sensor|mass air flow/.test(name)) return 'Exhaust & Emission > Mass Air Flow (MAF) Sensor';
-  if (/قزوز|صالنصة|دبة قزوز|دبة بيئة|كربونة|شكمان|دبة تلوث|catalytic converter|exhaust manifold/.test(name)) return 'Exhaust & Emission > Catalytic Converter';
-  if (/بلف تبخير|pcv|purge valve|pcv valve/.test(name)) return 'Exhaust & Emission > Vapor Canister Purge Valve / Solenoid';
+  // 10. Exhaust & Emission (العادم وحساسات الأكسجين)
+  if (/\b(oxygen sensor|o2 sensor|lambda sensor)\b/.test(name) || /حساس قزوز|حساس شكمان|حساس اكسجين/.test(name)) 
+    return 'Exhaust & Emission > Oxygen (O2) Sensor';
+  if (/\b(mass air flow|maf sensor|air flow meter)\b/.test(name) || /حساس هواء|maf/.test(name)) 
+    return 'Exhaust & Emission > Mass Air Flow (MAF) Sensor';
+  if (/\b(catalytic converter|exhaust manifold|muffler)\b/.test(name) || /قزوز|صالنصة|دبة بيئة|كربونة|شكمان/.test(name)) 
+    return 'Exhaust & Emission > Catalytic Converter';
 
-  // 11. الهيكل والإضاءة - Body & Lighting (بانيت / دبة / مدقار / دعامية / منظرة / ليتات)
-  if (/بانيت|بونت|كبوت|hood|bonnet/.test(name)) return 'Body & Lamp Assembly > Hood';
-  if (/دبة خلفية|دبة ورا|شنطة|trunk|boot/.test(name)) return 'Body & Lamp Assembly > Trunk';
-  if (/مدقار|مدقارات|رفرف|fender|mudguard/.test(name)) return 'Body & Lamp Assembly > Fender';
-  if (/دعامية|دعاميات|بمبر|صدمية|صدام|bumper|bumper cover/.test(name)) return 'Body & Lamp Assembly > Bumper Cover';
-  if (/منظرة|مناظر|مراية جانبية|مراية|side mirror|mirror/.test(name)) return 'Body & Lamp Assembly > Outside Mirror Glass';
-  if (/جام|جامات|زجاج|windshield|glass/.test(name)) return 'Body & Lamp Assembly > Glass';
-  if (/ليت قدام|ليت أمامي|شمعة|headlamp|headlight/.test(name)) return 'Body & Lamp Assembly > Headlamp Assembly';
-  if (/ليت ورا|ليت خلفي|اسطب|إسطب|tail lamp|tail light|taillight/.test(name)) return 'Body & Lamp Assembly > Tail Lamp Assembly';
-  if (/كشاف|كشافات ضباب|fog lamp|fog light/.test(name)) return 'Body & Lamp Assembly > Fog / Driving Lamp Assembly';
-  if (/جريل|شبك نيكل|شبك قدام|شبك|grille/.test(name)) return 'Body & Lamp Assembly > Grille';
+  // 11. Body & Lamp (البدي والإضاءة والصدامات)
+  if (/\b(hood|bonnet)\b/.test(name) || /بانيت|بونت|كبوت/.test(name)) 
+    return 'Body & Lamp Assembly > Hood';
+  if (/\b(fender|mudguard|wing)\b/.test(name) || /مدقار|مدقارات|رفرف/.test(name)) 
+    return 'Body & Lamp Assembly > Fender';
+  if (/\b(bumper cover|front bumper|rear bumper|bumper)\b/.test(name) || /دعامية|دعاميات|بمبر|صدام/.test(name)) 
+    return 'Body & Lamp Assembly > Bumper Cover';
+  if (/\b(side mirror|door mirror|outside mirror)\b/.test(name) || /منظرة|مناظر|مراية جانبية|مراية/.test(name)) 
+    return 'Body & Lamp Assembly > Outside Mirror Glass';
+  if (/\b(headlamp|headlight|front lamp)\b/.test(name) || /ليت قدام|ليت أمامي|شمعة/.test(name)) 
+    return 'Body & Lamp Assembly > Headlamp Assembly';
+  if (/\b(tail lamp|taillight|tail light|rear lamp)\b/.test(name) || /ليت ورا|ليت خلفي|اسطب/.test(name)) 
+    return 'Body & Lamp Assembly > Tail Lamp Assembly';
+  if (/\b(fog lamp|fog light)\b/.test(name) || /كشاف|كشافات ضباب/.test(name)) 
+    return 'Body & Lamp Assembly > Fog / Driving Lamp Assembly';
+  if (/\b(grille|front grille)\b/.test(name) || /جريل|شبك/.test(name)) 
+    return 'Body & Lamp Assembly > Grille';
 
-  // 12. الإطارات والرنجات - Wheel & Tires (رنجات / تواير / براغي رنج)
-  if (/رنج|رنجات|رنق|رنقات|جنط|جنوط|wheel|rim|rims/.test(name)) return 'Wheel > Wheel';
-  if (/تاير|تواير|كفر|كفرات|إطار|إطارات|tire|tires/.test(name)) return 'Wheel > Wheel';
-  if (/براغي رنج|نوتات رنج|صامولة جنط|مسمار جنط|lug nut|lug stud/.test(name)) return 'Wheel > Lug Nut';
-  if (/حساس تواير|حساس كفرات|حساس ضغط|tpms|tpms sensor/.test(name)) return 'Wheel > Tire Pressure Monitoring System (TPMS) Sensor';
+  // 12. Wheel (الرنجات وبراغي العجلات)
+  if (/\b(wheel|alloy rim|wheel rim|lug nut|lug stud)\b/.test(name) || /رنج|رنجات|جنط|براغي رنج/.test(name)) 
+    return 'Wheel > Wheel';
+  if (/\b(tpms|tire pressure sensor)\b/.test(name) || /حساس تواير|حساس ضغط/.test(name)) 
+    return 'Wheel > Tire Pressure Monitoring System (TPMS) Sensor';
 
-  // 13. المحرك والسيور - Engine & Belts (قايش / كراسي مكينة)
-  if (/قايش|قوايش|سير|سيور|belt|drive belt|serpentine belt/.test(name)) return 'Belt Drive > Belt';
-  if (/شداد قايش|بكرة|بكرات|pulley|tensioner|belt tensioner/.test(name)) return 'Belt Drive > Belt Tensioner';
-  if (/كرسي مكينة|كراسي مكينة|كرسي محرك|motor mount|engine mount/.test(name)) return 'Engine > Motor Mount';
-  if (/آيل مكينة|زيت مكينة|زيت محرك|فلتر آيل|فلتر زيت|oil filter|engine oil/.test(name)) return 'Engine > Oil Filter';
-  if (/طرمبة آيل|طرمبة زيت|oil pump/.test(name)) return 'Engine > Oil Pump';
-  if (/بستم|بساتم|شنبر|piston/.test(name)) return 'Engine > Piston';
-  if (/جنزير صدر|timing chain/.test(name)) return 'Engine > Timing Chain';
-  if (/قزقيت|قازقيت|وجه راس|gasket|cylinder head gasket/.test(name)) return 'Engine > Cylinder Head Gasket';
+  // 13. Belt Drive & Engine Parts (السيور وكراسي المكينة وفلاتر الزيت)
+  if (/\b(serpentine belt|drive belt|fan belt|v-belt)\b/.test(name) || /قايش|سير|سيور/.test(name)) 
+    return 'Belt Drive > Belt';
+  if (/\b(belt tensioner|tensioner pulley|idler pulley)\b/.test(name) || /شداد قايش|بكرة/.test(name)) 
+    return 'Belt Drive > Belt Tensioner';
+  if (/\b(engine mount|motor mount)\b/.test(name) || /كرسي مكينة|كرسي محرك/.test(name)) 
+    return 'Engine > Motor Mount';
+  if (/\b(oil filter|engine oil filter)\b/.test(name) || /فلتر آيل|فلتر زيت/.test(name)) 
+    return 'Engine > Oil Filter';
+  if (/\b(cylinder head gasket|head gasket)\b/.test(name) || /قزقيت|وجه راس/.test(name)) 
+    return 'Engine > Cylinder Head Gasket';
 
-  // Fallbacks عامة
-  if (/بريك|فرامل|brake/.test(rawCat)) return 'Brake & Wheel Hub > Brake Pad';
-  if (/جامبين|تعليق|suspension|steering/.test(rawCat)) return 'Suspension > Shock / Strut';
-  if (/مكيف|تبريد|hvac|cooling/.test(rawCat)) return 'Heat & Air Conditioning > A/C Compressor';
-  if (/كهربا|electrical/.test(rawCat)) return 'Electrical > Starter Motor';
-  if (/فلتر|آيل|filter|oil/.test(rawCat)) return 'Fuel & Air > Air Filter';
-  if (/ليت|بدي|هيكل|lighting|body/.test(rawCat)) return 'Body & Lamp Assembly > Headlamp Assembly';
-  if (/قزوز|عادم|exhaust/.test(rawCat)) return 'Exhaust & Emission > Catalytic Converter';
-  if (/رنج|تاير|wheel|tire/.test(rawCat)) return 'Wheel > Wheel';
+  // Fallbacks عامة بحسب العمود rawCategory لو وجد
+  if (/brake|wheel/.test(rawCat)) return 'Brake & Wheel Hub > Brake Pad';
+  if (/suspension|strut|shock/.test(rawCat)) return 'Suspension > Shock / Strut';
+  if (/steering/.test(rawCat)) return 'Steering > Rack and Pinion';
+  if (/cooling|water/.test(rawCat)) return 'Cooling System > Radiator';
+  if (/hvac|a\/c|air condition/.test(rawCat)) return 'Heat & Air Conditioning > A/C Compressor';
+  if (/electrical|ignition/.test(rawCat)) return 'Electrical > Starter Motor';
+  if (/fuel|intake|air filter/.test(rawCat)) return 'Fuel & Air > Air Filter';
+  if (/body|lamp|light/.test(rawCat)) return 'Body & Lamp Assembly > Headlamp Assembly';
+  if (/engine|belt/.test(rawCat)) return 'Engine > Oil Filter';
 
   return 'Engine > Motor Mount';
 };
 
+// 🚗 التعرف على الماركات العالمية وتوحيدها بالاسم الإنجليزي القياسي
 const KNOWN_MAKES = [
-  { make: 'تويوتا', patterns: [/تويوتا|تويوتتا|تويتا|toyota/i] },
-  { make: 'لكزس', patterns: [/لكزس|lexus/i] },
-  { make: 'نيسان', patterns: [/نيسان|نيصان|nissan/i] },
-  { make: 'هيونداي', patterns: [/هيونداي|هونداي|hyundai/i] },
-  { make: 'كيا', patterns: [/كيا|kia/i] },
-  { make: 'مرسيدس', patterns: [/مرسيدس|mercedes|benz/i] },
-  { make: 'بي إم دبليو', patterns: [/بي إم دبليو|بي ام دبليو|bmw/i] },
-  { make: 'فورد', patterns: [/فورد|ford/i] },
-  { make: 'شفروليه', patterns: [/شفروليه|شيفروليه|شفروليت|chevrolet|chevy/i] },
-  { make: 'جي إم سي', patterns: [/جي إم سي|جمس|gmc/i] },
-  { make: 'هوندا', patterns: [/هوندا|honda/i] },
-  { make: 'مازدا', patterns: [/مازدا|mazda/i] },
-  { make: 'ميتسوبيشي', patterns: [/ميتسوبيشي|mitsubishi/i] },
-  { make: 'لاند روفر', patterns: [/لاند روفر|رينج روفر|land\s*rover|range\s*rover/i] },
-  { make: 'أودي', patterns: [/أودي|audi/i] },
-  { make: 'فولكس فاجن', patterns: [/فولكس فاجن|vw|volkswagen/i] }
+  { make: 'Toyota', patterns: [/\btoyota\b/i, /تويوتا|تويتا/] },
+  { make: 'Lexus', patterns: [/\blexus\b/i, /لكزس/] },
+  { make: 'Nissan', patterns: [/\bnissan\b/i, /نيسان/] },
+  { make: 'Hyundai', patterns: [/\bhyundai\b/i, /هيونداي|هونداي/] },
+  { make: 'Kia', patterns: [/\bkia\b/i, /كيا/] },
+  { make: 'Mercedes-Benz', patterns: [/\b(mercedes|benz|mb)\b/i, /مرسيدس/] },
+  { make: 'BMW', patterns: [/\bbmw\b/i, /بي إم دبليو|بي ام دبليو/] },
+  { make: 'Ford', patterns: [/\bford\b/i, /فورد/] },
+  { make: 'Chevrolet', patterns: [/\b(chevrolet|chevy)\b/i, /شفروليه|شيفروليه/] },
+  { make: 'GMC', patterns: [/\bgmc\b/i, /جي إم سي|جمس/] },
+  { make: 'Honda', patterns: [/\bhonda\b/i, /هوندا/] },
+  { make: 'Mazda', patterns: [/\bmazda\b/i, /مازدا/] },
+  { make: 'Mitsubishi', patterns: [/\bmitsubishi\b/i, /ميتسوبيشي/] },
+  { make: 'Land Rover', patterns: [/\b(land\s*rover|range\s*rover)\b/i, /لاند روفر|رينج روفر/] },
+  { make: 'Audi', patterns: [/\baudi\b/i, /أودي/] },
+  { make: 'Volkswagen', patterns: [/\b(volkswagen|vw)\b/i, /فولكس فاجن/] },
+  { make: 'Porsche', patterns: [/\bporsche\b/i, /بورش|بورشه/] }
 ];
 
 const parseVehicleFitment = (rawText: string): { make: string; model: string; year: string } => {
-  if (!rawText) return { make: 'عام / متعدد', model: 'عام', year: '2022' };
+  if (!rawText) return { make: 'Universal', model: 'All Models', year: '2023' };
 
   let text = String(rawText).trim();
 
-  // 1. استخراج سنة الصنع
-  let extractedYear = '2022';
+  // 1. استخراج سنة الصنع (سواء 2018-2022 أو 18-22 أو سنة مفردة)
+  let extractedYear = '2023';
   const yearMatchFull = text.match(/\(?\b(19\d\d|20\d\d)\s*[-/]\s*(19\d\d|20\d\d)\b\)?/);
   const yearMatchShort = text.match(/\(?\b(\d{2})\s*[-/]\s*(\d{2})\b\)?/);
   const yearMatchSingle = text.match(/\(?\b(19\d\d|20\d\d)\b\)?/);
@@ -167,8 +220,8 @@ const parseVehicleFitment = (rawText: string): { make: string; model: string; ye
     text = text.replace(yearMatchSingle[0], '').trim();
   }
 
-  // 2. استخراج ماركة وموديل السيارة
-  let detectedMake = 'عام / متعدد';
+  // 2. استخراج الماركة والموديل
+  let detectedMake = 'Universal';
   let detectedModel = text;
 
   for (const item of KNOWN_MAKES) {
@@ -179,44 +232,44 @@ const parseVehicleFitment = (rawText: string): { make: string; model: string; ye
         break;
       }
     }
-    if (detectedMake !== 'عام / متعدد') break;
+    if (detectedMake !== 'Universal') break;
   }
 
   return {
     make: detectedMake,
-    model: detectedModel || 'عام',
+    model: detectedModel || 'All Models',
     year: extractedYear
   };
 };
 
 const extractEngineDetails = (text: string): string => {
   const t = (text || '').toLowerCase();
-  if (/ديزل|diesel/.test(t)) {
-    const dMatch = t.match(/(\d+\.\d+)\s*(l|لتر)?\s*ديزل|diesel/i);
-    return dMatch ? `${dMatch[1]}L ديزل (Diesel)` : 'ديزل (Diesel)';
+  if (/diesel|ديزل/.test(t)) {
+    const dMatch = t.match(/(\d+\.\d+)\s*(l|liter)?\s*diesel/i);
+    return dMatch ? `${dMatch[1]}L Diesel` : 'Diesel';
   }
-  if (/هايبرد|hybrid/.test(t)) return 'هايبرد (Hybrid)';
-  if (/تيربو|توربو|turbo/.test(t)) {
-    const tMatch = t.match(/(\d+\.\d+)\s*(l|لتر)?\s*(turbo|تيربو|توربو)/i);
-    return tMatch ? `${tMatch[1]}L تيربو` : 'توربو (Turbo)';
+  if (/hybrid|هايبرد/.test(t)) return 'Hybrid';
+  if (/turbo|تيربو/.test(t)) {
+    const tMatch = t.match(/(\d+\.\d+)\s*(l|liter)?\s*turbo/i);
+    return tMatch ? `${tMatch[1]}L Turbo` : 'Turbo';
   }
 
-  const lMatch = t.match(/\b(\d\.\d)\s*(l|لتر)?\b/i);
-  const vMatch = t.match(/\b(v6|v8|v4|v12|l4|6\s*سلندر|8\s*سلندر|4\s*سلندر)\b/i);
+  const lMatch = t.match(/\b(\d\.\d)\s*(l|liter)?\b/i);
+  const vMatch = t.match(/\b(v6|v8|v4|v12|l4|inline-4|inline-6)\b/i);
 
   if (lMatch && vMatch) return `${lMatch[1]}L ${vMatch[1].toUpperCase()}`;
   if (lMatch) return `${lMatch[1]}L`;
   if (vMatch) return vMatch[1].toUpperCase();
 
-  return 'جميع المحركات (بنزين / ديزل)';
+  return 'All Engines (Gasoline / Diesel)';
 };
 
 const isSummaryOrJunkRow = (name: string, price: any): boolean => {
   const n = String(name || '').trim().toLowerCase();
-  if (!n || n === 'nan') return true;
-  if (/إجمالي|اجمالي|المجموع|الإجمالي الكلي|المجموع الكلي|grand total|total|sum|مجموع المخزون/.test(n)) return true;
-  if (n.startsWith('---') || n.startsWith('===') || n === 'name' || n === 'اسم القطعة' || n === 'sku' || n === 'part name') return true;
-  if (price === 0 && (/إجمالي|total|مجموع/.test(n))) return true;
+  if (!n || n === 'nan' || n === 'null') return true;
+  if (/total|grand total|sum|subtotal|summary|إجمالي|اجمالي|المجموع/.test(n)) return true;
+  if (n.startsWith('---') || n.startsWith('===') || n === 'name' || n === 'item description' || n === 'part name' || n === 'sku') return true;
+  if (price === 0 && (/total|sum|مجموع/.test(n))) return true;
   return false;
 };
 
@@ -271,10 +324,11 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
         const rawGrid: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
         if (!rawGrid || rawGrid.length === 0) {
-          setErrorMsg(isRtl ? 'الملف المرفوع فارغ تماماً.' : 'File is empty.');
+          setErrorMsg(isRtl ? 'الملف المرفوع فارغ تماماً.' : 'Uploaded file is completely empty.');
           return;
         }
 
+        // كشف صف العناوين (Header Row) مع إعطاء الأولوية القصوى للمصطلحات الإنجليزية
         let bestHeaderRowIndex = 0;
         let highestScore = -1;
 
@@ -287,7 +341,11 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
           row.forEach(cell => {
             const cellStr = String(cell || '').trim().toLowerCase();
             if (!cellStr) return;
-            if (/اسم قطعة الغيار|طراز السيارة|رمز القطعة|سعر البيع|الكمية المتاحة|الفئة|part name|compatible car|brand|sku|unit selling price|category|available quantity/.test(cellStr)) {
+
+            // مصطلحات فهارس الإكسل الإنجليزية
+            if (/part name|item name|description|item description|part number|part no|part #|sku|oem|unit price|selling price|price|qty|quantity|stock|category|vehicle|fitment|model|make|brand|mfr/.test(cellStr)) {
+              score += 10;
+            } else if (/اسم قطعة الغيار|طراز السيارة|رمز القطعة|سعر البيع|الكمية المتاحة|الفئة/.test(cellStr)) {
               score += 5;
             }
           });
@@ -300,7 +358,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
         const rawHeaderRow = rawGrid[bestHeaderRowIndex] || [];
         const detectedHeaders: string[] = rawHeaderRow
-          .map((h: any, idx: number) => String(h || '').trim() || `عمود_${idx + 1}`)
+          .map((h: any, idx: number) => String(h || '').trim() || `Col_${idx + 1}`)
           .filter((h: string) => !h.startsWith('EMPTY_') && h.trim() !== '');
 
         const dataRows = rawGrid.slice(bestHeaderRowIndex + 1);
@@ -312,7 +370,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
           let hasContent = false;
 
           rawHeaderRow.forEach((h: any, idx: number) => {
-            const colName = String(h || '').trim() || `عمود_${idx + 1}`;
+            const colName = String(h || '').trim() || `Col_${idx + 1}`;
             const val = row[idx] ?? '';
             if (String(val).trim() !== '') hasContent = true;
             rowObj[colName] = val;
@@ -330,7 +388,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
         });
 
         if (structuredData.length === 0) {
-          setErrorMsg(isRtl ? 'لم يتم العثور على صفوف بيانات صالحة في الملف.' : 'No valid data rows found.');
+          setErrorMsg(isRtl ? 'لم يتم العثور على صفوف بيانات صالحة في الملف.' : 'No valid item rows found.');
           return;
         }
 
@@ -350,6 +408,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     reader.readAsBinaryString(file);
   };
 
+  // 🎯 ربط الأعمدة الذكي - الأولوية الأولى للغة الإنجليزية
   const autoDetectMapping = (detectedHeaders: string[]) => {
     const newMapping: Record<string, string> = {
       name: '', vehicle: '', category: '', part_brand: '', price: '', stock: '', part_number: '', part_condition: '', warranty: '', engine: ''
@@ -358,31 +417,40 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     detectedHeaders.forEach(h => {
       const clean = h.trim().toLowerCase();
 
-      if (/sku|رمز القطعة|رقم القطعة|كود القطعة|part number|part no\b|رمز/.test(clean) && !clean.includes('part name')) {
+      // Part Number / SKU / OEM
+      if (/^(part\s*#|part\s*no|part\s*number|sku|item\s*code|oem|oem\s*no|code)$/.test(clean) || (/sku|part no|part number|رمز القطعة|رقم القطعة|كود/.test(clean) && !clean.includes('name'))) {
         if (!newMapping.part_number) newMapping.part_number = h;
       }
-      else if (/part name|item name|اسم قطعة الغيار|اسم القطعة|اسم السلعة|اسم الغيار|بيان القطعة|description|اسم/.test(clean)) {
-        if (!newMapping.name && !/رمز|رقم|sku|كود/.test(clean)) newMapping.name = h;
+      // Part Name / Description
+      else if (/^(part\s*name|item\s*name|description|item\s*description|product\s*name|title)$/.test(clean) || /part name|item name|description|اسم القطعة|اسم السلعة|بيان القطعة/.test(clean)) {
+        if (!newMapping.name && !/sku|code|number|رقم|كود/.test(clean)) newMapping.name = h;
       }
-      else if (/compatible car|car model|vehicle|fitment|طراز السيارة|طراز|السيارة المتوافقة|موديل السيارة/.test(clean)) {
+      // Vehicle / Application / Fitment
+      else if (/^(vehicle|fitment|application|car\s*model|compatible\s*car|model)$/.test(clean) || /compatible car|car model|vehicle|fitment|طراز السيارة|السيارة المتوافقة/.test(clean)) {
         if (!newMapping.vehicle) newMapping.vehicle = h;
       }
-      else if (/category|cat|الفئة|القسم|التصنيف/.test(clean)) {
+      // Category / Group
+      else if (/^(category|group|subgroup|dept|department)$/.test(clean) || /category|cat|الفئة|القسم|التصنيف/.test(clean)) {
         if (!newMapping.category) newMapping.category = h;
       }
-      else if (/brand|manufacturer|المصنع|الماركة \/ المصنع|ماركة القطعة|الشركة المصنعة/.test(clean) && !clean.includes('car model')) {
+      // Brand / Manufacturer
+      else if (/^(brand|manufacturer|mfr|make)$/.test(clean) || /brand|manufacturer|mfr|المصنع|الماركة/.test(clean)) {
         if (!newMapping.part_brand) newMapping.part_brand = h;
       }
-      else if (/unit selling price|selling price|unit price|price|cost|سعر البيع للوحدة|سعر البيع|سعر|السعر/.test(clean)) {
-        if (!newMapping.price && !/total cost|إجمالي|تكلفة/.test(clean)) newMapping.price = h;
+      // Selling Price / Unit Price
+      else if (/^(unit\s*price|selling\s*price|price|retail\s*price|msrp|cost)$/.test(clean) || /unit price|selling price|price|cost|سعر البيع|السعر/.test(clean)) {
+        if (!newMapping.price && !/total|إجمالي/.test(clean)) newMapping.price = h;
       }
-      else if (/available quantity|quantity|stock|qty|الكمية المتاحة|الكمية|المخزون|العدد/.test(clean)) {
-        if (!newMapping.stock && !/total|إجمالي|حد/.test(clean)) newMapping.stock = h;
+      // Stock / Quantity
+      else if (/^(qty|quantity|stock|available\s*qty|inventory|count)$/.test(clean) || /quantity|stock|qty|الكمية|المخزون/.test(clean)) {
+        if (!newMapping.stock && !/total|إجمالي/.test(clean)) newMapping.stock = h;
       }
-      else if (/warranty|الضمان|فترة الضمان|ضمان/.test(clean)) {
+      // Warranty
+      else if (/^(warranty|guarantee)$/.test(clean) || /warranty|الضمان/.test(clean)) {
         if (!newMapping.warranty) newMapping.warranty = h;
       }
-      else if (/stock status|condition|حالة المخزون|حالة القطعة|الحالة/.test(clean)) {
+      // Condition
+      else if (/^(condition|status)$/.test(clean) || /condition|حالة القطعة/.test(clean)) {
         if (!newMapping.part_condition) newMapping.part_condition = h;
       }
     });
@@ -399,7 +467,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
   const startBatchUpload = async () => {
     if (!mapping.name || !mapping.price) {
-      setErrorMsg(isRtl ? 'يرجى ربط حقلي "اسم القطعة" و "السعر" على الأقل.' : 'Please map at least Name and Price.');
+      setErrorMsg(isRtl ? 'يرجى ربط حقلي "اسم القطعة" و "السعر" على الأقل.' : 'Please map at least Part Name and Price fields.');
       return;
     }
 
@@ -422,9 +490,9 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
       const chunk = validRows.slice(i, i + BATCH_SIZE);
       
       const batchPayload = chunk.map(row => {
-        const rawName = String(row[mapping.name] || 'قطعة غيار').trim();
+        const rawName = String(row[mapping.name] || 'Auto Spare Part').trim();
         const rawVehicle = mapping.vehicle ? String(row[mapping.vehicle] || '').trim() : '';
-        const rawPartBrand = mapping.part_brand ? String(row[mapping.part_brand] || '').trim() : 'تجاري';
+        const rawPartBrand = mapping.part_brand ? String(row[mapping.part_brand] || '').trim() : 'Aftermarket';
         const rawCat = mapping.category ? String(row[mapping.category] || '').trim() : '';
         
         const parsed = parseVehicleFitment(rawVehicle || rawName);
@@ -440,16 +508,16 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
 
         return {
           name: rawName,
-          make: parsed.make || 'عام / متعدد',
-          model: parsed.model || 'عام',
-          year: parsed.year || '2022',
-          engine: engine || 'جميع المحركات (بنزين / ديزل)',
+          make: parsed.make || 'Universal',
+          model: parsed.model || 'All Models',
+          year: parsed.year || '2023',
+          engine: engine || 'All Engines (Gasoline / Diesel)',
           category: fullCategory,
           price: cleanPriceValue(row[mapping.price]),
           stock: mapping.stock && row[mapping.stock] ? parseInt(String(row[mapping.stock]).replace(/[^0-9]/g, '')) || 1 : 1,
           part_number: mapping.part_number && row[mapping.part_number] ? String(row[mapping.part_number]).trim() : null,
-          part_type: rawPartBrand || 'تجاري',
-          part_condition: 'جديد',
+          part_type: rawPartBrand || 'Aftermarket',
+          part_condition: 'New',
           warranty: finalWarranty,
           user_id: session?.user?.id || session?.id || session?.phone || 'garage',
           image_url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'
@@ -494,10 +562,10 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
             <span style={{ fontSize: '30px' }}>📊</span>
             <div>
               <h3 style={{ margin: 0, color: '#1f3a5f', fontSize: '19px', fontWeight: 'bold' }}>
-                {isRtl ? 'الرفع والمعالجة الذكية للمخزون' : 'Smart Excel Bulk Upload'}
+                {isRtl ? 'الرفع والمعالجة الذكية للمخزون (English-First Catalog)' : 'Smart Excel Bulk Upload (English Catalog Priority)'}
               </h3>
               <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                {isRtl ? 'دعم كامل للهجة القطرية (سفايف، جمبينات، رنجات، مدقار...) والعربية والإنجليزية' : 'Full Qatari/Gulf dialect, Arabic & English support'}
+                {isRtl ? 'متوافق بالكامل مع فهارس الوكالات باللغة الإنجليزية وقوائم الورش الخليجية' : 'Full OEM, TecDoc English catalogs & local Arabic dialect support'}
               </span>
             </div>
           </div>
@@ -517,7 +585,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
               {isRtl ? 'اختر ملف إكسل من جهازك' : 'Choose your Excel File'}
             </h4>
             <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px' }}>
-              {isRtl ? 'يدعم (.xlsx, .xls, .csv) بالمصطلحات القطرية أو الفصحى أو الإنجليزية مع استخراج الأسماء والأقسام تلقائياً.' : 'Supports .xlsx, .xls, .csv files.'}
+              {isRtl ? 'يدعم (.xlsx, .xls, .csv) بفهارس الموردين باللغة الإنجليزية مع استخراج الأسماء والأقسام تلقائياً.' : 'Supports .xlsx, .xls, .csv files with auto-detection of OEM & aftermarket parts.'}
             </p>
 
             <label style={{ padding: '13px 32px', backgroundColor: '#1f3a5f', color: '#ffffff', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14.5px', display: 'inline-block' }}>
@@ -545,25 +613,25 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
                 style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #cbd5e0', fontSize: '13px', fontWeight: 'bold' }}
               >
                 <option value="ask_seller">❓ {isRtl ? 'بدون ضمان محدد (يسأل المشتري الكراج عند الفحص)' : 'No fixed warranty (Ask Garage upon inquiry)'}</option>
-                <option value="7 أيام (ضمان تشغيل وتجربة)">⚡ 7 {isRtl ? 'أيام (ضمان تشغيل وتجربة)' : 'Days (Testing Warranty)'}</option>
-                <option value="14 يوماً (ضمان استبدال)">✅ 14 {isRtl ? 'يوماً (ضمان استبدال)' : 'Days (Replacement Warranty)'}</option>
-                <option value="شهر كامل (30 يوماً)">📅 {isRtl ? 'شهر كامل (30 يوماً)' : '1 Month (30 Days)'}</option>
-                <option value="3 أشهر">🛡️ 3 {isRtl ? 'أشهر' : 'Months'}</option>
-                <option value="6 أشهر">⭐ 6 {isRtl ? 'أشهر' : 'Months'}</option>
-                <option value="سنة كاملة">🏆 {isRtl ? 'سنة كاملة' : '1 Year'}</option>
+                <option value="7 Days Testing Warranty">⚡ 7 {isRtl ? 'أيام (ضمان تشغيل وتجربة)' : 'Days (Testing Warranty)'}</option>
+                <option value="14 Days Replacement">✅ 14 {isRtl ? 'يوماً (ضمان استبدال)' : 'Days (Replacement Warranty)'}</option>
+                <option value="1 Month">📅 {isRtl ? 'شهر كامل (30 يوماً)' : '1 Month (30 Days)'}</option>
+                <option value="3 Months">🛡️ 3 {isRtl ? 'أشهر' : 'Months'}</option>
+                <option value="6 Months">⭐ 6 {isRtl ? 'أشهر' : 'Months'}</option>
+                <option value="1 Year Full Warranty">🏆 {isRtl ? 'سنة كاملة' : '1 Year'}</option>
               </select>
             </div>
 
             {/* شبكة تعيين الأعمدة */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', maxHeight: '250px', overflowY: 'auto', paddingInlineEnd: '6px' }}>
               {[
-                { key: 'name', label: isRtl ? 'اسم القطعة (مطلوب) *' : 'Part Name *', req: true },
-                { key: 'price', label: isRtl ? 'سعر البيع (مطلوب) *' : 'Price *', req: true },
-                { key: 'vehicle', label: isRtl ? 'طراز وتوافق السيارة' : 'Compatible Vehicle' },
-                { key: 'category', label: isRtl ? 'الفئة / القسم' : 'Category' },
-                { key: 'part_brand', label: isRtl ? 'الماركة / المصنع (ماركة القطعة)' : 'Part Manufacturer' },
-                { key: 'part_number', label: isRtl ? 'رمز القطعة (SKU)' : 'Part Number / SKU' },
-                { key: 'stock', label: isRtl ? 'الكمية المتاحة' : 'Stock Qty' }
+                { key: 'name', label: isRtl ? 'اسم القطعة (Part Name) *' : 'Part Name *', req: true },
+                { key: 'price', label: isRtl ? 'سعر البيع (Unit Price) *' : 'Price *', req: true },
+                { key: 'vehicle', label: isRtl ? 'طراز وتوافق السيارة (Fitment)' : 'Compatible Vehicle' },
+                { key: 'category', label: isRtl ? 'الفئة / القسم (Category)' : 'Category' },
+                { key: 'part_brand', label: isRtl ? 'المصنع / الماركة (Brand)' : 'Part Manufacturer' },
+                { key: 'part_number', label: isRtl ? 'رمز القطعة (Part # / SKU)' : 'Part Number / SKU' },
+                { key: 'stock', label: isRtl ? 'الكمية المتاحة (Qty In Stock)' : 'Stock Qty' }
               ].map(field => (
                 <div key={field.key} style={{ padding: '10px 12px', borderRadius: '12px', backgroundColor: '#f8fafc', border: field.req ? '1.5px solid #cbd5e0' : '1px solid #e2e8f0' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: field.req ? '#1f3a5f' : '#64748b', marginBottom: '4px' }}>
