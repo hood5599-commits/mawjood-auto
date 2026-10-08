@@ -188,7 +188,12 @@ export const MyPartsTab: React.FC<MyPartsTabProps> = ({
                           src={part.image_url || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=80&q=80'} 
                           alt={part.name} 
                           style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
-                          onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=80&q=80'; }}
+                          onError={(e) => {
+                            const el = e.target as HTMLImageElement;
+                            if (el.dataset.fb === '1') { el.onerror = null; el.src = '/favicon.svg'; return; }
+                            el.dataset.fb = '1';
+                            el.src = '/favicon.svg';
+                          }}
                         />
                       </td>
 
@@ -283,7 +288,12 @@ export const MyPartsTab: React.FC<MyPartsTabProps> = ({
                   src={part.image_url || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=100&q=80'} 
                   alt={part.name} 
                   style={{ width: '65px', height: '65px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #cbd5e0' }} 
-                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=100&q=80'; }}
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement;
+                    if (el.dataset.fb === '1') { el.onerror = null; el.src = '/favicon.svg'; return; }
+                    el.dataset.fb = '1';
+                    el.src = '/favicon.svg';
+                  }}
                 />
                 <div style={{ flex: 1 }}>
                   <h4 style={{ margin: '0 0 4px 0', color: '#1f3a5f', fontSize: '14px' }}>

@@ -263,10 +263,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({
   const fetchMyOrders = async () => {
     if (!userId || userId === 'garage_unknown') return;
     try {
-      const response = await fetch(`${restUrl}/orders?garage_id=eq.${userId}&order=id.desc`, {
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
-      });
-      if (response.ok) setMyOrders(await response.json());
+      // Narrow select + pagination to avoid Supabase statement timeout (57014)
+      const cols =
+        'id,order_code,part_name,price,status,customer_phone,garage_id,notes,items,total_price,delivery_type,payment_status';
+      const response = await fetch(
+        `${restUrl}/orders?garage_id=eq.${encodeURIComponent(userId)}&select=${cols}&order=id.desc&limit=150`,
+        {
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` },
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setMyOrders(Array.isArray(data) ? data : []);
+      }
     } catch (error) {}
   };
 
@@ -274,16 +283,19 @@ export const GarageDashboard: React.FC<GarageProps> = ({
     if (!userId || userId === 'garage_unknown') return;
     try {
       const encodedUser = encodeURIComponent(userId);
-      const response = await fetch(`${restUrl}/fitment_inquiries?or=(garage_id.eq.${encodedUser},garage_id.ilike.${encodedUser})&order=id.desc`, {
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
-      });
+      const response = await fetch(
+        `${restUrl}/fitment_inquiries?or=(garage_id.eq.${encodedUser},garage_id.ilike.${encodedUser})&select=*&order=id.desc&limit=100`,
+        {
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` },
+        }
+      );
       if (response.ok) setMyInquiries(await response.json());
     } catch (error) {}
   };
 
   const fetchCustomRequests = async () => {
     try {
-      const response = await fetch(`${restUrl}/custom_part_requests?order=id.desc`, {
+      const response = await fetch(`${restUrl}/custom_part_requests?order=id.desc&limit=100`, {
         headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
       });
       if (response.ok) setCustomRequests(await response.json());

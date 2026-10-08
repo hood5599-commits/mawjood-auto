@@ -436,7 +436,12 @@ export default function App() {
                           src={item.image_url || item.image || item.part_image || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'}
                           alt={item.name}
                           style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', flexShrink: 0 }}
-                          onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'; }}
+                          onError={(e: any) => {
+                            const el = e.target as HTMLImageElement;
+                            if (el.dataset.fb === '1') { el.onerror = null; el.src = '/favicon.svg'; return; }
+                            el.dataset.fb = '1';
+                            el.src = '/favicon.svg';
+                          }}
                         />
 
                         <div style={{ flex: 1, minWidth: 0 }}>

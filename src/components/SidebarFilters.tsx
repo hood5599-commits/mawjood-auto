@@ -398,25 +398,87 @@ const formatBilingualPartName = (name: string, lang: 'ar' | 'en'): string => {
   return name;
 };
 
-const MAKE_DOMAINS: Record<string, string> = {
-  "تويوتا": "toyota.com", "Toyota": "toyota.com",
-  "هيونداي": "hyundai.com", "Hyundai": "hyundai.com",
-  "نيسان": "nissan-global.com", "Nissan": "nissan-global.com",
-  "فورد": "ford.com", "Ford": "ford.com",
-  "شفروليه": "chevrolet.com", "Chevrolet": "chevrolet.com",
-  "كيا": "kia.com", "Kia": "kia.com",
-  "هوندا": "honda.com", "Honda": "honda.com",
-  "لكزس": "lexus.com", "Lexus": "lexus.com",
-  "ميتسوبيشي": "mitsubishicars.com", "Mitsubishi": "mitsubishicars.com",
-  "مازدا": "mazda.com", "Mazda": "mazda.com",
-  "جي إم سي": "gmc.com", "GMC": "gmc.com",
-  "بي إم دبليو": "bmw.com", "BMW": "bmw.com",
-  "مرسيدس": "mercedes-benz.com", "Mercedes-Benz": "mercedes-benz.com",
-  "فولكس فاجن": "vw.com", "Volkswagen": "vw.com",
-  "أودي": "audi.com", "Audi": "audi.com",
-  "جيب": "jeep.com", "Jeep": "jeep.com",
-  "دودج": "dodge.com", "Dodge": "dodge.com",
-  "لاند روفر": "landrover.com", "Land Rover": "landrover.com"
+/** Local brand badge — never hits Google favicon / gstatic (avoids CORB + retry storms). */
+const MakeBadge: React.FC<{ label: string }> = ({ label }) => {
+  const letter = (label || '?').trim().charAt(0).toUpperCase();
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        background: 'linear-gradient(145deg, #1E293B, #0F172A)',
+        color: '#F8FAFC',
+        fontSize: 11,
+        fontWeight: 800,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        letterSpacing: 0,
+      }}
+    >
+      {letter}
+    </span>
+  );
+};
+
+const normText = (s: string) =>
+  String(s || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const yearMatchesPart = (partYear: string, targetYear: string): boolean => {
+  if (!partYear || !targetYear) return true;
+  const yStr = String(partYear).trim();
+  const target = Number(targetYear);
+  if (yStr.includes('-')) {
+    const [start, end] = yStr.split('-').map(Number);
+    if (!Number.isNaN(start) && !Number.isNaN(end) && !Number.isNaN(target)) {
+      return target >= Math.min(start, end) && target <= Math.max(start, end);
+    }
+  }
+  return yStr === String(targetYear).trim() || yStr.includes(String(targetYear).trim());
+};
+
+const MODEL_ALIASES: Record<string, string[]> = {
+  باترول: ['patrol', 'باترول', 'فتك'],
+  كامري: ['camry', 'كامري'],
+  كورولا: ['corolla', 'كورولا'],
+  لاندكروزر: ['land cruiser', 'landcruiser', 'لاندكروزر', 'لاند كروزر'],
+  النترا: ['elantra', 'النترا', 'إلنترا'],
+  سوناتا: ['sonata', 'سوناتا'],
+  اوبتيما: ['optima', 'k5', 'أوبتيما', 'اوبتيما'],
+  التيما: ['altima', 'التيما', 'ألتيما'],
+  اكورد: ['accord', 'اكورد', 'أكورد'],
+  '6': ['6', 'مازدا 6', 'mazda 6'],
+};
+
+const modelMatchesPart = (partModel: string, targetModel: string): boolean => {
+  if (!partModel || !targetModel) return true;
+  const a = normText(partModel);
+  const b = normText(targetModel);
+  if (a === b || a.includes(b) || b.includes(a)) return true;
+  for (const list of Object.values(MODEL_ALIASES)) {
+    if (list.some((x) => b.includes(normText(x))) && list.some((x) => a.includes(normText(x)))) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const categoryEquals = (a: string, b: string) => normText(a) === normText(b);
+
+/** Same bilingual make lookup used by VisualVehicleSelector. */
+const partsUrlForMake = (make: string, select: string) => {
+  const en = CAR_DATA[make]?.en || make;
+  const ar = CAR_DATA[make]?.ar || make;
+  const makes = Array.from(new Set([make, en, ar].filter(Boolean)));
+  const or = makes.map((m) => `make.ilike.*${encodeURIComponent(m)}*`).join(',');
+  return `${SUPABASE_URL}/parts?or=(${or})&select=${select}&limit=800`;
 };
 
 interface SidebarProps {
@@ -470,7 +532,6 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [nodeDataCache, setNodeDataCache] = useState<Record<string, any>>({});
   const [loadingNodes, setLoadingNodes] = useState<Record<string, boolean>>({});
 
-  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
   const [activeSearchQuery, setActiveSearchQuery] = useState<string>('');
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -488,7 +549,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [detailedPart, setDetailedPart] = useState<any | null>(null);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
-  const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=60";
+  const DEFAULT_IMAGE = '/favicon.svg';
   const isBNPLEnabled = siteSettings?.enableBNPL ?? true;
 
   // إعادة ضبط الحد عند كل بحث جديد
@@ -714,13 +775,13 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&select=year`;
+      const url = partsUrlForMake(make, 'year');
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
         const expandedYearsSet = new Set<string>();
 
-        data.forEach((item: any) => {
+        (Array.isArray(data) ? data : []).forEach((item: any) => {
           const yStr = String(item.year || '').trim();
           if (yStr.includes('-')) {
             const [start, end] = yStr.split('-').map(Number);
@@ -753,20 +814,15 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&select=model,year`;
+      const url = partsUrlForMake(make, 'model,year');
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
         const availableModels = Array.from(new Set(
-          data.filter((item: any) => {
-            const yStr = String(item.year || '').trim();
-            if (yStr.includes('-')) {
-              const [start, end] = yStr.split('-').map(Number);
-              const target = Number(year);
-              return target >= Math.min(start, end) && target <= Math.max(start, end);
-            }
-            return yStr === year;
-          }).map((item: any) => item.model).filter(Boolean)
+          (Array.isArray(data) ? data : [])
+            .filter((item: any) => yearMatchesPart(item.year || '', year))
+            .map((item: any) => item.model)
+            .filter(Boolean)
         )) as string[];
 
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: availableModels }));
@@ -785,26 +841,30 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&model=eq.${encodeURIComponent(model)}&select=engine,year`;
+      const url = partsUrlForMake(make, 'engine,year,model');
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const filteredData = data.filter((item: any) => {
-          const yStr = String(item.year || '').trim();
-          if (yStr.includes('-')) {
-            const [start, end] = yStr.split('-').map(Number);
-            const target = Number(year);
-            matchTarget(start, end, target);
-          }
-          return yStr === year;
-        });
+        const filteredData = (Array.isArray(data) ? data : []).filter(
+          (item: any) =>
+            yearMatchesPart(item.year || '', year) &&
+            modelMatchesPart(item.model || '', model)
+        );
 
-        function matchTarget(start: number, end: number, target: number) {
-          return target >= Math.min(start, end) && target <= Math.max(start, end);
+        let uniqueEngines = Array.from(
+          new Set(
+            filteredData.map((item: any) =>
+              item.engine && item.engine.trim() !== ''
+                ? item.engine
+                : isRtl
+                  ? 'جميع المحركات (بنزين / ديزل)'
+                  : 'All Engines'
+            )
+          )
+        ) as string[];
+        if (uniqueEngines.length === 0) {
+          uniqueEngines = [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'];
         }
-
-        let uniqueEngines = Array.from(new Set(filteredData.map((item: any) => item.engine && item.engine.trim() !== '' ? item.engine : (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines')))) as string[];
-        if (uniqueEngines.length === 0) uniqueEngines = [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'];
 
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: uniqueEngines }));
         return uniqueEngines;
@@ -816,32 +876,29 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'];
   };
 
+  const filterVehicleParts = (data: any[], year: string, model: string) =>
+    (Array.isArray(data) ? data : []).filter(
+      (p: any) =>
+        yearMatchesPart(p.year || '', year) && modelMatchesPart(p.model || '', model)
+    );
+
   const fetchMainCategoriesForEngine = async (make: string, year: string, model: string, engine: string) => {
     const cacheKey = `maincats_${make}_${year}_${model}_${engine}`;
     if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&model=eq.${encodeURIComponent(model)}&select=name,category,engine,year`;
+      const url = partsUrlForMake(make, 'name,category,engine,year,model');
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const filteredParts = data.filter((p: any) => {
-          const yStr = String(p.year || '').trim();
-          let matchYear = yStr === year;
-          if (yStr.includes('-')) {
-            const [start, end] = yStr.split('-').map(Number);
-            const target = Number(year);
-            matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
-          }
-          return matchYear;
-        });
+        const filteredParts = filterVehicleParts(data, year, model);
 
         const mainCategories = new Set<string>();
         filteredParts.forEach((p: any) => {
-          const pCat = p.category || getPartCategory(p.name) || '';
-          const mainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-          if (mainCat) mainCategories.add(mainCat);
+          const pCat = (p.category && String(p.category).trim()) || getPartCategory(p.name) || '';
+          const mainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat.trim();
+          if (mainCat && mainCat !== 'عام') mainCategories.add(mainCat);
         });
 
         const result = Array.from(mainCategories);
@@ -861,28 +918,25 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&model=eq.${encodeURIComponent(model)}&select=name,category,engine,year`;
+      const url = partsUrlForMake(make, 'name,category,engine,year,model');
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const filteredParts = data.filter((p: any) => {
-          const yStr = String(p.year || '').trim();
-          let matchYear = yStr === year;
-          if (yStr.includes('-')) {
-            const [start, end] = yStr.split('-').map(Number);
-            const target = Number(year);
-            matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
-          }
-          const pCat = p.category || getPartCategory(p.name) || '';
-          const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-          return matchYear && pMainCat === mainCategory;
+        const filteredParts = filterVehicleParts(data, year, model).filter((p: any) => {
+          const pCat = (p.category && String(p.category).trim()) || getPartCategory(p.name) || '';
+          const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat.trim();
+          return categoryEquals(pMainCat, mainCategory);
         });
 
         const subCategories = new Set<string>();
         filteredParts.forEach((p: any) => {
-          const pCat = p.category || getPartCategory(p.name) || '';
-          const subCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (isRtl ? 'عام / أخرى' : 'General / Other');
-          subCategories.add(subCat);
+          const pCat = (p.category && String(p.category).trim()) || getPartCategory(p.name) || '';
+          const subCat = pCat.includes('>')
+            ? pCat.split('>')[1].trim()
+            : isRtl
+              ? 'عام / أخرى'
+              : 'General / Other';
+          if (subCat) subCategories.add(subCat);
         });
 
         const result = Array.from(subCategories);
@@ -902,22 +956,19 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
     setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = `${SUPABASE_URL}/parts?make=eq.${encodeURIComponent(make)}&model=eq.${encodeURIComponent(model)}&select=*`;
+      const url = partsUrlForMake(make, '*');
       const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
       if (res.ok) {
         const data = await res.json();
-        const filtered = data.filter((p: any) => {
-          const yStr = String(p.year || '').trim();
-          let matchYear = yStr === year;
-          if (yStr.includes('-')) {
-            const [start, end] = yStr.split('-').map(Number);
-            const target = Number(year);
-            matchYear = target >= Math.min(start, end) && target <= Math.max(start, end);
-          }
-          const pCat = p.category || getPartCategory(p.name) || '';
-          const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-          const pSubCat = pCat.includes('>') ? pCat.split('>')[1].trim() : (isRtl ? 'عام / أخرى' : 'General / Other');
-          return matchYear && pMainCat === mainCategory && pSubCat === subCategory;
+        const filtered = filterVehicleParts(data, year, model).filter((p: any) => {
+          const pCat = (p.category && String(p.category).trim()) || getPartCategory(p.name) || '';
+          const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat.trim();
+          const pSubCat = pCat.includes('>')
+            ? pCat.split('>')[1].trim()
+            : isRtl
+              ? 'عام / أخرى'
+              : 'General / Other';
+          return categoryEquals(pMainCat, mainCategory) && categoryEquals(pSubCat, subCategory);
         });
         setNodeDataCache(prev => ({ ...prev, [cacheKey]: filtered }));
         return filtered;
@@ -1093,7 +1144,12 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
             <img
               src={activeImage}
               alt={displayName}
-              onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_IMAGE; }}
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                if (el.dataset.fb === '1') { el.onerror = null; return; }
+                el.dataset.fb = '1';
+                el.src = DEFAULT_IMAGE;
+              }}
               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '13px', border: `1px solid ${TOKENS.hairline}` }}
             />
             {allImages.length > 1 && (
@@ -1703,9 +1759,7 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
                   <li key={make} style={{ marginBottom: '8px' }}>
                     <div onClick={() => toggleNode(makeKey, () => fetchYearsForMake(make))} style={{ ...treeNodeStyle, backgroundColor: isMakeOpen ? TOKENS.skyTint : TOKENS.alabaster, fontWeight: 700, padding: '11px 15px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        {!imgErrors[make] ? (
-                          <img src={`https://www.google.com/s2/favicons?sz=128&domain=${MAKE_DOMAINS[make] || 'google.com'}`} alt={make} style={{ width: '22px', height: '22px', objectFit: 'contain', borderRadius: '4px' }} onError={() => setImgErrors(prev => ({ ...prev, [make]: true }))} />
-                        ) : (<Icon name="car" size={18} strokeWidth={1.6} color={TOKENS.slateText} />)}
+                        <MakeBadge label={makeName} />
                         <span style={{ fontSize: '14.5px', color: TOKENS.ink }}>{makeName} {isYearsLoading && <small style={{ color: TOKENS.copper, fontWeight: 500 }}>{isRtl ? '(فحص...)' : '(Checking...)'}</small>}</span>
                       </div>
                       <Icon name="chevronDown" size={13} strokeWidth={2} color={TOKENS.mutedText} style={{ transform: isMakeOpen ? 'rotate(0deg)' : (isRtl ? 'rotate(90deg)' : 'rotate(-90deg)'), transition: 'transform 0.18s ease' }} />

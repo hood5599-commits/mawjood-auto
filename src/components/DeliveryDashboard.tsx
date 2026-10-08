@@ -36,9 +36,12 @@ export const DeliveryDashboard: React.FC<DeliveryProps> = ({ lang, supabaseUrl, 
     setLoading(true);
     try {
       // 1. جلب الطلبات
-      const response = await fetch(`${restUrl}/orders?select=*&order=id.desc`, {
-        headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
-      });
+      const response = await fetch(
+        `${restUrl}/orders?select=id,order_code,part_name,price,status,customer_phone,garage_id,garage_address,delivery_type,delivery_address,location_lat,location_lng,driver_id,items,total_price&order=id.desc&limit=200`,
+        {
+          headers: { 'apikey': apiKey, 'Authorization': `Bearer ${session?.token || apiKey}` }
+        }
+      );
 
       if (response.ok) {
         const rawOrders = await response.json();

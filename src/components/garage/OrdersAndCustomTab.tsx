@@ -167,7 +167,12 @@ export const OrdersAndCustomTab: React.FC<OrdersAndCustomTabProps> = ({
                     src={order.part_image || order.image_url || order.image || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'} 
                     alt={order.part_name || 'Part'} 
                     style={{ width: '75px', height: '75px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #cbd5e0', flexShrink: 0, backgroundColor: '#ffffff' }} 
-                    onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'; }}
+                    onError={(e: any) => {
+                      const el = e.target as HTMLImageElement;
+                      if (el.dataset.fb === '1') { el.onerror = null; el.src = '/favicon.svg'; return; }
+                      el.dataset.fb = '1';
+                      el.src = '/favicon.svg';
+                    }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <strong style={{ fontSize: '16px', color: '#1f3a5f', display: 'block', marginBottom: '4px' }}>
