@@ -95,32 +95,10 @@ class VisualSearchScreen extends StatefulWidget {
 }
 
 class _VisualSearchScreenState extends State<VisualSearchScreen> {
-  List<PartModel> _inventory = [];
-  bool _loading = true;
+  /// Visual search fetches on-demand; no full catalog preload.
+  final List<PartModel> _inventory = const [];
 
   bool get isAr => widget.lang == 'ar';
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final response = await ApiClient().get('/parts?select=*');
-      if (response.statusCode == 200 && response.data is List) {
-        var parts = (response.data as List)
-            .map((j) => PartModel.fromJson(Map<String, dynamic>.from(j as Map)))
-            .toList();
-        parts = await GarageReputationService.instance.enrichParts(parts);
-        if (mounted) setState(() => _inventory = parts);
-      }
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
 
   Future<void> _addToCart(PartModel part, int qty) async {
     final ok = await AuthGate.requireLogin(context, lang: widget.lang);
@@ -150,34 +128,30 @@ class _VisualSearchScreenState extends State<VisualSearchScreen> {
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
           ),
         ),
-        body: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppTheme.copper),
-              )
-            : SingleChildScrollView(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
+        body: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+          child: SidebarFilters(
+            lang: widget.lang,
+            inventory: _inventory,
+            forceMode: SearchMode.visual,
+            hideLandingCards: true,
+            onAddToCart: _addToCart,
+            onInquire: (part) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CheckoutScreen(
+                    lang: widget.lang,
+                    part: part,
+                    initialStep: 'inquire',
+                  ),
                 ),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
-                child: SidebarFilters(
-                  lang: widget.lang,
-                  inventory: _inventory,
-                  forceMode: SearchMode.visual,
-                  hideLandingCards: true,
-                  onAddToCart: _addToCart,
-                  onInquire: (part) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CheckoutScreen(
-                          lang: widget.lang,
-                          part: part,
-                          initialStep: 'inquire',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -199,20 +173,27 @@ class CategoryTreeScreen extends StatefulWidget {
 }
 
 class _CategoryTreeScreenState extends State<CategoryTreeScreen> {
+  /// Tree leaves fetch on-demand via RPC; inventory only for OEM number search.
   List<PartModel> _inventory = [];
-  bool _loading = true;
+  bool _loading = false;
 
   bool get isAr => widget.lang == 'ar';
 
   @override
   void initState() {
     super.initState();
-    _load();
+    final oem = widget.initialOemQuery?.trim();
+    if (oem != null && oem.isNotEmpty) {
+      _loadOemInventory();
+    }
   }
 
-  Future<void> _load() async {
+  Future<void> _loadOemInventory() async {
+    setState(() => _loading = true);
     try {
-      final response = await ApiClient().get('/parts?select=*');
+      final response = await ApiClient().get(
+        '/parts?is_active=eq.true&select=*&order=id.desc&limit=300',
+      );
       if (response.statusCode == 200 && response.data is List) {
         var parts = (response.data as List)
             .map((j) => PartModel.fromJson(Map<String, dynamic>.from(j as Map)))

@@ -66,6 +66,16 @@ class ApiClient {
     );
   }
 
+  /// RPC / JSON function calls — do not force Prefer:return=minimal.
+  Future<Response> postRpc(String path, {dynamic data}) {
+    final normalized = path.startsWith('/') ? path : '/$path';
+    return dio.post(
+      normalized,
+      data: data,
+      options: Options(headers: _headers),
+    );
+  }
+
   Future<Response> postReturning(String path, {dynamic data}) {
     return dio.post(
       path,

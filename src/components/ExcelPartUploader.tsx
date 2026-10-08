@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
+import { emitCatalogRefresh } from '../utils/partsLiveQuery';
 
 interface ExcelPartUploaderProps {
   lang: 'ar' | 'en';
@@ -520,6 +521,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
           part_condition: 'New',
           warranty: finalWarranty,
           user_id: session?.user?.id || session?.id || session?.phone || 'garage',
+          is_active: true,
           image_url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=400&q=80'
         };
       });
@@ -550,6 +552,7 @@ export const ExcelPartUploader: React.FC<ExcelPartUploaderProps> = ({
     }
 
     setStep('done');
+    emitCatalogRefresh('excel-upload');
     onSuccess();
   };
 

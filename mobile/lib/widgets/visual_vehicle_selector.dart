@@ -4,8 +4,7 @@ import '../config/theme.dart';
 import '../data/car_data.dart';
 import '../data/category_images.dart';
 import '../models/part_model.dart';
-import '../services/api_client.dart';
-import '../utils/vin_matcher.dart';
+import '../services/parts_live_query.dart';
 import 'part_card.dart';
 
 enum SelectorStep { idle, engine, mainCat, subCat, parts }
@@ -58,11 +57,15 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
 
   SelectorStep _currentStep = SelectorStep.idle;
 
-  List<PartModel> _carFilteredParts = [];
+  /// Lightweight facet index (not full part payloads).
+  List<Map<String, dynamic>> _vehicleIndex = [];
   List<String> _availableEngines = [];
   List<String> _availableMainCats = [];
   List<String> _availableSubCats = [];
   List<PartModel> _matchingParts = [];
+  int _partsTotal = 0;
+  bool _partsHasMore = false;
+  bool _partsLoading = false;
 
   String _chosenEngine = '';
   String _chosenMainCat = '';
@@ -327,7 +330,7 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
     "Wiper Blade": {"ar": "مساحات وشفرات الزجاج", "en": "Wiper Blades"},
   };
 
-  // 1️⃣ بدء البحث البصري عند اختيار السيارة
+  // 1️⃣ بدء البحث البصري — فهرس خفيف فقط ثم جلب لحظي عند النقر
   Future<void> _handleStartSearch() async {
     if (_selectedMake.isEmpty ||
         _selectedModel.isEmpty ||
@@ -335,56 +338,45 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _matchingParts = [];
+      _partsTotal = 0;
+      _partsHasMore = false;
+    });
 
     try {
-      final enMake = CarData.brands[_selectedMake]?.en ?? _selectedMake;
-      // Match web VisualVehicleSelector: ilike both AR + EN make, then client filter.
-      // Do NOT pre-encode — ApiClient/Uri.parse encodes once.
-      final response = await ApiClient().get(
-        '/parts?or=(make.ilike.*$_selectedMake*,make.ilike.*$enMake*)&select=*',
+      final index = await PartsLiveQuery.fetchVehicleFacetIndex(
+        make: _selectedMake,
+        model: _selectedModel,
+        year: _selectedYear,
       );
+      if (!mounted) return;
+      _vehicleIndex = index;
 
-      if (response.statusCode == 200 && response.data is List) {
-        final List rawList = response.data;
-        final parts = rawList
-            .whereType<Map>()
-            .map((j) => PartModel.fromJson(Map<String, dynamic>.from(j)))
-            .toList();
+      final rawEngines = index
+          .map((p) {
+            final eng = (p['engine'] ?? '').toString().trim();
+            return eng.isNotEmpty
+                ? eng
+                : (isAr ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines');
+          })
+          .toSet()
+          .toList();
 
-        final matchedVehicles = parts.where((p) {
-          // Web: isModelMatching(dbModel, selected) / isYearMatching(dbYear, selected)
-          final matchModel =
-              VinMatcher.isModelMatched(p.model, _selectedModel);
-          final matchYear = VinMatcher.isYearMatched(p.year, _selectedYear);
-          return matchModel && matchYear;
-        }).toList();
+      _availableEngines = rawEngines.isNotEmpty
+          ? rawEngines
+          : [isAr ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'];
 
-        _carFilteredParts = matchedVehicles;
-
-        final rawEngines = matchedVehicles
-            .map(
-              (p) => (p.engine != null && p.engine!.trim().isNotEmpty)
-                  ? p.engine!
-                  : (isAr ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'),
-            )
-            .toSet()
-            .toList();
-
-        _availableEngines = rawEngines.isNotEmpty
-            ? rawEngines
-            : [isAr ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'];
-
-        if (_selectedEngine.isNotEmpty) {
-          _chosenEngine = _selectedEngine;
-          _loadMainCategories(matchedVehicles, _selectedEngine);
-        } else if (_availableEngines.length <= 1) {
-          final defaultEng = _availableEngines.first;
-          _chosenEngine = defaultEng;
-          _loadMainCategories(matchedVehicles, defaultEng);
-        } else {
-          setState(() => _currentStep = SelectorStep.engine);
-        }
+      if (_selectedEngine.isNotEmpty) {
+        _chosenEngine = _selectedEngine;
+        _loadMainCategories(index, _selectedEngine);
+      } else if (_availableEngines.length <= 1) {
+        final defaultEng = _availableEngines.first;
+        _chosenEngine = defaultEng;
+        _loadMainCategories(index, defaultEng);
+      } else {
+        setState(() => _currentStep = SelectorStep.engine);
       }
     } catch (_) {
     } finally {
@@ -393,25 +385,23 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
   }
 
   // 2️⃣ استخراج الأقسام الرئيسية المتاحة للسيارة
-  void _loadMainCategories(List<PartModel> partsList, String? engine) {
+  void _loadMainCategories(List<Map<String, dynamic>> partsList, String? engine) {
     final filtered =
         (engine != null &&
             !engine.contains('جميع المحركات') &&
             !engine.contains('All Engines'))
-        ? partsList
-              .where(
-                (p) =>
-                    p.engine == null ||
-                    p.engine!.contains('جميع') ||
-                    p.engine!.contains('All') ||
-                    p.engine == engine,
-              )
-              .toList()
+        ? partsList.where((p) {
+            final eng = (p['engine'] ?? '').toString();
+            return eng.isEmpty ||
+                eng.contains('جميع') ||
+                eng.contains('All') ||
+                eng == engine;
+          }).toList()
         : partsList;
 
     final mainCats = <String>{};
     for (final p in filtered) {
-      final pCat = p.category ?? '';
+      final pCat = (p['category'] ?? '').toString();
       final main = pCat.contains('>') ? pCat.split('>')[0].trim() : pCat;
       if (main.isNotEmpty && main != 'عام') {
         mainCats.add(main);
@@ -427,16 +417,48 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
   // 3️⃣ اختيار المحرك
   void _handleSelectEngine(String eng) {
     _chosenEngine = eng;
-    _loadMainCategories(_carFilteredParts, eng);
+    _loadMainCategories(_vehicleIndex, eng);
+  }
+
+  Future<void> _loadPartsPage(
+    String mainCat,
+    String subCat, {
+    required int offset,
+    required bool append,
+  }) async {
+    setState(() => _partsLoading = true);
+    try {
+      final result = await PartsLiveQuery.searchPartsCatalog(
+        make: _selectedMake,
+        model: _selectedModel,
+        year: _selectedYear,
+        mainCategory: mainCat,
+        subCategory: subCat.isEmpty ? null : subCat,
+        offset: offset,
+        limit: PartsLiveQuery.pageSize,
+      );
+      if (!mounted) return;
+      setState(() {
+        _matchingParts =
+            append ? [..._matchingParts, ...result.items] : result.items;
+        _partsTotal = result.total;
+        _partsHasMore = result.hasMore;
+        _currentStep = SelectorStep.parts;
+      });
+    } finally {
+      if (mounted) setState(() => _partsLoading = false);
+    }
   }
 
   // 4️⃣ اختيار القسم الرئيسي
-  void _handleSelectMainCat(String cat) {
+  Future<void> _handleSelectMainCat(String cat) async {
     _chosenMainCat = cat;
+    _chosenSubCat = '';
+    _matchingParts = [];
 
     final subCats = <String>{};
-    for (final p in _carFilteredParts) {
-      final pCat = p.category ?? '';
+    for (final p in _vehicleIndex) {
+      final pCat = (p['category'] ?? '').toString();
       final main = pCat.contains('>') ? pCat.split('>')[0].trim() : pCat;
       final sub = pCat.contains('>') ? pCat.split('>')[1].trim() : '';
       if (main == cat && sub.isNotEmpty) {
@@ -445,13 +467,7 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
     }
 
     if (subCats.isEmpty) {
-      final parts = _carFilteredParts
-          .where((p) => (p.category ?? '').contains(cat))
-          .toList();
-      setState(() {
-        _matchingParts = parts;
-        _currentStep = SelectorStep.parts;
-      });
+      await _loadPartsPage(cat, '', offset: 0, append: false);
     } else {
       setState(() {
         _availableSubCats = subCats.toList();
@@ -460,21 +476,21 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
     }
   }
 
-  // 5️⃣ اختيار القسم الفرعي
-  void _handleSelectSubCat(String subCat) {
+  // 5️⃣ اختيار القسم الفرعي — جلب لحظي
+  Future<void> _handleSelectSubCat(String subCat) async {
     _chosenSubCat = subCat;
+    _matchingParts = [];
+    await _loadPartsPage(_chosenMainCat, subCat, offset: 0, append: false);
+  }
 
-    final finalParts = _carFilteredParts.where((p) {
-      final pCat = p.category ?? '';
-      final main = pCat.contains('>') ? pCat.split('>')[0].trim() : pCat;
-      final sub = pCat.contains('>') ? pCat.split('>')[1].trim() : '';
-      return main == _chosenMainCat && (sub == subCat || sub.isEmpty);
-    }).toList();
-
-    setState(() {
-      _matchingParts = finalParts;
-      _currentStep = SelectorStep.parts;
-    });
+  Future<void> _handleLoadMoreParts() async {
+    if (!_partsHasMore || _partsLoading) return;
+    await _loadPartsPage(
+      _chosenMainCat,
+      _chosenSubCat,
+      offset: _matchingParts.length,
+      append: true,
+    );
   }
 
   void _resetSelection() {
@@ -484,6 +500,9 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
       _chosenMainCat = '';
       _chosenSubCat = '';
       _matchingParts = [];
+      _partsTotal = 0;
+      _partsHasMore = false;
+      _vehicleIndex = [];
     });
   }
 
@@ -1162,8 +1181,12 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
     );
   }
 
-  // 🛒 6. عرض القطع المتوافقة
+  // 🛒 6. عرض القطع المتوافقة — جلب لحظي + تحميل إضافي
   Widget _buildMatchingPartsGrid() {
+    final countLabel = _partsTotal > 0
+        ? '${_matchingParts.length} / $_partsTotal'
+        : '${_matchingParts.length}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1172,8 +1195,8 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
           children: [
             Text(
               isAr
-                  ? '🛒 القطع المتوافقة المتوفرة (${_matchingParts.length}):'
-                  : '🛒 Compatible Parts (${_matchingParts.length}):',
+                  ? '🛒 القطع المتوافقة المتوفرة ($countLabel):'
+                  : '🛒 Compatible Parts ($countLabel):',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -1203,7 +1226,29 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
           ],
         ),
         const SizedBox(height: 14),
-        if (_matchingParts.isEmpty)
+        if (_partsLoading && _matchingParts.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: AppTheme.cardBg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppTheme.borderSlate),
+            ),
+            child: Column(
+              children: [
+                const CircularProgressIndicator(color: AppTheme.copper),
+                const SizedBox(height: 12),
+                Text(
+                  isAr ? 'جاري جلب القطع لحظياً...' : 'Fetching live parts...',
+                  style: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (_matchingParts.isEmpty)
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
@@ -1223,7 +1268,7 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
               ),
             ),
           )
-        else
+        else ...[
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -1249,6 +1294,31 @@ class _VisualVehicleSelectorState extends State<VisualVehicleSelector> {
               );
             },
           ),
+          if (_partsHasMore) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: ElevatedButton(
+                onPressed: _partsLoading ? null : _handleLoadMoreParts,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 12,
+                  ),
+                ),
+                child: Text(
+                  _partsLoading
+                      ? (isAr ? 'جاري التحميل...' : 'Loading...')
+                      : (isAr
+                          ? 'عرض المزيد (+${PartsLiveQuery.pageSize})'
+                          : 'Load more (+${PartsLiveQuery.pageSize})'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ],
       ],
     );
   }

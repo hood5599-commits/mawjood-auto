@@ -24,6 +24,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 // 🚗 استيراد بيانات السيارات المركزية والمتغيرات الآمنة
 import { CAR_DATA, CAR_YEARS as YEARS, TRANSLATE_MAKE, TRANSLATE_MODEL } from './data/carData';
 import { SUPABASE_URL, API_KEY } from './config/supabase';
+import { emitCatalogRefresh } from './utils/partsLiveQuery';
 
 const AUTH_URL = SUPABASE_URL.replace(/\/rest\/v1\/?$/, '') + '/auth/v1';
 
@@ -179,12 +180,15 @@ export default function App() {
 
   const fetchParts = async () => {
     try {
-      const response = await fetch(`${SUPABASE_URL}/parts?select=*`, {
-        headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` }
-      });
+      const response = await fetch(
+        `${SUPABASE_URL}/parts?is_active=eq.true&select=*&order=id.desc&limit=500`,
+        {
+          headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` },
+        }
+      );
       const data = await response.json();
       if (Array.isArray(data)) {
-        setInventory(data.sort((a, b) => b.id - a.id));
+        setInventory(data);
       }
     } catch (error) { 
       console.error(error); 
@@ -557,7 +561,10 @@ export default function App() {
                 supabaseUrl={SUPABASE_URL} 
                 apiKey={API_KEY} 
                 session={session} 
-                onSuccess={() => { fetchParts(); }} 
+                onSuccess={() => {
+                  fetchParts();
+                  emitCatalogRefresh('garage-mutation');
+                }} 
               />
             )}
 

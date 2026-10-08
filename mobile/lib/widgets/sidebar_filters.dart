@@ -5,6 +5,7 @@ import '../data/car_data.dart';
 import '../models/part_model.dart';
 import '../models/vehicle_model.dart';
 import '../services/api_client.dart';
+import '../services/parts_live_query.dart';
 import '../utils/category_helper.dart';
 import '../utils/vin_matcher.dart';
 import '../widgets/custom_toast.dart';
@@ -65,6 +66,8 @@ class _SidebarFiltersState extends State<SidebarFilters> {
   final Map<String, bool> _expandedNodes = {};
   final Map<String, dynamic> _nodeDataCache = {};
   final Map<String, bool> _loadingNodes = {};
+  /// Live paginated leaf: key -> {items, total, hasMore}
+  final Map<String, Map<String, dynamic>> _livePartsPages = {};
 
   // نافذة طلب قطعة غير متوفرة
   final TextEditingController _reqPhoneController = TextEditingController();
@@ -141,46 +144,14 @@ class _SidebarFiltersState extends State<SidebarFilters> {
     return 'uncertain';
   }
 
-  // جلب السنوات المتوفرة لماركة معينة (AR + EN make like web visual search fallback)
+  // جلب السنوات المتوفرة لماركة معينة (RPC لحظي)
   Future<List<String>> _fetchYearsForMake(String make) async {
     final cacheKey = 'years_$make';
-    if (_nodeDataCache.containsKey(cacheKey)) {
-      return List<String>.from(_nodeDataCache[cacheKey]);
-    }
-
     setState(() => _loadingNodes[cacheKey] = true);
     try {
-      final enMake = CarData.brands[make]?.en ?? make;
-      final res = await ApiClient().get(
-        '/parts?or=(make.ilike.*$make*,make.ilike.*$enMake*)&select=year',
-      );
-      if (res.statusCode == 200 && res.data is List) {
-        final yearsSet = <String>{};
-        for (final item in res.data) {
-          final yStr = (item['year'] ?? '').toString().trim();
-          if (yStr.contains('-')) {
-            final parts = yStr
-                .split('-')
-                .map((e) => int.tryParse(e.trim()))
-                .toList();
-            if (parts.length == 2 && parts[0] != null && parts[1] != null) {
-              final a = parts[0]!;
-              final b = parts[1]!;
-              for (int y = (a < b ? a : b); y <= (a > b ? a : b); y++) {
-                yearsSet.add(y.toString());
-              }
-            }
-          } else if (yStr.isNotEmpty) {
-            yearsSet.add(yStr);
-          }
-        }
-        final sorted = yearsSet.toList()
-          ..sort(
-            (a, b) => (int.tryParse(b) ?? 0).compareTo(int.tryParse(a) ?? 0),
-          );
-        _nodeDataCache[cacheKey] = sorted;
-        return sorted;
-      }
+      final sorted = await PartsLiveQuery.fetchYearsForMakeLive(make);
+      _nodeDataCache[cacheKey] = sorted;
+      return sorted;
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loadingNodes[cacheKey] = false);
@@ -265,40 +236,41 @@ class _SidebarFiltersState extends State<SidebarFilters> {
     return [];
   }
 
-  // جلب قطع القسم
+  // جلب قطع القسم — لحظي عبر RPC (20/صفحة)
   Future<List<PartModel>> _fetchPartsForCategory(
     String make,
     String year,
     String model,
-    String mainCat,
-  ) async {
+    String mainCat, {
+    int offset = 0,
+    bool append = false,
+  }) async {
     final cacheKey = 'parts_${make}_${year}_${model}_$mainCat';
-    if (_nodeDataCache.containsKey(cacheKey)) {
-      return List<PartModel>.from(_nodeDataCache[cacheKey]);
-    }
-
     setState(() => _loadingNodes[cacheKey] = true);
     try {
-      final enMake = CarData.brands[make]?.en ?? make;
-      final res = await ApiClient().get(
-        '/parts?or=(make.ilike.*$make*,make.ilike.*$enMake*)&select=*',
+      final result = await PartsLiveQuery.searchPartsCatalog(
+        make: make,
+        model: model,
+        year: year,
+        mainCategory: mainCat,
+        offset: offset,
+        limit: PartsLiveQuery.pageSize,
       );
-      if (res.statusCode == 200 && res.data is List) {
-        final parts = (res.data as List)
-            .whereType<Map>()
-            .map((j) => PartModel.fromJson(Map<String, dynamic>.from(j)))
-            .where((p) {
-              if (!VinMatcher.isModelMatched(p.model, model)) return false;
-              final cat = p.category ?? CategoryHelper.getPartCategory(p.name);
-              final matchCat = cat.contains(mainCat);
-              final matchYear = VinMatcher.isYearMatched(p.year, year);
-              return matchCat && matchYear;
-            })
-            .toList();
-
-        _nodeDataCache[cacheKey] = parts;
-        return parts;
-      }
+      if (!mounted) return result.items;
+      final prevItems = append
+          ? List<PartModel>.from(
+              (_livePartsPages[cacheKey]?['items'] as List<PartModel>?) ??
+                  const [],
+            )
+          : <PartModel>[];
+      setState(() {
+        _livePartsPages[cacheKey] = {
+          'items': [...prevItems, ...result.items],
+          'total': result.total,
+          'hasMore': result.hasMore,
+        };
+      });
+      return result.items;
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loadingNodes[cacheKey] = false);
@@ -316,6 +288,10 @@ class _SidebarFiltersState extends State<SidebarFilters> {
         _expandedNodes.removeWhere(
           (k, _) => k == nodeKey || k.startsWith(nodeKey),
         );
+        final partsKey = nodeKey.startsWith('cat_')
+            ? nodeKey.replaceFirst('cat_', 'parts_')
+            : null;
+        if (partsKey != null) _livePartsPages.remove(partsKey);
       });
     } else {
       setState(() => _expandedNodes[nodeKey] = true);
@@ -1234,11 +1210,23 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                                                     true;
                                                 final partsKey =
                                                     'parts_${make}_${year}_${model}_$mainCat';
+                                                final livePage =
+                                                    _livePartsPages[partsKey];
                                                 final partsList =
                                                     List<PartModel>.from(
-                                                      _nodeDataCache[partsKey] ??
-                                                          [],
+                                                      (livePage?['items']
+                                                              as List<
+                                                                  PartModel>?) ??
+                                                          const [],
                                                     );
+                                                final isPartsLoading =
+                                                    _loadingNodes[partsKey] ==
+                                                    true;
+                                                final hasMore =
+                                                    livePage?['hasMore'] ==
+                                                    true;
+                                                final total =
+                                                    livePage?['total'] as int?;
 
                                                 return Column(
                                                   children: [
@@ -1246,78 +1234,171 @@ class _SidebarFiltersState extends State<SidebarFilters> {
                                                       type: MaterialType
                                                           .transparency,
                                                       child: ListTile(
-                                                      dense: true,
-                                                      title: Text(
-                                                        mainCat,
-                                                        style: const TextStyle(
-                                                          fontSize: 11.5,
-                                                          color: AppTheme
-                                                              .copperLight,
-                                                          fontWeight:
-                                                              FontWeight.bold,
+                                                        dense: true,
+                                                        title: Text(
+                                                          total != null
+                                                              ? '$mainCat ($total)'
+                                                              : mainCat,
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 11.5,
+                                                            color: AppTheme
+                                                                .copperLight,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                        trailing: isPartsLoading
+                                                            ? const SizedBox(
+                                                                width: 16,
+                                                                height: 16,
+                                                                child:
+                                                                    CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                  color: AppTheme
+                                                                      .copper,
+                                                                ),
+                                                              )
+                                                            : null,
+                                                        onTap: () =>
+                                                            _toggleNode(
+                                                          catKey,
+                                                          () =>
+                                                              _fetchPartsForCategory(
+                                                            make,
+                                                            year,
+                                                            model,
+                                                            mainCat,
+                                                          ),
                                                         ),
                                                       ),
-                                                      onTap: () => _toggleNode(
-                                                        catKey,
-                                                        () =>
-                                                            _fetchPartsForCategory(
-                                                              make,
-                                                              year,
-                                                              model,
-                                                              mainCat,
-                                                            ),
-                                                      ),
                                                     ),
-                                                    ),
-                                                    if (isCatOpen &&
-                                                        partsList.isNotEmpty)
-                                                      Padding(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              vertical: 8,
+                                                    if (isCatOpen) ...[
+                                                      if (isPartsLoading &&
+                                                          partsList.isEmpty)
+                                                        const Padding(
+                                                          padding:
+                                                              EdgeInsets.all(
+                                                            16,
+                                                          ),
+                                                          child: Center(
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                              color: AppTheme
+                                                                  .copper,
                                                             ),
-                                                        child: GridView.builder(
-                                                          shrinkWrap: true,
-                                                          physics:
-                                                              const NeverScrollableScrollPhysics(),
-                                                          gridDelegate:
-                                                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                                                                maxCrossAxisExtent:
-                                                                    340,
-                                                                mainAxisExtent:
-                                                                    455,
-                                                                crossAxisSpacing:
-                                                                    10,
-                                                                mainAxisSpacing:
-                                                                    10,
-                                                              ),
-                                                          itemCount:
-                                                              partsList.length,
-                                                          itemBuilder:
-                                                              (
-                                                                context,
-                                                                pIdx,
-                                                              ) => PartCard(
-                                                                item:
-                                                                    partsList[pIdx],
-                                                                lang:
-                                                                    widget.lang,
-                                                                onAddToCart:
+                                                          ),
+                                                        )
+                                                      else if (partsList
+                                                          .isEmpty)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            vertical: 8,
+                                                          ),
+                                                          child: Text(
+                                                            isAr
+                                                                ? 'لا توجد قطع معروضة حالياً.'
+                                                                : 'No parts available currently.',
+                                                            style:
+                                                                const TextStyle(
+                                                              color: AppTheme
+                                                                  .textMuted,
+                                                              fontSize: 12,
+                                                            ),
+                                                          ),
+                                                        )
+                                                      else
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            vertical: 8,
+                                                          ),
+                                                          child: Column(
+                                                            children: [
+                                                              GridView.builder(
+                                                                shrinkWrap:
+                                                                    true,
+                                                                physics:
+                                                                    const NeverScrollableScrollPhysics(),
+                                                                gridDelegate:
+                                                                    const SliverGridDelegateWithMaxCrossAxisExtent(
+                                                                  maxCrossAxisExtent:
+                                                                      340,
+                                                                  mainAxisExtent:
+                                                                      455,
+                                                                  crossAxisSpacing:
+                                                                      10,
+                                                                  mainAxisSpacing:
+                                                                      10,
+                                                                ),
+                                                                itemCount:
+                                                                    partsList
+                                                                        .length,
+                                                                itemBuilder:
                                                                     (
-                                                                      p,
-                                                                    ) => widget
-                                                                        .onAddToCart
-                                                                        ?.call(
-                                                                          p,
-                                                                          1,
-                                                                        ),
-                                                                onInquire: widget
-                                                                    .onInquire,
-                                                                onMore:
-                                                                    _openPartDetails,
+                                                                  context,
+                                                                  pIdx,
+                                                                ) => PartCard(
+                                                                  item: partsList[
+                                                                      pIdx],
+                                                                  lang: widget
+                                                                      .lang,
+                                                                  onAddToCart:
+                                                                      (p) => widget
+                                                                          .onAddToCart
+                                                                          ?.call(
+                                                                        p,
+                                                                        1,
+                                                                      ),
+                                                                  onInquire: widget
+                                                                      .onInquire,
+                                                                  onMore:
+                                                                      _openPartDetails,
+                                                                ),
                                                               ),
+                                                              if (hasMore)
+                                                                Padding(
+                                                                  padding:
+                                                                      const EdgeInsets
+                                                                          .only(
+                                                                    top: 10,
+                                                                  ),
+                                                                  child:
+                                                                      TextButton(
+                                                                    onPressed:
+                                                                        isPartsLoading
+                                                                            ? null
+                                                                            : () => _fetchPartsForCategory(
+                                                                                  make,
+                                                                                  year,
+                                                                                  model,
+                                                                                  mainCat,
+                                                                                  offset: partsList.length,
+                                                                                  append: true,
+                                                                                ),
+                                                                    child: Text(
+                                                                      isPartsLoading
+                                                                          ? (isAr
+                                                                              ? 'جاري التحميل...'
+                                                                              : 'Loading...')
+                                                                          : (isAr
+                                                                              ? 'عرض المزيد (+${PartsLiveQuery.pageSize})'
+                                                                              : 'Load more (+${PartsLiveQuery.pageSize})'),
+                                                                      style: const TextStyle(
+                                                                        fontWeight:
+                                                                            FontWeight.w800,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                            ],
+                                                          ),
                                                         ),
-                                                      ),
+                                                    ],
                                                   ],
                                                 );
                                               }).toList(),

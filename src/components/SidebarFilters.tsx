@@ -10,6 +10,12 @@ import { scanIstemara } from '../utils/istemaraScanner';
 // 🚗 استيراد بيانات السيارات المركزية
 import { CAR_DATA } from '../data/carData';
 import { SUPABASE_URL, API_KEY } from '../config/supabase';
+import {
+  CATALOG_REFRESH_EVENT,
+  fetchYearsForMakeLive,
+  PARTS_PAGE_SIZE,
+  searchPartsCatalog,
+} from '../utils/partsLiveQuery';
 
 /* ============================================================================
    DESIGN TOKENS — "Mawjood Auto" Luxury System
@@ -478,7 +484,7 @@ const partsUrlForMake = (make: string, select: string) => {
   const ar = CAR_DATA[make]?.ar || make;
   const makes = Array.from(new Set([make, en, ar].filter(Boolean)));
   const or = makes.map((m) => `make.ilike.*${encodeURIComponent(m)}*`).join(',');
-  return `${SUPABASE_URL}/parts?or=(${or})&select=${select}&limit=800`;
+  return `${SUPABASE_URL}/parts?or=(${or})&is_active=eq.true&select=${select}&limit=800`;
 };
 
 interface SidebarProps {
@@ -531,8 +537,33 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [nodeDataCache, setNodeDataCache] = useState<Record<string, any>>({});
   const [loadingNodes, setLoadingNodes] = useState<Record<string, boolean>>({});
+  /** Live paginated leaf results: key -> { items, total, hasMore } */
+  const [livePartsPages, setLivePartsPages] = useState<
+    Record<string, { items: any[]; total: number; hasMore: boolean }>
+  >({});
 
   const [partQuantities, setPartQuantities] = useState<Record<number, number>>({});
+
+  // Bust tree caches when shop inventory refreshes (e.g. after Excel upload)
+  useEffect(() => {
+    const bust = () => {
+      setNodeDataCache({});
+      setLivePartsPages({});
+      setExpandedNodes({});
+    };
+    window.addEventListener(CATALOG_REFRESH_EVENT, bust);
+    return () => window.removeEventListener(CATALOG_REFRESH_EVENT, bust);
+  }, []);
+
+  // Only bust when inventory payload identity changes (not every parent re-render)
+  const inventorySig =
+    Array.isArray(inventory) && inventory.length > 0
+      ? `${inventory.length}:${inventory[0]?.id}:${inventory[inventory.length - 1]?.id}`
+      : '0';
+  useEffect(() => {
+    setNodeDataCache({});
+    setLivePartsPages({});
+  }, [inventorySig]);
   const [activeSearchQuery, setActiveSearchQuery] = useState<string>('');
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [custPhone, setCustPhone] = useState('');
@@ -771,41 +802,17 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
   const fetchYearsForMake = async (make: string) => {
     const cacheKey = `years_${make}`;
-    if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
-
-    setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
+    // Always live — do not return stale years after Excel upload
+    setLoadingNodes((prev) => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = partsUrlForMake(make, 'year');
-      const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
-      if (res.ok) {
-        const data = await res.json();
-        const expandedYearsSet = new Set<string>();
-
-        (Array.isArray(data) ? data : []).forEach((item: any) => {
-          const yStr = String(item.year || '').trim();
-          if (yStr.includes('-')) {
-            const [start, end] = yStr.split('-').map(Number);
-            if (!isNaN(start) && !isNaN(end)) {
-              for (let y = Math.min(start, end); y <= Math.max(start, end); y++) {
-                expandedYearsSet.add(String(y));
-              }
-            } else {
-              expandedYearsSet.add(yStr);
-            }
-          } else if (yStr) {
-            expandedYearsSet.add(yStr);
-          }
-        });
-
-        const availableYears = Array.from(expandedYearsSet).sort((a, b) => Number(b) - Number(a));
-        setNodeDataCache(prev => ({ ...prev, [cacheKey]: availableYears }));
-        return availableYears;
-      }
+      const availableYears = await fetchYearsForMakeLive(make);
+      setNodeDataCache((prev) => ({ ...prev, [cacheKey]: availableYears }));
+      return availableYears;
     } catch (e) {
+      return [];
     } finally {
-      setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
+      setLoadingNodes((prev) => ({ ...prev, [cacheKey]: false }));
     }
-    return [];
   };
 
   const fetchModelsForYear = async (make: string, year: string) => {
@@ -950,59 +957,85 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
     return [];
   };
 
-  const fetchPartsForSubCategory = async (make: string, year: string, model: string, engine: string, mainCategory: string, subCategory: string) => {
-    const cacheKey = `parts_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
-    if (nodeDataCache[cacheKey]) return nodeDataCache[cacheKey];
-
-    setLoadingNodes(prev => ({ ...prev, [cacheKey]: true }));
+  const fetchPartsForSubCategory = async (
+    make: string,
+    year: string,
+    model: string,
+    _engine: string,
+    mainCategory: string,
+    subCategory: string,
+    offset = 0,
+    append = false
+  ) => {
+    const cacheKey = `parts_${make}_${year}_${model}_${_engine}_${mainCategory}_${subCategory}`;
+    setLoadingNodes((prev) => ({ ...prev, [cacheKey]: true }));
     try {
-      const url = partsUrlForMake(make, '*');
-      const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
-      if (res.ok) {
-        const data = await res.json();
-        const filtered = filterVehicleParts(data, year, model).filter((p: any) => {
-          const pCat = (p.category && String(p.category).trim()) || getPartCategory(p.name) || '';
-          const pMainCat = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat.trim();
-          const pSubCat = pCat.includes('>')
-            ? pCat.split('>')[1].trim()
-            : isRtl
-              ? 'عام / أخرى'
-              : 'General / Other';
-          return categoryEquals(pMainCat, mainCategory) && categoryEquals(pSubCat, subCategory);
-        });
-        setNodeDataCache(prev => ({ ...prev, [cacheKey]: filtered }));
-        return filtered;
-      }
+      const result = await searchPartsCatalog({
+        make,
+        model,
+        year,
+        mainCategory,
+        subCategory:
+          subCategory === 'عام / أخرى' || subCategory === 'General / Other'
+            ? undefined
+            : subCategory,
+        offset,
+        limit: PARTS_PAGE_SIZE,
+      });
+      setLivePartsPages((prev) => {
+        const prevItems = append ? prev[cacheKey]?.items || [] : [];
+        return {
+          ...prev,
+          [cacheKey]: {
+            items: [...prevItems, ...result.items],
+            total: result.total,
+            hasMore: result.hasMore,
+          },
+        };
+      });
+      return result.items;
     } catch (e) {
+      return [];
     } finally {
-      setLoadingNodes(prev => ({ ...prev, [cacheKey]: false }));
+      setLoadingNodes((prev) => ({ ...prev, [cacheKey]: false }));
     }
-    return [];
   };
 
   const toggleNode = async (nodeKey: string, fetchAction?: () => Promise<any>) => {
     const isCurrentlyOpen = !!expandedNodes[nodeKey];
 
     if (isCurrentlyOpen) {
-      setExpandedNodes(prev => {
+      setExpandedNodes((prev) => {
         const nextState = { ...prev };
-        Object.keys(nextState).forEach(key => {
+        Object.keys(nextState).forEach((key) => {
           if (key === nodeKey || key.startsWith(nodeKey)) delete nextState[key];
         });
         return nextState;
       });
-
-      setNodeDataCache(prev => {
+      // Drop related caches so next open is always fresh
+      setNodeDataCache((prev) => {
         const nextCache = { ...prev };
-        const cleanPattern = nodeKey.replace(/^(make|year|model|eng|maincat|subcat)_/, '');
-        Object.keys(nextCache).forEach(cacheKey => {
-          if (cacheKey.includes(cleanPattern) || cacheKey.includes(nodeKey)) delete nextCache[cacheKey];
+        Object.keys(nextCache).forEach((cacheKey) => {
+          if (cacheKey.includes(nodeKey) || nodeKey.includes(cacheKey)) delete nextCache[cacheKey];
         });
         return nextCache;
       });
-
+      setLivePartsPages((prev) => {
+        const next = { ...prev };
+        const partsKey = nodeKey.startsWith('subcat_')
+          ? nodeKey.replace(/^subcat_/, 'parts_')
+          : null;
+        if (partsKey) {
+          delete next[partsKey];
+        } else {
+          Object.keys(next).forEach((k) => {
+            if (k.includes(nodeKey) || nodeKey.includes(k)) delete next[k];
+          });
+        }
+        return next;
+      });
     } else {
-      setExpandedNodes(prev => ({ ...prev, [nodeKey]: true }));
+      setExpandedNodes((prev) => ({ ...prev, [nodeKey]: true }));
       if (fetchAction) await fetchAction();
     }
   };
@@ -1878,27 +1911,97 @@ export const SidebarFilters: React.FC<SidebarProps> = (props) => {
 
                                                                             const partsCacheKey = `parts_${make}_${year}_${model}_${engine}_${mainCategory}_${subCategory}`;
                                                                             const isPartsLoading = !!loadingNodes[partsCacheKey];
-                                                                            const subCategoryParts = processAndSortParts(nodeDataCache[partsCacheKey] || []);
+                                                                            const livePage = livePartsPages[partsCacheKey];
+                                                                            const subCategoryParts = processAndSortParts(livePage?.items || []);
 
                                                                             return (
                                                                               <li key={subCategory} style={{ marginBottom: '6px' }}>
-                                                                                <div onClick={() => toggleNode(subCatKey, () => fetchPartsForSubCategory(make, year, model, engine, mainCategory, subCategory))} style={{ ...treeNodeStyle, backgroundColor: isSubCatOpen ? TOKENS.successTint : 'transparent', fontSize: '12.5px', color: TOKENS.successInk, padding: '7px 11px', fontWeight: 700, borderLeft: isRtl ? 'none' : `3px solid ${TOKENS.success}55`, borderRight: isRtl ? `3px solid ${TOKENS.success}55` : 'none' }}>
+                                                                                <div
+                                                                                  onClick={() =>
+                                                                                    toggleNode(subCatKey, () =>
+                                                                                      fetchPartsForSubCategory(
+                                                                                        make,
+                                                                                        year,
+                                                                                        model,
+                                                                                        engine,
+                                                                                        mainCategory,
+                                                                                        subCategory,
+                                                                                        0,
+                                                                                        false
+                                                                                      )
+                                                                                    )
+                                                                                  }
+                                                                                  style={{ ...treeNodeStyle, backgroundColor: isSubCatOpen ? TOKENS.successTint : 'transparent', fontSize: '12.5px', color: TOKENS.successInk, padding: '7px 11px', fontWeight: 700, borderLeft: isRtl ? 'none' : `3px solid ${TOKENS.success}55`, borderRight: isRtl ? `3px solid ${TOKENS.success}55` : 'none' }}
+                                                                                >
                                                                                   <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                                                                                    <Icon name="dot" size={9} strokeWidth={2} /> {displaySubCategory} {isPartsLoading && <small style={{ color: TOKENS.copper, fontWeight: 500 }}>{isRtl ? '(جلب...)' : '(Fetching...)'}</small>}
+                                                                                    <Icon name="dot" size={9} strokeWidth={2} /> {displaySubCategory}{' '}
+                                                                                    {isPartsLoading && (
+                                                                                      <small style={{ color: TOKENS.copper, fontWeight: 500 }}>
+                                                                                        {isRtl ? '(جلب...)' : '(Fetching...)'}
+                                                                                      </small>
+                                                                                    )}
+                                                                                    {livePage?.total != null && !isPartsLoading && (
+                                                                                      <small style={{ color: TOKENS.mutedText, fontWeight: 600 }}>
+                                                                                        ({livePage.total})
+                                                                                      </small>
+                                                                                    )}
                                                                                   </span>
                                                                                   <Icon name="chevronDown" size={11} strokeWidth={2} color="#94A3B8" style={{ transform: isSubCatOpen ? 'rotate(0deg)' : (isRtl ? 'rotate(90deg)' : 'rotate(-90deg)'), transition: 'transform 0.18s ease' }} />
                                                                                 </div>
 
                                                                                 {isSubCatOpen && (
                                                                                   <div style={{ padding: '18px', backgroundColor: TOKENS.alabaster, borderRadius: '16px', border: `1px solid ${TOKENS.hairline}`, marginTop: '8px', marginBottom: '12px' }}>
-                                                                                    {isPartsLoading ? (
-                                                                                      <p style={{ textAlign: 'center', color: TOKENS.mutedText, margin: 0 }}>{isRtl ? 'جاري تحميل القطع المتاحة...' : 'Loading available parts...'}</p>
+                                                                                    {isPartsLoading && subCategoryParts.length === 0 ? (
+                                                                                      <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                                                                                        <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: TOKENS.copper, margin: '0 auto 10px', animation: 'spin 0.8s linear infinite' }} />
+                                                                                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                                                                                        <p style={{ color: TOKENS.mutedText, margin: 0 }}>{isRtl ? 'جاري جلب القطع لحظياً...' : 'Fetching live parts...'}</p>
+                                                                                      </div>
                                                                                     ) : subCategoryParts.length === 0 ? (
                                                                                       <p style={{ textAlign: 'center', color: '#94A3B8', margin: 0 }}>{isRtl ? 'لا توجد قطع معروضة حالياً.' : 'No parts available currently.'}</p>
                                                                                     ) : (
-                                                                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
-                                                                                        {subCategoryParts.map((part: any) => renderPartCard(part))}
-                                                                                      </div>
+                                                                                      <>
+                                                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
+                                                                                          {subCategoryParts.map((part: any) => renderPartCard(part))}
+                                                                                        </div>
+                                                                                        {livePage?.hasMore && (
+                                                                                          <div style={{ textAlign: 'center', marginTop: 14 }}>
+                                                                                            <button
+                                                                                              type="button"
+                                                                                              disabled={isPartsLoading}
+                                                                                              onClick={() =>
+                                                                                                fetchPartsForSubCategory(
+                                                                                                  make,
+                                                                                                  year,
+                                                                                                  model,
+                                                                                                  engine,
+                                                                                                  mainCategory,
+                                                                                                  subCategory,
+                                                                                                  subCategoryParts.length,
+                                                                                                  true
+                                                                                                )
+                                                                                              }
+                                                                                              style={{
+                                                                                                padding: '10px 18px',
+                                                                                                borderRadius: 10,
+                                                                                                border: 'none',
+                                                                                                backgroundColor: TOKENS.obsidianSoft,
+                                                                                                color: '#fff',
+                                                                                                fontWeight: 800,
+                                                                                                cursor: isPartsLoading ? 'wait' : 'pointer',
+                                                                                              }}
+                                                                                            >
+                                                                                              {isPartsLoading
+                                                                                                ? isRtl
+                                                                                                  ? 'جاري التحميل...'
+                                                                                                  : 'Loading...'
+                                                                                                : isRtl
+                                                                                                  ? `عرض المزيد (+${PARTS_PAGE_SIZE})`
+                                                                                                  : `Load more (+${PARTS_PAGE_SIZE})`}
+                                                                                            </button>
+                                                                                          </div>
+                                                                                        )}
+                                                                                      </>
                                                                                     )}
                                                                                   </div>
                                                                                 )}

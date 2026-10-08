@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CAR_DATA, CAR_YEARS } from '../data/carData';
-import { SUPABASE_URL, API_KEY } from '../config/supabase';
+import {
+  CATALOG_REFRESH_EVENT,
+  fetchVehicleFacetIndex,
+  searchPartsCatalog,
+  PARTS_PAGE_SIZE,
+} from '../utils/partsLiveQuery';
 
 /* ============================================================================
    🖼️ جدول تخصيص الصور لجميع الأقسام الرئيسية (عدّل أو أضف الروابط هنا)
@@ -165,11 +170,15 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
 
   const [currentStep, setCurrentStep] = useState<'idle' | 'engine' | 'main_cat' | 'sub_cat' | 'parts'>('idle');
 
-  const [carFilteredParts, setCarFilteredParts] = useState<any[]>([]);
+  /** Lightweight facet rows only (category/engine) — not full stale inventory dump. */
+  const [vehicleIndex, setVehicleIndex] = useState<any[]>([]);
   const [availableEngines, setAvailableEngines] = useState<string[]>([]);
   const [availableMainCats, setAvailableMainCats] = useState<string[]>([]);
   const [availableSubCats, setAvailableSubCats] = useState<string[]>([]);
   const [matchingParts, setMatchingParts] = useState<any[]>([]);
+  const [partsTotal, setPartsTotal] = useState(0);
+  const [partsHasMore, setPartsHasMore] = useState(false);
+  const [partsLoading, setPartsLoading] = useState(false);
 
   const [chosenEngine, setChosenEngine] = useState('');
   const [chosenMainCat, setChosenMainCat] = useState('');
@@ -178,86 +187,57 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
   const [loading, setLoading] = useState(false);
   const [hoveredCat, setHoveredCat] = useState<string | null>(null);
 
-  // 🧠 مطابقة ذكية مرنة للموديل
-  const isModelMatching = (dbModel: string, targetModel: string): boolean => {
-    if (!dbModel || !targetModel) return true;
-    const d = dbModel.toLowerCase().trim();
-    const t = targetModel.toLowerCase().trim();
-
-    if (d === t || d.includes(t) || t.includes(d)) return true;
-
-    const aliases: Record<string, string[]> = {
-      'باترول': ['patrol', 'باترول', 'فتك'],
-      'كامري': ['camry', 'كامري'],
-      'كورولا': ['corolla', 'كورولا'],
-      'لاندكروزر': ['land cruiser', 'landcruiser', 'لاندكروزر', 'لاند كروزر'],
-      'النترا': ['elantra', 'النترا', 'إلنترا'],
-      'سوناتا': ['sonata', 'سوناتا'],
-      'اوبتيما': ['optima', 'k5', 'أوبتيما', 'اوبتيما'],
-      'تورس': ['taurus', 'تورس', 'توروس'],
-      'تاهو': ['tahoe', 'تاهو'],
-      'التيما': ['altima', 'التيما', 'ألتيما'],
-      'e-class': ['e-class', 'e class', 'e300', 'e200', 'e350'],
-      '6': ['6', 'مازدا 6', 'mazda 6'],
-      'اكورد': ['accord', 'اكورد', 'أكورد']
+  // After Excel upload / garage mutations — drop in-memory facets & pages
+  useEffect(() => {
+    const bust = () => {
+      setVehicleIndex([]);
+      setMatchingParts([]);
+      setPartsTotal(0);
+      setPartsHasMore(false);
+      setCurrentStep('idle');
+      setAvailableEngines([]);
+      setAvailableMainCats([]);
+      setAvailableSubCats([]);
     };
+    window.addEventListener(CATALOG_REFRESH_EVENT, bust);
+    return () => window.removeEventListener(CATALOG_REFRESH_EVENT, bust);
+  }, []);
 
-    for (const key of Object.keys(aliases)) {
-      const list = aliases[key];
-      if (list.some(a => t.includes(a)) && list.some(a => d.includes(a))) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  // 🧠 فحص وتطابق سنة الصنع
-  const isYearMatching = (dbYear: string, targetYear: string): boolean => {
-    if (!dbYear || !targetYear) return true;
-    const yStr = String(dbYear).trim();
-    const target = Number(targetYear);
-
-    if (yStr.includes('-')) {
-      const [start, end] = yStr.split('-').map(Number);
-      if (!isNaN(start) && !isNaN(end)) {
-        return target >= Math.min(start, end) && target <= Math.max(start, end);
-      }
-    }
-    return yStr === targetYear || yStr.includes(targetYear);
-  };
-
-  // 1️⃣ بدء البحث البصري عند الضغط على "استعراض الأقسام"
+  // 1️⃣ بدء البحث البصري — فهرس خفيف فقط (بدون كاش قطع قديم)
   const handleStartSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMake || !selectedModel || !selectedYear) return;
 
     setLoading(true);
+    setMatchingParts([]);
+    setPartsTotal(0);
+    setPartsHasMore(false);
     try {
-      const enMake = CAR_DATA[selectedMake]?.en || selectedMake;
-      
-      const url = `${SUPABASE_URL}/parts?or=(make.ilike.*${encodeURIComponent(selectedMake)}*,make.ilike.*${encodeURIComponent(enMake)}*)&select=*`;
-      const res = await fetch(url, { headers: { 'apikey': API_KEY, 'Authorization': `Bearer ${API_KEY}` } });
-      const data = await res.json();
+      const index = await fetchVehicleFacetIndex(selectedMake, selectedModel, selectedYear);
+      setVehicleIndex(index);
 
-      const matchedVehicles = (data || []).filter((p: any) => {
-        const matchModel = isModelMatching(p.model || '', selectedModel);
-        const matchYear = isYearMatching(p.year || '', selectedYear);
-        return matchModel && matchYear;
-      });
-
-      setCarFilteredParts(matchedVehicles);
-
-      const rawEngines = matchedVehicles.map((p: any) => p.engine && p.engine.trim() !== '' ? p.engine : (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines'));
+      const rawEngines = index.map((p: any) =>
+        p.engine && String(p.engine).trim() !== ''
+          ? p.engine
+          : isRtl
+            ? 'جميع المحركات (بنزين / ديزل)'
+            : 'All Engines'
+      );
       const enginesList = Array.from(new Set(rawEngines)) as string[];
-      setAvailableEngines(enginesList.length > 0 ? enginesList : [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines']);
+      setAvailableEngines(
+        enginesList.length > 0
+          ? enginesList
+          : [isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines']
+      );
 
       if (selectedEngine) {
         setChosenEngine(selectedEngine);
-        loadMainCategories(matchedVehicles, selectedEngine);
+        loadMainCategories(index, selectedEngine);
       } else if (enginesList.length <= 1) {
-        const defaultEng = enginesList[0] || (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines');
+        const defaultEng =
+          enginesList[0] || (isRtl ? 'جميع المحركات (بنزين / ديزل)' : 'All Engines');
         setChosenEngine(defaultEng);
-        loadMainCategories(matchedVehicles, defaultEng);
+        loadMainCategories(index, defaultEng);
       } else {
         setCurrentStep('engine');
       }
@@ -268,14 +248,19 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     }
   };
 
-  // 2️⃣ استخراج الأقسام الرئيسية المتاحة للسيارة
   const loadMainCategories = (partsList: any[], engine?: string) => {
-    const filtered = engine && !engine.includes('جميع المحركات') && !engine.includes('All Engines')
-      ? partsList.filter(p => !p.engine || p.engine.includes('جميع') || p.engine.includes('All') || p.engine === engine)
-      : partsList;
+    const filtered =
+      engine && !engine.includes('جميع المحركات') && !engine.includes('All Engines')
+        ? partsList.filter(
+            (p) =>
+              !p.engine ||
+              String(p.engine).includes('جميع') ||
+              String(p.engine).includes('All') ||
+              p.engine === engine
+          )
+        : partsList;
 
     const mainCats = new Set<string>();
-
     filtered.forEach((p: any) => {
       const pCat = p.category || '';
       const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
@@ -286,50 +271,63 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
     setCurrentStep('main_cat');
   };
 
-  // 3️⃣ عند اختيار المحرك بصرياً
   const handleSelectEngine = (eng: string) => {
     setChosenEngine(eng);
-    loadMainCategories(carFilteredParts, eng);
+    loadMainCategories(vehicleIndex, eng);
   };
 
-  // 4️⃣ عند اختيار القسم الرئيسي
-  const handleSelectMainCat = (cat: string) => {
+  const loadPartsPage = async (mainCat: string, subCat: string, offset: number, append: boolean) => {
+    setPartsLoading(true);
+    try {
+      const result = await searchPartsCatalog({
+        make: selectedMake,
+        model: selectedModel,
+        year: selectedYear,
+        mainCategory: mainCat,
+        subCategory: subCat || undefined,
+        offset,
+        limit: PARTS_PAGE_SIZE,
+      });
+      setMatchingParts((prev) => (append ? [...prev, ...result.items] : result.items));
+      setPartsTotal(result.total);
+      setPartsHasMore(result.hasMore);
+      setCurrentStep('parts');
+    } finally {
+      setPartsLoading(false);
+    }
+  };
+
+  const handleSelectMainCat = async (cat: string) => {
     setChosenMainCat(cat);
+    setChosenSubCat('');
+    setMatchingParts([]);
 
     const subCats = new Set<string>();
-    carFilteredParts.forEach((p: any) => {
+    vehicleIndex.forEach((p: any) => {
       const pCat = p.category || '';
       const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
       const sub = pCat.includes('>') ? pCat.split('>')[1].trim() : '';
-
-      if (main === cat && sub) {
-        subCats.add(sub);
-      }
+      if (main === cat && sub) subCats.add(sub);
     });
 
     if (subCats.size === 0) {
-      const parts = carFilteredParts.filter(p => (p.category || '').includes(cat));
-      setMatchingParts(parts);
-      setCurrentStep('parts');
+      // Live on-demand parts fetch (no stale list)
+      await loadPartsPage(cat, '', 0, false);
     } else {
       setAvailableSubCats(Array.from(subCats));
       setCurrentStep('sub_cat');
     }
   };
 
-  // 5️⃣ عند اختيار القسم الفرعي وعرض القطع المتوافقة
-  const handleSelectSubCat = (subCat: string) => {
+  const handleSelectSubCat = async (subCat: string) => {
     setChosenSubCat(subCat);
+    setMatchingParts([]);
+    await loadPartsPage(chosenMainCat, subCat, 0, false);
+  };
 
-    const finalParts = carFilteredParts.filter((p: any) => {
-      const pCat = p.category || '';
-      const main = pCat.includes('>') ? pCat.split('>')[0].trim() : pCat;
-      const sub = pCat.includes('>') ? pCat.split('>')[1].trim() : '';
-      return main === chosenMainCat && (sub === subCat || !sub);
-    });
-
-    setMatchingParts(finalParts);
-    setCurrentStep('parts');
+  const handleLoadMoreParts = async () => {
+    if (!partsHasMore || partsLoading) return;
+    await loadPartsPage(chosenMainCat, chosenSubCat, matchingParts.length, true);
   };
 
   return (
@@ -654,12 +652,15 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
         </div>
       )}
 
-      {/* 4️⃣ عرض قطع الغيار المطابقة */}
+      {/* 4️⃣ عرض قطع الغيار المطابقة — جلب لحظي + صفحات */}
       {currentStep === 'parts' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
             <h4 style={{ margin: 0, color: TOKENS.obsidian, fontSize: '16.5px', fontWeight: 800 }}>
-              🛒 {isRtl ? `القطع المتوافقة المتوفرة (${matchingParts.length}):` : `Compatible Parts (${matchingParts.length}):`}
+              🛒{' '}
+              {isRtl
+                ? `القطع المتوافقة (${matchingParts.length}${partsTotal ? ` / ${partsTotal}` : ''}):`
+                : `Compatible Parts (${matchingParts.length}${partsTotal ? ` / ${partsTotal}` : ''}):`}
             </h4>
             <button
               onClick={() => setCurrentStep(availableSubCats.length > 0 ? 'sub_cat' : 'main_cat')}
@@ -670,16 +671,52 @@ export const VisualVehicleSelector: React.FC<VisualVehicleSelectorProps> = ({ la
             </button>
           </div>
 
-          {matchingParts.length === 0 ? (
+          {partsLoading && matchingParts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px', backgroundColor: TOKENS.white, borderRadius: '18px', border: `1px solid ${TOKENS.hairline}` }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #e2e8f0', borderTopColor: TOKENS.copper, margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <p style={{ color: TOKENS.mutedText, fontWeight: 700, margin: 0 }}>
+                {isRtl ? 'جاري جلب القطع لحظياً...' : 'Fetching live parts...'}
+              </p>
+            </div>
+          ) : matchingParts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', backgroundColor: TOKENS.white, borderRadius: '18px', border: `1px solid ${TOKENS.hairline}` }}>
               <p style={{ color: TOKENS.mutedText, fontWeight: 700 }}>
                 {isRtl ? 'عفواً، لا توجد قطع متوفرة لهذا القسم حالياً.' : 'No parts available for this section.'}
               </p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-              {matchingParts.map((part) => renderPartCard(part))}
-            </div>
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                {matchingParts.map((part) => renderPartCard(part))}
+              </div>
+              {partsHasMore && (
+                <div style={{ textAlign: 'center', marginTop: 18 }}>
+                  <button
+                    type="button"
+                    disabled={partsLoading}
+                    onClick={handleLoadMoreParts}
+                    style={{
+                      padding: '12px 22px',
+                      borderRadius: 12,
+                      border: 'none',
+                      backgroundColor: TOKENS.obsidian,
+                      color: '#fff',
+                      fontWeight: 800,
+                      cursor: partsLoading ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {partsLoading
+                      ? isRtl
+                        ? 'جاري التحميل...'
+                        : 'Loading...'
+                      : isRtl
+                        ? `عرض المزيد (+${PARTS_PAGE_SIZE})`
+                        : `Load more (+${PARTS_PAGE_SIZE})`}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

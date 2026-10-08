@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { ExcelPartUploader } from './ExcelPartUploader';
+import { emitCatalogRefresh } from '../utils/partsLiveQuery';
 import { Toast } from './Toast';
 import { AITranslatedText } from './AITranslatedText';
 
@@ -1235,7 +1236,12 @@ export const GarageDashboard: React.FC<GarageProps> = ({
           apiKey={apiKey} 
           session={session} 
           onClose={() => setShowExcelModal(false)} 
-          onSuccess={() => { setShowExcelModal(false); fetchMyParts(); onSuccess(); }} 
+          onSuccess={() => {
+            setShowExcelModal(false);
+            fetchMyParts();
+            onSuccess();
+            emitCatalogRefresh('excel-upload');
+          }} 
         />
       )}
 
